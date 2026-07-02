@@ -27,7 +27,7 @@ Root causes found in code: snapResizeHeight rounds to nearest whole U with no hy
 ### Resize handles
 
 - Edge-midpoint squares centred on the selection outline, the vector-tool convention for axis-only resize. Visible square roughly 11px, screen-space.
-- Invisible hit areas of 44px that shrink to min(44px, half the rack's screen height minus a gap) so the two zones never overlap on short racks at low zoom. Resize stays available at any zoom.
+- Invisible hit areas of 44px that shrink to max(11px, min(44px, half the rack's screen height minus a gap)), floored at the visible square so the hit area never collapses to zero, so the two zones do not overlap on short racks at low zoom. Resize stays available at any zoom.
 - ns-resize cursor, focus-visible ring on the square, ArrowUp and ArrowDown keyboard resize unchanged (one undoable step per press).
 - Bay groups keep the single top-edge handle (#2767), restyled to match.
 - Replaces the 56px straddling pill and its shadow ring.
