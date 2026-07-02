@@ -33,6 +33,7 @@
   } from "./layout-preview-cache";
   import { renderLayoutPreviewSvg } from "./layout-preview-render";
   import LayoutContextMenu from "./LayoutContextMenu.svelte";
+  import NewLayoutMenu from "./NewLayoutMenu.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import Dialog from "./Dialog.svelte";
   import Tooltip from "./Tooltip.svelte";
@@ -48,6 +49,15 @@
 
   const workspaceStore = getWorkspaceStore();
   const toastStore = getToastStore();
+
+  // Open state for the split "+"'s starter-template menu (#2829). The "+"'s
+  // right-click sets this true, opening the same menu the chevron does.
+  let newMenuOpen = $state(false);
+
+  // The "Blank layout" menu row and the primary "+" share one handler.
+  function handleBlankLayout(): void {
+    onnewlayout?.();
+  }
 
   const rows = $derived(
     buildLayoutRows(
@@ -322,20 +332,32 @@
       {rows.length} Layout{rows.length !== 1 ? "s" : ""}
     </span>
     {#if onnewlayout}
-      <Tooltip text="New Layout" position="bottom">
-        {#snippet triggerChild({ props })}
-          <button
-            {...props}
-            type="button"
-            class="new-layout-btn"
-            onclick={onnewlayout}
-            aria-label="New Layout"
-            data-testid="btn-new-layout"
-          >
-            +
-          </button>
-        {/snippet}
-      </Tooltip>
+      <div class="new-layout-controls">
+        <Tooltip text="New Layout" position="bottom">
+          {#snippet triggerChild({ props })}
+            <button
+              {...props}
+              type="button"
+              class="new-layout-btn"
+              onclick={handleBlankLayout}
+              oncontextmenu={(e) => {
+                e.preventDefault();
+                newMenuOpen = true;
+              }}
+              aria-label="New Layout"
+              data-testid="btn-new-layout"
+            >
+              +
+            </button>
+          {/snippet}
+        </Tooltip>
+        <NewLayoutMenu
+          bind:open={newMenuOpen}
+          variant="panel"
+          onblank={handleBlankLayout}
+          chevronTestId="btn-new-layout-menu"
+        />
+      </div>
     {/if}
   </div>
 
@@ -493,6 +515,12 @@
   .layout-count {
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
+  }
+
+  .new-layout-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
   }
 
   .new-layout-btn {

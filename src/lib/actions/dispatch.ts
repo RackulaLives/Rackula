@@ -50,6 +50,7 @@ import {
 import { handleLoad, handleExportAll } from "$lib/storage";
 import { runImportDevices } from "$lib/actions/import-devices-trigger";
 import { runRestoreFromFile } from "$lib/actions/restore-file-trigger";
+import { openStarterById } from "$lib/stores/starter-templates.svelte";
 
 export type ActionDispatch = Record<ActionId, () => void>;
 
@@ -178,6 +179,12 @@ export function createActionDispatch(): ActionDispatch {
         resetAndCreateNewRack();
       }
     },
+    // Starter templates open in a NEW tab (non-destructive), so they route
+    // through the shared starter-open path, not the replace-current new-layout.
+    "new-layout-template-home-lab": () => openStarterById("home-lab"),
+    "new-layout-template-network-closet": () =>
+      openStarterById("network-closet"),
+    "new-layout-template-media-server": () => openStarterById("media-server"),
     "import-devices": runImportDevices,
     "import-netbox": handleImportFromNetBox,
     "new-custom-device": handleAddDevice,

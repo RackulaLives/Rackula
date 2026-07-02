@@ -35,6 +35,7 @@
   import { partitionTabs, tabHasClose } from "./layout-tabs";
   import { nextDuplicateName } from "./layouts-library";
   import LayoutContextMenu from "./LayoutContextMenu.svelte";
+  import NewLayoutMenu from "./NewLayoutMenu.svelte";
   import "$lib/styles/menu.css";
   import "$lib/styles/tabs.css";
 
@@ -46,6 +47,10 @@
   let { onexport }: Props = $props();
 
   const workspace = getWorkspaceStore();
+
+  // Open state for the split "+"'s starter-template menu (#2829). The "+"'s
+  // right-click sets this true, opening the same menu the chevron does.
+  let newMenuOpen = $state(false);
 
   // One tab occupies roughly this width including its gap. Used only to estimate
   // how many tabs fit; the active tab is always pinned regardless.
@@ -93,6 +98,9 @@
   // something actually overflows. This stops a tab being hidden behind a
   // chevron when dropping the chevron would have let every tab fit.
   const CONTROL_WIDTH_PX = 44;
+  // The split "+"'s chevron (NewLayoutMenu) is a permanent control beside the
+  // "+", so reserve its width from the lane too (#2829).
+  const NEW_LAYOUT_CHEVRON_WIDTH_PX = 28;
   const partition = $derived.by(() => {
     const budget = (reserved: number) =>
       Number.isFinite(laneWidth)
@@ -101,14 +109,14 @@
     const firstPass = partitionTabs(
       tabViews,
       workspace.activeId,
-      budget(CONTROL_WIDTH_PX),
+      budget(CONTROL_WIDTH_PX + NEW_LAYOUT_CHEVRON_WIDTH_PX),
       TAB_WIDTH_PX,
     );
     if (firstPass.hidden.length === 0) return firstPass;
     return partitionTabs(
       tabViews,
       workspace.activeId,
-      budget(CONTROL_WIDTH_PX * 2),
+      budget(CONTROL_WIDTH_PX * 2 + NEW_LAYOUT_CHEVRON_WIDTH_PX),
       TAB_WIDTH_PX,
     );
   });
@@ -373,9 +381,20 @@
     aria-label="New layout"
     data-testid="btn-new-layout-tab"
     onclick={handleNewLayout}
+    oncontextmenu={(e) => {
+      e.preventDefault();
+      newMenuOpen = true;
+    }}
   >
     <IconPlus size={ICON_SIZE.sm} />
   </button>
+
+  <NewLayoutMenu
+    bind:open={newMenuOpen}
+    variant="toolbar"
+    onblank={handleNewLayout}
+    chevronTestId="btn-new-layout-menu-tab"
+  />
 
   {#if hiddenTabs.length > 0}
     <DropdownMenu.Root>

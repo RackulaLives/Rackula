@@ -32,6 +32,9 @@ export type ActionId =
   | "export-all"
   | "restore-file"
   | "new-layout"
+  | "new-layout-template-home-lab"
+  | "new-layout-template-network-closet"
+  | "new-layout-template-media-server"
   | "load"
   | "import-devices"
   | "import-netbox"
@@ -428,6 +431,32 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [],
     appMenuGroup: "layout",
     keywords: ["new", "rack", "create", "blank"],
+  },
+  // Starter-template entries (#2829). One per shipped starter, opening it in a
+  // new tab via the shared starter-open path. No bindings; palette/search only.
+  {
+    id: "new-layout-template-home-lab",
+    label: "New layout from template: Home Lab",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "layout",
+    keywords: ["template", "starter", "home lab", "homelab", "new"],
+  },
+  {
+    id: "new-layout-template-network-closet",
+    label: "New layout from template: Network Closet",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "layout",
+    keywords: ["template", "starter", "network closet", "new"],
+  },
+  {
+    id: "new-layout-template-media-server",
+    label: "New layout from template: Media Server",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "layout",
+    keywords: ["template", "starter", "media server", "new"],
   },
   {
     id: "load",
