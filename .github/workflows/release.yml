@@ -292,7 +292,7 @@ jobs:
     name: "Gate: LXC smoke test"
     needs: [validate, stage-lxc]
     if: ${{ !inputs.gate_override }}
-    runs-on: [self-hosted, pve-rusty]
+    runs-on: [self-hosted, lxc-gate]
     timeout-minutes: 30
     permissions:
       contents: read
