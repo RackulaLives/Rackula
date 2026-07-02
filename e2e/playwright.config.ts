@@ -9,8 +9,9 @@ export default defineConfig({
   testDir: ".",
   fullyParallel: true,
   // Honour PW_WORKERS (set by the self-hosted e2e runner) so the pve-prod host
-  // parallelises the full suite; fall back to Playwright's default otherwise.
-  workers: process.env.PW_WORKERS ? Number(process.env.PW_WORKERS) : undefined,
+  // parallelises the full suite; guard against a non-numeric/zero value
+  // (Number("x") -> NaN), else fall back to Playwright's default.
+  workers: ((n) => (Number.isFinite(n) && n > 0 ? n : undefined))(Number(process.env.PW_WORKERS)),
   forbidOnly: !!process.env.CI,
   retries: 1,
   // CI uses the blob reporter so sharded runs (test-full.yml) can be merged
