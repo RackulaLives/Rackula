@@ -5,9 +5,9 @@
  * transiently, the empty-canvas chooser (#2095). Each template is a
  * `.rackula.yaml` file in `static/templates`, fetched at runtime and validated
  * against the layout schema. Adding a template is a data-only change: drop a new
- * file in that directory and add its manifest entry below. A distinct menu-dot
- * hue also needs a matching STARTER_COLOURS entry; without one the template
- * falls back to the muted default. No component code changes either way.
+ * file in that directory and add its manifest entry below. Each shipped starter
+ * also needs a matching STARTER_COLOURS entry; the typed colour map makes a
+ * missing entry a compile error. No component code changes either way.
  *
  * Loading is best-effort. A template that fails to fetch or parse is skipped,
  * never thrown: the menu degrades to "Blank layout" only rather than breaking
@@ -53,14 +53,14 @@ export type StarterTemplateId = (typeof TEMPLATE_FILES)[number];
  * dot follows the design tokens. A starter without an entry falls back to the
  * muted text colour.
  */
-const STARTER_COLOURS: Record<string, string> = {
+const STARTER_COLOURS: Record<StarterTemplateId, string> = {
   "home-lab": "var(--dracula-purple)",
   "network-closet": "var(--dracula-cyan)",
   "media-server": "var(--dracula-green)",
 };
 
 /** Resolve a starter's menu-dot colour token, defaulting to the muted colour. */
-function resolveStarterColour(id: string): string {
+function resolveStarterColour(id: StarterTemplateId): string {
   return STARTER_COLOURS[id] ?? "var(--colour-text-muted)";
 }
 
@@ -96,7 +96,7 @@ function templateUrl(id: string): string {
  * single bad template never sinks the rest of the chooser.
  */
 async function loadTemplate(
-  id: string,
+  id: StarterTemplateId,
   fetcher: typeof fetch,
 ): Promise<StarterTemplate | null> {
   try {

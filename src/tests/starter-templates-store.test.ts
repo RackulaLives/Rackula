@@ -61,6 +61,14 @@ settings:
 `;
 }
 
+/** A vitest mock fetcher that resolves every request with valid starter YAML. */
+function okFetcher(name: string) {
+  const yaml = validStarterYaml(name);
+  return vi.fn(
+    async () => ({ ok: true, status: 200, text: async () => yaml }) as Response,
+  );
+}
+
 describe("openStarter", () => {
   beforeEach(() => {
     resetHistoryStore();
@@ -112,11 +120,7 @@ describe("openStarter", () => {
     // getStarterTemplates() is a reactive proxy. openStarter must snapshot it
     // before structuredClone, which throws on a Proxy. This guards that path,
     // which makeStarter() (a plain object) does not exercise.
-    const yaml = validStarterYaml("Home Lab");
-    const fetcher = vi.fn(
-      async () =>
-        ({ ok: true, status: 200, text: async () => yaml }) as Response,
-    ) as unknown as typeof fetch;
+    const fetcher = okFetcher("Home Lab") as unknown as typeof fetch;
     await ensureStartersLoaded(fetcher);
 
     const ws = getWorkspaceStore();
@@ -135,14 +139,6 @@ describe("ensureStartersLoaded", () => {
   beforeEach(() => {
     resetStarterTemplatesForTest();
   });
-
-  function okFetcher(name: string) {
-    const yaml = validStarterYaml(name);
-    return vi.fn(
-      async () =>
-        ({ ok: true, status: 200, text: async () => yaml }) as Response,
-    );
-  }
 
   it("caches a successful load, so a repeat open does not refetch", async () => {
     const fetcher = okFetcher("Home Lab");
@@ -219,11 +215,7 @@ describe("openStarterById", () => {
   });
 
   it("opens the matching starter after a successful load", async () => {
-    const yaml = validStarterYaml("Home Lab");
-    const fetcher = vi.fn(
-      async () =>
-        ({ ok: true, status: 200, text: async () => yaml }) as Response,
-    ) as unknown as typeof fetch;
+    const fetcher = okFetcher("Home Lab") as unknown as typeof fetch;
     await ensureStartersLoaded(fetcher);
 
     const ws = getWorkspaceStore();
@@ -237,11 +229,7 @@ describe("openStarterById", () => {
   });
 
   it("is a no-op for an unknown id after a successful load", async () => {
-    const yaml = validStarterYaml("Home Lab");
-    const fetcher = vi.fn(
-      async () =>
-        ({ ok: true, status: 200, text: async () => yaml }) as Response,
-    ) as unknown as typeof fetch;
+    const fetcher = okFetcher("Home Lab") as unknown as typeof fetch;
     await ensureStartersLoaded(fetcher);
 
     const ws = getWorkspaceStore();
