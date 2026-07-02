@@ -156,7 +156,7 @@ jobs:
           retention-days: 7
 
   # Tier 2/3 of the two-tier E2E model (spike #1994). The full browser suite
-  # runs on the self-hosted ci-runner only after the baseline smoke passes.
+  # runs on the self-hosted e2e runner only after the baseline smoke passes.
   # Org PRs use the e2e-trusted environment (auto-runs); fork PRs use
   # e2e-approval, which requires ggfevans to review and approve before any
   # untrusted code executes on the homelab runner.
@@ -214,7 +214,7 @@ jobs:
 
       - name: Install Playwright browsers
         # --with-deps installs OS libraries via apt and needs root; fall back to a
-        # plain browser install when the self-hosted ci-runner already has them.
+        # plain browser install — the self-hosted e2e runner already has the OS libs baked in.
         run: npx playwright install --with-deps || npx playwright install
 
       - name: Run full E2E tests
