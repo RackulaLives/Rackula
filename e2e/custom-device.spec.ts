@@ -41,12 +41,13 @@ test.describe("Custom Device Height (Issue #166)", () => {
     // The placed device announces its height through its accessible name
     // (RackDevice ariaLabel: "<name>, <u_height>U <category> at U<n>"). A 4U
     // device that survived placement announces "4U"; the #166 regression would
-    // announce "1U". Scope to the front face so the full-depth twin on the rear
-    // does not double the match.
+    // announce "1U". getByRole substring-matches a plain string name, so no
+    // dynamic regex is built. Scope to the front face so the full-depth twin on
+    // the rear does not double the match.
     await expect(
       page
         .locator(locators.rackView.front)
-        .getByRole("button", { name: new RegExp(`${deviceName}, 4U`) }),
+        .getByRole("button", { name: `${deviceName}, 4U` }),
     ).toBeVisible();
   });
 });
