@@ -511,14 +511,22 @@
                       {/if}
                     </Command.Item>
                   {/each}
-                  <!-- No-command-match bridge to the device catalogue (#2779,
-                       rule 11). Shown only when the query matches zero command
-                       rows (so top-level search stays commands-only and it never
-                       hijacks Enter past a greyed row). forceMount keeps it
-                       mounted despite its value not matching the query, so on a
-                       true no-match it is the sole armed item; selecting it
-                       enters device search pre-filled with the typed query. -->
-                  {#if canAddDevice && noCommandMatch}
+                </Command.GroupItems>
+              </Command.Group>
+              <!-- No-command-match bridge to the device catalogue (#2779,
+                   rule 11). Shown only when the query matches zero command rows
+                   (so top-level search stays commands-only and it never hijacks
+                   Enter past a greyed row). It lives in its OWN forceMounted
+                   group, NOT the command group above: bits-ui culls a group
+                   whose items all score zero by setting hidden on the group
+                   element, which hides a forceMounted item nested inside it too
+                   (#2853). forceMount on the group keeps it rendered and
+                   forceMount on the item keeps the item mounted, so on a true
+                   no-match the bridge is the sole armed item; selecting it enters
+                   device search pre-filled with the typed query. -->
+              {#if canAddDevice && noCommandMatch}
+                <Command.Group forceMount class="command-group">
+                  <Command.GroupItems>
                     <Command.Item
                       forceMount
                       value="add device"
@@ -535,9 +543,9 @@
                         >
                       </span>
                     </Command.Item>
-                  {/if}
-                </Command.GroupItems>
-              </Command.Group>
+                  </Command.GroupItems>
+                </Command.Group>
+              {/if}
             {/if}
           </Command.Viewport>
         </Command.List>
