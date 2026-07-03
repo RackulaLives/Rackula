@@ -69,7 +69,7 @@
     "sharp": "^0.35.3",
     "svelte": "^5.56.4",
     "svelte-check": "^4.7.1",
-    "tsx": "^4.22.5",
+    "tsx": "^4.23.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1",
     "vite": "^8.1.3",
