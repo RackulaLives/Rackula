@@ -56,7 +56,12 @@ export const locators = {
 
   device: {
     paletteItem: '[data-testid="device-palette-item"]',
-    paletteItemName: '[data-testid="device-palette-item"] .device-name',
+    /**
+     * The name span inside a palette item, relative to the item. Use only as a
+     * has-locator scoped to a paletteItem (e.g. paletteItemByName): the class is
+     * shared with rack devices, so it is not safe as a page-level selector.
+     */
+    paletteItemName: ".device-name",
     palette: ".device-palette",
     /** Scrolling device-list region inside the palette. */
     list: ".device-list",

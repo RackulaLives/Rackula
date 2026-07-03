@@ -17,9 +17,12 @@ import { locators } from "./locators";
  *
  * @param page - Playwright page
  * @param options.yOffsetPercent - Vertical position in rack (0-100), default 10
- * @param options.deviceName - Visible name of the palette device to drag (preferred)
- * @param options.deviceIndex - Positional fallback when no name is given (default 0 = first)
+ * @param options.deviceName - Visible name of the palette device to drag. Defaults
+ *   to the generic full-width "Server" when no deviceIndex is given (preferred).
+ * @param options.deviceIndex - Positional selection; when given, it overrides the
+ *   name default. Fragile under virtualization (#2094), so prefer deviceName.
  * @param options.rackIndex - Zero-based index of the target rack in multi-rack layouts (default 0)
+ * @param options.view - Rack face to drop onto: "front" (default) or "rear"
  * @returns Number of devices in rack after drag
  */
 export async function dragDeviceToRack(
@@ -29,19 +32,41 @@ export async function dragDeviceToRack(
     deviceName?: string;
     deviceIndex?: number;
     rackIndex?: number;
+    view?: "front" | "rear";
   },
 ): Promise<number> {
   const yPercent = options?.yOffsetPercent ?? 10;
-  const deviceName = options?.deviceName ?? null;
+  // Default to the generic full-width "Server" when the caller names neither a
+  // device nor an index. After #2745 alphabetized the palette the first item is
+  // a half-width carrier-required "Blade Server (Full-Height)" that placeDevice
+  // refuses to place on the rails, so an index-0 default placed nothing (#2851,
+  // #2755). An explicit deviceIndex still selects positionally.
+  const deviceName =
+    options?.deviceName ??
+    (options?.deviceIndex === undefined ? "Server" : null);
   const deviceIndex = options?.deviceIndex ?? 0;
   const rackIndex = options?.rackIndex ?? 0;
+  const view = options?.view ?? "front";
 
   await expect(page.locator(locators.device.paletteItem).first()).toBeVisible();
+
+  // When targeting by name, wait for that item to render before the one-shot
+  // evaluate below. The palette search input debounces 150ms
+  // (DevicePalette.svelte) and the virtualized list unmounts off-window rows
+  // (#2094); without this wait the querySelectorAll snapshot can miss the named
+  // device and throw. Playwright auto-waits here (no fixed timeout). The name
+  // can resolve to several identical generic entries (e.g. the 1U-4U Servers),
+  // so scope to the first match: all share a placeable full-width form.
+  if (deviceName !== null) {
+    await paletteItemByName(page, deviceName)
+      .first()
+      .waitFor({ state: "visible" });
+  }
 
   const deviceCountBefore = await page.locator(locators.rack.device).count();
 
   await page.evaluate(
-    ({ yPercent, deviceName, deviceIndex, rackIndex }) => {
+    ({ yPercent, deviceName, deviceIndex, rackIndex, view }) => {
       const deviceItems = Array.from(
         document.querySelectorAll('[data-testid="device-palette-item"]'),
       );
@@ -57,9 +82,10 @@ export async function dragDeviceToRack(
                 deviceName,
             )
           : deviceItems[deviceIndex];
-      // Use front-view SVGs so rackIndex maps directly to rack number
+      // Use the requested view's SVGs so rackIndex maps directly to rack number.
+      // Dropping on the rear view sets the placed device's face to rear.
       const rackSvgs = document.querySelectorAll(
-        '[data-testid="rack-front"] .rack-svg',
+        `[data-testid="rack-${view}"] .rack-svg`,
       );
       const rack = rackSvgs[rackIndex];
       if (!rack) {
@@ -118,7 +144,7 @@ export async function dragDeviceToRack(
         }),
       );
     },
-    { yPercent, deviceName, deviceIndex, rackIndex },
+    { yPercent, deviceName, deviceIndex, rackIndex, view },
   );
 
   // Wait for device count to increase
@@ -143,8 +169,12 @@ export async function dragDeviceToRack(
  * `page.getByTestId("device-palette-favourites")`, then call `.first()`.
  */
 export function paletteItemByName(page: Page, deviceName: string): Locator {
-  // Exact match on the .device-name span, matching dragDeviceToRack's
-  // comparison. Substring matching would let "Server" match "Server 2U".
+  // Exact match on the item's own .device-name span, matching dragDeviceToRack's
+  // in-page comparison. Substring matching would let "Server" match "Server 2U".
+  // The has-locator is scoped to each candidate item, so it targets the item's
+  // .device-name child directly (paletteItemName is the relative selector). A
+  // full "[data-testid=...] .device-name" selector would instead require a
+  // nested palette item (there is none) and match nothing, dropping every item.
   return page.getByTestId("device-palette-item").filter({
     has: page.locator(locators.device.paletteItemName, {
       hasText: new RegExp(`^${escapeRegExp(deviceName)}$`),

@@ -15,6 +15,7 @@ import {
   gotoWithRack,
   SMALL_RACK_SHARE,
   createRackDirect,
+  paletteItemByName,
   locators,
 } from "./helpers";
 
@@ -31,13 +32,13 @@ test.describe("Keyboard device placement (#106)", () => {
   test("pick up with Enter, move with arrows, place with Enter", async ({
     page,
   }) => {
-    const firstDevice = page.locator(locators.device.paletteItem).first();
-    await expect(firstDevice).toBeVisible();
+    const serverDevice = paletteItemByName(page, "Server").first();
+    await expect(serverDevice).toBeVisible();
 
     const devicesBefore = await page.locator(locators.rack.device).count();
 
     // Enter on a focused palette device picks it up (enters placement mode).
-    await firstDevice.focus();
+    await serverDevice.focus();
     await page.keyboard.press("Enter");
 
     // Placement mode is announced: the "Placing:" banner appears and the
@@ -72,12 +73,12 @@ test.describe("Keyboard device placement (#106)", () => {
   });
 
   test("Space confirms placement", async ({ page }) => {
-    const firstDevice = page.locator(locators.device.paletteItem).first();
-    await expect(firstDevice).toBeVisible();
+    const serverDevice = paletteItemByName(page, "Server").first();
+    await expect(serverDevice).toBeVisible();
 
     const devicesBefore = await page.locator(locators.rack.device).count();
 
-    await firstDevice.focus();
+    await serverDevice.focus();
     await page.keyboard.press("Enter");
     await expect(
       page.locator(placementBanner).filter({ hasText: "Placing:" }),
@@ -93,12 +94,12 @@ test.describe("Keyboard device placement (#106)", () => {
   });
 
   test("Escape cancels placement with no side effects", async ({ page }) => {
-    const firstDevice = page.locator(locators.device.paletteItem).first();
-    await expect(firstDevice).toBeVisible();
+    const serverDevice = paletteItemByName(page, "Server").first();
+    await expect(serverDevice).toBeVisible();
 
     const devicesBefore = await page.locator(locators.rack.device).count();
 
-    await firstDevice.focus();
+    await serverDevice.focus();
     await page.keyboard.press("Enter");
     await expect(
       page.locator(placementBanner).filter({ hasText: "Placing:" }),
@@ -127,10 +128,10 @@ test.describe("Keyboard device placement (#106)", () => {
     // Devices so the palette is on screen.
     await page.getByRole("tab", { name: "Devices" }).click();
 
-    const firstDevice = page.locator(locators.device.paletteItem).first();
-    await expect(firstDevice).toBeVisible();
+    const serverDevice = paletteItemByName(page, "Server").first();
+    await expect(serverDevice).toBeVisible();
 
-    await firstDevice.focus();
+    await serverDevice.focus();
     await page.keyboard.press("Enter");
 
     // The cursor seeds in the active rack (the newly created Second Rack).
@@ -154,12 +155,12 @@ test.describe("Keyboard device placement (#106)", () => {
   test("placement survives undo (placed device can be undone)", async ({
     page,
   }) => {
-    const firstDevice = page.locator(locators.device.paletteItem).first();
-    await expect(firstDevice).toBeVisible();
+    const serverDevice = paletteItemByName(page, "Server").first();
+    await expect(serverDevice).toBeVisible();
 
     const devicesBefore = await page.locator(locators.rack.device).count();
 
-    await firstDevice.focus();
+    await serverDevice.focus();
     await page.keyboard.press("Enter");
     await page.keyboard.press("Enter"); // place at seeded slot
 

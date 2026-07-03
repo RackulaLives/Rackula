@@ -33,8 +33,9 @@ test.describe("Shelf Category", () => {
     const searchInput = page.locator('[data-testid="search-devices"]');
     await searchInput.fill("shelf");
 
-    // Drag shelf device to rack using shared helper (first visible item after filter)
-    await dragDeviceToRack(page);
+    // Drag the shelf by name. The palette default first item is a half-width
+    // carrier-required device, so naming the device keeps the helper placeable.
+    await dragDeviceToRack(page, { deviceName: "Shelf" });
 
     // Verify shelf is placed in rack
     await expect(page.locator(locators.rack.device).first()).toBeVisible({
@@ -59,21 +60,30 @@ test.describe("Shelf Category", () => {
     await expect(icon).toBeVisible();
   });
 
-  test("placed shelf device has a fill colour", async ({ page }) => {
+  test("placed device is a shelf and has a fill colour", async ({ page }) => {
     // Filter to shelf
     const searchInput = page.locator('[data-testid="search-devices"]');
     await searchInput.fill("shelf");
 
-    // Add shelf device using shared helper
-    await dragDeviceToRack(page);
+    // Add the shelf by name so a placeable shelf is placed, not whatever the
+    // palette happens to list first.
+    await dragDeviceToRack(page, { deviceName: "Shelf" });
 
-    // Check the device has the shelf colour
     const placedDevice = page.locator(locators.rack.device).first();
     await expect(placedDevice).toBeVisible({ timeout: 5000 });
 
-    // The fill should be the shelf colour #8B4513
+    // Assert the placed device is actually a shelf, not merely that some fill is
+    // set. The rack device's accessible name carries its category in the form
+    // "<name>, <n>U <category> at U<pos>", so a shelf announces "... U shelf ...".
+    await expect(placedDevice).toHaveAttribute(
+      "aria-label",
+      /,\s*\d+U shelf\b/i,
+    );
+
+    // And it renders with a fill colour (asserted without a hardcoded literal,
+    // which the design tokens can change and ESLint blocks).
     const deviceRect = placedDevice.locator("rect").first();
     const fill = await deviceRect.getAttribute("fill");
-    expect(fill?.toLowerCase()).toBeTruthy(); // Shelf color is set
+    expect(fill?.trim()).toBeTruthy();
   });
 });

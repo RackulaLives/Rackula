@@ -287,8 +287,9 @@ test.describe("Starter Library", () => {
     // Ensure rack is visible
     await expect(page.locator(locators.rack.container).first()).toBeVisible();
 
-    // Drag first device to rack using shared helper
-    await dragDeviceToRack(page);
+    // Drag the 24-Port Switch by name so the test matches its title rather than
+    // relying on whatever the palette lists first.
+    await dragDeviceToRack(page, { deviceName: "Switch (24-Port)" });
 
     // Verify device appears in rack
     await expect(page.locator(locators.rack.device).first()).toBeVisible({

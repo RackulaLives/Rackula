@@ -22,7 +22,12 @@
  */
 import { test, expect } from "./helpers/base-test";
 import { openDeviceLibraryFromBottomNav } from "./helpers/mobile-navigation";
-import { EMPTY_RACK_SHARE, gotoWithRack, locators } from "./helpers";
+import {
+  EMPTY_RACK_SHARE,
+  gotoWithRack,
+  paletteItemByName,
+  locators,
+} from "./helpers";
 
 // Desktop Chrome (mouse, hasTouch:false) at a narrow viewport -> mobile mode
 // (breakpoint is max-width:1024px). 944x1039 matches the original bug report.
@@ -45,13 +50,13 @@ test.describe("Mobile tap-to-place with a mouse (#1757)", () => {
 
     const devicesBefore = await page.locator(locators.rack.device).count();
 
-    // Open the device library and pick the first device. On mobile this starts
-    // placement mode and auto-closes the bottom sheet (do NOT press Escape — it
-    // would cancel placement).
+    // Open the device library and pick a placeable full-width Server. On mobile
+    // this starts placement mode and auto-closes the bottom sheet (do NOT press
+    // Escape, it would cancel placement).
     await openDeviceLibraryFromBottomNav(page);
-    const firstDevice = page.locator(locators.device.paletteItem).first();
-    await expect(firstDevice).toBeVisible();
-    await firstDevice.click();
+    const serverDevice = paletteItemByName(page, "Server").first();
+    await expect(serverDevice).toBeVisible();
+    await serverDevice.click();
 
     // Placement mode is active: the "Placing:" status banner appears and the
     // bottom sheet has closed. The banner is a single role="status" overlay

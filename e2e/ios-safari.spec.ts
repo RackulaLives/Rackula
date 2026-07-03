@@ -9,7 +9,12 @@
 import { test, expect } from "./helpers/base-test";
 import type { Page } from "@playwright/test";
 import { openDeviceLibraryFromBottomNav } from "./helpers/mobile-navigation";
-import { EMPTY_RACK_SHARE, dragDeviceToRack, locators } from "./helpers";
+import {
+  EMPTY_RACK_SHARE,
+  dragDeviceToRack,
+  paletteItemByName,
+  locators,
+} from "./helpers";
 
 // iOS Device viewport matrix
 const iosDevices = [
@@ -226,12 +231,12 @@ test.describe("Tap-to-place on touch (#2454)", () => {
   }) => {
     const devicesBefore = await page.locator(locators.rack.device).count();
 
-    // Arm placement: tap a palette device. This closes the bottom sheet and
-    // surfaces the "Placing:" banner. Do NOT press Escape — it cancels.
+    // Arm placement: tap a placeable full-width Server. This closes the bottom
+    // sheet and surfaces the "Placing:" banner. Do NOT press Escape, it cancels.
     await openDeviceLibraryFromBottomNav(page);
-    const firstDevice = page.locator(locators.device.paletteItem).first();
-    await expect(firstDevice).toBeVisible();
-    await firstDevice.tap();
+    const serverDevice = paletteItemByName(page, "Server").first();
+    await expect(serverDevice).toBeVisible();
+    await serverDevice.tap();
 
     const placementBanner = page
       .getByRole("status")
@@ -268,9 +273,9 @@ test.describe("Tap-to-place on touch (#2454)", () => {
     const devicesBefore = await page.locator(locators.rack.device).count();
 
     await openDeviceLibraryFromBottomNav(page);
-    const firstDevice = page.locator(locators.device.paletteItem).first();
-    await expect(firstDevice).toBeVisible();
-    await firstDevice.tap();
+    const serverDevice = paletteItemByName(page, "Server").first();
+    await expect(serverDevice).toBeVisible();
+    await serverDevice.tap();
 
     const placementBanner = page
       .getByRole("status")

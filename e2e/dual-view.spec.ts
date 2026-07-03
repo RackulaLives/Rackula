@@ -1,5 +1,4 @@
 import { test, expect } from "./helpers/base-test";
-import type { Page } from "@playwright/test";
 import {
   gotoWithRack,
   SMALL_RACK_SHARE,
@@ -7,68 +6,6 @@ import {
   clickExport,
   locators,
 } from "./helpers";
-
-/**
- * Helper to drag a device from palette to a specific rack view (front or rear)
- */
-async function dragDeviceToRackView(page: Page, view: "front" | "rear") {
-  await expect(page.locator(locators.device.paletteItem).first()).toBeVisible();
-
-  const viewSelector =
-    view === "front" ? locators.rackView.frontSvg : locators.rackView.rearSvg;
-
-  const deviceHandle = await page
-    .locator(locators.device.paletteItem)
-    .first()
-    .elementHandle();
-  const rackHandle = await page.locator(viewSelector).elementHandle();
-
-  if (!deviceHandle || !rackHandle) {
-    throw new Error(`Could not find device item or ${view} rack view`);
-  }
-
-  await page.evaluate(
-    ([device, rack]) => {
-      const dataTransfer = new DataTransfer();
-
-      device.dispatchEvent(
-        new DragEvent("dragstart", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      );
-      rack.dispatchEvent(
-        new DragEvent("dragover", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      );
-      rack.dispatchEvent(
-        new DragEvent("drop", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      );
-      device.dispatchEvent(
-        new DragEvent("dragend", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      );
-    },
-    [deviceHandle, rackHandle] as const,
-  );
-
-  // Wait for state update
-  await expect(async () => {
-    const count = await page.locator(locators.rack.device).count();
-    expect(count).toBeGreaterThan(0);
-  }).toPass({ timeout: 5000 });
-}
 
 test.describe("Dual-View Rack Display", () => {
   test.beforeEach(async ({ page }) => {
@@ -102,7 +39,7 @@ test.describe("Dual-View Rack Display", () => {
   }) => {
     await expect(page.locator(locators.rackView.dualView)).toBeVisible();
 
-    await dragDeviceToRackView(page, "front");
+    await dragDeviceToRack(page, { view: "front" });
 
     await expect(page.locator(locators.rackView.frontDevice)).toBeVisible({
       timeout: 5000,
@@ -117,7 +54,7 @@ test.describe("Dual-View Rack Display", () => {
   test("drag-drop to rear view sets device face to rear", async ({ page }) => {
     await expect(page.locator(locators.rackView.dualView)).toBeVisible();
 
-    await dragDeviceToRackView(page, "rear");
+    await dragDeviceToRack(page, { view: "rear" });
 
     await expect(page.locator(locators.rackView.rearDevice)).toBeVisible({
       timeout: 5000,
@@ -134,7 +71,7 @@ test.describe("Dual-View Rack Display", () => {
   }) => {
     await expect(page.locator(locators.rackView.dualView)).toBeVisible();
 
-    await dragDeviceToRackView(page, "front");
+    await dragDeviceToRack(page, { view: "front" });
     await expect(page.locator(locators.rackView.frontDevice)).toBeVisible({
       timeout: 5000,
     });
@@ -164,7 +101,7 @@ test.describe("Dual-View Rack Display", () => {
   test("device selection works in both views", async ({ page }) => {
     await expect(page.locator(locators.rackView.dualView)).toBeVisible();
 
-    await dragDeviceToRackView(page, "front");
+    await dragDeviceToRack(page, { view: "front" });
     await expect(page.locator(locators.rackView.frontDevice)).toBeVisible({
       timeout: 5000,
     });
@@ -181,7 +118,7 @@ test.describe("Dual-View Rack Display", () => {
   test("both views show same devices when face is both", async ({ page }) => {
     await expect(page.locator(locators.rackView.dualView)).toBeVisible();
 
-    await dragDeviceToRackView(page, "front");
+    await dragDeviceToRack(page, { view: "front" });
 
     const frontDevices = await page
       .locator(locators.rackView.frontDevice)
