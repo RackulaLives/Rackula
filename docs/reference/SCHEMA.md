@@ -74,14 +74,13 @@ A language-agnostic JSON Schema is generated from the Zod source and committed a
 
 ### Published URL and `$id`
 
-The published name is evergreen: there is one schema file, updated in place as the format evolves. The artifact's `$id` is the prod URL it is served from. `static/` is served at the deployment root, so a release publishes the artifact at:
+The published name is evergreen: there is one schema file, updated in place as the format evolves. `static/` is served at the deployment root, so a tagged release publishes the artifact at the production URL, which is also the artifact's `$id`:
 
-| Environment | URL                                                         |
-| ----------- | ----------------------------------------------------------- |
-| Prod        | `https://count.racku.la/schemas/rackula-layout.schema.json` |
-| Dev         | `https://d.racku.la/schemas/rackula-layout.schema.json`     |
+```text
+https://count.racku.la/schemas/rackula-layout.schema.json
+```
 
-Availability: production (`count.racku.la`) publishes the schema only on a tagged release, and the dev path is behind access control, so the artifact is not externally fetchable until the next release ships it. The committed file in `static/schemas/` is the source of truth, and the reader rule above works offline regardless of whether the schema is served.
+The committed file in `static/schemas/` is the source of truth, and the reader rule above works offline from `metadata.schema_version` regardless of whether the schema is served.
 
 ### Why the published name is unversioned
 

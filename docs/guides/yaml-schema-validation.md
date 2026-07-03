@@ -22,7 +22,7 @@ https://count.racku.la/schemas/rackula-layout.schema.json
 
 The URL is unversioned on purpose: the schema evolves additively in place, so the newest published schema keeps validating files written by older builds. Rackula itself never fetches this URL. It decides whether it can load a file offline from the `metadata.schema_version` field; editor validation is a convenience layered on top.
 
-Availability: production (`count.racku.la`) publishes the schema on a tagged release, and the dev environment (`https://d.racku.la/schemas/rackula-layout.schema.json`) is behind access control. Until a release ships the artifact, an editor cannot download it and the `# yaml-language-server` hint is simply ignored: this does not block editing, and Rackula still loads and validates the file itself offline from `metadata.schema_version`.
+The schema is published on a tagged release. If the artifact is not yet fetchable, an editor simply ignores the `# yaml-language-server` hint: this does not block editing, and Rackula still loads and validates the file itself offline from `metadata.schema_version`.
 
 For the publishing details, see the Published Schema section of [SCHEMA.md](../reference/SCHEMA.md#published-schema).
 
