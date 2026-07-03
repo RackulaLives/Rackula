@@ -18,7 +18,7 @@ Root-cause taxonomy (verified by log analysis plus a worktree experiment that re
 | Command palette device bridge hidden | 2 | forceMount Command.Item inside the search Command.Group; bits-ui culls the group on no-match (regression of #2779, shipped in PR #2803) |
 | Unreachable side-panel-edit-empty (unmasked once drags succeed) | 4 residual | Since #2739/#2757, activeRack falls back to racks[0] and the Edit tab renders rack mode whenever any rack exists; deselectDevice() and keyboard.spec Escape assertions expect the empty state |
 
-#2754 re-diagnosis: the smoke "flake" was deterministic merge-ref drift. pull_request CI runs on refs/pull/N/merge, so PRs re-run after #2745 landed (2026-06-30 03:46 UTC) failed until #2751 named the device (09:52 UTC). All recorded flake events sit inside that window; none since. No flake-retry machinery is warranted.
+Issue `#2754` re-diagnosis: the smoke "flake" was deterministic merge-ref drift. pull_request CI runs on refs/pull/N/merge, so PRs re-run after #2745 landed (2026-06-30 03:46 UTC) failed until #2751 named the device (09:52 UTC). All recorded flake events sit inside that window; none since. No flake-retry machinery is warranted.
 
 ## Issue hygiene (before Wave 0)
 
