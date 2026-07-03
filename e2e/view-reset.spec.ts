@@ -63,7 +63,14 @@ test.describe("View Reset on Rack Changes", () => {
   }) => {
     // Select the rack to open EditPanel BEFORE panning away
     await page.locator(locators.rack.svg).first().click();
-    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
+    // Selecting the rack opens its Edit panel; the Height control is the
+    // rack-specific affordance that confirms it (the retired empty-state testid
+    // never renders with a rack present, #2739/#2757).
+    await expect(
+      page.getByTestId("side-panel-panel-edit").getByLabel("Height", {
+        exact: true,
+      }),
+    ).toBeVisible();
 
     // Pan the view to an offset position
     await page.evaluate(() => {
@@ -102,7 +109,14 @@ test.describe("View Reset on Rack Changes", () => {
   }) => {
     // Select the rack BEFORE panning away
     await page.locator(locators.rack.svg).first().click();
-    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
+    // Selecting the rack opens its Edit panel; the Height control is the
+    // rack-specific affordance that confirms it (the retired empty-state testid
+    // never renders with a rack present, #2739/#2757).
+    await expect(
+      page.getByTestId("side-panel-panel-edit").getByLabel("Height", {
+        exact: true,
+      }),
+    ).toBeVisible();
 
     // Pan away after selection
     await page.evaluate(() => {

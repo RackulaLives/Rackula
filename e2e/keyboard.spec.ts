@@ -54,14 +54,20 @@ test.describe("Keyboard Shortcuts", () => {
     // Select the rack (click on first rack-svg in dual-view)
     await page.locator(locators.rack.svg).first().click();
 
-    // Selecting the rack surfaces its Edit-tab properties (empty state gone)
-    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
+    // The rack is a role="listitem"; selection is announced through its
+    // accessible name (a trailing ", selected"), not aria-selected (see
+    // dual-view.spec.ts "dual-view rack can be selected").
+    const rack = page.locator(locators.rackView.dualView).first();
+    await expect(rack).toHaveAttribute("aria-label", /, selected$/);
 
     // Press Escape
     await page.keyboard.press("Escape");
 
-    // Clearing the selection returns the Edit tab to its empty state
-    await expect(page.locator(locators.sidePanel.editEmpty)).toBeVisible();
+    // Escape clears the selection, so the rack's accessible name no longer
+    // carries the ", selected" suffix. The Edit tab itself falls back to rack
+    // mode with a rack present (#2739, #2757), so its empty state never renders;
+    // the selection state is the real deselection observable.
+    await expect(rack).not.toHaveAttribute("aria-label", /, selected$/);
   });
 
   test("? key opens help dialog", async ({ page }) => {

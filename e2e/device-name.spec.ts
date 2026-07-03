@@ -22,8 +22,12 @@ test.describe("Device Custom Names", () => {
     // Click on the device to select it
     await page.locator(locators.rack.device).first().click();
 
-    // Selecting the device surfaces its Edit-tab properties (empty state gone)
-    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
+    // Selecting the device opens its Edit panel; the display-name control is the
+    // device-specific affordance that confirms it (the retired empty-state testid
+    // never renders with a rack present, #2739/#2757).
+    await expect(
+      page.getByRole("button", { name: "Edit display name" }),
+    ).toBeVisible();
 
     // Click the display name button to start editing
     await startEditingDisplayName(page);
@@ -50,8 +54,10 @@ test.describe("Device Custom Names", () => {
     await expect(page.locator(locators.rack.device).first()).toBeVisible();
     await page.locator(locators.rack.device).first().click();
 
-    // Wait for edit panel to open
-    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
+    // The device's Edit panel is open once its display-name control renders.
+    await expect(
+      page.getByRole("button", { name: "Edit display name" }),
+    ).toBeVisible();
 
     // Edit the name
     await startEditingDisplayName(page);
@@ -103,8 +109,10 @@ test.describe("Device Custom Names", () => {
     await expect(page.locator(locators.rack.device).first()).toBeVisible();
     await page.locator(locators.rack.device).first().click();
 
-    // Wait for edit panel to open
-    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
+    // The device's Edit panel is open once its display-name control renders.
+    await expect(
+      page.getByRole("button", { name: "Edit display name" }),
+    ).toBeVisible();
 
     // Get the original device type name
     const originalName = await page
@@ -126,7 +134,11 @@ test.describe("Device Custom Names", () => {
 
     // Deselect device to ensure keyboard shortcuts target the app, not the edit panel
     await page.keyboard.press("Escape");
-    await expect(page.locator(locators.sidePanel.editEmpty)).toBeVisible();
+    // Escape clears the selection; with a rack present the Edit tab falls back
+    // to rack mode rather than the empty state (#2739, #2757), so assert the
+    // panel still shows content instead of the retired empty-state prompt.
+    await expect(page.locator(locators.sidePanel.editPanel)).toBeVisible();
+    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 
     // Undo (Ctrl+Z)
     await page.keyboard.press(`${PLATFORM_MODIFIER}+z`);
@@ -153,8 +165,10 @@ test.describe("Device Custom Names", () => {
     await expect(page.locator(locators.rack.device).first()).toBeVisible();
     await page.locator(locators.rack.device).first().click();
 
-    // Wait for edit panel to open
-    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
+    // The device's Edit panel is open once its display-name control renders.
+    await expect(
+      page.getByRole("button", { name: "Edit display name" }),
+    ).toBeVisible();
 
     // Get the original device type name
     const originalName = await page

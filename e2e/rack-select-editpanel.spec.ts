@@ -27,13 +27,17 @@ test.describe("Rack selection populates the Edit panel (#2407)", () => {
     // Select the FIRST rack: it becomes the active + selected rack and the
     // Edit panel populates for it.
     await firstRack.locator(locators.rackView.frontSvg).click();
-    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
+    // Selection is announced through the rack's accessible name (a trailing
+    // ", selected"), not aria-selected: it is a role="listitem" (see
+    // dual-view.spec.ts). The retired empty-state testid never renders with a
+    // rack present (#2739/#2757).
+    await expect(firstRack).toHaveAttribute("aria-label", /, selected$/);
 
     // Now select the SECOND rack via its click target while the first rack is
     // active. The panel must update to the second rack, not fall back to its
     // empty state (#2407).
     await secondRack.locator(locators.rackView.frontSvg).click();
-    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
+    await expect(secondRack).toHaveAttribute("aria-label", /, selected$/);
     await expect(page.getByLabel("Name", { exact: true })).toHaveValue(
       "Second Rack",
     );
@@ -50,14 +54,18 @@ test.describe("Rack selection populates the Edit panel (#2407)", () => {
 
     // Make the first rack the active + selected one.
     await firstRack.locator(locators.rackView.frontSvg).click();
-    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
+    // Selection is announced through the rack's accessible name (a trailing
+    // ", selected"), not aria-selected: it is a role="listitem" (see
+    // dual-view.spec.ts). The retired empty-state testid never renders with a
+    // rack present (#2739/#2757).
+    await expect(firstRack).toHaveAttribute("aria-label", /, selected$/);
 
     // Click the SECOND rack's name (outer chrome, not the rack body). This is
     // the "area around the rack / the title" click target from #2407: it must
     // select the rack and populate the Edit panel, not merely focus the
     // container (whose focus outline looks identical to the selection box).
     await secondRack.locator(locators.rackView.dualViewName).click();
-    await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
+    await expect(secondRack).toHaveAttribute("aria-label", /, selected$/);
     await expect(page.getByLabel("Name", { exact: true })).toHaveValue(
       "Second Rack",
     );

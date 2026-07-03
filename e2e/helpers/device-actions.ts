@@ -215,8 +215,14 @@ export async function selectDevice(
  */
 export async function deselectDevice(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
-  // With nothing selected the Edit tab falls back to its empty-state prompt.
-  await expect(page.locator(locators.sidePanel.editEmpty)).toBeVisible();
+  // Escape clears the selection, but with a rack present the Edit tab falls
+  // back to rack mode (SidePanelContent derives rackModeRack =
+  // selectionRack ?? activeRack, and activeRack falls back to racks[0]), so the
+  // empty state never renders (#2739, #2757). Assert the Edit tab is still
+  // showing content, mirroring deleteSelectedDevice(), so this can't pass
+  // vacuously off an unmounted tabpanel.
+  await expect(page.locator(locators.sidePanel.editPanel)).toBeVisible();
+  await expect(page.locator(locators.sidePanel.editEmpty)).not.toBeVisible();
 }
 
 /**
