@@ -23,7 +23,7 @@ const ARTIFACT_PATH = join(
   process.cwd(),
   "static",
   "schemas",
-  "layout-v1.json",
+  "rackula-layout.schema.json",
 );
 
 describe("layout JSON Schema artifact", () => {

@@ -1,7 +1,7 @@
 /**
  * Generate the layout JSON Schema from the Zod source (issue #2226).
  *
- * Emits static/schemas/layout-v1.json from LayoutSchema using Zod 4's native
+ * Emits static/schemas/rackula-layout.schema.json from LayoutSchema using Zod 4's native
  * z.toJSONSchema(). The JSON Schema is the published, language-agnostic contract
  * for the saved-layout format; the Zod schema in src/lib/schemas/index.ts stays
  * the single source of truth and this script is its deterministic projection.
@@ -29,7 +29,12 @@ import type { LayoutSchema as LayoutSchemaType } from "$lib/schemas/index.ts";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(SCRIPT_DIR, "..");
-const OUTPUT_FILE = join(ROOT, "static", "schemas", "layout-v1.json");
+const OUTPUT_FILE = join(
+  ROOT,
+  "static",
+  "schemas",
+  "rackula-layout.schema.json",
+);
 
 /** JSON Schema dialect this artifact targets; pinned so the published contract
  * does not silently follow Zod's default. */
@@ -37,14 +42,14 @@ export const JSON_SCHEMA_DIALECT =
   "https://json-schema.org/draft/2020-12/schema";
 
 /**
- * Canonical schema identifier per docs/reference/SCHEMA.md
- * (schemas.racku.la/layout/v{MAJOR}.json). This is an identifier, not a fetch
- * target: readers gate loadability offline on metadata.schema_version, so the
- * canonical $id is set before schemas.racku.la DNS exists. The artifact is
- * served in the interim at the count.racku.la/d.racku.la /schemas/ path (see
- * the Published Schema section of SCHEMA.md).
+ * Published schema identifier per docs/reference/SCHEMA.md. The name is
+ * evergreen (no version segment): the schema evolves additively in place and
+ * readers gate loadability offline on metadata.schema_version, never on this
+ * URL. The $id doubles as the served prod URL, since static/ is served at the
+ * deployment root (see the Published Schema section of SCHEMA.md).
  */
-export const SCHEMA_ID = "https://schemas.racku.la/layout/v1.json";
+export const SCHEMA_ID =
+  "https://count.racku.la/schemas/rackula-layout.schema.json";
 
 export const SCHEMA_DESCRIPTION =
   "Beta. Generated from the Rackula Zod layout schema. Covers the structural " +

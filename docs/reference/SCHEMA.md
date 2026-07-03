@@ -70,30 +70,22 @@ The reject-newer-MAJOR check lives at the shared validation ingress (`parseLayou
 
 ## Published Schema
 
-A language-agnostic JSON Schema is generated from the Zod source and committed at `static/schemas/layout-v1.json`. It is the structural contract for the saved-layout format. Run `npm run generate-schema` to regenerate it after changing the Zod schema; a CI drift check fails if the committed artifact and the generated output diverge.
+A language-agnostic JSON Schema is generated from the Zod source and committed at `static/schemas/rackula-layout.schema.json`. It is the structural contract for the saved-layout format. Run `npm run generate-schema` to regenerate it after changing the Zod schema; a CI drift check fails if the committed artifact and the generated output diverge.
 
-### Canonical `$id`
+### Published URL and `$id`
 
-The artifact carries the canonical identifier `https://schemas.racku.la/layout/v{MAJOR}.json`, which for the current MAJOR is:
+The published name is evergreen: there is one schema file, updated in place as the format evolves. The artifact's `$id` is the prod URL it is served from. `static/` is served at the deployment root, so a release publishes the artifact at:
 
-```text
-https://schemas.racku.la/layout/v1.json
-```
-
-The `$id` is an identifier, not a fetch target. Readers decide loadability offline from `metadata.schema_version` (see the reader rule above) and never resolve the `$id` over the network, so the canonical `$id` is wired before the `schemas.racku.la` domain exists.
-
-### Served location (interim fetch URL)
-
-`static/` is served at the deployment root, so the artifact is published at these paths once a release deploys it:
-
-| Environment | URL                                             |
-| ----------- | ----------------------------------------------- |
-| Prod        | `https://count.racku.la/schemas/layout-v1.json` |
-| Dev         | `https://d.racku.la/schemas/layout-v1.json`     |
+| Environment | URL                                                         |
+| ----------- | ----------------------------------------------------------- |
+| Prod        | `https://count.racku.la/schemas/rackula-layout.schema.json` |
+| Dev         | `https://d.racku.la/schemas/rackula-layout.schema.json`     |
 
 Availability: production (`count.racku.la`) publishes the schema only on a tagged release, and the dev path is behind access control, so the artifact is not externally fetchable until the next release ships it. The committed file in `static/schemas/` is the source of truth, and the reader rule above works offline regardless of whether the schema is served.
 
-Until the `schemas.racku.la` DNS is live, use the prod served URL above as the fetch URL for tooling that resolves a schema (for example a `# yaml-language-server: $schema=...` editor hint). The served path (`/schemas/layout-v1.json`) differs from the canonical `$id` path (`/layout/v1.json`) on purpose: the `$id` follows the long-term canonical shape while the served path matches the committed artifact's location. When `schemas.racku.la` is configured, it will serve the artifact at the canonical `$id` path and the fetch URL converges on the `$id`.
+### Why the published name is unversioned
+
+Schema evolution is additive by policy (MINOR changes above), and the generated schema is permissive about unknown fields, so the newest published schema keeps validating files written by older builds. Compatibility never hangs on this URL: readers gate offline on `metadata.schema_version` and never fetch the schema. If a breaking MAJOR change ever ships, freeze the final MAJOR-1 artifact from git history under a versioned name (for example `rackula-layout-v1.schema.json`) and publish it alongside. Until then, a version segment in the published name is unused complexity.
 
 ### Editor validation
 

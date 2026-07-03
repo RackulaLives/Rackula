@@ -12,29 +12,26 @@ The schema is generated from Rackula's authoritative Zod schema and describes th
 
 It is a structural contract, not a full validator. The schema covers roughly 80 percent of what Rackula checks on load. The remaining rules (cross-field constraints, referential integrity, the load-time transform) live in the Zod schema and run only when Rackula opens the file. See [Limitations](#limitations) for the full list.
 
-## Schema URLs
+## Schema URL
 
-There are two URLs, and they serve different purposes.
+The schema is published at one evergreen URL. It is both the identifier written inside the schema (`$id`) and the location editors download to validate:
 
-| URL | Purpose |
-| --- | --- |
-| `https://schemas.racku.la/layout/v1.json` | Canonical `$id`. The stable identifier written inside the schema. |
-| `https://count.racku.la/schemas/layout-v1.json` | Interim served URL. The fetchable location editors download to validate. |
+```text
+https://count.racku.la/schemas/rackula-layout.schema.json
+```
 
-The canonical `$id` is an identifier, not a fetch target. Rackula itself decides whether it can load a file offline from the `metadata.schema_version` field and never resolves the `$id` over the network, so the canonical identifier is wired before the `schemas.racku.la` domain exists.
+The URL is unversioned on purpose: the schema evolves additively in place, so the newest published schema keeps validating files written by older builds. Rackula itself never fetches this URL. It decides whether it can load a file offline from the `metadata.schema_version` field; editor validation is a convenience layered on top.
 
-Your editor is different: it must actually download the schema to validate against it. Use the interim served URL for any tooling that fetches a schema, including the `# yaml-language-server: $schema=...` hint below. When `schemas.racku.la` DNS is live it will serve the artifact at the canonical `$id` path and the fetch URL will converge on the `$id`.
+Availability: production (`count.racku.la`) publishes the schema on a tagged release, and the dev environment (`https://d.racku.la/schemas/rackula-layout.schema.json`) is behind access control. Until a release ships the artifact, an editor cannot download it and the `# yaml-language-server` hint is simply ignored: this does not block editing, and Rackula still loads and validates the file itself offline from `metadata.schema_version`.
 
-Availability: the served URL goes live with the next Rackula release. Production (`count.racku.la`) publishes the schema only on a tagged release, and the dev environment (`https://d.racku.la/schemas/layout-v1.json`) is behind access control, so neither is fetchable by an external editor until then. Until the artifact is published, an editor cannot download the schema and the `# yaml-language-server` hint is simply ignored: this does not block editing, and Rackula still loads and validates the file itself offline from `metadata.schema_version`.
-
-For the full identifier-versus-fetch rationale, see the Published Schema section of [SCHEMA.md](../reference/SCHEMA.md#published-schema).
+For the publishing details, see the Published Schema section of [SCHEMA.md](../reference/SCHEMA.md#published-schema).
 
 ## Sample layout with inline schema hint
 
 Add a `# yaml-language-server: $schema=...` comment as the first line of your layout file. yaml-language-server reads this comment and validates the rest of the document against the schema it points to. This sample is a minimal but valid Rackula layout:
 
 ```yaml
-# yaml-language-server: $schema=https://count.racku.la/schemas/layout-v1.json
+# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
 metadata:
   id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
   name: Homelab Rack
@@ -101,7 +98,7 @@ Validation in VS Code is provided by the Red Hat YAML extension ([redhat.vscode-
 Add the schema hint as the first line of the file, exactly as in the sample above:
 
 ```yaml
-# yaml-language-server: $schema=https://count.racku.la/schemas/layout-v1.json
+# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
 ```
 
 The comment travels with the file, so anyone who opens it gets validation without changing their own settings. This is the recommended approach for files you share.
@@ -113,7 +110,7 @@ Map a file glob to the schema in your workspace `.vscode/settings.json`. This va
 ```json
 {
   "yaml.schemas": {
-    "https://count.racku.la/schemas/layout-v1.json": [
+    "https://count.racku.la/schemas/rackula-layout.schema.json": [
       "*.rackula.yaml",
       "*.rackula.yml"
     ]

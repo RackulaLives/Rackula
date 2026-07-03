@@ -41,26 +41,13 @@ function warnDuplicateDeviceIds(layout: Layout): void {
 const STANDARD_RACK_WIDTH = 19;
 
 /**
- * Interim served base for the published layout JSON Schema. Editors that honour
- * the `# yaml-language-server: $schema=...` hint fetch this URL, so it must be a
- * real served, fetchable location, not the canonical `$id`
- * (`https://schemas.racku.la/layout/v{MAJOR}.json`) whose DNS does not exist
- * yet. The served path is the prod URL from the Published Schema section of
- * docs/reference/SCHEMA.md. The `v{MAJOR}` segment is appended from the layout's
- * `schema_version` MAJOR.
+ * Editor `$schema` hint for exported YAML. Points at the published evergreen
+ * schema (the prod URL from the Published Schema section of
+ * docs/reference/SCHEMA.md). The schema evolves additively in place;
+ * loadability is gated offline by `metadata.schema_version`, not by this URL.
  */
-const SCHEMA_FETCH_BASE = "https://count.racku.la/schemas/layout-v";
-
-/**
- * Build the editor `$schema` hint comment, deriving the schema MAJOR from a
- * `schema_version` string (e.g. "1.0" -> v1). Absent or unparseable versions
- * default to MAJOR 1, matching the read-side default in SCHEMA.md.
- */
-function buildSchemaHintComment(schemaVersion: string | undefined): string {
-  const major = parseInt(schemaVersion ?? "1.0", 10);
-  const majorSegment = Number.isNaN(major) || major < 1 ? 1 : major;
-  return `# yaml-language-server: $schema=${SCHEMA_FETCH_BASE}${majorSegment}.json`;
-}
+const SCHEMA_HINT_COMMENT =
+  "# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json";
 
 /**
  * Lazily load js-yaml library
@@ -133,7 +120,7 @@ export async function serializeLayoutToYaml(
   // Prepend the editor schema hint so YAML language servers validate the export
   // out of the box (#2230). A leading `#` comment is ignored on read.
   const body = await serializeToYaml(layoutForSerialization);
-  return `${buildSchemaHintComment(layout.metadata?.schema_version)}\n${body}`;
+  return `${SCHEMA_HINT_COMMENT}\n${body}`;
 }
 
 /**
@@ -166,9 +153,9 @@ export async function serializeLayoutToYamlWithMetadata(
   const layoutForSerialization = orderLayoutFields(layout, { metadata });
 
   // Prepend the editor schema hint so the folder-ZIP `.rackula.yaml` validates
-  // out of the box too (#2230). MAJOR comes from the metadata written here.
+  // out of the box too (#2230).
   const body = await serializeToYaml(layoutForSerialization);
-  return `${buildSchemaHintComment(metadata.schema_version)}\n${body}`;
+  return `${SCHEMA_HINT_COMMENT}\n${body}`;
 }
 
 /**
