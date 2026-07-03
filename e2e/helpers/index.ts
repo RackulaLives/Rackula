@@ -11,6 +11,8 @@ export {
   MEDIUM_RACK_SHARE,
   STANDARD_RACK_SHARE,
   RACK_WITH_DEVICE_SHARE,
+  MULTI_RACK_SHARE,
+  BAYED_RACK_SHARE,
   createTestLayout,
   gotoWithRack,
   gotoMobileWithRack,
