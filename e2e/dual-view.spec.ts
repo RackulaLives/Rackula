@@ -66,22 +66,27 @@ test.describe("Dual-View Rack Display", () => {
     expect(rearDevices).toBeGreaterThan(0);
   });
 
-  test("blocked slot visual appears for full-depth devices", async ({
+  test("blocked slot visual appears for a half-depth device on the opposite face", async ({
     page,
   }) => {
     await expect(page.locator(locators.rackView.dualView)).toBeVisible();
 
-    await dragDeviceToRack(page, { view: "front" });
+    // Only a half-depth device hatches its slots on the opposite face. A
+    // full-depth device (effectiveFace "both", e.g. the "Server" default) is
+    // visible from both sides and is skipped by getBlockedSlots, so this must
+    // drop an explicitly half-depth device to exercise the hatching path.
+    await dragDeviceToRack(page, {
+      view: "front",
+      deviceName: "Patch Panel (24-Port)",
+    });
     await expect(page.locator(locators.rackView.frontDevice)).toBeVisible({
       timeout: 5000,
     });
 
+    // The half-depth device occupies the front only, so its slots render as
+    // blocked hatching on the rear. Assert unconditionally.
     const blockedSlots = page.locator(locators.rackView.rearBlockedSlot);
-    const hasBlockedSlots = (await blockedSlots.count()) > 0;
-
-    if (hasBlockedSlots) {
-      await expect(blockedSlots.first()).toBeVisible();
-    }
+    await expect(blockedSlots.first()).toBeVisible();
   });
 
   test("dual-view rack can be selected", async ({ page }) => {
