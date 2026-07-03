@@ -1,9 +1,10 @@
 import { test, expect } from "./helpers/base-test";
-import { gotoWithRack, locators } from "./helpers";
+import { gotoWithRack, dragDeviceToRack, locators } from "./helpers";
 
 /**
  * E2E Tests for Custom Device Creation and Placement (Issue #166)
- * Tests that custom multi-U devices preserve their height after placement
+ * Verifies a custom multi-U device keeps its height after placement, the
+ * regression where custom devices reverted to 1U once dropped in the rack.
  */
 
 test.describe("Custom Device Height (Issue #166)", () => {
@@ -11,57 +12,41 @@ test.describe("Custom Device Height (Issue #166)", () => {
     await gotoWithRack(page);
   });
 
-  // Two blockers prevent these tests from running:
-  // 1. Svelte bind:value on <input type="number"> doesn't react to Playwright fill(),
-  //    type(), or nativeInputValueSetter — the custom device is created with default 1U height
-  // 2. Custom devices are inserted into a brand-sorted palette, not appended at the end,
-  //    so deviceIndex: count-1 drags the wrong device
-  // Needs: a dedicated dragDeviceByName() helper + Svelte number input workaround
-  test.skip("custom 4U device renders with correct height after placement", async ({
+  test("custom 4U device keeps its height after placement", async ({
     page,
   }) => {
-    const addDeviceButton = page.getByTestId("btn-create-custom-device");
-    await addDeviceButton.click();
+    const deviceName = "Custom Quad Server";
 
-    const addDeviceDialog = page.getByRole("dialog", { name: "Add Device" });
-    await addDeviceDialog
-      .getByLabel("Name", { exact: true })
-      .fill("RACKOWL 4U Server");
-    const heightInput = addDeviceDialog.getByLabel("Height (U)");
-    await heightInput.click();
-    await heightInput.fill("4");
-    await addDeviceDialog.getByLabel("Category").selectOption("server");
+    // Open the "Add custom device" dialog from the palette footer.
+    await page.getByTestId("btn-create-custom-device").click();
+
+    const dialog = page.getByRole("dialog", { name: "Add Device" });
+    await dialog.getByLabel("Name", { exact: true }).fill(deviceName);
+
+    // Set the height to 4U. Svelte's bind:value on a number input updates from
+    // the input event, which fill() dispatches, so the state tracks the value.
+    await dialog.getByLabel("Height (U)").fill("4");
+    await dialog.getByLabel("Category").selectOption("server");
 
     await page.getByTestId("btn-add-device").click();
 
-    const customDevice = page
-      .getByTestId("device-palette-item")
-      .filter({ hasText: "RACKOWL 4U Server" });
-    await expect(customDevice).toBeVisible();
+    // Filter the palette to the new device so the virtualized list renders it
+    // (off-window rows unmount, #2094); then drag it into the rack by name.
+    await page
+      .getByRole("searchbox", { name: "Search devices" })
+      .fill(deviceName);
 
-    const deviceCount = await page.locator(locators.device.paletteItem).count();
-    await expect(deviceCount).toBeGreaterThan(0);
+    await dragDeviceToRack(page, { deviceName });
 
-    // TODO: drag custom device by name, verify 4U height (>60px)
-  });
-
-  test.skip("custom 2U device blocks correct number of rack positions", async ({
-    page,
-  }) => {
-    const addDeviceButton = page.getByTestId("btn-create-custom-device");
-    await addDeviceButton.click();
-
-    const addDeviceDialog = page.getByRole("dialog", { name: "Add Device" });
-    await addDeviceDialog
-      .getByLabel("Name", { exact: true })
-      .fill("Test 2U Storage");
-    const heightInput = addDeviceDialog.getByLabel("Height (U)");
-    await heightInput.click();
-    await heightInput.fill("2");
-    await addDeviceDialog.getByLabel("Category").selectOption("storage");
-
-    await page.getByTestId("btn-add-device").click();
-
-    // TODO: drag custom device by name, verify 2U height (>30px)
+    // The placed device announces its height through its accessible name
+    // (RackDevice ariaLabel: "<name>, <u_height>U <category> at U<n>"). A 4U
+    // device that survived placement announces "4U"; the #166 regression would
+    // announce "1U". Scope to the front face so the full-depth twin on the rear
+    // does not double the match.
+    await expect(
+      page
+        .locator(locators.rackView.front)
+        .getByRole("button", { name: new RegExp(`${deviceName}, 4U`) }),
+    ).toBeVisible();
   });
 });

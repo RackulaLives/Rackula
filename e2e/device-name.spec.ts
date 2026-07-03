@@ -102,10 +102,9 @@ test.describe("Device Custom Names", () => {
     );
   });
 
-  // Known issue: undo doesn't reliably restore original device name — see #1405
-  test.skip("undo/redo works for display name changes", async ({ page }) => {
+  test("undo/redo works for display name changes", async ({ page }) => {
     // Place a device
-    await dragDeviceToRack(page);
+    await dragDeviceToRack(page, { deviceName: "Server" });
     await expect(page.locator(locators.rack.device).first()).toBeVisible();
     await page.locator(locators.rack.device).first().click();
 

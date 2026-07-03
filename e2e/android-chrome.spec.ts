@@ -167,25 +167,41 @@ test.describe("Bottom Sheet", () => {
     await expect(bottomSheet).not.toBeVisible({ timeout: 2000 });
   });
 
-  // Swipe-to-dismiss requires real touch events (hasTouch context)
-  test.skip("bottom sheet swipe does not trigger Android back gesture", async ({
-    page,
-  }) => {
+  test("bottom sheet closes on swipe-down gesture", async ({ page }) => {
     await openDeviceLibraryFromBottomNav(page);
 
     const bottomSheet = page.locator(locators.mobile.bottomSheet);
     await expect(bottomSheet).toBeVisible();
 
-    const box = await bottomSheet.boundingBox();
-    if (box) {
-      const startY = box.y + 50;
-      const centerX = box.x + box.width / 2;
+    // The swipe starts on the sheet header's bare background: Dialog.svelte only
+    // begins a drag there (not on the close button or header actions), and only
+    // for touch/pen pointers. Mouse synthesis is rejected by design, so drive
+    // real touch input through CDP, which produces genuine pointerType="touch"
+    // events with a valid pointerId (mouse.move/down would arrive as "mouse").
+    const dragHandle = page.locator(locators.mobile.dragHandleBar);
+    const box = await dragHandle.boundingBox();
+    expect(box).toBeTruthy();
 
-      await page.mouse.move(centerX, startY);
-      await page.mouse.down();
-      await page.mouse.move(centerX, startY + 200, { steps: 10 });
-      await page.mouse.up();
+    const client = await page.context().newCDPSession(page);
+    const x = box!.x + box!.width / 2;
+    const startY = box!.y + box!.height / 2;
+
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x, y: startY }],
+    });
+    // Drag down well past the 100px close threshold in steps so each pointermove
+    // fires and dragOffset accumulates.
+    for (let step = 1; step <= 10; step++) {
+      await client.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ x, y: startY + step * 25 }],
+      });
     }
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
 
     await expect(bottomSheet).not.toBeVisible({ timeout: 2000 });
   });
