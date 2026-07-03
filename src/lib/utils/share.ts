@@ -448,7 +448,7 @@ function inflateBounded(compressed: Uint8Array): string {
   let result = "";
   let byteLength = 0;
 
-  inflator.onData = (chunk) => {
+  inflator.onData = (chunk: Uint8Array) => {
     byteLength += chunk.length;
     if (byteLength > MAX_DECOMPRESSED_BYTES) {
       // Throw from the chunk callback to abort pako's inflate loop early, so a

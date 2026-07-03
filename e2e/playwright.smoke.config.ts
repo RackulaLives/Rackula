@@ -23,9 +23,12 @@ const cfAccessHeaders =
  *
  * Two modes:
  * - Local mode (no SMOKE_TEST_URL): builds locally, serves on port 4173, and runs
- *   the local-build smoke set (smoke.spec.ts, basic-workflow.spec.ts). These
- *   exercise full UI flows, including state-mutating drag-and-drop, which is safe
- *   against a throwaway local server.
+ *   the local-build smoke set (smoke.spec.ts, basic-workflow.spec.ts,
+ *   keyboard-placement.spec.ts, undo-redo.spec.ts, persistence.spec.ts). These
+ *   exercise full UI flows, including state-mutating drag-and-drop, keyboard
+ *   placement, undo/redo, and save/load persistence, which is safe against a
+ *   throwaway local server. This set is the merge gate (validate job in
+ *   test.yml), so it stays fast and high-signal.
  * - Deploy mode (SMOKE_TEST_URL set): tests against a live URL and runs ONLY the
  *   post-deploy smoke set (deploy-smoke.spec.ts). These are read-only and fast:
  *   they verify the deployed bundle boots, renders, and serves a well-formed
@@ -42,7 +45,13 @@ export default defineConfig({
   testDir: ".",
   testMatch: smokeTestUrl
     ? ["deploy-smoke.spec.ts"]
-    : ["smoke.spec.ts", "basic-workflow.spec.ts"],
+    : [
+        "smoke.spec.ts",
+        "basic-workflow.spec.ts",
+        "keyboard-placement.spec.ts",
+        "undo-redo.spec.ts",
+        "persistence.spec.ts",
+      ],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 1,
