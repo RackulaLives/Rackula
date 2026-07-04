@@ -29,7 +29,10 @@
     class="placement-indicator"
     role="status"
     aria-live="polite"
-    transition:fly={{ y: prefersReducedMotion.current ? 0 : -12, duration: 150 }}
+    transition:fly={{
+      y: prefersReducedMotion.current ? 0 : -12,
+      duration: 150,
+    }}
   >
     <div class="indicator-content">
       <span class="indicator-text">
