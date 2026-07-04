@@ -41,6 +41,8 @@
     DEVICE_LABEL_ICON_SPACE_RIGHT,
   } from "$lib/utils/text-sizing";
   import { toHumanUnits } from "$lib/utils/position";
+  import { Tween, prefersReducedMotion } from "svelte/motion";
+  import { cubicOut } from "svelte/easing";
 
   interface Props {
     device: DeviceType;
@@ -257,6 +259,14 @@
   const yPosition = $derived(
     (rackHeight - positionHuman - device.u_height + 1) * uHeight,
   );
+
+  // Settle committed moves (drop, keyboard nudge, undo). Positions are
+  // whole-U integers that change only on commit, never per-frame during a
+  // drag, so the tween never fights the pointer.
+  const yMotion = Tween.of(() => yPosition, {
+    duration: 120,
+    easing: cubicOut,
+  });
   const deviceHeight = $derived(device.u_height * uHeight);
   // Full interior width (between rails)
   const fullWidth = $derived(rackWidth - RAIL_WIDTH * 2);
@@ -621,7 +631,9 @@
   data-device-face={currentFace}
   data-device-position={position}
   data-testid="rack-device"
-  transform="translate({RAIL_WIDTH + slotXOffset}, {yPosition})"
+  transform="translate({RAIL_WIDTH + slotXOffset}, {prefersReducedMotion.current
+    ? yPosition
+    : yMotion.current})"
   class="rack-device"
   class:selected
   class:dragging={isDragging}
