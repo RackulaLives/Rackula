@@ -41,8 +41,6 @@
     viewLabel?: string;
     /** Y offset for the rack name */
     nameYOffset: number;
-    /** Whether Shift key is held (shows half-U grid lines) */
-    shiftKeyHeld?: boolean;
     /** Unique rack identifier for SVG pattern IDs */
     rackId: string;
     /** Blocked slot ranges for crosshatch overlay */
@@ -75,7 +73,6 @@
     viewLabel,
     nameYOffset,
     rackId,
-    shiftKeyHeld = false,
     blockedSlots = [],
     dropPreview = null,
     isPlacementMode = false,
@@ -188,19 +185,6 @@
     class="rack-grid-line"
   />
 {/each}
-
-<!-- Half-U grid lines (shown when Shift is held for fine positioning) -->
-{#if shiftKeyHeld}
-  {#each Array(rackHeight).fill(null) as _halfLine, i (i)}
-    <line
-      x1={railWidth}
-      y1={i * uHeight + uHeight / 2 + rackPadding + railWidth}
-      x2={rackWidth - railWidth}
-      y2={i * uHeight + uHeight / 2 + rackPadding + railWidth}
-      class="rack-grid-line-half"
-    />
-  {/each}
-{/if}
 
 <!-- Rail mounting holes (3 per U on each rail) - rendered first so labels appear on top -->
 {#each Array(rackHeight).fill(null) as _hole, i (i)}
@@ -393,13 +377,6 @@
   .rack-grid-line {
     stroke: var(--rack-grid);
     stroke-width: 1;
-  }
-
-  .rack-grid-line-half {
-    stroke: var(--colour-selection);
-    stroke-width: 1;
-    stroke-dasharray: 4 2;
-    opacity: 0.6;
   }
 
   .u-label {

@@ -157,7 +157,6 @@
   // --- Drag state ---
   let justFinishedDrag = $state(false);
   let dragDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
-  let shiftKeyHeld = $state(false);
   let svgElement: SVGSVGElement | null = $state(null);
   let dropPreview = $state<DropPreviewState | null>(null);
   let containerHoverInfo = $state<ContainerHoverInfo | null>(null);
@@ -441,16 +440,7 @@
       onselect?.(new CustomEvent("select", { detail: { rackId: rack.id } }));
     }
   }
-
-  function handleShiftDown(event: KeyboardEvent) {
-    if (event.key === "Shift") shiftKeyHeld = true;
-  }
-  function handleShiftUp(event: KeyboardEvent) {
-    if (event.key === "Shift") shiftKeyHeld = false;
-  }
 </script>
-
-<svelte:window onkeydown={handleShiftDown} onkeyup={handleShiftUp} />
 
 <!-- The rack is a list item that holds interactive devices, so it is a
      non-interactive role="listitem" container, not an interactive role="option"
@@ -510,7 +500,6 @@
       rackName={rack.name}
       {viewLabel}
       nameYOffset={NAME_Y_OFFSET}
-      {shiftKeyHeld}
       {blockedSlots}
       dropPreview={activePreview}
       {isPlacementMode}
