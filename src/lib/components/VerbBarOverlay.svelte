@@ -276,7 +276,10 @@
       for (const rack of layout.racks) {
         for (const dev of rack.devices) {
           if (dev.id === id) {
-            return `${rack.id}|${rack.width}|${rack.height}|${dev.position}|${dev.device_type}`;
+            // rack.position is the persisted row-order field (reorderRacks
+            // reassigns it), so including it wakes re-measurement when the
+            // rack containing the selected device is reordered in its row.
+            return `${rack.id}|${rack.position}|${rack.width}|${rack.height}|${dev.position}|${dev.device_type}`;
           }
         }
       }
