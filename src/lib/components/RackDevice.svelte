@@ -326,8 +326,12 @@
     showImage ? deviceWidth + IMAGE_OVERFLOW * 2 : deviceWidth,
   );
 
-  // Unique clipPath ID for this device instance
-  const clipId = $derived(`clip-${device.slug}-${position}`);
+  // Unique clipPath ID for this device instance. $props.id() is per component
+  // instance, so dual-view front/rear renders and same-type-same-U devices in
+  // different racks can never collide (duplicate SVG ids clip with the wrong
+  // geometry).
+  const uid = $props.id();
+  const clipId = `clip-${uid}`;
 
   // Detect if this device is a container (has slots)
   const isContainer = $derived(
