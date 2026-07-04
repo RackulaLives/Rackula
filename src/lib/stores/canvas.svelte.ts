@@ -4,6 +4,7 @@
  */
 
 import type panzoom from "panzoom";
+import { cubicOut } from "svelte/easing";
 import type { Rack, RackGroup, DeviceType } from "$lib/types";
 import {
   calculateFitAll,
@@ -65,6 +66,27 @@ let zoomEndTimer: ReturnType<typeof setTimeout> | null = null;
 let viewportSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let suppressViewportSave = false;
 
+// Camera transition state. A single requestAnimationFrame loop interpolates the
+// whole camera (x, y, and scale together) so every frame lands on one value; there
+// is no separate zoom animation for the pan to drift against, and no stale timeout.
+const CAMERA_ANIM_DURATION_MS = 300;
+let cameraRafId: number | null = null;
+let cameraAnim: {
+  fromX: number;
+  fromY: number;
+  fromScale: number;
+  toX: number;
+  toY: number;
+  toScale: number;
+  startTime: number | null;
+} | null = null;
+
+// prefers-reduced-motion query, allocated once and reused so the check costs
+// nothing per call. (svelte/motion's prefersReducedMotion captures matchMedia at
+// import time, which cannot be re-stubbed per test; this local, resettable query
+// keeps the gate testable while still allocating a single MediaQueryList.)
+let reducedMotionQuery: MediaQueryList | null = null;
+
 // Derived values
 const canZoomIn = $derived(currentZoom < ZOOM_MAX);
 const canZoomOut = $derived(currentZoom > ZOOM_MIN);
@@ -84,6 +106,8 @@ export function resetCanvasStore(): void {
   isZooming = false;
   cancelZoomEnd();
   cancelViewportSave();
+  cancelCameraAnimation();
+  reducedMotionQuery = null;
   suppressViewportSave = false;
 }
 
@@ -201,6 +225,7 @@ function restoreViewport(): boolean {
       y: saved.y,
       scale,
     });
+    cancelCameraAnimation();
     panzoomInstance.zoomAbs(0, 0, scale);
     panzoomInstance.moveTo(saved.x, saved.y);
     currentZoom = scale;
@@ -258,6 +283,7 @@ function setPanzoomInstance(instance: PanzoomInstance): void {
 function disposePanzoom(): void {
   cancelViewportSave();
   cancelZoomEnd();
+  cancelCameraAnimation();
   isZooming = false;
   if (panzoomInstance) {
     panzoomInstance.dispose();
@@ -271,6 +297,7 @@ function disposePanzoom(): void {
 function zoomIn(): void {
   if (!panzoomInstance || currentZoom >= ZOOM_MAX) return;
 
+  cancelCameraAnimation();
   const newZoom = snapZoom(currentZoom, "in");
   const transform = panzoomInstance.getTransform();
 
@@ -284,6 +311,7 @@ function zoomIn(): void {
 function zoomOut(): void {
   if (!panzoomInstance || currentZoom <= ZOOM_MIN) return;
 
+  cancelCameraAnimation();
   const newZoom = snapZoom(currentZoom, "out");
   const transform = panzoomInstance.getTransform();
 
@@ -297,6 +325,7 @@ function zoomOut(): void {
 function setZoom(scale: number): void {
   if (!panzoomInstance) return;
 
+  cancelCameraAnimation();
   const clampedScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, scale));
   const transform = panzoomInstance.getTransform();
 
@@ -309,6 +338,7 @@ function setZoom(scale: number): void {
 function resetZoom(): void {
   if (!panzoomInstance) return;
 
+  cancelCameraAnimation();
   suppressViewportSave = true;
   clearSavedViewport();
   panzoomInstance.zoomAbs(0, 0, 1);
@@ -331,36 +361,97 @@ function getTransform(): { x: number; y: number; scale: number } {
  */
 function moveTo(x: number, y: number): void {
   if (!panzoomInstance) return;
+  cancelCameraAnimation();
   panzoomInstance.moveTo(x, y);
 }
 
 /**
- * Smooth animated move to position with zoom
+ * Whether the user prefers reduced motion. The MediaQueryList is created once and
+ * reused, so this costs nothing per call.
+ */
+function prefersReducedMotion(): boolean {
+  if (
+    typeof window === "undefined" ||
+    typeof window.matchMedia !== "function"
+  ) {
+    return false;
+  }
+  reducedMotionQuery ??= window.matchMedia("(prefers-reduced-motion: reduce)");
+  return reducedMotionQuery.matches;
+}
+
+/** Stop the camera animation loop and drop its target. */
+function cancelCameraAnimation(): void {
+  if (cameraRafId !== null) {
+    cancelAnimationFrame(cameraRafId);
+    cameraRafId = null;
+  }
+  cameraAnim = null;
+}
+
+/**
+ * One frame of the camera transition. Reads the interpolated (x, y, scale) and
+ * applies zoomAbs at the origin (which scales the pan about (0,0)) then moveTo,
+ * which overwrites the pan with the exact interpolated value. Every frame therefore
+ * settles on one camera value with no drift.
+ */
+function stepCameraAnimation(now: number): void {
+  cameraRafId = null;
+  if (!panzoomInstance || !cameraAnim) return;
+
+  cameraAnim.startTime ??= now;
+  const elapsed = now - cameraAnim.startTime;
+  const raw = Math.min(1, elapsed / CAMERA_ANIM_DURATION_MS);
+  const eased = cubicOut(raw);
+
+  const scale =
+    cameraAnim.fromScale + (cameraAnim.toScale - cameraAnim.fromScale) * eased;
+  const x = cameraAnim.fromX + (cameraAnim.toX - cameraAnim.fromX) * eased;
+  const y = cameraAnim.fromY + (cameraAnim.toY - cameraAnim.fromY) * eased;
+
+  panzoomInstance.zoomAbs(0, 0, scale);
+  panzoomInstance.moveTo(x, y);
+
+  if (raw < 1) {
+    cameraRafId = requestAnimationFrame(stepCameraAnimation);
+  } else {
+    cameraAnim = null;
+  }
+}
+
+/**
+ * Smooth animated move to position with zoom.
+ *
+ * Interpolates x, y, and scale together in a single requestAnimationFrame loop.
+ * Calling it again mid-animation retargets from the current camera (read live from
+ * panzoom), so the previous target is discarded and never applied afterwards.
  */
 function smoothMoveTo(x: number, y: number, scale: number): void {
   if (!panzoomInstance) return;
 
-  // Check for reduced motion preference
-  const prefersReducedMotion = window.matchMedia(
-    "(prefers-reduced-motion: reduce)",
-  ).matches;
-
-  // First apply zoom, then apply pan offset
-  // Note: zoomAbs takes screen coords for zoom center, not pan offset
-  // So we zoom at origin (0,0) then apply the pan
-  if (prefersReducedMotion) {
+  // Reduced motion: land the camera instantly, cancelling any in-flight transition.
+  if (prefersReducedMotion()) {
+    cancelCameraAnimation();
     panzoomInstance.zoomAbs(0, 0, scale);
     panzoomInstance.moveTo(x, y);
-  } else {
-    // For smooth animation, we need to zoom then pan
-    // Use smooth zoom at origin
-    panzoomInstance.smoothZoomAbs(0, 0, scale);
-    // Wait a tick for zoom to start, then move
-    setTimeout(() => {
-      if (panzoomInstance) {
-        panzoomInstance.moveTo(x, y);
-      }
-    }, 0);
+    return;
+  }
+
+  // Retarget from where the camera actually is now. Overwriting cameraAnim drops the
+  // previous target (fixing the interruption race) and re-anchors the clock so the
+  // ease blends smoothly from the current position.
+  const current = panzoomInstance.getTransform();
+  cameraAnim = {
+    fromX: current.x,
+    fromY: current.y,
+    fromScale: current.scale,
+    toX: x,
+    toY: y,
+    toScale: scale,
+    startTime: null,
+  };
+  if (cameraRafId === null) {
+    cameraRafId = requestAnimationFrame(stepCameraAnimation);
   }
 }
 
@@ -386,6 +477,7 @@ function fitAll(
 
   suppressViewportSave = true;
   cancelViewportSave();
+  cancelCameraAnimation();
 
   // Get viewport dimensions, accounting for any right-side overlay
   const viewportWidth = canvasElement.clientWidth - rightOffset;

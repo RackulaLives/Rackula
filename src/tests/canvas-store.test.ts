@@ -355,48 +355,129 @@ describe("Canvas Store", () => {
   });
 
   describe("smoothMoveTo", () => {
-    it("zooms at origin then moves when reduced motion not preferred", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    });
+
+    it("interpolates x, y, and scale together and settles on the target", () => {
       const store = getCanvasStore();
       const mockPanzoom = createMockPanzoom(1);
-
-      // Mock matchMedia to return false for reduced motion
       vi.stubGlobal(
         "matchMedia",
         vi.fn(() => ({ matches: false })),
       );
-
       store.setPanzoomInstance(
         mockPanzoom as ReturnType<typeof import("panzoom").default>,
       );
+
+      vi.useFakeTimers();
       store.smoothMoveTo(100, 200, 1.5);
+      // Drive the animation loop to completion.
+      vi.advanceTimersByTime(400);
 
-      // Should zoom at origin (0, 0) to avoid coordinate confusion
-      expect(mockPanzoom.smoothZoomAbs).toHaveBeenCalledWith(0, 0, 1.5);
-      // Note: moveTo is called async via setTimeout, so we can't test it here easily
-
-      vi.unstubAllGlobals();
+      // The old hand-sequenced zoom is gone: no smoothZoomAbs, no setTimeout hop.
+      expect(mockPanzoom.smoothZoomAbs).not.toHaveBeenCalled();
+      // Every animated frame lands one interpolated camera: zoomAbs at origin then moveTo.
+      expect(mockPanzoom.zoomAbs).toHaveBeenCalledWith(
+        0,
+        0,
+        expect.any(Number),
+      );
+      // The final frame settles exactly on the requested camera (x, y, and scale).
+      const lastMove = mockPanzoom.moveTo.mock.calls.at(-1) as [number, number];
+      expect(lastMove[0]).toBeCloseTo(100, 5);
+      expect(lastMove[1]).toBeCloseTo(200, 5);
+      const lastZoom = mockPanzoom.zoomAbs.mock.calls.at(-1) as [
+        number,
+        number,
+        number,
+      ];
+      expect(lastZoom[2]).toBeCloseTo(1.5, 5);
     });
 
-    it("zooms at origin then moves when reduced motion preferred", () => {
+    it("retargets from the current camera and never applies the first target", () => {
       const store = getCanvasStore();
       const mockPanzoom = createMockPanzoom(1);
+      vi.stubGlobal(
+        "matchMedia",
+        vi.fn(() => ({ matches: false })),
+      );
+      store.setPanzoomInstance(
+        mockPanzoom as ReturnType<typeof import("panzoom").default>,
+      );
 
-      // Mock matchMedia to return true for reduced motion
+      vi.useFakeTimers();
+      store.smoothMoveTo(100, 200, 1.5);
+      // Let the camera travel a visible fraction of the first ease, then interrupt.
+      vi.advanceTimersByTime(150);
+      const moved = store.getTransform();
+      expect(moved.x).toBeGreaterThan(0);
+      expect(moved.x).toBeLessThan(100); // partway, not yet at the first target
+
+      const callsBeforeRetarget = mockPanzoom.moveTo.mock.calls.length;
+      store.smoothMoveTo(500, 600, 2);
+
+      // The retargeted tween's first frame must blend from where the camera actually
+      // is (the moved position), not restart from the origin.
+      vi.advanceTimersByTime(16);
+      const firstRetargetMove = mockPanzoom.moveTo.mock.calls[
+        callsBeforeRetarget
+      ] as [number, number];
+      expect(firstRetargetMove[0]).toBeCloseTo(moved.x, 5);
+      expect(firstRetargetMove[1]).toBeCloseTo(moved.y, 5);
+
+      vi.advanceTimersByTime(400);
+      // The camera settles on the second target...
+      const lastMove = mockPanzoom.moveTo.mock.calls.at(-1) as [number, number];
+      expect(lastMove[0]).toBeCloseTo(500, 5);
+      expect(lastMove[1]).toBeCloseTo(600, 5);
+      // ...and the interrupted first target is never applied (no stale-timeout snap).
+      expect(mockPanzoom.moveTo.mock.calls).not.toContainEqual([100, 200]);
+    });
+
+    it("lands instantly with no animation when reduced motion is preferred", () => {
+      const store = getCanvasStore();
+      const mockPanzoom = createMockPanzoom(1);
       vi.stubGlobal(
         "matchMedia",
         vi.fn(() => ({ matches: true })),
       );
-
       store.setPanzoomInstance(
         mockPanzoom as ReturnType<typeof import("panzoom").default>,
       );
+
+      const rafSpy = vi.spyOn(globalThis, "requestAnimationFrame");
       store.smoothMoveTo(100, 200, 1.5);
 
-      // Should zoom at origin (0, 0) then apply pan offset
+      // Instant zoomAbs + moveTo, no animation frame scheduled.
       expect(mockPanzoom.zoomAbs).toHaveBeenCalledWith(0, 0, 1.5);
       expect(mockPanzoom.moveTo).toHaveBeenCalledWith(100, 200);
+      expect(mockPanzoom.smoothZoomAbs).not.toHaveBeenCalled();
+      expect(rafSpy).not.toHaveBeenCalled();
 
-      vi.unstubAllGlobals();
+      rafSpy.mockRestore();
+    });
+
+    it("an instant camera op cancels an in-flight animation", () => {
+      const store = getCanvasStore();
+      const mockPanzoom = createMockPanzoom(1);
+      vi.stubGlobal(
+        "matchMedia",
+        vi.fn(() => ({ matches: false })),
+      );
+      store.setPanzoomInstance(
+        mockPanzoom as ReturnType<typeof import("panzoom").default>,
+      );
+
+      vi.useFakeTimers();
+      store.smoothMoveTo(100, 200, 1.5);
+      vi.advanceTimersByTime(150); // animation is mid-flight
+      store.resetZoom(); // instant op: lands the camera at origin, 100%
+
+      // The cancelled animation must not resume and drag the camera to its target.
+      vi.advanceTimersByTime(400);
+      expect(mockPanzoom.getTransform()).toEqual({ x: 0, y: 0, scale: 1 });
     });
   });
 
@@ -513,6 +594,7 @@ describe("Canvas Store", () => {
 
   describe("ensureRacksVisible", () => {
     afterEach(() => {
+      vi.useRealTimers();
       vi.unstubAllGlobals();
     });
 
@@ -550,7 +632,8 @@ describe("Canvas Store", () => {
 
       store.ensureRacksVisible(["rack-1"], [rack]);
 
-      expect(mockPanzoom.smoothZoomAbs).not.toHaveBeenCalled();
+      // Camera still: the animated path never runs, so nothing is applied.
+      expect(mockPanzoom.zoomAbs).not.toHaveBeenCalled();
       expect(mockPanzoom.moveTo).not.toHaveBeenCalled();
     });
 
@@ -559,9 +642,17 @@ describe("Canvas Store", () => {
       const { store, mockPanzoom } = setup(200, 200);
       const rack = createTestRack({ id: "rack-1", height: 42 });
 
+      vi.useFakeTimers();
       store.ensureRacksVisible(["rack-1"], [rack]);
+      vi.advanceTimersByTime(400);
 
-      expect(mockPanzoom.smoothZoomAbs).toHaveBeenCalled();
+      // The animated camera lands via per-frame zoomAbs(0, 0, scale) + moveTo.
+      expect(mockPanzoom.zoomAbs).toHaveBeenCalledWith(
+        0,
+        0,
+        expect.any(Number),
+      );
+      expect(mockPanzoom.moveTo).toHaveBeenCalled();
     });
   });
 
@@ -666,11 +757,12 @@ describe("Canvas Store", () => {
         u_height: 1,
       });
 
+      vi.useFakeTimers();
       store.zoomToDevice(rack, 0, [deviceType]);
+      vi.advanceTimersByTime(400);
 
-      // smoothZoomAbs is called by smoothMoveTo (reduced motion = false)
-      expect(mockPanzoom.smoothZoomAbs).toHaveBeenCalled();
-      const [, , scale] = mockPanzoom.smoothZoomAbs.mock.calls[0] as [
+      // The camera animates to the (clamped) target via per-frame zoomAbs.
+      const [, , scale] = mockPanzoom.zoomAbs.mock.calls.at(-1) as [
         number,
         number,
         number,
@@ -698,10 +790,11 @@ describe("Canvas Store", () => {
         u_height: 42,
       });
 
+      vi.useFakeTimers();
       store.zoomToDevice(rack, 0, [deviceType]);
+      vi.advanceTimersByTime(400);
 
-      expect(mockPanzoom.smoothZoomAbs).toHaveBeenCalled();
-      const [, , scale] = mockPanzoom.smoothZoomAbs.mock.calls[0] as [
+      const [, , scale] = mockPanzoom.zoomAbs.mock.calls.at(-1) as [
         number,
         number,
         number,
@@ -742,9 +835,11 @@ describe("Canvas Store", () => {
 
       vi.useFakeTimers();
       store.zoomToDevice(rack, 0, [deviceType]);
+      // Drive the animation loop to completion so the camera lands on target.
+      vi.advanceTimersByTime(400);
 
-      expect(mockPanzoom.smoothZoomAbs).toHaveBeenCalled();
-      const [, , zoom] = mockPanzoom.smoothZoomAbs.mock.calls[0] as [
+      // The camera settles on the (clamped) target zoom, read from the final frame.
+      const [, , zoom] = mockPanzoom.zoomAbs.mock.calls.at(-1) as [
         number,
         number,
         number,
@@ -766,12 +861,11 @@ describe("Canvas Store", () => {
       const expectedPanY =
         viewportHeight / 2 - (deviceAbsY + deviceHeight / 2) * zoom;
 
-      // smoothMoveTo delivers the moveTo call via setTimeout(..., 0).
-      // Flush all pending timers so moveTo fires synchronously here.
-      vi.runAllTimers();
-
-      expect(mockPanzoom.moveTo).toHaveBeenCalledOnce();
-      const [panX, panY] = mockPanzoom.moveTo.mock.calls[0] as [number, number];
+      // The final animation frame lands the device center at the viewport center.
+      const [panX, panY] = mockPanzoom.moveTo.mock.calls.at(-1) as [
+        number,
+        number,
+      ];
       expect(panX).toBeCloseTo(expectedPanX, 5);
       expect(panY).toBeCloseTo(expectedPanY, 5);
     });
