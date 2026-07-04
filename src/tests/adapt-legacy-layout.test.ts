@@ -5,6 +5,7 @@ import {
   CARRIER_2X2_SLUG,
 } from "$lib/storage";
 import { LayoutSchema } from "$lib/schemas";
+import { CARRIER_2U_2COL_SLUG } from "$lib/storage/adapt-legacy-layout";
 import { toInternalUnits } from "$lib/utils/position";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { encodeLayout, decodeLayout } from "$lib/utils/share";
@@ -257,6 +258,42 @@ describe("adaptLegacyLayout", () => {
       const carriers = rackLevel(adapted).filter((d) => d.auto_created);
       // eslint-disable-next-line no-restricted-syntax -- a front and a rear carrier, not a pair
       expect(carriers).toHaveLength(2);
+    });
+
+    it("wraps a legacy 2U half-width device into a height-matched carrier", () => {
+      const twoUHalf = createTestDeviceType({
+        slug: "two-u-half",
+        u_height: 2,
+        slot_width: 1,
+      });
+      const layout = createTestLayout({
+        device_types: [twoUHalf],
+        racks: [
+          createTestRack({
+            devices: [
+              createTestDevice({
+                id: "two-u-dev",
+                device_type: "two-u-half",
+                position: 10,
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const adapted = adaptLegacyLayout(layout);
+      const carrier = rackLevel(adapted).find((d) => d.auto_created);
+      expect(carrier?.device_type).toBe(CARRIER_2U_2COL_SLUG);
+      expect(carrier?.position).toBe(toInternalUnits(10));
+
+      const child = children(adapted).find((d) => d.id === "two-u-dev");
+      expect(child?.container_id).toBe(carrier?.id);
+      expect(child?.slot_id).toBe("col-1");
+      expect(
+        adapted.device_types.some(
+          (t) => t.slug === CARRIER_2U_2COL_SLUG && (t.slots?.length ?? 0) > 0,
+        ),
+      ).toBe(true);
     });
   });
 

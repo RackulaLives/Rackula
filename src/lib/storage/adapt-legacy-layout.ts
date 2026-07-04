@@ -199,19 +199,22 @@ function buildCarrier(
 }
 
 /** Carrier shape a sub-U / half-width device needs. */
-type CarrierShape = "2col" | "2x2";
+type CarrierShape = "2col" | "2u-2col" | "2x2";
 
-/** Pick the carrier shape for a device: half-height gear needs the 2x2 grid. */
+/** Pick the carrier shape for a device: sub-U gear needs the 2x2 grid. */
 function carrierShapeFor(deviceType: DeviceType | undefined): CarrierShape {
-  return isSubUHeight(deviceType) ? "2x2" : "2col";
+  if (isSubUHeight(deviceType)) return "2x2";
+  return deviceType?.u_height === 2 ? "2u-2col" : "2col";
 }
 
 const SHAPE_SLUG: Record<CarrierShape, string> = {
   "2col": CARRIER_2COL_SLUG,
+  "2u-2col": CARRIER_2U_2COL_SLUG,
   "2x2": CARRIER_2X2_SLUG,
 };
 const SHAPE_SLOTS: Record<CarrierShape, readonly string[]> = {
   "2col": COL_SLOTS,
+  "2u-2col": COL_SLOTS,
   "2x2": GRID_SLOTS,
 };
 
