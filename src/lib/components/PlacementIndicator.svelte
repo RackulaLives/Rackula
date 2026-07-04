@@ -31,7 +31,7 @@
     aria-live="polite"
     transition:fly={{
       y: prefersReducedMotion.current ? 0 : -12,
-      duration: 150,
+      duration: prefersReducedMotion.current ? 0 : 150,
     }}
   >
     <div class="indicator-content">
