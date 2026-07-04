@@ -172,6 +172,12 @@ jobs:
     # block PRs. continue-on-error keeps the full-suite result visible as signal
     # while letting the overall Test run conclude green.
     continue-on-error: true
+    # Surface the tolerated result to the notify job below. continue-on-error
+    # masks the job result (needs.<job>.result reads 'success' even on failure),
+    # so an always-run capture step records the real outcome into this output and
+    # the notify job keys off it (#2856).
+    outputs:
+      e2e_result: ${{ steps.capture-e2e-outcome.outputs.result }}
     runs-on: [self-hosted, e2e]
     # Parallelise the full suite on the pve-prod ephemeral e2e runner (VMID 360,
     # more cores); playwright.config.ts reads PW_WORKERS (else Playwright default).
@@ -218,7 +224,19 @@ jobs:
         run: npx playwright install --with-deps || npx playwright install
 
       - name: Run full E2E tests
+        id: run-e2e
         run: npm run test:e2e
+
+      # Persist the test result into a job output for the notify job. This step
+      # always runs and always succeeds, so the output is set even when the test
+      # step above fails (which, under continue-on-error, does not fail the run).
+      # Any non-success outcome (a test failure, or an infra failure in an earlier
+      # step that skipped the test) is recorded as a failure to page on; workflow
+      # cancellation is filtered out by the notify job's !cancelled() guard.
+      - name: Capture E2E outcome
+        id: capture-e2e-outcome
+        if: always()
+        run: echo "result=${{ steps.run-e2e.outcome == 'success' && 'success' || 'failure' }}" >> "$GITHUB_OUTPUT"
 
       # The full config (e2e/playwright.config.ts) uses the blob reporter in CI,
       # which writes to blob-report/. View it with `npx playwright merge-reports
@@ -230,6 +248,50 @@ jobs:
           name: blob-report-self-hosted
           path: blob-report/
           retention-days: 7
+
+  # Advisory red must page a human, not wait to be noticed (#2856). Because the
+  # e2e-self-hosted job stays continue-on-error (single-runner SPOF, see above),
+  # its failure is otherwise silent. Mirror the notify-on-failure pattern from
+  # test-full.yml: file one labelled tracking issue, or comment on the existing
+  # one, so repeated failures land on a single issue instead of spamming new
+  # ones. Runs on GitHub-hosted infra with the built-in token + gh, so it uses
+  # reliable infra and keeps the issues-write token off the homelab runner. It
+  # pages when the job ran and did not pass; a runner that never dispatches the
+  # job (fully offline) runs no steps, so it cannot page here.
+  notify-e2e-self-hosted:
+    name: notify on self-hosted e2e failure
+    needs: e2e-self-hosted
+    if: ${{ !cancelled() && needs.e2e-self-hosted.outputs.e2e_result == 'failure' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Notify on failure
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: "Self-hosted E2E suite failing (advisory)"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # Dedup on the exact title so repeated failures update one issue. The
+          # shared ci-failure label groups CI trackers; the distinct title keeps
+          # this advisory tracker separate from test-full.yml's weekly/nightly one.
+          EXISTING=$(gh issue list --state open --label ci-failure --limit 100 \
+            --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | first | .number // empty")
+          BODY="Advisory self-hosted full E2E suite failed: $RUN_URL ($GITHUB_EVENT_NAME, ref $GITHUB_REF, $(date -u +%Y-%m-%dT%H:%M:%SZ))"
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create \
+              --title "$TITLE" \
+              --label "automated,ci-failure" \
+              --body "$BODY
+
+          This is the additive self-hosted E2E tier (spike #1994): advisory, so it does not block PRs. A notification here means the self-hosted run did not pass: a real test failure, a flake, or an error while the job ran (for example a dependency or browser install failure). A runner that never picks up the job runs no steps and cannot page here, so if runs stop appearing, check that the e2e runner is online. See the blob-report-self-hosted artifact on the run for details."
+          fi
 
   visual:
     name: visual regression

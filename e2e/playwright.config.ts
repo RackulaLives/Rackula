@@ -4,6 +4,7 @@ export default defineConfig({
   webServer: {
     command: "npm run build && npm run preview",
     port: 4173,
+    timeout: 120_000,
     cwd: "..",
   },
   testDir: ".",
@@ -36,11 +37,15 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       // visual-regression.spec.ts and axe.spec.ts have their own configs
       // (playwright.visual.config.ts, playwright.a11y.config.ts).
+      // deploy-smoke.spec.ts is a live-URL boot check (playwright.smoke.config.ts
+      // in deploy mode); against the local preview it is redundant with the
+      // flows this suite already runs, so it is excluded here.
       testIgnore: [
         "**/ios-safari.spec.ts",
         "**/android-chrome.spec.ts",
         "**/visual-regression.spec.ts",
         "**/axe.spec.ts",
+        "**/deploy-smoke.spec.ts",
       ],
     },
     {
@@ -51,6 +56,7 @@ export default defineConfig({
         "**/android-chrome.spec.ts",
         "**/visual-regression.spec.ts",
         "**/axe.spec.ts",
+        "**/deploy-smoke.spec.ts",
       ],
     },
     // iOS Safari tests

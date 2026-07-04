@@ -2,7 +2,7 @@ name: Full E2E Tests
 
 on:
   schedule:
-    - cron: "0 6 * * 1" # Monday 6am UTC
+    - cron: "0 6 * * *" # Nightly 6am UTC (full-suite guard on main)
   workflow_call:
   workflow_dispatch:
 
@@ -137,15 +137,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          TITLE: "Full E2E test suite failing"
         run: |
-          EXISTING=$(gh issue list --label ci-failure --state open --limit 1 --json number --jq '.[0].number // empty')
+          set -euo pipefail
+          # Dedup on the exact title so this tracker stays separate from other
+          # ci-failure issues (e.g. the self-hosted advisory tracker in test.yml,
+          # which shares the ci-failure label but uses a different title).
+          EXISTING=$(gh issue list --state open --label ci-failure --limit 100 \
+            --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | first | .number // empty")
           if [ -n "$EXISTING" ]; then
             gh issue comment "$EXISTING" --body "Full E2E failed again: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} (${{ github.event_name }}, $(date -u +%Y-%m-%dT%H:%M:%SZ))"
           else
             gh issue create \
-              --title "Full E2E test suite failing" \
+              --title "$TITLE" \
               --label "automated,ci-failure" \
-              --body "The weekly full E2E test suite failed.
+              --body "The nightly full E2E test suite failed.
 
           **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           **Trigger:** ${{ github.event_name }}
