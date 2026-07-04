@@ -273,13 +273,24 @@
   const anchorSignal = $derived.by<string | null>(() => {
     if (selection.isDeviceSelected && selection.selectedDeviceId) {
       const id = selection.selectedDeviceId;
-      for (const rack of layout.racks) {
+      // Track the rack's row index, its bayed-group index, and its slot within
+      // that group's rack_ids so the signature changes on every reorder that
+      // moves the device's screen x. reorderRacks rewrites rack.position and
+      // the array order (row index catches it). reorderRacksInGroup swaps
+      // only group.rack_ids and leaves rack.position untouched, but bayed
+      // members render flush in rack_ids order (stable position sort when
+      // positions are equal), so an internal group reorder still moves the
+      // device; the slot index catches it. rack.position is included too as
+      // the persisted row-order field.
+      for (const [i, rack] of layout.racks.entries()) {
         for (const dev of rack.devices) {
           if (dev.id === id) {
-            // rack.position is the persisted row-order field (reorderRacks
-            // reassigns it), so including it wakes re-measurement when the
-            // rack containing the selected device is reordered in its row.
-            return `${rack.id}|${rack.position}|${rack.width}|${rack.height}|${dev.position}|${dev.device_type}`;
+            const group = layout.rack_groups.find((g) =>
+              g.rack_ids.includes(rack.id),
+            );
+            const gIdx = group ? layout.rack_groups.indexOf(group) : -1;
+            const slotInGroup = group ? group.rack_ids.indexOf(rack.id) : -1;
+            return `${rack.id}|${i}|${gIdx}|${slotInGroup}|${rack.position}|${rack.width}|${rack.height}|${dev.position}|${dev.device_type}`;
           }
         }
       }
@@ -310,7 +321,14 @@
     void canvas.isInteracting;
     void canvas.cameraMoveId;
     void anchorSignal;
-    if (verbs.length === 0) return;
+    if (verbs.length === 0) {
+      // The {#if verbs.length > 0} template unmounts the bar, so nothing is
+      // visible after selection clears. But pos retains its last value; reset
+      // it here so a subsequent re-select does not flash the stale position
+      // for a frame before the first measure() tick lands.
+      hide();
+      return;
+    }
 
     let raf = 0;
     // Stop the loop once this deadline expires with no motion in flight. Any
