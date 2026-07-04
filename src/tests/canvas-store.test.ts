@@ -19,6 +19,17 @@ import {
 } from "$lib/constants/layout";
 import { toInternalUnits } from "$lib/utils/position";
 
+/**
+ * Stub window.matchMedia so the reduced-motion gate resolves to `matches`.
+ * Cleared per test via vi.unstubAllGlobals() in each describe's afterEach.
+ */
+function stubReducedMotion(matches: boolean): void {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({ matches })),
+  );
+}
+
 describe("Canvas Store", () => {
   beforeEach(() => {
     resetCanvasStore();
@@ -363,10 +374,7 @@ describe("Canvas Store", () => {
     it("interpolates x, y, and scale together and settles on the target", () => {
       const store = getCanvasStore();
       const mockPanzoom = createMockPanzoom(1);
-      vi.stubGlobal(
-        "matchMedia",
-        vi.fn(() => ({ matches: false })),
-      );
+      stubReducedMotion(false);
       store.setPanzoomInstance(
         mockPanzoom as ReturnType<typeof import("panzoom").default>,
       );
@@ -399,10 +407,7 @@ describe("Canvas Store", () => {
     it("retargets from the current camera and never applies the first target", () => {
       const store = getCanvasStore();
       const mockPanzoom = createMockPanzoom(1);
-      vi.stubGlobal(
-        "matchMedia",
-        vi.fn(() => ({ matches: false })),
-      );
+      stubReducedMotion(false);
       store.setPanzoomInstance(
         mockPanzoom as ReturnType<typeof import("panzoom").default>,
       );
@@ -439,10 +444,7 @@ describe("Canvas Store", () => {
     it("lands instantly with no animation when reduced motion is preferred", () => {
       const store = getCanvasStore();
       const mockPanzoom = createMockPanzoom(1);
-      vi.stubGlobal(
-        "matchMedia",
-        vi.fn(() => ({ matches: true })),
-      );
+      stubReducedMotion(true);
       store.setPanzoomInstance(
         mockPanzoom as ReturnType<typeof import("panzoom").default>,
       );
@@ -462,10 +464,7 @@ describe("Canvas Store", () => {
     it("an instant camera op cancels an in-flight animation", () => {
       const store = getCanvasStore();
       const mockPanzoom = createMockPanzoom(1);
-      vi.stubGlobal(
-        "matchMedia",
-        vi.fn(() => ({ matches: false })),
-      );
+      stubReducedMotion(false);
       store.setPanzoomInstance(
         mockPanzoom as ReturnType<typeof import("panzoom").default>,
       );
@@ -552,11 +551,7 @@ describe("Canvas Store", () => {
       const store = getCanvasStore();
       const mockPanzoom = createMockPanzoom(1);
 
-      // Mock matchMedia for reduced motion check
-      vi.stubGlobal(
-        "matchMedia",
-        vi.fn(() => ({ matches: false })),
-      );
+      stubReducedMotion(false);
 
       // Mock canvas element for viewport dimensions
       const mockCanvas = document.createElement("div");
@@ -601,10 +596,7 @@ describe("Canvas Store", () => {
     function setup(viewportWidth: number, viewportHeight: number) {
       const store = getCanvasStore();
       const mockPanzoom = createMockPanzoom(1);
-      vi.stubGlobal(
-        "matchMedia",
-        vi.fn(() => ({ matches: false })),
-      );
+      stubReducedMotion(false);
       const mockCanvas = document.createElement("div");
       Object.defineProperty(mockCanvas, "clientWidth", {
         value: viewportWidth,
@@ -671,10 +663,7 @@ describe("Canvas Store", () => {
       const store = getCanvasStore();
       const mockPanzoom = createMockPanzoom(initialScale);
 
-      vi.stubGlobal(
-        "matchMedia",
-        vi.fn(() => ({ matches: prefersReducedMotion })),
-      );
+      stubReducedMotion(prefersReducedMotion);
 
       const mockCanvas = document.createElement("div");
       Object.defineProperty(mockCanvas, "clientWidth", {
