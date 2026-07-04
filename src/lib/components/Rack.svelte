@@ -42,7 +42,6 @@
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { validStartPositions } from "$lib/utils/placement-keyboard";
   import { SvelteSet, SvelteMap } from "svelte/reactivity";
-  import { toHumanUnits } from "$lib/utils/position";
   import { fade } from "svelte/transition";
   import { prefersReducedMotion } from "svelte/motion";
   import {
@@ -182,25 +181,13 @@
     };
   });
 
+  // Slug index rebuilt only when deviceLibrary changes; collapses O(D x L)
+  // proxy-trapped finds to O(D) map hits. Same pattern as AnnotationColumn.
+  const bySlug = $derived(new Map(deviceLibrary.map((dt) => [dt.slug, dt])));
+
   // --- Utility lookups ---
   function getDeviceBySlug(slug: string): DeviceType | undefined {
-    return deviceLibrary.find((d) => d.slug === slug);
-  }
-
-  function getContainerContext(childDevice: PlacedDevice) {
-    if (!childDevice.container_id) return undefined;
-    const container = rack.devices.find(
-      (d) => d.id === childDevice.container_id,
-    );
-    if (!container) return undefined;
-    const containerType = getDeviceBySlug(container.device_type);
-    if (!containerType) return undefined;
-    const slot = containerType.slots?.find((s) => s.id === childDevice.slot_id);
-    return {
-      containerName: containerType.model ?? containerType.slug,
-      containerPosition: toHumanUnits(container.position),
-      slotName: slot?.name ?? childDevice.slot_id ?? "Unknown",
-    };
+    return bySlug.get(slug);
   }
 
   // --- Layout constants & derived dimensions ---
@@ -268,7 +255,7 @@
         if (placedDevice.container_id) return false;
         const ef = effectiveFace(
           placedDevice,
-          deviceLibrary.find((d) => d.slug === placedDevice.device_type),
+          bySlug.get(placedDevice.device_type),
         );
         return ef === "both" || ef === effectiveFaceFilter;
       }),
@@ -281,10 +268,7 @@
     >();
     rack.devices.forEach((pd, idx) => {
       if (!pd.container_id) return;
-      const ef = effectiveFace(
-        pd,
-        deviceLibrary.find((d) => d.slug === pd.device_type),
-      );
+      const ef = effectiveFace(pd, bySlug.get(pd.device_type));
       if (ef !== "both" && ef !== effectiveFaceFilter) return;
       const children = map.get(pd.container_id) ?? [];
       children.push({ placedDevice: pd, originalIndex: idx });
@@ -530,9 +514,6 @@
     <g transform="translate(0, {RACK_PADDING + RAIL_WIDTH})">
       {#each visibleDevices as { placedDevice, originalIndex } (placedDevice.id)}
         {@const device = getDeviceBySlug(placedDevice.device_type)}
-        {@const containerCtx = placedDevice.container_id
-          ? getContainerContext(placedDevice)
-          : undefined}
         {@const children = containerChildren.get(placedDevice.id) ?? []}
         <!-- Transition wrapper must sit directly in the each item: local
              transitions only play when their own block is created/destroyed,
@@ -563,7 +544,6 @@
               frontImageRef={placedDevice.front_image}
               rearImageRef={placedDevice.rear_image}
               colourOverride={placedDevice.colour_override}
-              containerContext={containerCtx}
               {deviceLibrary}
               containerChildDevices={children}
               selectedChildId={selectedDeviceId}

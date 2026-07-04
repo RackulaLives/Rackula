@@ -64,12 +64,6 @@
     rearImageRef?: string;
     /** Custom colour override for this placement (overrides device type colour) */
     colourOverride?: string;
-    /** Container context for child devices (for accessibility announcements) */
-    containerContext?: {
-      containerName: string;
-      containerPosition: number;
-      slotName: string;
-    };
     /** Device library for looking up child device types */
     deviceLibrary?: DeviceType[];
     /** Child devices placed inside this container (if container) */
@@ -129,7 +123,6 @@
     frontImageRef,
     rearImageRef,
     colourOverride,
-    containerContext,
     deviceLibrary = [],
     containerChildDevices = [],
     selectedChildId = null,
@@ -362,11 +355,6 @@
 
     const rearState =
       isRearTreatment && !showImage && !showImagePlaceholder ? ", rear" : "";
-
-    if (containerContext) {
-      // Child device: announce hierarchy per Epic #159
-      return `${base} in ${containerContext.slotName} of ${containerContext.containerName} at U${containerContext.containerPosition}${imageState}${rearState}${selected ? ", selected" : ""}`;
-    }
 
     // Rack-level device: standard announcement
     return `${base} at U${positionHuman}${imageState}${rearState}${selected ? ", selected" : ""}`;
