@@ -11,6 +11,7 @@ import { getSelectionStore } from "$lib/stores/selection.svelte";
 import { getCanvasStore } from "$lib/stores/canvas.svelte";
 import { getUIStore } from "$lib/stores/ui.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
+import { getPlacementStore } from "$lib/stores/placement.svelte";
 import { hapticSuccess, hapticError } from "$lib/utils/haptics";
 import { getRackSlotControls } from "$lib/utils/rack-row";
 import { findNextValidPosition } from "$lib/utils/device-movement";
@@ -66,12 +67,23 @@ function _moveSelectedDevice(direction: 1 | -1): void {
     direction,
   );
 
+  // Announce through the assertive live region DialogOrchestrator renders
+  // (placement-sr-announcer). A focused element's aria-label change is not
+  // reliably re-announced, and a blocked move must not fail silently.
+  const placementStore = getPlacementStore();
   if (result.success && result.newPosition !== null) {
     const humanPosition = toHumanUnits(result.newPosition);
     layoutStore.moveDevice(
       selectionStore.selectedRackId!,
       deviceIndex,
       humanPosition,
+    );
+    placementStore.announcePosition(`Moved to U${humanPosition}`);
+  } else {
+    placementStore.announcePosition(
+      direction === 1
+        ? "Cannot move up, no free position"
+        : "Cannot move down, no free position",
     );
   }
 }
