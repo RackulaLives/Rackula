@@ -43,6 +43,8 @@
   import { validStartPositions } from "$lib/utils/placement-keyboard";
   import { SvelteSet, SvelteMap } from "svelte/reactivity";
   import { toHumanUnits } from "$lib/utils/position";
+  import { fade } from "svelte/transition";
+  import { prefersReducedMotion } from "svelte/motion";
   import {
     U_HEIGHT_PX,
     RAIL_WIDTH as RAIL_WIDTH_CONST,
@@ -514,43 +516,57 @@
           ? getContainerContext(placedDevice)
           : undefined}
         {@const children = containerChildren.get(placedDevice.id) ?? []}
-        {#if device}
-          {@const isHoveredContainer =
-            containerHoverInfo?.containerId === placedDevice.id}
-          <RackDevice
-            {device}
-            position={placedDevice.position}
-            rackHeight={rack.height}
-            rackId={rack.id}
-            deviceIndex={originalIndex}
-            selected={selectedDeviceId === placedDevice.id}
-            uHeight={U_HEIGHT}
-            rackWidth={RACK_WIDTH}
-            {displayMode}
-            rackView={effectiveFaceFilter}
-            {showLabelsOnImages}
-            placedDeviceName={placedDevice.name}
-            placedDeviceId={placedDevice.id}
-            frontImageRef={placedDevice.front_image}
-            rearImageRef={placedDevice.rear_image}
-            colourOverride={placedDevice.colour_override}
-            containerContext={containerCtx}
-            {deviceLibrary}
-            containerChildDevices={children}
-            selectedChildId={selectedDeviceId}
-            isDragOverContainer={isHoveredContainer}
-            dragTargetSlotId={isHoveredContainer
-              ? (containerHoverInfo?.targetSlotId ?? null)
-              : null}
-            isDragTargetValid={isHoveredContainer &&
-              (containerHoverInfo?.isValidTarget ?? false)}
-            onselect={ondeviceselect}
-            ondragend={() => setDragFinished()}
-            onduplicate={(e) =>
-              contextActions.handleDuplicate(rack, { ...e.detail, x: 0, y: 0 })}
-            oncontextmenuopen={ctxMenu.handleOpen}
-          />
-        {/if}
+        <!-- Transition wrapper must sit directly in the each item: local
+             transitions only play when their own block is created/destroyed,
+             so inside the if it would never fire on place/delete, and being
+             local it correctly skips initial mount and tab switches. -->
+        <g
+          transition:fade={{
+            duration: prefersReducedMotion.current ? 0 : 150,
+          }}
+        >
+          {#if device}
+            {@const isHoveredContainer =
+              containerHoverInfo?.containerId === placedDevice.id}
+            <RackDevice
+              {device}
+              position={placedDevice.position}
+              rackHeight={rack.height}
+              rackId={rack.id}
+              deviceIndex={originalIndex}
+              selected={selectedDeviceId === placedDevice.id}
+              uHeight={U_HEIGHT}
+              rackWidth={RACK_WIDTH}
+              {displayMode}
+              rackView={effectiveFaceFilter}
+              {showLabelsOnImages}
+              placedDeviceName={placedDevice.name}
+              placedDeviceId={placedDevice.id}
+              frontImageRef={placedDevice.front_image}
+              rearImageRef={placedDevice.rear_image}
+              colourOverride={placedDevice.colour_override}
+              containerContext={containerCtx}
+              {deviceLibrary}
+              containerChildDevices={children}
+              selectedChildId={selectedDeviceId}
+              isDragOverContainer={isHoveredContainer}
+              dragTargetSlotId={isHoveredContainer
+                ? (containerHoverInfo?.targetSlotId ?? null)
+                : null}
+              isDragTargetValid={isHoveredContainer &&
+                (containerHoverInfo?.isValidTarget ?? false)}
+              onselect={ondeviceselect}
+              ondragend={() => setDragFinished()}
+              onduplicate={(e) =>
+                contextActions.handleDuplicate(rack, {
+                  ...e.detail,
+                  x: 0,
+                  y: 0,
+                })}
+              oncontextmenuopen={ctxMenu.handleOpen}
+            />
+          {/if}
+        </g>
       {/each}
     </g>
 
