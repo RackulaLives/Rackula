@@ -8,6 +8,8 @@
 -->
 <script lang="ts">
   import type { DropFeedback } from "$lib/utils/dragdrop";
+  import { Tween, prefersReducedMotion } from "svelte/motion";
+  import { cubicOut } from "svelte/easing";
 
   interface Props {
     /** Drop preview position (1-indexed U position from bottom) */
@@ -43,12 +45,19 @@
   const previewY = $derived(
     (rackHeight - position - height + 1) * uHeight + rackPadding + railWidth,
   );
+
+  // Glide between whole-U slots. Slot targets are discrete commits, never
+  // per-frame pointer tracking, so the tween cannot fight the pointer.
+  const previewYMotion = Tween.of(() => previewY, {
+    duration: 90,
+    easing: cubicOut,
+  });
 </script>
 
 <!-- Drop preview rectangle (carrier-first: always full-width) -->
 <rect
   x={railWidth + 2}
-  y={previewY}
+  y={prefersReducedMotion.current ? previewY : previewYMotion.current}
   width={interiorWidth - 4}
   height={height * uHeight - 2}
   class="drop-preview"
