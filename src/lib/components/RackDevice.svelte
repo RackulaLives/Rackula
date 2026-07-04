@@ -936,6 +936,17 @@
     stroke: var(--colour-selection);
     stroke-width: 2;
     pointer-events: none;
+    animation: selection-settle 120ms ease-out;
+  }
+
+  /* One-shot settle when the selection rect mounts. No `to` block: the
+     animation ends on the computed stroke-width (2 desktop, 3 small screens).
+     The global prefers-reduced-motion reset collapses the duration. */
+  @keyframes selection-settle {
+    from {
+      stroke-opacity: 0;
+      stroke-width: 4;
+    }
   }
 
   @media (max-width: 430px) {
