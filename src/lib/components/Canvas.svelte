@@ -374,7 +374,11 @@
   });
 
   function handleCanvasKeydown(event: KeyboardEvent) {
-    // Handle Enter/Space as click for accessibility
+    // Only act when the canvas surface itself is the target. Keydown bubbles,
+    // so without this guard Enter/Space on a rack, device, or the verb bar
+    // would clear the selection those elements just made (same guard as
+    // handleCanvasClick above).
+    if (event.target !== event.currentTarget) return;
     if (event.key === "Enter" || event.key === " ") {
       selectionStore.clearSelection();
     }
