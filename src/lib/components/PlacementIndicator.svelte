@@ -7,6 +7,8 @@
   import type { DeviceType } from "$lib/types";
   import { hapticCancel } from "$lib/utils/haptics";
   import { IconClose } from "./icons";
+  import { fly } from "svelte/transition";
+  import { prefersReducedMotion } from "svelte/motion";
 
   interface Props {
     isPlacing: boolean;
@@ -23,7 +25,12 @@
 </script>
 
 {#if isPlacing && device}
-  <div class="placement-indicator" role="status" aria-live="polite">
+  <div
+    class="placement-indicator"
+    role="status"
+    aria-live="polite"
+    transition:fly={{ y: prefersReducedMotion.current ? 0 : -12, duration: 150 }}
+  >
     <div class="indicator-content">
       <span class="indicator-text">
         Placing: <strong
