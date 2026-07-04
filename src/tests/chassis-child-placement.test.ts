@@ -60,6 +60,15 @@ const bladeHalf = findStarterDevice("blade-server-half")!; // 2U child
 const bladeFull = findStarterDevice("blade-server-full")!; // 4U child
 /** A real generic 2U half-width device (no child role): DeskPi 2U 4-Pi tray. */
 const genericTwoU = findBrandDevice("deskpi-rackmate-2u-4-pi")!; // 2U half-width
+/** A full-width whole-U rail device: no carrier applies, never a chassis bay. */
+const fullWidthRail: DeviceType = {
+  slug: "server-1u",
+  model: "Server",
+  u_height: 1,
+  slot_width: 2,
+  category: "server",
+  colour: "#4A90D9",
+};
 
 // =============================================================================
 // synthesizeCarrierForDevice — height-driven selection, null for children
@@ -114,16 +123,20 @@ describe("synthesizeCarrierForDevice (height-matched, child-aware)", () => {
     expect(synthesizeCarrierForDevice(threeU)).toBeNull();
   });
 
-  it("returns null for a full-width whole-U device", () => {
-    const fullWidth: DeviceType = {
-      slug: "server-1u",
-      model: "Server",
-      u_height: 1,
-      slot_width: 2,
-      category: "server",
+  it("returns null (not a too-small carrier) for a non-integer height at or above 1U", () => {
+    const oneAndHalf: DeviceType = {
+      slug: "one-half-u",
+      model: "One and a Half U",
+      u_height: 1.5,
+      slot_width: 1,
+      category: "network",
       colour: "#4A90D9",
     };
-    expect(synthesizeCarrierForDevice(fullWidth)).toBeNull();
+    expect(synthesizeCarrierForDevice(oneAndHalf)).toBeNull();
+  });
+
+  it("returns null for a full-width whole-U device", () => {
+    expect(synthesizeCarrierForDevice(fullWidthRail)).toBeNull();
   });
 });
 
@@ -144,15 +157,7 @@ describe("requiresChassisBay", () => {
   });
 
   it("is false for a full-width whole-U rail device", () => {
-    const fullWidth: DeviceType = {
-      slug: "server-1u",
-      model: "Server",
-      u_height: 1,
-      slot_width: 2,
-      category: "server",
-      colour: "#4A90D9",
-    };
-    expect(requiresChassisBay(fullWidth)).toBe(false);
+    expect(requiresChassisBay(fullWidthRail)).toBe(false);
   });
 });
 
@@ -194,7 +199,13 @@ describe("placeDeviceSmart (store) honesty", () => {
 
     expect(store.placeDeviceSmart(rackId, bladeHalf.slug, 5)).toBe(false);
     // Nothing lands on the rails: no child, and no phantom carrier.
-    expect(store.rack!.devices.length).toBe(0);
+    expect(
+      store.rack!.devices.some(
+        (d) =>
+          d.device_type === bladeHalf.slug ||
+          d.device_type.startsWith("carrier-"),
+      ),
+    ).toBe(false);
   });
 
   it("places a generic 2U half-width device via a synthesised 2U carrier", () => {

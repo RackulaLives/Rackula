@@ -469,9 +469,14 @@ export function synthesizeCarrierForDevice(
     return null;
   }
 
-  // Sub-U / non-integer heights use the 2x2 grid carrier.
-  if (!Number.isInteger(deviceType.u_height)) {
+  // Sub-1U gear uses the 2x2 grid carrier (its cells are half-U tall). A
+  // non-integer height at or above 1U has no matching carrier, so it falls
+  // through to null rather than a too-small carrier.
+  if (deviceType.u_height < 1) {
     return CARRIER_2X2_SLUG;
+  }
+  if (!Number.isInteger(deviceType.u_height)) {
+    return null;
   }
 
   // Whole-U half-width gear uses a height-matched column carrier. Heights with
