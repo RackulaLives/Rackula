@@ -263,6 +263,9 @@ jobs:
     needs: e2e-self-hosted
     if: ${{ !cancelled() && needs.e2e-self-hosted.outputs.e2e_result == 'failure' }}
     runs-on: ubuntu-latest
+    # issues: write is scoped to this GitHub-hosted notification job only, so the
+    # token that can open or comment on issues never runs on the self-hosted
+    # runner; the e2e job itself needs no issue permissions.
     permissions:
       contents: read
       issues: write
