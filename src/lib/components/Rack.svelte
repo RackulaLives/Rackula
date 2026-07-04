@@ -355,6 +355,28 @@
   // The active preview: a live pointer drag wins; otherwise the keyboard cursor.
   const activePreview = $derived(dropPreview ?? keyboardCursorPreview);
 
+  // resolveDropTarget mints a fresh { position, height, feedback } object on
+  // every pointermove/dragover; assigning it unconditionally wakes the derived
+  // graph (activePreview + every isDropTarget) on each pixel even when the
+  // resolved slot has not changed. Skip the write when all three fields match
+  // the current preview; null (clear) always passes through.
+  function setDropPreviewIfChanged(p: DropPreviewState | null): void {
+    if (p === null) {
+      dropPreview = null;
+      return;
+    }
+    const cur = dropPreview;
+    if (
+      cur !== null &&
+      cur.position === p.position &&
+      cur.height === p.height &&
+      cur.feedback === p.feedback
+    ) {
+      return;
+    }
+    dropPreview = p;
+  }
+
   // --- Handler context for extracted interaction handlers ---
   const handlerCtx = $derived<RackHandlerContext>({
     getRack: () => rack,
@@ -363,9 +385,7 @@
     getFaceFilter: () => effectiveFaceFilter,
     getSelectedDeviceId: () => selectedDeviceId,
     getEventCallbacks: () => eventCallbacks,
-    setDropPreview: (p) => {
-      dropPreview = p;
-    },
+    setDropPreview: setDropPreviewIfChanged,
     setContainerHoverInfo: (i) => {
       containerHoverInfo = i;
     },
@@ -393,9 +413,7 @@
       getFaceFilter: () => effectiveFaceFilter,
       getSelectedDeviceId: () => selectedDeviceId,
       getEventCallbacks: () => eventCallbacks,
-      setDropPreview: (p) => {
-        dropPreview = p;
-      },
+      setDropPreview: setDropPreviewIfChanged,
       setContainerHoverInfo: (i) => {
         containerHoverInfo = i;
       },
