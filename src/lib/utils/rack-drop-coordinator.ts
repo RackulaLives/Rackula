@@ -24,6 +24,19 @@ import { findDeviceType } from "$lib/utils/device-lookup";
 import { getDeviceDisplayName } from "$lib/utils/device";
 import { screenToSVG } from "$lib/utils/coordinates";
 
+/**
+ * The rail height of a synthesised carrier, defaulting to 1U if the slug is
+ * somehow absent from the library (defensive: the synthesised carriers are
+ * always present). Shared by resolveDropTarget and resolveDropAction so both
+ * validate the same rail footprint.
+ */
+function getCarrierHeight(
+  carrierSlug: string,
+  deviceLibrary: DeviceType[],
+): number {
+  return findDeviceType(carrierSlug, deviceLibrary)?.u_height ?? 1;
+}
+
 /** Pixel-based measurements of a rack, used by the drop calculation pipeline. */
 export interface RackDimensions {
   rackHeight: number;
@@ -221,8 +234,7 @@ export function resolveDropTarget(
     feedback = "valid";
   } else if (carrierSlug) {
     // Synthesise a rail carrier at this U: validate its full rail footprint.
-    const carrierHeight =
-      findDeviceType(carrierSlug, deviceLibrary)?.u_height ?? 1;
+    const carrierHeight = getCarrierHeight(carrierSlug, deviceLibrary);
     feedback = getDropFeedback(
       rack,
       deviceLibrary,
@@ -317,8 +329,7 @@ export function resolveDropAction(
   // carrier at the target U via the store. Validate the carrier's full rail
   // footprint (height-matched: a 2U carrier needs 2U of clear rail).
   if (carrierSlug) {
-    const carrierHeight =
-      findDeviceType(carrierSlug, deviceLibrary)?.u_height ?? 1;
+    const carrierHeight = getCarrierHeight(carrierSlug, deviceLibrary);
     const carrierFeedback = getDropFeedback(
       rack,
       deviceLibrary,
