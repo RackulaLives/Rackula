@@ -580,6 +580,17 @@
     </div>
   </div>
 
+  <!-- Search outcome for screen readers. The visual list filters live, but
+       AT users need the result announced; polite so it never interrupts
+       typing. Text settles at most once per debounce (150ms). -->
+  <div class="sr-only" role="status" data-testid="palette-search-announcer">
+    {#if isSearchActive}
+      {hasResults
+        ? `${totalDevicesCount} ${totalDevicesCount === 1 ? "device" : "devices"} found`
+        : "No devices match"}
+    {/if}
+  </div>
+
   <!-- Device List -->
   <div class="device-list" class:fill-flat={flatFill}>
     {#snippet deviceRow(device: DeviceType)}
