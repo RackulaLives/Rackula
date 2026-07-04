@@ -338,6 +338,32 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     ],
   },
   {
+    // Height-matched carrier for whole-U half-width gear taller than 1U (#2854).
+    // Same two-column shape as carrier-1u-2col but 2U tall, so a generic 2U
+    // half-width device can rail-mount inside it. Stable synthesis target.
+    slug: "carrier-2u-2col",
+    model: "Carrier (2U, 2 Column)",
+    u_height: 2,
+    category: "shelf",
+    subdevice_role: "parent",
+    slots: [
+      {
+        id: "col-1",
+        name: "Column 1",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.5,
+        height_units: 2,
+      },
+      {
+        id: "col-2",
+        name: "Column 2",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.5,
+        height_units: 2,
+      },
+    ],
+  },
+  {
     slug: "carrier-1u-2x2",
     model: "Carrier (1U, 2x2)",
     u_height: 1,

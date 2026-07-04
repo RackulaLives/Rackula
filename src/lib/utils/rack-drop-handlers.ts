@@ -176,15 +176,19 @@ export function dispatchDropAction(
     case "invalid": {
       hapticError();
       if (collisionContext) {
-        const message = buildCollisionMessage(
-          action.feedback,
-          collisionContext.rack,
-          collisionContext.deviceLibrary,
-          action.deviceHeight,
-          action.targetU,
-          action.excludeIndex,
-          collisionContext.faceFilter,
-        );
+        // An explicit message (e.g. the honest "requires a chassis" case) wins
+        // over the collision-derived one, which has no device to name here.
+        const message =
+          action.message ??
+          buildCollisionMessage(
+            action.feedback,
+            collisionContext.rack,
+            collisionContext.deviceLibrary,
+            action.deviceHeight,
+            action.targetU,
+            action.excludeIndex,
+            collisionContext.faceFilter,
+          );
         if (message) {
           collisionContext.toastStore.showToast(message, "warning", 3000);
         }

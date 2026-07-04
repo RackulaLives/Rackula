@@ -18,12 +18,14 @@
  */
 
 import type { Rack, DeviceType, DeviceFace } from "$lib/types";
+import { requiresChassisBay } from "./collision";
 import {
   validStartPositions,
   initialCursorPosition,
   nextCursorPosition,
   pickUpAnnouncement,
   pickUpNoSpaceAnnouncement,
+  pickUpNeedsChassisAnnouncement,
   positionAnnouncement,
   noSpaceAnnouncement,
   singleRackAnnouncement,
@@ -48,6 +50,8 @@ export interface PlacementKeyboardDeps {
   setCursor: (rackId: string, position: number | null) => void;
   announce: (text: string) => void;
   cancelPlacement: () => void;
+  /** Silently exit placement mode (no "cancelled" announcement). */
+  abandonPlacement: () => void;
   /** Place the armed device. Returns true on success. */
   placeDevice: (
     rackId: string,
@@ -91,6 +95,7 @@ export type PlacementPrimeDeps = Pick<
   | "setActiveRack"
   | "setCursor"
   | "announce"
+  | "abandonPlacement"
 >;
 
 function resolveActiveRack(deps: PlacementPrimeDeps): Rack | null {
@@ -122,6 +127,16 @@ export function primeKeyboardPlacement(
   deps: PlacementPrimeDeps,
   device: DeviceType,
 ): void {
+  // A device that can only mount inside a chassis bay (a chassis child, or a
+  // half-width device with no rail carrier) has no rail target in any rack.
+  // State the honest requirement and exit placement mode rather than arming a
+  // futile cursor the user could only Escape out of (#2854).
+  if (requiresChassisBay(device)) {
+    deps.abandonPlacement();
+    deps.announce(pickUpNeedsChassisAnnouncement(device));
+    return;
+  }
+
   const rack = resolveActiveRack(deps);
   if (!rack) {
     // Armed with no rack to place into: say so rather than fall silent.
@@ -261,6 +276,10 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     if (deps.getCursorPosition() == null) {
       if (!navOrPlaceKeys.includes(event.key)) return false;
       primeCursor(device);
+      // Priming may have exited placement mode (e.g. a chassis child has no rail
+      // target): consume the key and stop rather than fall through to place(),
+      // which would re-announce a misleading "No space" (#2854).
+      if (!deps.isPlacing()) return true;
       if (event.key === "ArrowUp" || event.key === "ArrowDown") return true;
     }
 

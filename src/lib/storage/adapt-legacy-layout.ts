@@ -48,6 +48,8 @@ function legacySlot(d: PlacedDevice): "left" | "right" | "full" | undefined {
 /** Stable synthesized-carrier slugs (defined in C1's starter library). */
 export const CARRIER_2COL_SLUG = "carrier-1u-2col";
 export const CARRIER_2X2_SLUG = "carrier-1u-2x2";
+/** Height-matched 2U carrier for whole-U half-width gear taller than 1U (#2854). */
+export const CARRIER_2U_2COL_SLUG = "carrier-2u-2col";
 
 /** Slot ids on carrier-1u-2col (full-height half-width columns). */
 const COL_SLOTS = ["col-1", "col-2"] as const;
@@ -58,6 +60,7 @@ const GRID_SLOTS = ["r0-c0", "r0-c1", "r1-c0", "r1-c1"] as const;
 const KNOWN_CARRIER_SLUGS = new Set<string>([
   CARRIER_2COL_SLUG,
   CARRIER_2X2_SLUG,
+  CARRIER_2U_2COL_SLUG,
 ]);
 
 /** A rack-level device has none of the child-placement markers set. */

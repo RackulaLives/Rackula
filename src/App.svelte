@@ -527,6 +527,7 @@
         setCursor: (rackId, position) =>
           placementStore.setCursor(rackId, position),
         announce: (text) => placementStore.announcePosition(text),
+        abandonPlacement: () => placementStore.abandonPlacement(),
       },
       device,
     );

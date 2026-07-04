@@ -18,7 +18,9 @@ import {
 import {
   findCollisions,
   synthesizeCarrierForDevice,
+  requiresChassisBay,
 } from "$lib/utils/collision";
+import { findDeviceType } from "$lib/utils/device-lookup";
 import { getDeviceDisplayName } from "$lib/utils/device";
 import { screenToSVG } from "$lib/utils/coordinates";
 
@@ -105,6 +107,12 @@ export type DropAction =
       targetU: number;
       deviceHeight: number;
       excludeIndex?: number;
+      /**
+       * Explicit user-facing message that overrides the collision-derived one.
+       * Set for the honest "requires a chassis" case (a chassis child dropped on
+       * bare rails), which has no colliding device to name.
+       */
+      message?: string;
     };
 
 /**
@@ -181,36 +189,61 @@ export function resolveDropTarget(
     faceFilter,
   );
 
-  // Carrier-first: a sub-U / half-width device never lands on a bare rail. Its
-  // preview is valid when an existing carrier under the cursor has a free,
-  // fitting cell (resolvable drop target, not mere compatibility), or else when
-  // a synthesised 1U carrier would fit at this U.
-  const needsCarrier = synthesizeCarrierForDevice(device) !== null;
-  const resolvableContainerTarget = needsCarrier
-    ? detectContainerDropTarget(
-        rack,
-        deviceLibrary,
-        device,
-        mouseY,
-        xOffsetInRack,
-        dims.rackWidth,
-        dims.rackHeight,
-        dims.uHeight,
-        faceFilter,
-      )
-    : null;
-  const feedback = needsCarrier
-    ? resolvableContainerTarget
-      ? "valid"
-      : getDropFeedback(rack, deviceLibrary, 1, targetU, excludeIndex, "both")
-    : getDropFeedback(
-        rack,
-        deviceLibrary,
-        device.u_height,
-        targetU,
-        excludeIndex,
-        faceFilter,
-      );
+  // Carrier-first: a sub-U / half-width device (including a chassis child) never
+  // lands on a bare rail. Its preview is valid when an existing container under
+  // the cursor has a free, fitting cell (a resolvable bay), or else - for a
+  // device that can synthesise its own rail carrier - when that carrier's full
+  // footprint would fit at this U. A device that requires a carrier but has none
+  // synthesisable (a chassis child) is INVALID on bare rails: it can only go
+  // into an existing bay. This mirrors placeDeviceSmart so preview and placement
+  // agree.
+  const carrierSlug = synthesizeCarrierForDevice(device);
+  const needsBay = requiresChassisBay(device);
+  // Both a carrier-synthesising device and a bay-only device can drop into an
+  // existing container cell under the cursor.
+  const resolvableContainerTarget =
+    carrierSlug !== null || needsBay
+      ? detectContainerDropTarget(
+          rack,
+          deviceLibrary,
+          device,
+          mouseY,
+          xOffsetInRack,
+          dims.rackWidth,
+          dims.rackHeight,
+          dims.uHeight,
+          faceFilter,
+        )
+      : null;
+
+  let feedback: DropFeedback;
+  if (resolvableContainerTarget) {
+    feedback = "valid";
+  } else if (carrierSlug) {
+    // Synthesise a rail carrier at this U: validate its full rail footprint.
+    const carrierHeight =
+      findDeviceType(carrierSlug, deviceLibrary)?.u_height ?? 1;
+    feedback = getDropFeedback(
+      rack,
+      deviceLibrary,
+      carrierHeight,
+      targetU,
+      excludeIndex,
+      "both",
+    );
+  } else if (needsBay) {
+    // Requires a chassis bay but none is under the cursor: honestly invalid.
+    feedback = "invalid";
+  } else {
+    feedback = getDropFeedback(
+      rack,
+      deviceLibrary,
+      device.u_height,
+      targetU,
+      excludeIndex,
+      faceFilter,
+    );
+  }
 
   return {
     targetU,
@@ -281,12 +314,15 @@ export function resolveDropAction(
   const excludeIndex = deriveExcludeIndex(dragData, rack.id);
 
   // No container under the cursor: a carriable device synthesises (or fills) a
-  // carrier at the target U via the store. Validate the 1U carrier rail slot.
+  // carrier at the target U via the store. Validate the carrier's full rail
+  // footprint (height-matched: a 2U carrier needs 2U of clear rail).
   if (carrierSlug) {
+    const carrierHeight =
+      findDeviceType(carrierSlug, deviceLibrary)?.u_height ?? 1;
     const carrierFeedback = getDropFeedback(
       rack,
       deviceLibrary,
-      1,
+      carrierHeight,
       targetU,
       excludeIndex,
       "both",
@@ -296,7 +332,7 @@ export function resolveDropAction(
         kind: "invalid",
         feedback: carrierFeedback,
         targetU,
-        deviceHeight: 1,
+        deviceHeight: carrierHeight,
         excludeIndex,
       };
     }
@@ -307,6 +343,22 @@ export function resolveDropAction(
       targetU,
       face: faceFilter ?? "front",
       dragData,
+    };
+  }
+
+  // A device that requires a carrier but has none synthesisable (a chassis
+  // child) can only go into an existing chassis bay - handled above when the
+  // cursor is over one. On bare rails it is honestly invalid: say it needs a
+  // chassis rather than fall through to a rail placement the store would refuse
+  // with a misleading "No space".
+  if (requiresChassisBay(dragData.device)) {
+    return {
+      kind: "invalid",
+      feedback: "invalid",
+      targetU,
+      deviceHeight: dragData.device.u_height,
+      excludeIndex,
+      message: chassisRequirementMessage(dragData.device),
     };
   }
 
@@ -369,6 +421,16 @@ export function resolveDropAction(
     slug: dragData.device.slug,
     targetU,
   };
+}
+
+/**
+ * Honest message for a device that can only mount inside a chassis bay (a
+ * chassis child, or a half-width device with no rail carrier). Shown instead of
+ * a misleading "No space" when such a device is dropped on bare rails.
+ */
+export function chassisRequirementMessage(device: DeviceType): string {
+  const name = device.model ?? device.slug;
+  return `${name} must be placed in a chassis bay`;
 }
 
 /**

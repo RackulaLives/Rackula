@@ -15,6 +15,7 @@
 
 import type { Rack, DeviceType, DeviceFace } from "$lib/types";
 import { getDropFeedback } from "./dragdrop";
+import { requiresChassisBay } from "./collision";
 
 /**
  * Whole-U start positions (1-indexed, human units, ascending) where `device`
@@ -28,6 +29,11 @@ export function validStartPositions(
   device: DeviceType,
   face: DeviceFace = "front",
 ): number[] {
+  // A device that can only live in a chassis bay (a chassis child, or a
+  // half-width device with no rail carrier) has no valid rail start position:
+  // announcing one would be dishonest and Enter would fail (#2854).
+  if (requiresChassisBay(device)) return [];
+
   const positions: number[] = [];
   const deviceHeight = device.u_height;
   const lastStart = rack.height - deviceHeight + 1;
@@ -120,6 +126,17 @@ export function pickUpNoSpaceAnnouncement(
 ): string {
   const name = device.model ?? device.slug;
   return `Placing ${name}. No space in ${rackName}. Tab to switch racks, Escape to cancel.`;
+}
+
+/**
+ * Announced when a device that can only mount inside a chassis bay (a chassis
+ * child, or a half-width device with no rail carrier) is armed: it has no rail
+ * target in any rack, so the honest requirement is stated and placement mode
+ * exits rather than leaving a stuck, futile cursor (#2854).
+ */
+export function pickUpNeedsChassisAnnouncement(device: DeviceType): string {
+  const name = device.model ?? device.slug;
+  return `${name} must be placed in a chassis bay. Drop it onto a chassis.`;
 }
 
 /**

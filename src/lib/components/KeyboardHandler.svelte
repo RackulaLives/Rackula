@@ -42,6 +42,7 @@
     setCursor: (rackId, position) => placementStore.setCursor(rackId, position),
     announce: (text) => placementStore.announcePosition(text),
     cancelPlacement: () => placementStore.cancelPlacement(),
+    abandonPlacement: () => placementStore.abandonPlacement(),
     placeDevice: (rackId, slug, position, face) =>
       layoutStore.placeDeviceSmart(rackId, slug, position, face),
     completePlacement: (summary) => placementStore.completePlacement(summary),
