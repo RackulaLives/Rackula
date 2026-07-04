@@ -62,6 +62,13 @@ let currentZoom = $state(1); // 1 = 100%
 let canvasElement = $state<HTMLElement | null>(null);
 let isPanning = $state(false);
 let isZooming = $state(false);
+// Bumped once at the start of each programmatic camera move (smoothMoveTo and
+// its callers: focusRack, zoomToDevice, ensureRacksVisible). Pan has no
+// reactive signal (panzoom mutates the DOM transform directly) and the tween
+// animates the transform without per-frame state, so consumers that must follow
+// camera motion (the verb bar overlay) read this to know when to re-measure.
+// Pan/zoom gestures are signalled separately via isInteracting.
+let cameraMoveId = $state(0);
 let zoomEndTimer: ReturnType<typeof setTimeout> | null = null;
 let viewportSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let suppressViewportSave = false;
@@ -138,6 +145,9 @@ export function getCanvasStore() {
     },
     get isInteracting() {
       return isPanning || isZooming;
+    },
+    get cameraMoveId() {
+      return cameraMoveId;
     },
 
     // Actions
@@ -428,6 +438,10 @@ function stepCameraAnimation(now: number): void {
  */
 function smoothMoveTo(x: number, y: number, scale: number): void {
   if (!panzoomInstance) return;
+
+  // Wake consumers that follow camera motion (the verb bar overlay) for both
+  // the animated tween and the reduced-motion instant landing below.
+  cameraMoveId++;
 
   // Reduced motion: land the camera instantly, cancelling any in-flight transition.
   if (prefersReducedMotion()) {
