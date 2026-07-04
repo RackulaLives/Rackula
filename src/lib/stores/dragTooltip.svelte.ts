@@ -90,11 +90,9 @@ export function updateDragTooltipPosition(
   clientY: number,
 ): void {
   if (tooltipState.visible) {
-    tooltipState = {
-      ...tooltipState,
-      x: clientX + TOOLTIP_OFFSET_X,
-      y: clientY + TOOLTIP_OFFSET_Y,
-    };
+    // Mutate in place: $state proxy property-granularity re-runs only x/y readers.
+    tooltipState.x = clientX + TOOLTIP_OFFSET_X;
+    tooltipState.y = clientY + TOOLTIP_OFFSET_Y;
   }
 }
 
