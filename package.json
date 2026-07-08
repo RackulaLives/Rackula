@@ -93,10 +93,10 @@
     "lz-string": "^1.5.0",
     "marked": "^18.0.5",
     "nanoid": "^5.1.16",
-    "pako": "^3.0.0",
+    "pako": "^3.0.1",
     "panzoom": "^9.4.4",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.24.1",
+    "simple-icons": "^16.25.0",
     "svg2pdf.js": "^2.7.0",
     "zod": "^4.4.3"
   }
