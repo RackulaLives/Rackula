@@ -62,7 +62,14 @@ export const COMMON_RACK_HEIGHTS: readonly number[] = [
 /**
  * Common mini-rack heights for 10-inch rack layouts.
  */
-export const MINI_RACK_HEIGHTS: readonly number[] = [4, 6, 8, 12] as const;
+export const RACKMATE_T1_PLUS_HEIGHT = 8;
+
+/**
+ * This fork targets the user's DeskPi/GeeekPi RackMate T1 Plus.
+ */
+export const MINI_RACK_HEIGHTS: readonly number[] = [
+  RACKMATE_T1_PLUS_HEIGHT,
+] as const;
 
 /**
  * Rack height constraints
@@ -125,6 +132,11 @@ export const ALLOWED_RACK_WIDTHS: readonly number[] = [10, 19, 21, 23] as const;
 export const DEFAULT_RACK_DEPTH_MM = 1000;
 
 /**
+ * DeskPi/GeeekPi RackMate T1 Plus usable internal depth.
+ */
+export const RACKMATE_T1_PLUS_DEPTH_MM = 260;
+
+/**
  * Default base weight of an empty rack, in kilograms.
  */
 export const DEFAULT_RACK_BASE_WEIGHT = 0;
@@ -134,6 +146,14 @@ export const DEFAULT_RACK_BASE_WEIGHT = 0;
  */
 export const RACK_DEPTH_PRESETS_MM: readonly number[] = [
   450, 600, 800, 1000, 1200,
+] as const;
+
+/**
+ * RackMate-specific depth preset. The 10-inch path in this fork is locked to
+ * the user's 8U RackMate T1 Plus rather than generic mini-rack cabinets.
+ */
+export const RACKMATE_DEPTH_PRESETS_MM: readonly number[] = [
+  RACKMATE_T1_PLUS_DEPTH_MM,
 ] as const;
 
 /**

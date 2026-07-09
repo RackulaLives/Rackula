@@ -24,6 +24,8 @@
     COMMON_RACK_HEIGHTS,
     MINI_RACK_HEIGHTS,
     RACK_DEPTH_PRESETS_MM,
+    RACKMATE_DEPTH_PRESETS_MM,
+    RACKMATE_T1_PLUS_DEPTH_MM,
     DEFAULT_RACK_DEPTH_MM,
     DEFAULT_RACK_BASE_WEIGHT,
   } from "$lib/types/constants";
@@ -62,6 +64,11 @@
   const heightPresets = $derived(
     selectedRack.width === 10 ? MINI_RACK_HEIGHTS : COMMON_RACK_HEIGHTS,
   );
+  const depthPresets = $derived(
+    selectedRack.width === 10
+      ? RACKMATE_DEPTH_PRESETS_MM
+      : RACK_DEPTH_PRESETS_MM,
+  );
 
   // Local state for form fields
   let rackName = $state("");
@@ -86,6 +93,21 @@
     resizeError = null; // Clear any previous resize error
     depthError = null;
     weightError = null;
+  });
+
+  // In this RackMate-focused fork, a 10-inch rack means the user's RackMate T1
+  // Plus. Keep its internal depth pinned to the measured/spec'd 260mm value.
+  $effect(() => {
+    if (
+      selectedRack.width === 10 &&
+      selectedRack.depth_mm !== RACKMATE_T1_PLUS_DEPTH_MM
+    ) {
+      rackDepth = RACKMATE_T1_PLUS_DEPTH_MM;
+      depthError = null;
+      layoutStore.updateRack(selectedRack.id, {
+        depth_mm: RACKMATE_T1_PLUS_DEPTH_MM,
+      });
+    }
   });
 
   // Update rack/group name on blur
@@ -182,9 +204,27 @@
     attemptHeightChange(preset);
   }
 
+  function handleWidthPresetClick(width: Rack["width"]) {
+    layoutStore.updateRack(selectedRack.id, {
+      width,
+      ...(width === 10 ? { depth_mm: RACKMATE_T1_PLUS_DEPTH_MM } : {}),
+    });
+  }
+
   // Apply a depth value in millimetres. Rejects blank, non-finite, and
   // non-positive input so the store never receives an invalid measurement.
   function applyDepth(value: number) {
+    if (selectedRack.width === 10 && value !== RACKMATE_T1_PLUS_DEPTH_MM) {
+      depthError = "RackMate T1 Plus depth is locked to 260 mm.";
+      rackDepth = RACKMATE_T1_PLUS_DEPTH_MM;
+      if (selectedRack.depth_mm !== RACKMATE_T1_PLUS_DEPTH_MM) {
+        layoutStore.updateRack(selectedRack.id, {
+          depth_mm: RACKMATE_T1_PLUS_DEPTH_MM,
+        });
+      }
+      return;
+    }
+
     if (!Number.isFinite(value) || value <= 0) {
       depthError = "Depth must be a positive number in millimetres.";
       rackDepth = selectedRack.depth_mm ?? DEFAULT_RACK_DEPTH_MM;
@@ -296,8 +336,7 @@
           class="preset-btn"
           class:active={selectedRack.width === option}
           aria-pressed={selectedRack.width === option}
-          onclick={() =>
-            layoutStore.updateRack(selectedRack.id, { width: option })}
+          onclick={() => handleWidthPresetClick(option)}
         >
           {option}"
         </button>
@@ -316,15 +355,17 @@
       onchange={handleDepthChange}
       min="1"
       step="1"
+      readonly={selectedRack.width === 10}
     />
     {#if depthError}
       <p class="helper-text error">{depthError}</p>
     {/if}
     <div class="preset-row">
-      {#each RACK_DEPTH_PRESETS_MM as preset (preset)}
+      {#each depthPresets as preset (preset)}
         <button
           type="button"
           class="preset-btn"
+          data-testid="btn-preset-depth-{preset}"
           class:active={rackDepth === preset}
           onclick={() => handleDepthPresetClick(preset)}
         >

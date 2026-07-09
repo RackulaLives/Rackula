@@ -291,6 +291,7 @@ device_types:
     weight: 1.32
     weight_unit: "kg"
     airflow: "mixed"
+    subdevice_role: "child"
     colour: "#4A7A8A"
     category: "server"
     links:

@@ -23,10 +23,11 @@ export const lenovoDevices: DeviceType[] = [
     weight: 1.32,
     weight_unit: "kg",
     airflow: "mixed",
+    subdevice_role: "child",
     colour: CATEGORY_COLOURS.server,
     category: "server",
     notes:
-      "Tiny-only chassis is about 179 x 183 x 34.5 mm, or 37 mm with rubber feet, per Lenovo PSREF. Use inside a RackMate carrier.",
+      "Tiny-only chassis is about 179 x 183 x 34.5 mm, or 37 mm with rubber feet, per Lenovo PSREF. Place inside a RackMate Tiny mount or chassis bay.",
     links: [
       {
         label: "Lenovo ThinkCentre M720 Tiny PSREF",
