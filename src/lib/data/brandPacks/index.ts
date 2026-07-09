@@ -20,8 +20,10 @@ import { hpeDevices } from "./hpe";
 // New brand packs
 import { fortinetDevices } from "./fortinet";
 import { eatonDevices } from "./eaton";
+import { ecoflowDevices } from "./ecoflow";
 import { guitkDevices } from "./guitk";
 import { netgearDevices } from "./netgear";
+import { pecronDevices } from "./pecron";
 import { paloaltoDevices } from "./palo-alto";
 import { qnapDevices } from "./qnap";
 import { lenovoDevices } from "./lenovo";
@@ -55,8 +57,10 @@ export {
   // New brand packs
   fortinetDevices,
   eatonDevices,
+  ecoflowDevices,
   guitkDevices,
   netgearDevices,
+  pecronDevices,
   paloaltoDevices,
   qnapDevices,
   lenovoDevices,
@@ -216,6 +220,12 @@ export function getBrandPacks(): BrandSection[] {
       icon: "eaton",
     },
     {
+      id: "ecoflow",
+      title: "EcoFlow",
+      devices: ecoflowDevices,
+      defaultExpanded: false,
+    },
+    {
       id: "guitk",
       title: "GUITK",
       devices: guitkDevices,
@@ -234,6 +244,12 @@ export function getBrandPacks(): BrandSection[] {
       devices: cyberpowerDevices,
       defaultExpanded: false,
       icon: "cyberpower",
+    },
+    {
+      id: "pecron",
+      title: "PECRON",
+      devices: pecronDevices,
+      defaultExpanded: false,
     },
     // Servers
     {
@@ -393,10 +409,14 @@ export function getBrandDevices(brandId: string): DeviceType[] {
       return fortinetDevices;
     case "eaton":
       return eatonDevices;
+    case "ecoflow":
+      return ecoflowDevices;
     case "guitk":
       return guitkDevices;
     case "netgear":
       return netgearDevices;
+    case "pecron":
+      return pecronDevices;
     case "palo-alto":
       return paloaltoDevices;
     case "qnap":
@@ -463,8 +483,10 @@ export function getAllBrandDevices(): DeviceType[] {
       ...hpeDevices,
       ...fortinetDevices,
       ...eatonDevices,
+      ...ecoflowDevices,
       ...guitkDevices,
       ...netgearDevices,
+      ...pecronDevices,
       ...paloaltoDevices,
       ...qnapDevices,
       ...lenovoDevices,

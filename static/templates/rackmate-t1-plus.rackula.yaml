@@ -340,7 +340,18 @@ agent_workspace:
     - "M720q Tiny printable mount should be tied to a specific STL/source before finalizing hole positions."
     - "GS305 tray placement needs velcro, bracket, or printed tray retention."
     - "Rear PDU depth and cord exit need to be checked against the RackMate rear door/opening and cable bend."
+    - "Portable power stations are optional bay candidates only; PECRON E300LFP and EcoFlow RIVER 3 Plus consume about 4U, while EcoFlow RIVER 3 consumes about 3U."
     - "Rackula elevation visuals show rack occupancy, not millimetre clearance."
+  optional_power_station_candidates:
+    - slug: "pecron-e300lfp"
+      recommended_tray_slug: "deskpi-rackmate-4u-power-station-tray"
+      fit_summary: "4U tray candidate; 254mm length leaves about 6mm nominal depth clearance before cable bend in a 260mm RackMate."
+    - slug: "ecoflow-river-3"
+      recommended_tray_slug: "deskpi-rackmate-3u-power-station-tray"
+      fit_summary: "3U tray candidate; easier vertical fit, but 254mm body dimension is still depth-tight if run front-to-back."
+    - slug: "ecoflow-river-3-plus"
+      recommended_tray_slug: "deskpi-rackmate-4u-power-station-tray"
+      fit_summary: "4U tray candidate; 600W-class alternative with more nominal depth clearance than PECRON, but width must be measured."
   next_measurements:
     - "RackMate internal rail-to-rail width"
     - "RackMate usable internal depth after rear cables"

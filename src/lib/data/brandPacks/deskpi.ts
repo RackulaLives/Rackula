@@ -229,4 +229,72 @@ export const deskpiDevices: DeviceType[] = [
       },
     ],
   },
+  {
+    slug: "deskpi-rackmate-3u-power-station-tray",
+    u_height: 3,
+    manufacturer: "DeskPi",
+    model: "RackMate 3U Power Station Tray Placeholder",
+    is_full_depth: false,
+    is_powered: false,
+    slot_width: 1,
+    rack_widths: [10],
+    weight: 0.9,
+    weight_unit: "kg",
+    colour: CATEGORY_COLOURS.shelf,
+    category: "shelf",
+    notes:
+      "Planning placeholder for a custom 3U tray for compact portable power stations. Confirm load, retention, ventilation, and cable clearance before building.",
+    custom_fields: {
+      rackula_fit: {
+        status: "needs_design",
+        mount_type: "custom-power-station-tray",
+        rack_internal_depth_mm: 260,
+        max_planned_child_u: 3,
+      },
+    },
+    slots: [
+      {
+        id: "main",
+        name: "Main",
+        position: { row: 0, col: 0 },
+        width_fraction: 1,
+        height_units: 3,
+        accepts: ["power"],
+      },
+    ],
+  },
+  {
+    slug: "deskpi-rackmate-4u-power-station-tray",
+    u_height: 4,
+    manufacturer: "DeskPi",
+    model: "RackMate 4U Power Station Tray Placeholder",
+    is_full_depth: false,
+    is_powered: false,
+    slot_width: 1,
+    rack_widths: [10],
+    weight: 1.1,
+    weight_unit: "kg",
+    colour: CATEGORY_COLOURS.shelf,
+    category: "shelf",
+    notes:
+      "Planning placeholder for a custom 4U tray for 600W-class portable power stations. Confirm load, retention, ventilation, and cable clearance before building.",
+    custom_fields: {
+      rackula_fit: {
+        status: "needs_design",
+        mount_type: "custom-power-station-tray",
+        rack_internal_depth_mm: 260,
+        max_planned_child_u: 4,
+      },
+    },
+    slots: [
+      {
+        id: "main",
+        name: "Main",
+        position: { row: 0, col: 0 },
+        width_fraction: 1,
+        height_units: 4,
+        accepts: ["power"],
+      },
+    ],
+  },
 ];
