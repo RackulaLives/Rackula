@@ -127,6 +127,14 @@ test.describe("Keyboard device placement (#106)", () => {
     await createRackDirect(page, { name: "Second Rack" });
     await expect(page.locator(locators.rackView.dualViewName)).toHaveCount(2);
 
+    // This test uses the generic full-width Server palette item, which is a
+    // 19-inch device. Direct-created racks default to the RackMate 10-inch
+    // profile in this fork, so switch the active second rack to 19 inches first.
+    await page
+      .getByRole("group", { name: "Rack width in inches" })
+      .getByRole("button", { name: '19"' })
+      .click();
+
     // Creating the rack left the sidebar on the Racks tab; switch back to
     // Devices so the palette is on screen.
     await page.getByRole("tab", { name: "Devices" }).click();

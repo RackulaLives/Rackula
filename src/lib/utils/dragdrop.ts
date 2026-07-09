@@ -93,6 +93,7 @@ export function getDropFeedback(
   targetU: number,
   excludeIndex?: number,
   targetFace: DeviceFace = "front",
+  deviceType?: DeviceType,
 ): DropFeedback {
   // Check bounds first (in human U units)
   if (targetU < 1) {
@@ -115,6 +116,8 @@ export function getDropFeedback(
     targetPositionInternal,
     excludeIndex,
     targetFace,
+    undefined,
+    deviceType,
   );
 
   if (!canPlace) {

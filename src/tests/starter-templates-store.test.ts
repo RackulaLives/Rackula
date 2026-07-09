@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   openStarter,
   openStarterById,
@@ -12,6 +14,7 @@ import {
 } from "$lib/stores/workspace.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { createLayout } from "$lib/utils/serialization";
+import { parseLayoutYaml } from "$lib/utils/yaml";
 import { createTestRack } from "./factories";
 import type {
   StarterTemplate,
@@ -132,6 +135,34 @@ describe("openStarter", () => {
 
     expect(ws.tabs.length).toBe(before + 1);
     expect(ws.activeStore.layout.name).toBe("Home Lab");
+  });
+
+  it("opens the shipped RackMate starter with its planned devices intact", async () => {
+    const path = join(
+      process.cwd(),
+      "static",
+      "templates",
+      "rackmate-t1-plus.rackula.yaml",
+    );
+    const layout = await parseLayoutYaml(readFileSync(path, "utf8"));
+    const starter: StarterTemplate = {
+      id: "rackmate-t1-plus",
+      layout,
+      colour: "var(--dracula-orange)",
+    };
+    const expectedDeviceCount = layout.racks[0]?.devices.length ?? 0;
+
+    openStarter(starter);
+
+    const active = getWorkspaceStore().activeStore.layout;
+    expect(active.name).toBe("RackMate T1 Plus 8U");
+    expect(active.racks[0]?.devices.length).toBe(expectedDeviceCount);
+    expect(active.device_types.length).toBeGreaterThan(0);
+    expect(
+      active.racks[0]?.devices.some(
+        (device) => device.device_type === "ubiquiti-unifi-cloud-gateway-max",
+      ),
+    ).toBe(true);
   });
 });
 

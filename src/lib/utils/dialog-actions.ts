@@ -9,17 +9,14 @@ import { getToastStore } from "$lib/stores/toast.svelte";
 import { getViewportStore } from "$lib/utils/viewport.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { handleFitAll } from "$lib/utils/app-actions";
+import { createRackMateT1PlusDefaults } from "$lib/utils/rack-profile";
 
-/** Stage-1 default height for a directly-created rack (#2732). */
-const NEW_RACK_DEFAULT_HEIGHT = 24;
-/** Default name for a directly-created rack; renameable in the inspector. */
-const NEW_RACK_DEFAULT_NAME = "Racky McRackface";
+const NEW_RACK_DEFAULTS = createRackMateT1PlusDefaults();
 
 /**
- * Create a 24U rack directly on the canvas and select it, skipping the wizard
- * (#2732). The rack uses stage-1 defaults: width 19, ascending U-numbering, and
- * the schema default form factor. It is appended to the end of the row. Warns
- * when the rack limit is reached.
+ * Create the user's RackMate T1 Plus directly on the canvas and select it,
+ * skipping the wizard (#2732). This fork defaults to the real 8U / 10-inch /
+ * 260mm rack rather than the upstream generic 19-inch rack.
  */
 export function handleNewRack(): void {
   const layoutStore = getLayoutStore();
@@ -30,8 +27,12 @@ export function handleNewRack(): void {
     return;
   }
   const rack = layoutStore.addRack(
-    NEW_RACK_DEFAULT_NAME,
-    NEW_RACK_DEFAULT_HEIGHT,
+    NEW_RACK_DEFAULTS.name,
+    NEW_RACK_DEFAULTS.height,
+    NEW_RACK_DEFAULTS.width,
+    NEW_RACK_DEFAULTS.form_factor,
+    NEW_RACK_DEFAULTS.desc_units,
+    NEW_RACK_DEFAULTS.starting_unit,
   );
   if (!rack) return;
   selectionStore.selectRack(rack.id);

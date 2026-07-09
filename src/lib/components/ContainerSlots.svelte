@@ -10,6 +10,10 @@
 -->
 <script lang="ts">
   import type { DeviceType, Slot } from "$lib/types";
+  import {
+    buildSlotGeometry,
+    type SlotGeometry,
+  } from "$lib/utils/slot-geometry";
 
   interface Props {
     /** The container device type with slots array */
@@ -51,17 +55,9 @@
         (containerType.slots?.length ?? 0) > 2), // Many slots suggests blade chassis
   );
 
-  // Pre-compute cumulative x offsets for all slots (O(n) instead of O(n²))
-  // Each slot lookup becomes O(1) since we just read from this array by index
-  const cumulativeXOffsets = $derived.by(() => {
-    const offsets: number[] = [];
-    let cumulative = 0;
-    for (const slot of slots) {
-      offsets.push(cumulative);
-      cumulative += containerWidth * (slot.width_fraction ?? 1.0);
-    }
-    return offsets;
-  });
+  const slotGeometryById = $derived(
+    buildSlotGeometry(slots, containerWidth, containerHeight),
+  );
 
   /**
    * Calculate the geometry (position and dimensions) for a slot.
@@ -72,23 +68,16 @@
    * @param index - The index of the slot in the slots array
    * @returns Object with x, y, width, height in pixels
    */
-  function getSlotGeometry(
-    slot: Slot,
-    index: number,
-  ): { x: number; y: number; width: number; height: number } {
-    const widthFraction = slot.width_fraction ?? 1.0;
-    const width = containerWidth * widthFraction;
-
-    // Use precomputed offset (O(1) lookup)
-    const xOffset = cumulativeXOffsets[index] ?? 0;
-
-    // Default slot height to container height (single row)
-    // Future: support multi-row containers via height_units
-    const heightUnits = slot.height_units ?? 1;
-    const totalRowHeight = containerHeight;
-    const height = heightUnits * totalRowHeight;
-
-    return { x: xOffset, y: 0, width, height };
+  function getSlotGeometry(slot: Slot): SlotGeometry {
+    return (
+      slotGeometryById.get(slot.id) ?? {
+        x: 0,
+        y: 0,
+        width: containerWidth,
+        height: containerHeight,
+        heightUnits: slot.height_units ?? 1,
+      }
+    );
   }
 
   /**
@@ -138,8 +127,8 @@
   class:shelf-style={isShelf}
   class:chassis-style={isChassis}
 >
-  {#each slots as slot, index (slot.id)}
-    {@const geometry = getSlotGeometry(slot, index)}
+  {#each slots as slot (slot.id)}
+    {@const geometry = getSlotGeometry(slot)}
     {@const slotClass = getSlotClass(slot.id)}
     {@const insetPadding = 2}
     <rect

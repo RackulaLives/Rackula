@@ -51,6 +51,46 @@ test.describe("Command palette", () => {
     await expect(page.getByTestId("command-palette-item-share")).toHaveCount(0);
   });
 
+  test("RackMate starter is searchable from the palette", async ({ page }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    const input = page.getByTestId("command-palette-input");
+    await input.fill("rackmate");
+
+    await expect(
+      page.getByTestId(
+        "command-palette-item-new-layout-template-rackmate-t1-plus",
+      ),
+    ).toBeVisible();
+  });
+
+  test("RackMate starter command opens a populated layout tab", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    const input = page.getByTestId("command-palette-input");
+    await input.fill("rackmate");
+    await expect(
+      page.getByTestId(
+        "command-palette-item-new-layout-template-rackmate-t1-plus",
+      ),
+    ).toBeVisible();
+
+    await page.keyboard.press("Enter");
+
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).not.toBeVisible();
+    await expect(
+      page
+        .getByRole("tablist", { name: "Open layouts" })
+        .getByRole("tab", { selected: true }),
+    ).toContainText("RackMate T1 Plus 8U");
+    await expect(page.locator(locators.rack.device).first()).toBeVisible();
+    await expect(
+      page.getByText("No front-facing or full-depth devices"),
+    ).toHaveCount(0);
+  });
+
   test("Enter runs the highlighted command then closes the palette", async ({
     page,
   }) => {

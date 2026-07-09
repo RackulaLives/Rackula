@@ -110,6 +110,8 @@ export function findNextValidPosition(
       newPosition,
       deviceIndex,
       effectiveFace(placedDevice, deviceType),
+      undefined,
+      deviceType,
     );
 
     if (isValid) {

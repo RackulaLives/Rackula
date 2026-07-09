@@ -16,6 +16,7 @@ import {
   type ContainerDropTarget,
 } from "$lib/utils/dragdrop";
 import {
+  allowsFractionalRailPosition,
   findCollisions,
   synthesizeCarrierForDevice,
   requiresChassisBay,
@@ -23,6 +24,7 @@ import {
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { getDeviceDisplayName } from "$lib/utils/device";
 import { screenToSVG } from "$lib/utils/coordinates";
+import { getMountRecommendation } from "$lib/utils/mount-recommendations";
 
 /**
  * The rail height of a synthesised carrier, defaulting to 1U if the slug is
@@ -149,6 +151,31 @@ function resolveCoordinates(
   return { mouseY, xOffsetInRack, svgCoords };
 }
 
+function calculateRailDropPosition(
+  mouseY: number,
+  dims: RackDimensions,
+  rack: Rack,
+  device: DeviceType,
+): number {
+  if (!allowsFractionalRailPosition(device, rack.width)) {
+    return calculateDropPosition(
+      mouseY,
+      dims.rackHeight,
+      dims.uHeight,
+      dims.rackPadding,
+    );
+  }
+
+  const stepU = device.u_height;
+  const segmentHeight = dims.uHeight * stepU;
+  const totalHeight = dims.rackHeight * dims.uHeight;
+  const clampedY = Math.max(0, Math.min(mouseY, totalHeight - 1));
+  const segmentFromTop = Math.floor(clampedY / segmentHeight);
+  const targetU = dims.rackHeight - (segmentFromTop + 1) * stepU + 1;
+  const maxBottomU = dims.rackHeight - device.u_height + 1;
+  return Math.max(1, Math.min(targetU, maxBottomU));
+}
+
 /**
  * Derive the exclude index for collision checks.
  * Internal moves exclude the source device; all other operations don't.
@@ -183,12 +210,7 @@ export function resolveDropTarget(
 ): DropTargetResult {
   const { mouseY, xOffsetInRack } = resolveCoordinates(coords, dims);
 
-  const targetU = calculateDropPosition(
-    mouseY,
-    dims.rackHeight,
-    dims.uHeight,
-    dims.rackPadding,
-  );
+  const targetU = calculateRailDropPosition(mouseY, dims, rack, device);
 
   const containerHover = detectContainerHover(
     rack,
@@ -230,11 +252,13 @@ export function resolveDropTarget(
       : null;
 
   let feedback: DropFeedback;
+  let previewHeight = device.u_height;
   if (resolvableContainerTarget) {
     feedback = "valid";
   } else if (carrierSlug) {
     // Synthesise a rail carrier at this U: validate its full rail footprint.
     const carrierHeight = getCarrierHeight(carrierSlug, deviceLibrary);
+    previewHeight = carrierHeight;
     feedback = getDropFeedback(
       rack,
       deviceLibrary,
@@ -254,6 +278,7 @@ export function resolveDropTarget(
       targetU,
       excludeIndex,
       faceFilter,
+      device,
     );
   }
 
@@ -264,7 +289,7 @@ export function resolveDropTarget(
     containerHoverInfo: containerHover,
     dropPreview: {
       position: targetU,
-      height: device.u_height,
+      height: previewHeight,
       feedback,
     },
   };
@@ -286,11 +311,11 @@ export function resolveDropAction(
 ): DropAction {
   const { mouseY, xOffsetInRack } = resolveCoordinates(coords, dims);
 
-  const targetU = calculateDropPosition(
+  const targetU = calculateRailDropPosition(
     mouseY,
-    dims.rackHeight,
-    dims.uHeight,
-    dims.rackPadding,
+    dims,
+    rack,
+    dragData.device,
   );
 
   // Carrier-first: a sub-U / half-width device must land inside a carrier.
@@ -369,7 +394,11 @@ export function resolveDropAction(
       targetU,
       deviceHeight: dragData.device.u_height,
       excludeIndex,
-      message: chassisRequirementMessage(dragData.device),
+      message: chassisRequirementMessage(
+        dragData.device,
+        deviceLibrary,
+        rack.width,
+      ),
     };
   }
 
@@ -380,6 +409,7 @@ export function resolveDropAction(
     targetU,
     excludeIndex,
     faceFilter,
+    dragData.device,
   );
 
   if (feedback !== "valid") {
@@ -439,7 +469,18 @@ export function resolveDropAction(
  * chassis child, or a half-width device with no rail carrier). Shown instead of
  * a misleading "No space" when such a device is dropped on bare rails.
  */
-export function chassisRequirementMessage(device: DeviceType): string {
+export function chassisRequirementMessage(
+  device: DeviceType,
+  deviceLibrary: DeviceType[] = [],
+  rackWidth: Rack["width"] = 19,
+): string {
+  const recommendation = getMountRecommendation(
+    device,
+    rackWidth,
+    deviceLibrary,
+  );
+  if (recommendation) return recommendation.requirement;
+
   const name = device.model ?? device.slug;
   return `${name} must be placed in a chassis bay`;
 }

@@ -35,6 +35,7 @@ export type ActionId =
   | "new-layout-template-home-lab"
   | "new-layout-template-network-closet"
   | "new-layout-template-media-server"
+  | "new-layout-template-rackmate-t1-plus"
   | "load"
   | "import-devices"
   | "import-netbox"
@@ -485,6 +486,23 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [],
     appMenuGroup: "layout",
     keywords: ["template", "starter", "media server", "new"],
+  },
+  {
+    id: "new-layout-template-rackmate-t1-plus",
+    label: "New layout from template: RackMate T1 Plus",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "layout",
+    keywords: [
+      "template",
+      "starter",
+      "rackmate",
+      "rackmate t1 plus",
+      "10 inch",
+      "8u",
+      "minirack",
+      "new",
+    ],
   },
   {
     id: "load",

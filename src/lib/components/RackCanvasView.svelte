@@ -15,7 +15,7 @@
   import { hapticSuccess, hapticError } from "$lib/utils/haptics";
   import { resolveSelectedDevice } from "$lib/utils/device-selection";
   import type { RackSwipeDirection } from "$lib/utils/gestures";
-  import type { DeviceFace } from "$lib/types";
+  import type { DeviceFace, DeviceType, Rack, RackGroup } from "$lib/types";
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
   import { organizeRackRow, baySourceForItem } from "$lib/utils/rack-row";
@@ -29,6 +29,10 @@
     enableLongPress?: boolean;
     /** Active slide animation while switching racks via swipe. */
     swipeAnimationDirection?: RackSwipeDirection | null;
+    racks: Rack[];
+    activeRackId: string | null;
+    rackGroups: RackGroup[];
+    deviceLibrary: DeviceType[];
     onrackselect?: (event: CustomEvent<{ rackId: string }>) => void;
     ondeviceselect?: (
       event: CustomEvent<{
@@ -75,6 +79,10 @@
     partyMode = false,
     enableLongPress = false,
     swipeAnimationDirection = null,
+    racks,
+    activeRackId,
+    rackGroups,
+    deviceLibrary,
     onrackselect,
     ondeviceselect,
     ondevicedrop,
@@ -95,10 +103,6 @@
   const uiStore = getUIStore();
   const placementStore = getPlacementStore();
   const toastStore = getToastStore();
-
-  const racks = $derived(layoutStore.racks);
-  const activeRackId = $derived(layoutStore.activeRackId);
-  const rackGroups = $derived(layoutStore.rack_groups);
 
   // Lay racks out as a single horizontal row ordered by Rack.position. Bayed
   // groups stay contiguous and render flush; standalone racks are spaced. See
@@ -173,7 +177,7 @@
     for (const id of rackIds) {
       const rack = layoutStore.getRackById(id);
       if (!rack) continue;
-      const min = getMinResizeHeight(rack, layoutStore.device_types);
+      const min = getMinResizeHeight(rack, deviceLibrary);
       if (min > floor) floor = min;
     }
     return floor;
@@ -621,7 +625,7 @@
         >
           <RackDualView
             {rack}
-            deviceLibrary={layoutStore.device_types}
+            {deviceLibrary}
             selected={isSelected}
             {isActive}
             selectedDeviceId={selectionStore.selectedType === "device" &&
@@ -719,7 +723,7 @@
           <BayedRackView
             group={item.group}
             racks={item.racks}
-            deviceLibrary={layoutStore.device_types}
+            {deviceLibrary}
             {activeRackId}
             selectedDeviceId={selectionStore.selectedType === "device"
               ? selectionStore.selectedDeviceId
@@ -787,7 +791,7 @@
               <div class="rack-wrapper" class:active={isActive}>
                 <RackDualView
                   {rack}
-                  deviceLibrary={layoutStore.device_types}
+                  {deviceLibrary}
                   selected={isSelected}
                   {isActive}
                   selectedDeviceId={selectionStore.selectedType === "device" &&

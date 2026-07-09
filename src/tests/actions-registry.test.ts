@@ -30,6 +30,14 @@ describe("actions registry", () => {
       const unique = new Set(ids);
       expect(unique.size).toBe(ids.length);
     });
+
+    it("exposes the RackMate starter as a command-palette layout action", () => {
+      const action = getActionById("new-layout-template-rackmate-t1-plus");
+
+      expect(action?.appMenuGroup).toBe("layout");
+      expect(action?.keywords).toContain("rackmate");
+      expect(action?.keywords).toContain("8u");
+    });
   });
 
   describe("findActionForEvent (keybinding resolution)", () => {

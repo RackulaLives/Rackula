@@ -63,6 +63,22 @@ export function requiresCarrier(
 }
 
 /**
+ * Native RackMate rail accessories are physical rack parts, not tray-mounted
+ * desktop electronics. They can sit on half-U rail positions in a 10-inch
+ * RackMate while generic rail gear remains whole-U only.
+ */
+export function allowsFractionalRailPosition(
+  deviceType: DeviceType,
+  rackWidth?: Rack["width"],
+): boolean {
+  return (
+    isNativeRackWidthDevice(deviceType, rackWidth) &&
+    RAIL_MOUNT_ACCESSORY_CATEGORIES.has(deviceType.category) &&
+    deviceType.u_height < 1
+  );
+}
+
+/**
  * Pick the carrier slug that a half-width device must mount inside, based on
  * its height. Returns null when no rail carrier applies.
  */

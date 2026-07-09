@@ -18,7 +18,7 @@ import {
   type StarterTemplate,
   type StarterTemplateId,
 } from "$lib/templates/starter-templates";
-import { getWorkspaceStore } from "./workspace.svelte";
+import { getWorkspaceStore } from "$lib/stores/workspace.svelte";
 import { getCanvasStore } from "./canvas.svelte";
 import { generateId } from "$lib/utils/device";
 

@@ -41,6 +41,7 @@
     DEVICE_LABEL_ICON_SPACE_RIGHT,
   } from "$lib/utils/text-sizing";
   import { toHumanUnits } from "$lib/utils/position";
+  import { buildSlotGeometry } from "$lib/utils/slot-geometry";
   import { Tween, prefersReducedMotion } from "svelte/motion";
   import { cubicOut } from "svelte/easing";
 
@@ -270,22 +271,23 @@
   const deviceWidth = $derived(fullWidth);
   const slotXOffset = 0;
 
-  // Container helper: compute slot x offsets and widths for child positioning
+  // Container helper: compute slot row/column geometry for child positioning.
   const slotGeometry = $derived.by(() => {
     if (!device.slots?.length)
-      return new SvelteMap<string, { x: number; width: number }>();
+      return new SvelteMap<
+        string,
+        {
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+          heightUnits: number;
+        }
+      >();
 
-    const geometry = new SvelteMap<string, { x: number; width: number }>();
-    let cumulativeX = 0;
-
-    for (const slot of device.slots) {
-      const widthFraction = slot.width_fraction ?? 1.0;
-      const width = deviceWidth * widthFraction;
-      geometry.set(slot.id, { x: cumulativeX, width });
-      cumulativeX += width;
-    }
-
-    return geometry;
+    return new SvelteMap(
+      buildSlotGeometry(device.slots, deviceWidth, deviceHeight),
+    );
   });
 
   // Helper to get child device type from library
@@ -295,7 +297,15 @@
 
   // Calculate child device position within container
   // Position is 0-indexed from bottom of container, Y is SVG coordinate (origin at top)
-  function getChildY(childPosition: number, childUHeight: number): number {
+  function getChildY(
+    slotId: string | undefined,
+    childPosition: number,
+    childUHeight: number,
+  ): number {
+    const slot = slotId ? slotGeometry.get(slotId) : undefined;
+    if (slot) {
+      return slot.y + slot.height - (childPosition + childUHeight) * uHeight;
+    }
     return deviceHeight - (childPosition + childUHeight) * uHeight;
   }
 
@@ -808,7 +818,11 @@
           : undefined}
         {#if childType && slotGeo}
           {@const childHeight = childType.u_height * uHeight}
-          {@const childY = getChildY(child.position, childType.u_height)}
+          {@const childY = getChildY(
+            child.slot_id,
+            child.position,
+            childType.u_height,
+          )}
           {@const childWidth = slotGeo.width}
           {@const childX = slotGeo.x}
           {@const childColour =

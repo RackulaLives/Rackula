@@ -3,6 +3,7 @@ import {
   getWorkspaceStore,
   resetWorkspaceStore,
 } from "$lib/stores/workspace.svelte";
+import { getLayoutStore } from "$lib/stores/layout.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { createLayout } from "$lib/utils/serialization";
 import { createTestDeviceTypeInput, createTestRack } from "./factories";
@@ -34,6 +35,21 @@ describe("Workspace Store", () => {
       expect(ws.tabs.length).toBe(2);
       expect(ws.activeId).toBe(id);
       expect(ws.activeStore.layout.name).toBe("Homelab");
+    });
+
+    it("updates the exported layout-store facade when the active tab changes", () => {
+      const ws = getWorkspaceStore();
+      const layoutStore = getLayoutStore();
+      const firstId = ws.activeId;
+
+      ws.activeStore.setLayoutName("First");
+      const secondId = ws.openTab(createLayout("Second"));
+
+      expect(layoutStore.layout.name).toBe("Second");
+      ws.switchTo(firstId);
+      expect(layoutStore.layout.name).toBe("First");
+      ws.switchTo(secondId);
+      expect(layoutStore.layout.name).toBe("Second");
     });
 
     it("gives each tab its own independent history", () => {

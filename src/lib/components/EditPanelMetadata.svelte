@@ -234,6 +234,8 @@
       placedDevice.position,
       deviceIndex, // exclude self from collision check
       face,
+      undefined,
+      device,
     );
 
     if (!canPlace) {

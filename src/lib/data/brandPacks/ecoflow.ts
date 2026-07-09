@@ -45,6 +45,7 @@ export const ecoflowDevices: DeviceType[] = [
       rackula_fit: {
         status: "physically_plausible_needs_measurement",
         recommended_tray_u: 3,
+        recommended_mount_slugs: ["deskpi-rackmate-3u-power-station-tray"],
         rackmate_t1_plus_depth_mm: 260,
         rackmate_t1_plus_depth_clearance_mm: 6,
         dimensions_in: {
@@ -104,6 +105,7 @@ export const ecoflowDevices: DeviceType[] = [
       rackula_fit: {
         status: "physically_plausible_needs_measurement",
         recommended_tray_u: 4,
+        recommended_mount_slugs: ["deskpi-rackmate-4u-power-station-tray"],
         rackmate_t1_plus_depth_mm: 260,
         rackmate_t1_plus_depth_clearance_mm: 26,
         dimensions_in: {

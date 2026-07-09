@@ -168,6 +168,44 @@ export const deskpiDevices: DeviceType[] = [
     ],
   },
   {
+    slug: "deskpi-rackmate-1u-dual-utility-tray",
+    u_height: 1,
+    manufacturer: "DeskPi",
+    model: "RackMate 1U Dual Utility Tray Placeholder",
+    is_full_depth: false,
+    is_powered: false,
+    slot_width: 1,
+    rack_widths: [10],
+    colour: CATEGORY_COLOURS.shelf,
+    category: "shelf",
+    notes:
+      "Planning placeholder for a shallow 10-inch dual-bay tray or printed mount that can hold two compact network devices side by side.",
+    custom_fields: {
+      rackula_fit: {
+        status: "needs_mount_selection",
+        mount_type: "shelf-or-3d-printed-dual-tray",
+      },
+    },
+    slots: [
+      {
+        id: "left",
+        name: "Left",
+        position: { row: 0, col: 0 },
+        width_fraction: 0.5,
+        height_units: 1,
+        accepts: ["network", "firewall", "other"],
+      },
+      {
+        id: "right",
+        name: "Right",
+        position: { row: 0, col: 1 },
+        width_fraction: 0.5,
+        height_units: 1,
+        accepts: ["network", "firewall", "other"],
+      },
+    ],
+  },
+  {
     slug: "deskpi-rackmate-tiny-1u-mount",
     u_height: 1,
     manufacturer: "DeskPi",

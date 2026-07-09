@@ -7,7 +7,11 @@
 
 import type { Rack, DeviceType, RackView } from "$lib/types";
 import { toHumanUnits } from "$lib/utils/position";
-import { doRangesOverlap, type URange } from "$lib/utils/collision";
+import {
+  doRangesOverlap,
+  isContainerChild,
+  type URange,
+} from "$lib/utils/collision";
 import { effectiveFace } from "./effective-face";
 
 /**
@@ -31,8 +35,14 @@ export function getBlockedSlots(
   deviceLibrary: DeviceType[],
 ): URange[] {
   const blocked: URange[] = [];
+  const seen = new Set<string>();
 
   for (const placedDevice of rack.devices) {
+    // Container children live inside their carrier's collision/rendering space.
+    // They do not occupy rack-level U slots and should not hatch the opposite
+    // rack face on their own.
+    if (isContainerChild(placedDevice)) continue;
+
     // Find the device type to get height and depth.
     const deviceType = deviceLibrary.find(
       (d) => d.slug === placedDevice.device_type,
@@ -50,6 +60,9 @@ export function getBlockedSlots(
     const positionU = toHumanUnits(placedDevice.position);
     const bottom = positionU;
     const top = positionU + deviceType.u_height - 1;
+    const key = `${bottom}-${top}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
 
     blocked.push({ bottom, top });
   }

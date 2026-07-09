@@ -6,6 +6,7 @@
 -->
 <script lang="ts">
   import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getWorkspaceStore } from "$lib/stores/workspace.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import {
     getCanvasStore,
@@ -118,14 +119,27 @@
   }: Props = $props();
 
   const layoutStore = getLayoutStore();
+  const workspaceStore = getWorkspaceStore();
   const selectionStore = getSelectionStore();
   const canvasStore = getCanvasStore();
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
 
-  // Multi-rack mode: access all racks
-  const racks = $derived(layoutStore.racks);
-  const hasRacks = $derived(layoutStore.rackCount > 0);
+  // Multi-rack mode: access the active tab explicitly. Resolving through the
+  // workspace's activeStore getter is convenient for event handlers, but canvas
+  // rendering needs a direct dependency on both the tab list and active tab id
+  // so switching layouts always repaints the rack tree.
+  const activeWorkspaceStore = $derived.by(() => {
+    const activeId = workspaceStore.activeId;
+    const tabs = workspaceStore.tabs;
+    return (tabs.find((tab) => tab.id === activeId) ?? tabs[0]!).store;
+  });
+  const racks = $derived(activeWorkspaceStore.racks);
+  const rackGroups = $derived(activeWorkspaceStore.rack_groups);
+  const activeRackId = $derived(activeWorkspaceStore.activeRackId);
+  const deviceTypes = $derived(activeWorkspaceStore.device_types);
+  const hasRacks = $derived(activeWorkspaceStore.rackCount > 0);
+  const rackRenderKey = $derived(workspaceStore.activeId);
   const allRacksEmpty = $derived(racks.every((r) => r.devices.length === 0));
   let hintDismissed = $state(safeGetItem(ONBOARDING_HINT_KEY) === "1");
 
@@ -145,9 +159,9 @@
   const swipeController = createRackSwipeController({
     isMobile: () => viewportStore.isMobile,
     getRacks: () => layoutStore.racks,
-    getRackGroups: () => layoutStore.rack_groups,
+    getRackGroups: () => rackGroups,
     isPlacing: () => placementStore.isPlacing,
-    getActiveRackId: () => layoutStore.activeRackId,
+    getActiveRackId: () => activeRackId,
     setActiveRack: (id) => layoutStore.setActiveRack(id),
     selectRack: (id) => selectionStore.selectRack(id),
     focusRack: (rackIds, allRacks, groups, rightOffset) =>
@@ -345,7 +359,7 @@
     if (onfitall) {
       onfitall();
     } else {
-      canvasStore.fitAll(racks, layoutStore.rack_groups);
+      canvasStore.fitAll(racks, rackGroups);
     }
   }
 
@@ -359,14 +373,13 @@
   });
 
   const deviceListDescription = $derived.by(() => {
-    const activeRack = layoutStore.activeRack;
+    const activeRack =
+      racks.find((rack) => rack.id === activeRackId) ?? racks[0];
     if (!activeRack || activeRack.devices.length === 0) return "";
     const deviceNames = [...activeRack.devices]
       .sort((a, b) => b.position - a.position) // Top to bottom
       .map((d) => {
-        const deviceType = layoutStore.device_types.find(
-          (dt) => dt.slug === d.device_type,
-        );
+        const deviceType = deviceTypes.find((dt) => dt.slug === d.device_type);
         const name = d.label || deviceType?.model || d.device_type;
         return `U${d.position}: ${name}`;
       });
@@ -389,7 +402,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (role="application" makes this interactive per WAI-ARIA) -->
 <CanvasContextMenu
   onnewrack={handleNewRack}
-  onfitall={() => onfitall?.() ?? canvasStore.fitAll(racks)}
+  onfitall={() => onfitall?.() ?? canvasStore.fitAll(racks, rackGroups)}
   onresetzoom={() => onresetzoom?.() ?? canvasStore.resetZoom()}
   {displayMode}
   {ontoggledisplaymode}
@@ -442,23 +455,29 @@
 
     {#if hasRacks}
       <div class="panzoom-container" bind:this={panzoomContainer}>
-        <RackCanvasView
-          {partyMode}
-          {enableLongPress}
-          swipeAnimationDirection={swipeController.animationDirection}
-          {onrackselect}
-          {ondeviceselect}
-          {ondevicedrop}
-          {ondevicemove}
-          {ondevicemoverack}
-          {onracklongpress}
-          {onrackfocus}
-          {onrackexport}
-          {onrackedit}
-          {onrackrename}
-          {onrackduplicate}
-          {onrackdelete}
-        />
+        {#key rackRenderKey}
+          <RackCanvasView
+            {partyMode}
+            {enableLongPress}
+            swipeAnimationDirection={swipeController.animationDirection}
+            {racks}
+            {rackGroups}
+            {activeRackId}
+            deviceLibrary={deviceTypes}
+            {onrackselect}
+            {ondeviceselect}
+            {ondevicedrop}
+            {ondevicemove}
+            {ondevicemoverack}
+            {onracklongpress}
+            {onrackfocus}
+            {onrackexport}
+            {onrackedit}
+            {onrackrename}
+            {onrackduplicate}
+            {onrackdelete}
+          />
+        {/key}
       </div>
       {#if !viewportStore.isMobile}
         <VerbBarOverlay

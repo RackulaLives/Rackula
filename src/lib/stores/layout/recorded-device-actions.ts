@@ -148,6 +148,8 @@ export function placeDeviceRecorded(
       positionInternal,
       undefined,
       effectiveFace,
+      undefined,
+      deviceType,
     )
   ) {
     debug.devicePlace({
@@ -303,6 +305,8 @@ export function moveDeviceRecorded(
       newPositionInternal,
       deviceIndex,
       resolvedFace,
+      undefined,
+      deviceType,
     )
   ) {
     // Determine if it's out of bounds or collision

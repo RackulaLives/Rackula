@@ -5,6 +5,7 @@
 import type { Layout, Rack, FormFactor } from "$lib/types";
 import { VERSION } from "$lib/version";
 import { generateId } from "./device";
+import { withRackProfileDefaults } from "./rack-profile";
 
 /**
  * Create a new empty layout
@@ -50,7 +51,7 @@ export function createDefaultRack(
   show_rear: boolean = true,
   id: string = "rack-1",
 ): Rack {
-  return {
+  return withRackProfileDefaults({
     id,
     name,
     height,
@@ -62,5 +63,5 @@ export function createDefaultRack(
     position: 0,
     devices: [],
     view: "front", // Runtime only
-  };
+  });
 }

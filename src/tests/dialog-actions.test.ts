@@ -6,9 +6,9 @@
  * always render without a sheet underneath them. This prevents the mobile
  * device-details bottom sheet from occluding the confirm dialog (#2490).
  *
- * Also covers handleNewRack(), which creates a 24U rack directly on the canvas
- * and selects it (#2732). The New Rack wizard was removed in #2747, so no entry
- * point opens a dialog to create a rack.
+ * Also covers handleNewRack(), which creates the RackMate T1 Plus directly on
+ * the canvas and selects it (#2732). The New Rack wizard was removed in #2747,
+ * so no entry point opens a dialog to create a rack.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -94,7 +94,7 @@ describe("handleDelete", () => {
 describe("handleNewRack", () => {
   beforeEach(resetAll);
 
-  it("creates a 24U rack and selects it, without opening the wizard", () => {
+  it("creates an 8U RackMate rack and selects it, without opening the wizard", () => {
     const layoutStore = getLayoutStore();
     const selectionStore = getSelectionStore();
     const beforeIds = new Set(layoutStore.racks.map((rack) => rack.id));
@@ -103,7 +103,7 @@ describe("handleNewRack", () => {
 
     const created = layoutStore.racks.find((rack) => !beforeIds.has(rack.id));
     expect(created).toBeDefined();
-    expect(created?.height).toBe(24);
+    expect(created?.height).toBe(8);
     expect(selectionStore.isRackSelected).toBe(true);
     expect(selectionStore.selectedRackId).toBe(created?.id);
     // No dialog is opened: the New Rack wizard was removed in #2747, so the
@@ -111,7 +111,7 @@ describe("handleNewRack", () => {
     expect(dialogStore.openDialog).toBeNull();
   });
 
-  it("applies stage-1 defaults (width 19, ascending U-numbering)", () => {
+  it("applies RackMate defaults (width 10, depth 260, ascending U-numbering)", () => {
     const layoutStore = getLayoutStore();
     const beforeIds = new Set(layoutStore.racks.map((rack) => rack.id));
 
@@ -119,7 +119,8 @@ describe("handleNewRack", () => {
 
     const created = layoutStore.racks.find((rack) => !beforeIds.has(rack.id));
     expect(created).toBeDefined();
-    expect(created?.width).toBe(19);
+    expect(created?.width).toBe(10);
+    expect(created?.depth_mm).toBe(260);
     expect(created?.desc_units).toBe(false);
   });
 

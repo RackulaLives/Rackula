@@ -25,6 +25,15 @@ test.describe("First run", () => {
     // First run auto-creates a default layout and one rack (#2831), so the
     // canvas shows a rack immediately rather than a bare zero-rack void.
     await expect(page.locator(locators.rack.container).first()).toBeVisible();
+    const frontSvg = page.locator(locators.rackView.frontSvg).first();
+    await expect(frontSvg.locator(locators.rack.uLabel)).toHaveCount(8);
+
+    const viewBox = await frontSvg.getAttribute("viewBox");
+    expect(viewBox).toBeDefined();
+    if (viewBox) {
+      const width = Number(viewBox.split(" ")[2] ?? 0);
+      expect(width).toBeLessThan(200);
+    }
 
     // The rack is added to the seeded first tab, not a second appended tab, so
     // there is exactly one open layout tab (no phantom empty tab). This is the

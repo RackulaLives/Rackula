@@ -37,6 +37,7 @@
   import { truncateWithEllipsis } from "$lib/utils/searchHighlight";
   import { getBrandPacks, getBrandSlugs } from "$lib/data/brandPacks";
   import { getStarterLibrary, getStarterSlugs } from "$lib/data/starterLibrary";
+  import { getMountRecommendation } from "$lib/utils/mount-recommendations";
   import DevicePaletteItem from "./DevicePaletteItem.svelte";
   import VirtualList from "./VirtualList.svelte";
   import BrandIcon from "./BrandIcon.svelte";
@@ -324,6 +325,18 @@
     return compatibility;
   });
 
+  const placementRequirementBySlug = $derived.by(() => {
+    const requirements: Record<string, string | null> = {};
+
+    for (const device of allPaletteDevices) {
+      requirements[device.slug] =
+        getMountRecommendation(device, activeRackWidth, allPaletteDevices)
+          ?.summary ?? null;
+    }
+
+    return requirements;
+  });
+
   const visibleGenericDevices = $derived(
     filterDevicesByAttributes(
       filterPaletteDevicesByRackWidth(
@@ -553,6 +566,10 @@
       deviceCompatibilityBySlug[device.slug]?.incompatibilityReason ?? null
     );
   }
+
+  function placementRequirement(device: DeviceType): string | null {
+    return placementRequirementBySlug[device.slug] ?? null;
+  }
 </script>
 
 <div class="device-palette">
@@ -599,6 +616,7 @@
         searchQuery={isSearchActive ? searchQuery : ""}
         isCompatible={isCompatible(device)}
         incompatibilityReason={incompatibilityReason(device)}
+        placementRequirement={placementRequirement(device)}
         canDelete={canDeleteDevice(device)}
         isFavourite={isFavourite(device.slug)}
         onselect={handleDeviceSelect}

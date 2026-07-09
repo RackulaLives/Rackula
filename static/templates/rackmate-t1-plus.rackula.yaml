@@ -2,7 +2,7 @@ metadata:
   id: "a1b2c3d4-1001-4001-8001-000000000001"
   name: "RackMate T1 Plus 8U"
   schema_version: "1.0"
-  description: "An 8U 10-inch DeskPi RackMate T1 Plus concept with an MS-02 Ultra shelf candidate, three Lenovo Tiny mounts, a rear 1U PDU, and a tray-mounted GS305 switch."
+  description: "An 8U 10-inch DeskPi RackMate T1 Plus concept with an MS-02 Ultra shelf candidate, three Lenovo Tiny mounts, a rear 1U PDU, and tray-mounted UCG-Max plus GS305 network gear."
 version: "1.0.0"
 name: "RackMate T1 Plus 8U"
 racks:
@@ -19,24 +19,31 @@ racks:
     notes: "DeskPi T1 Plus 8U 10-inch rack. Physical fit metadata is provisional until measured."
     devices:
       - id: "dev-utility-tray-u1"
-        device_type: "rackmate-1u-utility-tray"
-        name: "GS305 / Utility Tray"
+        device_type: "deskpi-rackmate-1u-dual-utility-tray"
+        name: "UCG-Max / GS305 Dual Tray"
         position: 6
         face: "front"
+      - id: "dev-ucg-max"
+        device_type: "ubiquiti-unifi-cloud-gateway-max"
+        name: "UCG-Max"
+        position: 0
+        face: "front"
+        container_id: "dev-utility-tray-u1"
+        slot_id: "left"
       - id: "dev-gs305"
         device_type: "netgear-gs305"
         name: "NETGEAR GS305"
         position: 0
         face: "front"
         container_id: "dev-utility-tray-u1"
-        slot_id: "main"
+        slot_id: "right"
       - id: "dev-pdu-u1-rear"
         device_type: "guitk-10in-1u-pdu-6-outlet"
         name: "Rear 1U PDU"
         position: 6
         face: "rear"
       - id: "dev-ms02-shelf-u2"
-        device_type: "rackmate-ms02-3u-shelf"
+        device_type: "deskpi-rackmate-ms02-3u-shelf"
         name: "MS-02 Ultra Shelf Candidate"
         position: 12
         face: "front"
@@ -56,7 +63,7 @@ racks:
             status: "needs_measurement"
             orientation: "front-facing in 3U shelf"
       - id: "dev-tiny-mount-u5"
-        device_type: "rackmate-tiny-1u-mount"
+        device_type: "deskpi-rackmate-tiny-1u-mount"
         name: "Tiny Mount 1"
         position: 30
         face: "front"
@@ -68,7 +75,7 @@ racks:
         container_id: "dev-tiny-mount-u5"
         slot_id: "main"
       - id: "dev-tiny-mount-u6"
-        device_type: "rackmate-tiny-1u-mount"
+        device_type: "deskpi-rackmate-tiny-1u-mount"
         name: "Tiny Mount 2"
         position: 36
         face: "front"
@@ -83,7 +90,7 @@ racks:
           rackula_fit:
             status: "planned"
       - id: "dev-tiny-mount-u7"
-        device_type: "rackmate-tiny-1u-mount"
+        device_type: "deskpi-rackmate-tiny-1u-mount"
         name: "Tiny Mount 3"
         position: 42
         face: "front"
@@ -98,14 +105,14 @@ racks:
           rackula_fit:
             status: "planned"
       - id: "dev-patch-u8"
-        device_type: "rackmate-1u-patch-panel-placeholder"
+        device_type: "deskpi-12-port-keystone-patch-panel-1u"
         name: "Patch Panel Placeholder"
         position: 48
         face: "front"
 device_types:
-  - slug: "rackmate-1u-utility-tray"
+  - slug: "deskpi-rackmate-1u-dual-utility-tray"
     manufacturer: "DeskPi"
-    model: "RackMate 1U Utility Tray Placeholder"
+    model: "RackMate 1U Dual Utility Tray Placeholder"
     u_height: 1
     slot_width: 1
     rack_widths:
@@ -114,24 +121,77 @@ device_types:
     is_powered: false
     colour: "#6272A4"
     category: "shelf"
-    notes: "Planning placeholder for a shallow 10-inch shelf or printable tray for desktop network gear."
+    notes: "Planning placeholder for a shallow 10-inch dual-bay tray or printed mount that can hold two compact network devices side by side."
     custom_fields:
       rackula_fit:
         status: "needs_mount_selection"
-        mount_type: "shelf-or-3d-printed-tray"
+        mount_type: "shelf-or-3d-printed-dual-tray"
     slots:
-      - id: "main"
-        name: "Main"
+      - id: "left"
+        name: "Left"
         position:
           row: 0
           col: 0
-        width_fraction: 1
+        width_fraction: 0.5
         height_units: 1
         accepts:
           - "network"
           - "firewall"
-          - "power"
           - "other"
+      - id: "right"
+        name: "Right"
+        position:
+          row: 0
+          col: 1
+        width_fraction: 0.5
+        height_units: 1
+        accepts:
+          - "network"
+          - "firewall"
+          - "other"
+  - slug: "ubiquiti-unifi-cloud-gateway-max"
+    manufacturer: "Ubiquiti"
+    model: "UCG-Max"
+    u_height: 0.5
+    slot_width: 1
+    rack_widths:
+      - 10
+      - 19
+    subdevice_role: "child"
+    is_full_depth: false
+    is_powered: true
+    weight: 0.519
+    weight_unit: "kg"
+    airflow: "passive"
+    colour: "#7B6BA8"
+    category: "network"
+    notes: "Compact desktop 2.5G UniFi Cloud Gateway. Use a RackMate utility tray, floating mount, or printed tray; do not mount directly on rack rails."
+    links:
+      - label: "Ubiquiti Store UCG-Max"
+        url: "https://store.ui.com/us/en/category/cloud-gateways-compact/collections/cloud-gateway-max/products/ucg-max"
+      - label: "UCG-Max Tech Specs"
+        url: "https://techspecs.ui.com/unifi/cloud-gateways/ucg-max"
+    custom_fields:
+      rackula_fit:
+        status: "candidate"
+        recommended_tray_u: 1
+        recommended_mount_slugs:
+          - "deskpi-rackmate-1u-dual-utility-tray"
+          - "deskpi-rackmate-1u-utility-tray"
+        rackmate_t1_plus_depth_mm: 260
+        rackmate_t1_plus_depth_clearance_mm: 118.2
+        dimensions_mm:
+          width: 141.8
+          depth: 127.6
+          height: 30
+        ports:
+          rj45_2_5gbe: 5
+        max_power_watts: 16.1
+        power_method: "USB-C 5V DC / 5A"
+        open_checks:
+          - "USB-C power plug bend clearance"
+          - "RJ45 cable bend clearance"
+          - "tray retention or floating mount selection"
   - slug: "netgear-gs305"
     manufacturer: "Netgear"
     model: "GS305"
@@ -157,6 +217,9 @@ device_types:
     custom_fields:
       rackula_fit:
         source_asin: "B07S98YLHM"
+        recommended_mount_slugs:
+          - "deskpi-rackmate-1u-dual-utility-tray"
+          - "deskpi-rackmate-1u-utility-tray"
         dimensions_mm:
           width: 101
           depth: 94
@@ -187,7 +250,7 @@ device_types:
         max_current_amps: 15
         cord_length_ft: 6
         cord_gauge_awg: 14
-  - slug: "rackmate-ms02-3u-shelf"
+  - slug: "deskpi-rackmate-ms02-3u-shelf"
     manufacturer: "DeskPi"
     model: "RackMate MS-02 Ultra 3U Shelf Placeholder"
     u_height: 3
@@ -253,7 +316,7 @@ device_types:
           - "rear cable bend radius"
           - "side intake and exhaust clearance"
           - "shelf load and heat deflection"
-  - slug: "rackmate-tiny-1u-mount"
+  - slug: "deskpi-rackmate-tiny-1u-mount"
     manufacturer: "DeskPi"
     model: "RackMate 1U Tiny Mount Placeholder"
     u_height: 1
@@ -304,14 +367,16 @@ device_types:
           width: 179
           depth: 183
           height: 37
+        recommended_mount_slugs:
+          - "deskpi-rackmate-tiny-1u-mount"
         source_note: "Lenovo PSREF lists Tiny-only 179 x 183 x 34.5 mm, or 37 mm with rubber feet."
         power_adapter_options_watts:
           - 65
           - 90
           - 135
-  - slug: "rackmate-1u-patch-panel-placeholder"
+  - slug: "deskpi-12-port-keystone-patch-panel-1u"
     manufacturer: "DeskPi"
-    model: "RackMate 1U Patch Panel Placeholder"
+    model: "12-Port CAT6 Keystone Patch Panel"
     u_height: 1
     slot_width: 1
     rack_widths:

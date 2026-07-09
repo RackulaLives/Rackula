@@ -5,11 +5,7 @@
 
 import { z } from "../zod";
 import { nanoid } from "nanoid";
-import {
-  UNITS_PER_U,
-  DEFAULT_RACK_DEPTH_MM,
-  DEFAULT_RACK_BASE_WEIGHT,
-} from "$lib/types/constants";
+import { UNITS_PER_U, DEFAULT_RACK_BASE_WEIGHT } from "$lib/types/constants";
 import { VERSION } from "$lib/version";
 import {
   SCHEMA_VERSION,
@@ -18,7 +14,11 @@ import {
   migrateDevicePositions,
   clampOverRackPositions,
 } from "./migrations";
-import { requiresCarrier } from "$lib/utils/carrier-rules";
+import {
+  allowsFractionalRailPosition,
+  requiresCarrier,
+} from "$lib/utils/carrier-rules";
+import { withRackProfileDefaults } from "$lib/utils/rack-profile";
 
 // Re-export the version-migration cluster so consumers importing from
 // "$lib/schemas" keep their import paths unchanged (the cluster moved to
@@ -673,7 +673,7 @@ const RackSchemaInput = z
     position: z.number().int().min(0),
     devices: z.array(PlacedDeviceSchema),
     notes: z.string().max(1000).optional(),
-    depth_mm: z.number().positive().finite().default(DEFAULT_RACK_DEPTH_MM),
+    depth_mm: z.number().positive().finite().optional(),
     base_weight: z
       .number()
       .nonnegative()
@@ -711,14 +711,15 @@ export const RackSchema = z
     position: z.number().int().min(0),
     devices: z.array(PlacedDeviceSchema),
     notes: z.string().max(1000).optional(),
-    depth_mm: z.number().positive().finite().default(DEFAULT_RACK_DEPTH_MM),
+    depth_mm: z.number().positive().finite().optional(),
     base_weight: z
       .number()
       .nonnegative()
       .finite()
       .default(DEFAULT_RACK_BASE_WEIGHT),
   })
-  .passthrough();
+  .passthrough()
+  .transform((rack) => withRackProfileDefaults(rack));
 
 /**
  * Layout preset for rack groups
@@ -874,7 +875,7 @@ export const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
       ? migrateDevicePositions(deduplicatedDevices)
       : deduplicatedDevices;
 
-    return {
+    return withRackProfileDefaults({
       ...rack,
       id: rack.id ?? nanoid(),
       // Positions are in internal units here; clamp any rail device whose top
@@ -884,7 +885,7 @@ export const LayoutSchemaBase = LayoutSchemaInput.transform((data) => {
         rack.height,
         uHeightBySlug,
       ),
-    };
+    });
   });
 
   // Build the output without the legacy 'rack' field
@@ -1011,8 +1012,14 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
       // non-integer-height, or half-width gear must sit inside a carrier. Blank
       // filler panels are exempt: a blank may rail-mount at any height.
       if (!device.container_id) {
+        const railType = deviceTypeBySlug.get(device.device_type);
+        const canUseFractionalRail =
+          railType &&
+          allowsFractionalRailPosition(railType, rack.width) &&
+          device.position % Math.round(railType.u_height * UNITS_PER_U) === 0;
+
         // Rail positions are stored in internal units (U * UNITS_PER_U).
-        if (device.position % UNITS_PER_U !== 0) {
+        if (device.position % UNITS_PER_U !== 0 && !canUseFractionalRail) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: `Device "${device.name ?? device.id}" is at a fractional rail position. Rail-mounted devices must sit at a whole-U boundary.`,
@@ -1020,7 +1027,6 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
           });
         }
 
-        const railType = deviceTypeBySlug.get(device.device_type);
         if (railType) {
           if (requiresCarrier(railType, rack.width)) {
             ctx.addIssue({

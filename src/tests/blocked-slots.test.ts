@@ -198,6 +198,85 @@ describe("getBlockedSlots", () => {
 
       expect(blockedSlots.length).toBe(0);
     });
+
+    it("excludes container children from rack-level blocked slots", () => {
+      const rack = createTestRack({
+        height: 8,
+        devices: [
+          createTestDevice({
+            id: "carrier",
+            device_type: "carrier",
+            position: 2,
+            face: "front",
+          }),
+          createTestDevice({
+            id: "child-a",
+            device_type: "child-device",
+            position: 0,
+            face: "front",
+            container_id: "carrier",
+            slot_id: "slot-a",
+          }),
+          createTestDevice({
+            id: "child-b",
+            device_type: "child-device",
+            position: 0,
+            face: "front",
+            container_id: "carrier",
+            slot_id: "slot-b",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "carrier",
+          u_height: 1,
+          is_full_depth: true,
+        }),
+        createTestDeviceType({
+          slug: "child-device",
+          u_height: 0.5,
+          is_full_depth: false,
+        }),
+      ];
+
+      const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      expect(blockedSlots).toEqual([]);
+    });
+
+    it("deduplicates identical blocked ranges", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            id: "front-a",
+            device_type: "half-depth-panel",
+            position: 5,
+            face: "front",
+          }),
+          createTestDevice({
+            id: "front-b",
+            device_type: "half-depth-panel",
+            position: 5,
+            face: "front",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "half-depth-panel",
+          u_height: 2,
+          is_full_depth: false,
+        }),
+      ];
+
+      const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      expect(blockedSlots).toEqual([{ bottom: 5, top: 6 }]);
+    });
   });
 });
 

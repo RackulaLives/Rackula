@@ -187,6 +187,8 @@ export function createActionDispatch(): ActionDispatch {
     "new-layout-template-network-closet": () =>
       openStarterById("network-closet"),
     "new-layout-template-media-server": () => openStarterById("media-server"),
+    "new-layout-template-rackmate-t1-plus": () =>
+      openStarterById("rackmate-t1-plus"),
     "import-devices": runImportDevices,
     "import-netbox": handleImportFromNetBox,
     "new-custom-device": handleAddDevice,

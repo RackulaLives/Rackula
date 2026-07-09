@@ -86,6 +86,7 @@ export function duplicateDevice(
     layout.device_types,
     deviceType.u_height,
     sourceDevice.face,
+    deviceType,
   );
 
   if (validPositions.length === 0) {
@@ -401,6 +402,8 @@ export function placeDeviceSmart(
       positionInternal,
       undefined,
       "both",
+      undefined,
+      carrierType,
     )
   ) {
     return false;
@@ -527,6 +530,8 @@ export function moveDeviceToRack(
       positionInternal,
       undefined,
       effectiveFace,
+      undefined,
+      deviceType,
     )
   ) {
     return false;

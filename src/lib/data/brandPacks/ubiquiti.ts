@@ -496,6 +496,10 @@ export const ubiquitiDevices: DeviceType[] = [
       rackula_fit: {
         status: "candidate",
         recommended_tray_u: 1,
+        recommended_mount_slugs: [
+          "deskpi-rackmate-1u-dual-utility-tray",
+          "deskpi-rackmate-1u-utility-tray",
+        ],
         rackmate_t1_plus_depth_mm: 260,
         rackmate_t1_plus_depth_clearance_mm: 118.2,
         dimensions_mm: {

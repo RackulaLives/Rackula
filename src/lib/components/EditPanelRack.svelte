@@ -25,6 +25,7 @@
     MINI_RACK_HEIGHTS,
     RACK_DEPTH_PRESETS_MM,
     RACKMATE_DEPTH_PRESETS_MM,
+    RACKMATE_T1_PLUS_HEIGHT,
     RACKMATE_T1_PLUS_DEPTH_MM,
     DEFAULT_RACK_DEPTH_MM,
     DEFAULT_RACK_BASE_WEIGHT,
@@ -96,17 +97,37 @@
   });
 
   // In this RackMate-focused fork, a 10-inch rack means the user's RackMate T1
-  // Plus. Keep its internal depth pinned to the measured/spec'd 260mm value.
+  // Plus. Keep its physical profile pinned when doing so is non-destructive.
   $effect(() => {
-    if (
-      selectedRack.width === 10 &&
-      selectedRack.depth_mm !== RACKMATE_T1_PLUS_DEPTH_MM
-    ) {
+    if (selectedRack.width !== 10) return;
+
+    if (selectedRack.depth_mm !== RACKMATE_T1_PLUS_DEPTH_MM) {
       rackDepth = RACKMATE_T1_PLUS_DEPTH_MM;
       depthError = null;
       layoutStore.updateRack(selectedRack.id, {
         depth_mm: RACKMATE_T1_PLUS_DEPTH_MM,
       });
+    }
+
+    if (selectedRack.height !== RACKMATE_T1_PLUS_HEIGHT) {
+      const result = canResizeRackTo(
+        selectedRack,
+        RACKMATE_T1_PLUS_HEIGHT,
+        layoutStore.device_types,
+      );
+      if (result.allowed) {
+        rackHeight = RACKMATE_T1_PLUS_HEIGHT;
+        layoutStore.updateRack(selectedRack.id, {
+          height: RACKMATE_T1_PLUS_HEIGHT,
+        });
+      } else {
+        const conflictDetails = getConflictDetails(
+          result.conflicts,
+          layoutStore.device_types,
+        );
+        resizeError = `RackMate T1 Plus is 8U; ${formatConflictMessage(conflictDetails)}`;
+        rackHeight = selectedRack.height;
+      }
     }
   });
 
@@ -144,6 +165,12 @@
 
   // Validate and apply height change
   function attemptHeightChange(newHeight: number): boolean {
+    if (selectedRack.width === 10 && newHeight !== RACKMATE_T1_PLUS_HEIGHT) {
+      resizeError = "RackMate T1 Plus height is locked to 8U.";
+      rackHeight = selectedRack.height;
+      return false;
+    }
+
     // Re-submitting the current height (re-entering the value, clicking the
     // already-active preset) is a no-op, not a resize attempt, so it must not
     // surface a rejection error (#2222).
@@ -205,6 +232,13 @@
   }
 
   function handleWidthPresetClick(width: Rack["width"]) {
+    if (width === 10 && selectedRack.height !== RACKMATE_T1_PLUS_HEIGHT) {
+      rackHeight = RACKMATE_T1_PLUS_HEIGHT;
+      if (!attemptHeightChange(RACKMATE_T1_PLUS_HEIGHT)) {
+        return;
+      }
+    }
+
     layoutStore.updateRack(selectedRack.id, {
       width,
       ...(width === 10 ? { depth_mm: RACKMATE_T1_PLUS_DEPTH_MM } : {}),

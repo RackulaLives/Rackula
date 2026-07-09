@@ -135,6 +135,8 @@ export function createContextMenuActions(
       targetPositionInternal,
       deviceIndex,
       effectiveFace(device, deviceType),
+      undefined,
+      deviceType,
     );
   }
 
@@ -156,6 +158,8 @@ export function createContextMenuActions(
       targetPositionInternal,
       deviceIndex,
       effectiveFace(device, deviceType),
+      undefined,
+      deviceType,
     );
   }
 

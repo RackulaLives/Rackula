@@ -41,6 +41,10 @@ export const netgearDevices: DeviceType[] = [
     custom_fields: {
       rackula_fit: {
         source_asin: "B07S98YLHM",
+        recommended_mount_slugs: [
+          "deskpi-rackmate-1u-dual-utility-tray",
+          "deskpi-rackmate-1u-utility-tray",
+        ],
         dimensions_mm: {
           width: 101,
           depth: 94,

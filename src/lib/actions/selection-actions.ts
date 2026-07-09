@@ -338,6 +338,8 @@ export function flipDeviceFaceAt(
       placedDevice.position,
       deviceIndex,
       newFace,
+      undefined,
+      deviceType,
     )
   ) {
     toastStore.showToast(

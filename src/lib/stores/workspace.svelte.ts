@@ -159,11 +159,12 @@ export function createWorkspaceStore() {
   // layout never renders twice.
   let library = $state<Record<string, LibraryLayout>>({});
 
-  const activeTab = $derived(tabs.find((t) => t.id === activeId) ?? tabs[0]!);
-  const activeStore = $derived(activeTab.store);
-
   function getTab(id: string): WorkspaceTab | undefined {
     return tabs.find((t) => t.id === id);
+  }
+
+  function getActiveTab(): WorkspaceTab {
+    return tabs.find((t) => t.id === activeId) ?? tabs[0]!;
   }
 
   /**
@@ -182,13 +183,15 @@ export function createWorkspaceStore() {
       hydrated: true,
       unreadable: false,
     };
-    tabs = [...tabs, tab];
-    activeId = tab.id;
     if (layout) {
       // loadLayout already clears this instance's history (clear-then-load).
       // Reserve ids live in other open tabs so an opened copy never aliases the
       // global image store's placement-<deviceId> keys (#2182).
       tab.store.loadLayout(layout, deviceIdsInOtherTabs(tab.id));
+    }
+    tabs = [...tabs, tab];
+    activeId = tab.id;
+    if (layout) {
       // Record the opened layout in the library catalogue (#2325) so a new or
       // duplicated layout appears in the Layouts panel and survives a close.
       if (layout.metadata?.id) {
@@ -451,7 +454,7 @@ export function createWorkspaceStore() {
       return activeId;
     },
     get activeStore() {
-      return activeStore;
+      return getActiveTab().store;
     },
     get library() {
       return library;

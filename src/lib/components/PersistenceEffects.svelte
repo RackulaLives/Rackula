@@ -136,6 +136,14 @@
 
   $effect(() => {
     if (getStorageMode() === "server") return;
+    const trackedTabs = workspaceStore.tabs;
+    void workspaceStore.activeId;
+    for (const tab of trackedTabs) {
+      void tab.store.layout;
+      void tab.store.changesSinceExport;
+      void tab.store.hasEverExported;
+      void tab.store.lastExportedAt;
+    }
     // Track the reactive surface: tab set, active id, and the active tab's
     // layout (so edits to the focused layout trigger a save). Only the active
     // tab is hydrated-and-editable; inactive bodies do not change in place.

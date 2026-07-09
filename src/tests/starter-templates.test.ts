@@ -132,6 +132,19 @@ describe("loadStarterTemplates", () => {
     expect(
       layout.racks[0]?.devices.some((d) => d.device_type === "netgear-gs305"),
     ).toBe(true);
+    expect(
+      layout.racks[0]?.devices.some(
+        (d) => d.device_type === "ubiquiti-unifi-cloud-gateway-max",
+      ),
+    ).toBe(true);
+    expect(
+      layout.device_types.some(
+        (d) => d.slug === "deskpi-rackmate-1u-dual-utility-tray",
+      ),
+    ).toBe(true);
+    expect(
+      layout.device_types.some((d) => d.slug.startsWith("rackmate-")),
+    ).toBe(false);
   });
 
   it("returns an empty array when every template fails to load", async () => {

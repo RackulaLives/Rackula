@@ -35,6 +35,8 @@
     isCompatible?: boolean;
     /** Tooltip text to show when device is incompatible */
     incompatibilityReason?: string | null;
+    /** RackMate placement guidance for bay-only devices */
+    placementRequirement?: string | null;
     /** Whether this device type can be deleted (unused custom type) */
     canDelete?: boolean;
     /** Whether this device is pinned (favourited) to the top of the palette */
@@ -52,6 +54,7 @@
     searchQuery = "",
     isCompatible = true,
     incompatibilityReason = null,
+    placementRequirement = null,
     canDelete = false,
     isFavourite = false,
     onselect,
@@ -70,6 +73,7 @@
     const parts = [deviceName, `${device.u_height}U`, device.category];
     if (isHalfWidth) parts.push("half-width");
     if (device.is_full_depth === false) parts.push("half-depth");
+    if (placementRequirement) parts.push(placementRequirement);
     if (isFavourite) parts.push("pinned");
     if (!isCompatible && incompatibilityReason)
       parts.push(`(${incompatibilityReason})`);
@@ -295,6 +299,13 @@
         class="form-marker"
         title="Half-depth: Mounts on one face only"
         aria-label="Half-depth device">½D</span
+      >
+    {/if}
+    {#if placementRequirement}
+      <span
+        class="form-marker mount-marker"
+        title={placementRequirement}
+        aria-label={placementRequirement}>Bay</span
       >
     {/if}
   </span>

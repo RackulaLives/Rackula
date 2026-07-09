@@ -609,7 +609,6 @@
           "type": "number"
         },
         "depth_mm": {
-          "default": 1000,
           "exclusiveMinimum": 0,
           "type": "number"
         },
@@ -876,7 +875,6 @@
             "type": "number"
           },
           "depth_mm": {
-            "default": 1000,
             "exclusiveMinimum": 0,
             "type": "number"
           },

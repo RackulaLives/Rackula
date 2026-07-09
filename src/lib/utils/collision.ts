@@ -19,7 +19,9 @@ import type {
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { effectiveFace } from "./effective-face";
+import { allowsFractionalRailPosition } from "./carrier-rules";
 export {
+  allowsFractionalRailPosition,
   CARRIER_2COL_SLUG,
   CARRIER_2X2_SLUG,
   CARRIER_2U_2COL_SLUG,
@@ -28,6 +30,16 @@ export {
   synthesizeCarrierForDevice,
   requiresChassisBay,
 } from "./carrier-rules";
+
+function isDeviceType(value: unknown): value is DeviceType {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "slug" in value &&
+    "u_height" in value &&
+    "category" in value
+  );
+}
 
 /**
  * Check if a placed device is a container child
@@ -136,16 +148,26 @@ export function canPlaceDevice(
   targetPosition: number,
   excludeIndex?: number,
   targetFace: DeviceFace = "front",
+  legacyDepthOrDeviceType?: unknown,
+  deviceTypeArg?: DeviceType,
 ): boolean {
+  const targetDeviceType = isDeviceType(legacyDepthOrDeviceType)
+    ? legacyDepthOrDeviceType
+    : deviceTypeArg;
+
   // Position must be >= UNITS_PER_U (U1 in internal units)
   if (targetPosition < UNITS_PER_U) {
     return false;
   }
 
-  // Rail-mounted devices must register on a whole-U boundary (carrier-first,
-  // #2158). canPlaceDevice is the rack-level gate; container (sub-U) children
-  // go through canPlaceInContainer, so this only ever guards rail placements.
-  if (!isWholeURailPosition(targetPosition)) {
+  // Rail-mounted devices normally register on a whole-U boundary
+  // (carrier-first, #2158). Native 0.5U RackMate accessories are physical rack
+  // parts and may sit on half-U rail positions in a 10-inch RackMate.
+  const canUseFractionalRail =
+    targetDeviceType &&
+    allowsFractionalRailPosition(targetDeviceType, rack.width) &&
+    targetPosition % heightToInternalUnits(targetDeviceType.u_height) === 0;
+  if (!isWholeURailPosition(targetPosition) && !canUseFractionalRail) {
     return false;
   }
 
@@ -266,6 +288,7 @@ export function findValidDropPositions(
   deviceLibrary: DeviceType[],
   deviceHeight: number,
   targetFace: DeviceFace = "front",
+  deviceType?: DeviceType,
 ): number[] {
   const validPositions: number[] = [];
 
@@ -286,6 +309,8 @@ export function findValidDropPositions(
         position,
         undefined,
         targetFace,
+        undefined,
+        deviceType,
       )
     ) {
       validPositions.push(position);

@@ -1,0 +1,14 @@
+{
+  "active_session": "20260709-054449-rackmate-agentic-review",
+  "sessions": {
+    "20260709-054449-rackmate-agentic-review": {
+      "status": "pr_handoff_pending",
+      "branch": "rackmate-agentic-fit",
+      "target_branch": "main",
+      "merge_policy": "pr_first_human_approval_required",
+      "created_at_utc": "2026-07-09T05:44:49Z",
+      "updated_at_utc": "2026-07-09T07:37:04Z",
+      "summary": "End-to-end RackMate/Rackula bug, feature, QoL, and merge-gate pass."
+    }
+  }
+}

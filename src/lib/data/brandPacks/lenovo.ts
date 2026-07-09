@@ -42,6 +42,7 @@ export const lenovoDevices: DeviceType[] = [
           depth: 183,
           height: 37,
         },
+        recommended_mount_slugs: ["deskpi-rackmate-tiny-1u-mount"],
         power_adapter_options_watts: [65, 90, 135],
       },
     },

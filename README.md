@@ -65,7 +65,13 @@ You might ask, why should I make an imaginary rack like some sort of IT cosplay?
 
 Racks are measured in rack units, written U. One U is 1.75 inches of vertical space, and a common full-height rack is 42U. Rackula models racks in whole U: a device occupies a whole number of units and mounts at a whole-U boundary, the same way real rails register equipment under the EIA-310 standard. If something sits at U5, it is really at U5, not floating part of a unit above it.
 
-Gear smaller than 1U, like half-height brackets or side-by-side half-width pairs, does not bolt to the rails on its own. It rides inside a 1U carrier (a bracket, tray, or shelf) that takes up one whole U and holds the smaller devices. The carrier registers to the rails, and the small devices register to the carrier.
+Gear smaller than 1U, like half-height brackets or side-by-side half-width pairs, usually does not bolt to the rails on its own. It rides inside a 1U carrier (a bracket, tray, or shelf) that takes up one whole U and holds the smaller devices. The carrier registers to the rails, and the small devices register to the carrier.
+
+The RackMate-focused fork has one intentional exception: native 10-inch RackMate rail accessories such as 0.5U patch, brush, and shelf panels may use half-U rail positions in a 10-inch RackMate. Desktop electronics such as Lenovo Tiny machines, UCG-Max gateways, and GS305 switches still require a mount bay, tray, or chassis slot.
+
+## RackMate T1 Plus Fork
+
+This branch is tuned for an 8U, 10-inch DeskPi/GeeekPi RackMate T1 Plus with 260mm usable depth. New layouts default to that rack profile, and the RackMate starter includes MS-02 Ultra, Lenovo M720q Tiny, UCG-Max, GS305, PDU, and custom mount/tray placeholders for planning.
 
 ## Get Started
 
