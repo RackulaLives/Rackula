@@ -344,7 +344,7 @@ export function placeDeviceSmart(
   const deviceType = findDeviceType(deviceTypeSlug, layout.device_types);
   if (!deviceType) return false;
 
-  const carrierSlug = synthesizeCarrierForDevice(deviceType);
+  const carrierSlug = synthesizeCarrierForDevice(deviceType, targetRack.width);
 
   // Whole-U full-width devices mount directly to the rails.
   if (!carrierSlug) {
@@ -510,7 +510,7 @@ export function moveDeviceToRack(
   // Carrier-first rule (#2158/C4): a cross-rack move lands on a rail position in
   // the target rack. A carrier-requiring device cannot rail-mount, so refuse
   // rather than create an invalid placement in the destination rack.
-  if (requiresCarrier(deviceType)) return false;
+  if (requiresCarrier(deviceType, targetRack.width)) return false;
 
   // Resolve face: use provided face, or infer from device type
   const effectiveFace: DeviceFace =

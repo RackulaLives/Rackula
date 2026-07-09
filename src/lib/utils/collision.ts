@@ -19,6 +19,15 @@ import type {
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { effectiveFace } from "./effective-face";
+export {
+  CARRIER_2COL_SLUG,
+  CARRIER_2X2_SLUG,
+  CARRIER_2U_2COL_SLUG,
+  isNativeRackWidthDevice,
+  requiresCarrier,
+  synthesizeCarrierForDevice,
+  requiresChassisBay,
+} from "./carrier-rules";
 
 /**
  * Check if a placed device is a container child
@@ -393,33 +402,6 @@ export function canPlaceInSlot(childType: DeviceType, slot: Slot): boolean {
 }
 
 /**
- * Stable slugs of the synthesised carriers (defined in the starter library).
- * The drag/drop layer and the import adapter both target these exact slugs.
- */
-export const CARRIER_2COL_SLUG = "carrier-1u-2col";
-export const CARRIER_2X2_SLUG = "carrier-1u-2x2";
-export const CARRIER_2U_2COL_SLUG = "carrier-2u-2col";
-
-/**
- * Whether a device must mount inside a carrier rather than directly on the
- * rails (carrier-first rule, #2158). Sub-U, non-integer-height, or half-width
- * gear cannot register to whole-U rails. Blank filler panels are exempt: a
- * blank may rail-mount at any height. This is the single predicate the schema
- * (LayoutSchema.superRefine) and the store (placeDevice / moveDevice) share so
- * the two layers enforce identical rules.
- *
- * @param deviceType - The device being placed
- * @returns true when a rail placement is forbidden and a carrier is required
- */
-export function requiresCarrier(deviceType: DeviceType): boolean {
-  if (deviceType.category === "blank") return false;
-  const isHalfWidth = (deviceType.slot_width ?? 2) === 1;
-  const isSubU = deviceType.u_height < 1;
-  const isNonIntegerHeight = !Number.isInteger(deviceType.u_height);
-  return isHalfWidth || isSubU || isNonIntegerHeight;
-}
-
-/**
  * Whether an internal-unit position sits on a whole-U rail boundary. Rails
  * register equipment at whole-U boundaries only, so a rail position is always a
  * multiple of UNITS_PER_U (carrier-first, #2158). This mirrors the schema rule
@@ -433,80 +415,6 @@ export function requiresCarrier(deviceType: DeviceType): boolean {
  */
 export function isWholeURailPosition(positionInternal: number): boolean {
   return positionInternal % UNITS_PER_U === 0;
-}
-
-/**
- * Pick the carrier slug that a half-width device must mount inside, based on
- * its height. Both synthesised carriers have half-width cells, so only
- * half-width gear can be carrier-mounted: a sub-U device needs the 2x2 grid; a
- * whole-U device needs a height-matched column carrier (1U or 2U).
- *
- * Returns null (no rail carrier) when:
- * - the device is full-width (there is no full-width carrier to synthesise);
- * - the device is a chassis child (subdevice_role "child") - it mounts only
- *   inside an existing parent bay, never on the rails;
- * - the whole-U height has no matching carrier defined (e.g. a 3U half-width) -
- *   returning a too-small carrier is exactly the bug this replaced (#2854).
- *
- * A null result for a device that `requiresCarrier` is true for is the honest
- * "cannot rail-mount, needs a chassis" signal the placement layers share (see
- * `requiresChassisBay`).
- *
- * @param deviceType - The device being placed
- * @returns The carrier slug to synthesise, or null when no rail carrier applies
- */
-export function synthesizeCarrierForDevice(
-  deviceType: DeviceType,
-): string | null {
-  // Only half-width gear fits the half-width carrier cells.
-  if ((deviceType.slot_width ?? 2) !== 1) {
-    return null;
-  }
-
-  // Chassis children never get a rail carrier: they mount only inside an
-  // existing parent bay.
-  if (deviceType.subdevice_role === "child") {
-    return null;
-  }
-
-  // Sub-1U gear uses the 2x2 grid carrier (its cells are half-U tall). A
-  // non-integer height at or above 1U has no matching carrier, so it falls
-  // through to null rather than a too-small carrier.
-  if (deviceType.u_height < 1) {
-    return CARRIER_2X2_SLUG;
-  }
-  if (!Number.isInteger(deviceType.u_height)) {
-    return null;
-  }
-
-  // Whole-U half-width gear uses a height-matched column carrier. Heights with
-  // no matching carrier return null rather than a too-small carrier.
-  if (deviceType.u_height === 1) return CARRIER_2COL_SLUG;
-  if (deviceType.u_height === 2) return CARRIER_2U_2COL_SLUG;
-  return null;
-}
-
-/**
- * Whether a device can never register on the rails, even inside a synthesised
- * carrier, so it can be placed ONLY inside an existing chassis/carrier bay. It
- * requires a carrier (half-width / sub-U / non-integer) but no carrier can be
- * synthesised for it - a chassis child, or a half-width device whose integer
- * height has no matching carrier.
- *
- * This is the single predicate the preview (resolveDropTarget), the keyboard
- * (validStartPositions / primeKeyboardPlacement), and the store (placeDeviceSmart
- * via placeDeviceRecorded's requiresCarrier guard) share so bare-rails validity
- * agrees across all three: an invalid preview, no announced rail slot, and a
- * refused placement, all with the honest "requires a chassis" message.
- *
- * @param deviceType - The device being placed
- * @returns true when the device cannot rail-mount and needs an existing bay
- */
-export function requiresChassisBay(deviceType: DeviceType): boolean {
-  return (
-    requiresCarrier(deviceType) &&
-    synthesizeCarrierForDevice(deviceType) === null
-  );
 }
 
 /**

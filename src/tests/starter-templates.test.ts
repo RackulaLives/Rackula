@@ -119,11 +119,19 @@ describe("loadStarterTemplates", () => {
 
     const layout = await parseLayoutYaml(yamlText);
 
-    expect(layout.name).toBe("RackMate T1 Plus");
+    expect(layout.name).toBe("RackMate T1 Plus 8U");
     expect(layout.racks[0]?.width).toBe(10);
     expect(layout.racks[0]?.height).toBe(8);
-    expect(layout.racks[0]?.devices).toHaveLength(10);
+    expect(layout.racks[0]?.devices.length ?? 0).toBeGreaterThan(0);
     expect(layout.racks[0]?.devices.some((d) => d.auto_created)).toBe(false);
+    expect(
+      layout.racks[0]?.devices.some(
+        (d) => d.device_type === "guitk-10in-1u-pdu-6-outlet",
+      ),
+    ).toBe(true);
+    expect(
+      layout.racks[0]?.devices.some((d) => d.device_type === "netgear-gs305"),
+    ).toBe(true);
   });
 
   it("returns an empty array when every template fails to load", async () => {

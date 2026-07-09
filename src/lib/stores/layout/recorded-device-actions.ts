@@ -118,7 +118,7 @@ export function placeDeviceRecorded(
   // (route via placeDeviceSmart). Blank filler panels are exempt. Reject the
   // invalid rail placement here so the block-live UX (D5) refuses it the moment
   // it is attempted.
-  if (requiresCarrier(deviceType)) {
+  if (requiresCarrier(deviceType, targetRack.width)) {
     debug.devicePlace({
       slug: deviceTypeSlug,
       position: positionU,
@@ -274,7 +274,7 @@ export function moveDeviceRecorded(
   // (sub-U / non-integer-height / half-width, non-blank) therefore cannot be
   // moved onto bare rails - that would create an invalid rail mount and leave
   // the layout unsaveable. Reject so schema and store stay in parity.
-  if (requiresCarrier(deviceType)) {
+  if (requiresCarrier(deviceType, targetRack.width)) {
     debug.deviceMove({
       index: deviceIndex,
       deviceName,

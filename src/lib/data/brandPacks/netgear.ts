@@ -12,6 +12,46 @@ import { CATEGORY_COLOURS } from "$lib/types/constants";
  */
 export const netgearDevices: DeviceType[] = [
   {
+    slug: "netgear-gs305",
+    u_height: 1,
+    manufacturer: "Netgear",
+    model: "GS305",
+    is_full_depth: false,
+    is_powered: true,
+    airflow: "passive",
+    subdevice_role: "child",
+    slot_width: 1,
+    rack_widths: [10, 19],
+    weight: 0.24,
+    weight_unit: "kg",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    notes:
+      "5-port unmanaged gigabit desktop/wall-mount switch. Use a shelf, velcro, or printed tray in rack layouts.",
+    links: [
+      {
+        label: "NETGEAR GS305",
+        url: "https://www.netgear.com/business/wired/switches/unmanaged/gs305/",
+      },
+      {
+        label: "Amazon B07S98YLHM",
+        url: "https://www.amazon.com/dp/B07S98YLHM",
+      },
+    ],
+    custom_fields: {
+      rackula_fit: {
+        source_asin: "B07S98YLHM",
+        dimensions_mm: {
+          width: 101,
+          depth: 94,
+          height: 29,
+        },
+        dc_power_adapter: "5V / 0.7A",
+        max_power_watts: 2.34,
+      },
+    },
+  },
+  {
     slug: "netgear-gs105",
     u_height: 1,
     manufacturer: "Netgear",

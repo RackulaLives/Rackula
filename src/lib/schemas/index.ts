@@ -18,6 +18,7 @@ import {
   migrateDevicePositions,
   clampOverRackPositions,
 } from "./migrations";
+import { requiresCarrier } from "$lib/utils/carrier-rules";
 
 // Re-export the version-migration cluster so consumers importing from
 // "$lib/schemas" keep their import paths unchanged (the cluster moved to
@@ -1020,11 +1021,8 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
         }
 
         const railType = deviceTypeBySlug.get(device.device_type);
-        if (railType && railType.category !== "blank") {
-          const isHalfWidth = (railType.slot_width ?? 2) === 1;
-          const isSubU = railType.u_height < 1;
-          const isNonIntegerHeight = !Number.isInteger(railType.u_height);
-          if (isHalfWidth || isSubU || isNonIntegerHeight) {
+        if (railType) {
+          if (requiresCarrier(railType, rack.width)) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
               message: `Device "${device.name ?? device.id}" is sub-U or half-width and cannot mount directly to the rails. It must be a child of a carrier (set container_id and slot_id).`,

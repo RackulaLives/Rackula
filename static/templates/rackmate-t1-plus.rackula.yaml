@@ -1,10 +1,10 @@
 metadata:
   id: "a1b2c3d4-1001-4001-8001-000000000001"
-  name: "RackMate T1 Plus"
+  name: "RackMate T1 Plus 8U"
   schema_version: "1.0"
-  description: "An 8U 10-inch DeskPi RackMate T1 Plus concept with an MS-02 Ultra shelf candidate and three Lenovo Tiny mounts."
+  description: "An 8U 10-inch DeskPi RackMate T1 Plus concept with an MS-02 Ultra shelf candidate, three Lenovo Tiny mounts, a rear 1U PDU, and a tray-mounted GS305 switch."
 version: "1.0.0"
-name: "RackMate T1 Plus"
+name: "RackMate T1 Plus 8U"
 racks:
   - id: "rack-rackmate-t1-plus"
     name: "RackMate T1 Plus"
@@ -18,11 +18,23 @@ racks:
     position: 0
     notes: "DeskPi T1 Plus 8U 10-inch rack. Physical fit metadata is provisional until measured."
     devices:
-      - id: "dev-cable-entry-u1"
-        device_type: "rackmate-1u-cable-entry"
-        name: "Cable Entry / Service Space"
+      - id: "dev-utility-tray-u1"
+        device_type: "rackmate-1u-utility-tray"
+        name: "GS305 / Utility Tray"
         position: 6
         face: "front"
+      - id: "dev-gs305"
+        device_type: "netgear-gs305"
+        name: "NETGEAR GS305"
+        position: 0
+        face: "front"
+        container_id: "dev-utility-tray-u1"
+        slot_id: "main"
+      - id: "dev-pdu-u1-rear"
+        device_type: "guitk-10in-1u-pdu-6-outlet"
+        name: "Rear 1U PDU"
+        position: 6
+        face: "rear"
       - id: "dev-ms02-shelf-u2"
         device_type: "rackmate-ms02-3u-shelf"
         name: "MS-02 Ultra Shelf Candidate"
@@ -91,23 +103,95 @@ racks:
         position: 48
         face: "front"
 device_types:
-  - slug: "rackmate-1u-cable-entry"
+  - slug: "rackmate-1u-utility-tray"
     manufacturer: "DeskPi"
-    model: "RackMate 1U Cable Entry / Service Space"
+    model: "RackMate 1U Utility Tray Placeholder"
     u_height: 1
+    slot_width: 1
     rack_widths:
       - 10
     is_full_depth: false
     is_powered: false
     colour: "#6272A4"
-    category: "cable-management"
+    category: "shelf"
+    notes: "Planning placeholder for a shallow 10-inch shelf or printable tray for desktop network gear."
     custom_fields:
       rackula_fit:
-        role: "service-clearance"
+        status: "needs_mount_selection"
+        mount_type: "shelf-or-3d-printed-tray"
+    slots:
+      - id: "main"
+        name: "Main"
+        position:
+          row: 0
+          col: 0
+        width_fraction: 1
+        height_units: 1
+        accepts:
+          - "network"
+          - "firewall"
+          - "power"
+          - "other"
+  - slug: "netgear-gs305"
+    manufacturer: "Netgear"
+    model: "GS305"
+    u_height: 1
+    slot_width: 1
+    rack_widths:
+      - 10
+      - 19
+    subdevice_role: "child"
+    is_full_depth: false
+    is_powered: true
+    weight: 0.24
+    weight_unit: "kg"
+    airflow: "passive"
+    colour: "#7B6BA8"
+    category: "network"
+    notes: "5-port unmanaged gigabit desktop/wall-mount switch. Use a shelf, velcro, or printed tray in rack layouts."
+    links:
+      - label: "NETGEAR GS305"
+        url: "https://www.netgear.com/business/wired/switches/unmanaged/gs305/"
+      - label: "Amazon B07S98YLHM"
+        url: "https://www.amazon.com/dp/B07S98YLHM"
+    custom_fields:
+      rackula_fit:
+        source_asin: "B07S98YLHM"
+        dimensions_mm:
+          width: 101
+          depth: 94
+          height: 29
+        dc_power_adapter: "5V / 0.7A"
+        max_power_watts: 2.34
+  - slug: "guitk-10in-1u-pdu-6-outlet"
+    manufacturer: "GUITK"
+    model: '10" Rack PDU, 6 Outlet'
+    u_height: 1
+    slot_width: 1
+    rack_widths:
+      - 10
+    is_full_depth: false
+    is_powered: true
+    outlet_count: 6
+    colour: "#A84A4A"
+    category: "power"
+    notes: "10-inch 1U rack PDU with 6 NEMA 5-15 outlets, 2 USB-A ports, 1020J surge protection, 15A overload switch, and 6 ft 14AWG cord."
+    links:
+      - label: "Amazon B0G1M1ZWP4"
+        url: "https://www.amazon.com/dp/B0G1M1ZWP4"
+    custom_fields:
+      rackula_fit:
+        source_asin: "B0G1M1ZWP4"
+        usb_a_ports: 2
+        surge_joules: 1020
+        max_current_amps: 15
+        cord_length_ft: 6
+        cord_gauge_awg: 14
   - slug: "rackmate-ms02-3u-shelf"
     manufacturer: "DeskPi"
     model: "RackMate MS-02 Ultra 3U Shelf Placeholder"
     u_height: 3
+    slot_width: 1
     rack_widths:
       - 10
     is_full_depth: false
@@ -173,6 +257,7 @@ device_types:
     manufacturer: "DeskPi"
     model: "RackMate 1U Tiny Mount Placeholder"
     u_height: 1
+    slot_width: 1
     rack_widths:
       - 10
     is_full_depth: false
@@ -227,6 +312,7 @@ device_types:
     manufacturer: "DeskPi"
     model: "RackMate 1U Patch Panel Placeholder"
     u_height: 1
+    slot_width: 1
     rack_widths:
       - 10
     is_full_depth: false
@@ -240,6 +326,10 @@ agent_workspace:
   intent: "Agent-readable RackMate T1 Plus starting layout."
   owned_hardware:
     rack: "DeskPi RackMate T1 Plus 8U 10-inch"
+    power:
+      - "GUITK 10-inch 1U 6-outlet PDU"
+    network:
+      - "NETGEAR GS305"
     compute:
       - "Minisforum MS-02 Ultra"
       - "Lenovo ThinkCentre M720q Tiny"
@@ -248,10 +338,14 @@ agent_workspace:
   fit_warnings:
     - "MS-02 Ultra mount is not build-ready until physical width, depth, airflow, and load are measured."
     - "M720q Tiny printable mount should be tied to a specific STL/source before finalizing hole positions."
+    - "GS305 tray placement needs velcro, bracket, or printed tray retention."
+    - "Rear PDU depth and cord exit need to be checked against the RackMate rear door/opening and cable bend."
     - "Rackula elevation visuals show rack occupancy, not millimetre clearance."
   next_measurements:
     - "RackMate internal rail-to-rail width"
     - "RackMate usable internal depth after rear cables"
     - "MS-02 Ultra exact chassis dimensions in planned orientation"
     - "M720q with rubber feet and any PCIe riser or extra NIC protrusions"
+    - "PDU rear cord clearance and outlet access"
+    - "GS305 retention method and cable bend"
     - "Power adapter or centralized DC bus placement"

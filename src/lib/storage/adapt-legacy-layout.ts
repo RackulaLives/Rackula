@@ -20,13 +20,31 @@
  * no re-snap drift).
  */
 
-import type { Layout, PlacedDevice, DeviceType, DeviceFace } from "$lib/types";
+import type {
+  Layout,
+  PlacedDevice,
+  DeviceType,
+  DeviceFace,
+  Rack,
+} from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { generateId } from "$lib/utils/device";
 import { findStarterDevice } from "$lib/data/starterLibrary";
+import {
+  CARRIER_2COL_SLUG,
+  CARRIER_2X2_SLUG,
+  CARRIER_2U_2COL_SLUG,
+  synthesizeCarrierForDevice,
+} from "$lib/utils/carrier-rules";
 import { ensurePreCarrierBackup } from "./pre-carrier-backup";
 import { getStorageMode } from "./availability.svelte";
 import { markPreCarrierMigrationPending } from "./pre-carrier-migration-pending";
+
+export {
+  CARRIER_2COL_SLUG,
+  CARRIER_2X2_SLUG,
+  CARRIER_2U_2COL_SLUG,
+} from "$lib/utils/carrier-rules";
 
 /**
  * A placed device as it may appear in raw legacy input. The carrier-first model
@@ -44,12 +62,6 @@ type LegacyPlacedDevice = PlacedDevice & {
 function legacySlot(d: PlacedDevice): "left" | "right" | "full" | undefined {
   return (d as LegacyPlacedDevice).slot_position;
 }
-
-/** Stable synthesized-carrier slugs (defined in C1's starter library). */
-export const CARRIER_2COL_SLUG = "carrier-1u-2col";
-export const CARRIER_2X2_SLUG = "carrier-1u-2x2";
-/** Height-matched 2U carrier for whole-U half-width gear taller than 1U (#2854). */
-export const CARRIER_2U_2COL_SLUG = "carrier-2u-2col";
 
 /** Slot ids on carrier-1u-2col (full-height half-width columns). */
 const COL_SLOTS = ["col-1", "col-2"] as const;
@@ -79,17 +91,6 @@ function snapToWholeU(position: number): number {
   return wholeU * UNITS_PER_U;
 }
 
-/** True when this device type mounts at half the rack width (slot_width 1). */
-function isHalfWidth(deviceType: DeviceType | undefined): boolean {
-  return (deviceType?.slot_width ?? 2) === 1;
-}
-
-/** True when this device type needs a height grid (sub-1U height). */
-function isSubUHeight(deviceType: DeviceType | undefined): boolean {
-  const h = deviceType?.u_height ?? 1;
-  return h < 1 || !Number.isInteger(h);
-}
-
 /**
  * A rack-level device must move into a carrier when it is half-width or sub-U
  * height, or it carries a legacy left/right slot_position. Full-width whole-U
@@ -98,12 +99,16 @@ function isSubUHeight(deviceType: DeviceType | undefined): boolean {
 function needsCarrier(
   device: PlacedDevice,
   deviceType: DeviceType | undefined,
+  rackWidth: Rack["width"] | undefined,
 ): boolean {
   const slot = legacySlot(device);
   if (slot === "left" || slot === "right") {
     return true;
   }
-  return isHalfWidth(deviceType) || isSubUHeight(deviceType);
+  return (
+    deviceType !== undefined &&
+    synthesizeCarrierForDevice(deviceType, rackWidth) !== null
+  );
 }
 
 interface CarrierBuild {
@@ -159,19 +164,29 @@ function buildCarrier(
 }
 
 /** Carrier shape a sub-U / half-width device needs. */
-type CarrierShape = "2col" | "2x2";
+type CarrierShape = "2col" | "2u2col" | "2x2";
 
 /** Pick the carrier shape for a device: half-height gear needs the 2x2 grid. */
-function carrierShapeFor(deviceType: DeviceType | undefined): CarrierShape {
-  return isSubUHeight(deviceType) ? "2x2" : "2col";
+function carrierShapeFor(
+  deviceType: DeviceType | undefined,
+  rackWidth: Rack["width"] | undefined,
+): CarrierShape {
+  const carrierSlug = deviceType
+    ? synthesizeCarrierForDevice(deviceType, rackWidth)
+    : null;
+  if (carrierSlug === CARRIER_2X2_SLUG) return "2x2";
+  if (carrierSlug === CARRIER_2U_2COL_SLUG) return "2u2col";
+  return "2col";
 }
 
 const SHAPE_SLUG: Record<CarrierShape, string> = {
   "2col": CARRIER_2COL_SLUG,
+  "2u2col": CARRIER_2U_2COL_SLUG,
   "2x2": CARRIER_2X2_SLUG,
 };
 const SHAPE_SLOTS: Record<CarrierShape, readonly string[]> = {
   "2col": COL_SLOTS,
+  "2u2col": COL_SLOTS,
   "2x2": GRID_SLOTS,
 };
 
@@ -183,6 +198,7 @@ const SHAPE_SLOTS: Record<CarrierShape, readonly string[]> = {
 function adaptRackDevices(
   devices: PlacedDevice[],
   deviceTypeBySlug: Map<string, DeviceType>,
+  rackWidth: Rack["width"] | undefined,
 ): { devices: PlacedDevice[]; carrierSlugs: Set<string>; changed: boolean } {
   const carrierSlugs = new Set<string>();
   let changed = false;
@@ -250,13 +266,13 @@ function adaptRackDevices(
   for (const d of snapped) {
     const dt = deviceTypeBySlug.get(d.device_type);
     const forced = forcedPairIds.has(d.id);
-    if (!forced && !needsCarrier(d, dt)) {
+    if (!forced && !needsCarrier(d, dt, rackWidth)) {
       result.push(d);
       continue;
     }
     // A forced bare pair always wraps as a 2-column carrier; otherwise the
     // device's own dimensions choose the shape.
-    const shape = forced ? "2col" : carrierShapeFor(dt);
+    const shape = forced ? "2col" : carrierShapeFor(dt, rackWidth);
     const key = `${d.position}|${d.face}|${shape}`;
     const group = groups.get(key);
     if (group) group.items.push(d);
@@ -366,6 +382,7 @@ export function adaptLegacyLayout(layout: Layout): Layout {
     const { devices, carrierSlugs, changed } = adaptRackDevices(
       rack.devices,
       deviceTypeBySlug,
+      rack.width,
     );
     if (changed) racksChanged = true;
     for (const slug of carrierSlugs) referencedCarrierSlugs.add(slug);

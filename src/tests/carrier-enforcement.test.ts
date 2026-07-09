@@ -38,6 +38,7 @@ beforeEach(() => {
 function layoutWith(
   device_types: unknown[],
   devices: unknown[],
+  rackWidth: 10 | 19 | 21 | 23 = 19,
 ): Record<string, unknown> {
   return {
     version: "1.0.0",
@@ -47,7 +48,7 @@ function layoutWith(
         id: "rack-1",
         name: "Test Rack",
         height: 42,
-        width: 19 as const,
+        width: rackWidth,
         desc_units: false,
         show_rear: true,
         form_factor: "4-post" as const,
@@ -137,6 +138,27 @@ const fullWidthServer = {
   colour: "#4A90D9",
 };
 
+const nativeTenInPdu = {
+  slug: "native-10in-pdu",
+  model: "Native 10-inch PDU",
+  u_height: 1,
+  slot_width: 1,
+  rack_widths: [10],
+  category: "power",
+  colour: "#A84A4A",
+};
+
+const trayOnlySwitch = {
+  slug: "tray-only-switch",
+  model: "Tray-Only Switch",
+  u_height: 1,
+  slot_width: 1,
+  rack_widths: [10, 19],
+  subdevice_role: "child",
+  category: "network",
+  colour: "#7B6BA8",
+};
+
 const blankHalfU = {
   slug: "0-5u-blank",
   model: "Blank Panel",
@@ -185,6 +207,57 @@ describe("LayoutSchema carrier-first enforcement", () => {
             face: "front" as const,
           },
         ],
+      );
+
+      expect(LayoutSchema.safeParse(layout).success).toBe(false);
+    });
+
+    it("accepts a native 10-inch whole-U device directly on 10-inch rails", () => {
+      const layout = layoutWith(
+        [nativeTenInPdu],
+        [
+          {
+            id: "d1",
+            device_type: "native-10in-pdu",
+            position: 30,
+            face: "rear" as const,
+          },
+        ],
+        10,
+      );
+
+      expect(LayoutSchema.safeParse(layout).success).toBe(true);
+    });
+
+    it("still rejects that 10-inch native device on 19-inch bare rails", () => {
+      const layout = layoutWith(
+        [nativeTenInPdu],
+        [
+          {
+            id: "d1",
+            device_type: "native-10in-pdu",
+            position: 30,
+            face: "rear" as const,
+          },
+        ],
+        19,
+      );
+
+      expect(LayoutSchema.safeParse(layout).success).toBe(false);
+    });
+
+    it("keeps tray-only child devices bay-only even on compatible 10-inch racks", () => {
+      const layout = layoutWith(
+        [trayOnlySwitch],
+        [
+          {
+            id: "d1",
+            device_type: "tray-only-switch",
+            position: 30,
+            face: "front" as const,
+          },
+        ],
+        10,
       );
 
       expect(LayoutSchema.safeParse(layout).success).toBe(false);
@@ -416,9 +489,12 @@ describe("LayoutSchema carrier-first enforcement", () => {
 describe("placeDevice store enforcement", () => {
   type Store = NonNullable<ReturnType<typeof getLayoutStore>>;
 
-  function setupRack(height = 12): { store: Store; rackId: string } {
+  function setupRack(
+    height = 12,
+    width: 10 | 19 | 21 | 23 = 19,
+  ): { store: Store; rackId: string } {
     const store = getLayoutStore()!;
-    const rack = store.addRack("Test Rack", height);
+    const rack = store.addRack("Test Rack", height, width);
     return { store, rackId: rack!.id };
   }
 
@@ -465,6 +541,73 @@ describe("placeDevice store enforcement", () => {
     expect(store.rack!.devices.some((d) => d.device_type === dt.slug)).toBe(
       true,
     );
+  });
+
+  it("places a native 10-inch whole-U device directly on a 10-inch rack", () => {
+    const { store, rackId } = setupRack(12, 10);
+    const dt = store.addDeviceType({
+      name: "Native 10-inch PDU",
+      u_height: 1,
+      category: "power",
+      colour: CATEGORY_COLOURS.power,
+      is_full_depth: false,
+      slot_width: 1,
+      rack_widths: [10],
+    });
+
+    expect(store.placeDevice(rackId, dt.slug, 5, "rear")).toBe(true);
+    const placed = store.rack!.devices.find((d) => d.device_type === dt.slug);
+    expect(placed?.container_id).toBeUndefined();
+    expect(placed?.face).toBe("rear");
+  });
+
+  it("keeps native 10-inch devices off 19-inch bare rails", () => {
+    const { store, rackId } = setupRack(12, 19);
+    const dt = store.addDeviceType({
+      name: "Native 10-inch PDU",
+      u_height: 1,
+      category: "power",
+      colour: CATEGORY_COLOURS.power,
+      is_full_depth: false,
+      slot_width: 1,
+      rack_widths: [10],
+    });
+
+    expect(store.placeDevice(rackId, dt.slug, 5, "rear")).toBe(false);
+  });
+
+  it("places native 10-inch devices via smart placement without synthesizing a carrier", () => {
+    const { store, rackId } = setupRack(12, 10);
+    const dt = store.addDeviceType({
+      name: "Native 10-inch PDU",
+      u_height: 1,
+      category: "power",
+      colour: CATEGORY_COLOURS.power,
+      is_full_depth: false,
+      slot_width: 1,
+      rack_widths: [10],
+    });
+
+    expect(store.placeDeviceSmart(rackId, dt.slug, 5, "rear")).toBe(true);
+    const placed = store.rack!.devices.find((d) => d.device_type === dt.slug);
+    expect(placed).toBeDefined();
+    expect(placed?.auto_created).toBeUndefined();
+    expect(store.rack!.devices.some((d) => d.auto_created)).toBe(false);
+  });
+
+  it("keeps compatible tray-only child devices off bare rails", () => {
+    const { store, rackId } = setupRack(12, 10);
+    const dt = store.addDeviceType({
+      name: "Tray-Only Switch",
+      u_height: 1,
+      category: "network",
+      colour: CATEGORY_COLOURS.network,
+      slot_width: 1,
+      rack_widths: [10, 19],
+      subdevice_role: "child",
+    });
+
+    expect(store.placeDevice(rackId, dt.slug, 5)).toBe(false);
   });
 
   it("places a sub-U blank panel directly via placeDevice (exemption)", () => {

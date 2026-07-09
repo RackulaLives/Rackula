@@ -15,6 +15,7 @@ import type {
   Slot,
   SlotWidth,
   RackWidth,
+  SubdeviceRole,
 } from "$lib/types";
 import { generateDeviceSlug } from "$lib/utils/slug";
 import { generateId } from "$lib/utils/device";
@@ -43,6 +44,8 @@ export interface CreateDeviceTypeInput {
   slot_width?: SlotWidth;
   /** Rack widths this device is compatible with (e.g., [10], [19], [10, 19]) */
   rack_widths?: RackWidth[];
+  /** Role in parent/child relationship */
+  subdevice_role?: SubdeviceRole;
   /** Legacy alias for notes */
   comments?: string;
 }
@@ -112,6 +115,9 @@ export function createDeviceType(data: CreateDeviceTypeInput): DeviceType {
   }
   if (data.rack_widths && data.rack_widths.length > 0) {
     deviceType.rack_widths = data.rack_widths;
+  }
+  if (data.subdevice_role) {
+    deviceType.subdevice_role = data.subdevice_role;
   }
 
   return deviceType;

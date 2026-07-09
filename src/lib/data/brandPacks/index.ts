@@ -20,6 +20,7 @@ import { hpeDevices } from "./hpe";
 // New brand packs
 import { fortinetDevices } from "./fortinet";
 import { eatonDevices } from "./eaton";
+import { guitkDevices } from "./guitk";
 import { netgearDevices } from "./netgear";
 import { paloaltoDevices } from "./palo-alto";
 import { qnapDevices } from "./qnap";
@@ -54,6 +55,7 @@ export {
   // New brand packs
   fortinetDevices,
   eatonDevices,
+  guitkDevices,
   netgearDevices,
   paloaltoDevices,
   qnapDevices,
@@ -212,6 +214,12 @@ export function getBrandPacks(): BrandSection[] {
       devices: eatonDevices,
       defaultExpanded: false,
       icon: "eaton",
+    },
+    {
+      id: "guitk",
+      title: "GUITK",
+      devices: guitkDevices,
+      defaultExpanded: false,
     },
     {
       id: "vertiv",
@@ -385,6 +393,8 @@ export function getBrandDevices(brandId: string): DeviceType[] {
       return fortinetDevices;
     case "eaton":
       return eatonDevices;
+    case "guitk":
+      return guitkDevices;
     case "netgear":
       return netgearDevices;
     case "palo-alto":
@@ -453,6 +463,7 @@ export function getAllBrandDevices(): DeviceType[] {
       ...hpeDevices,
       ...fortinetDevices,
       ...eatonDevices,
+      ...guitkDevices,
       ...netgearDevices,
       ...paloaltoDevices,
       ...qnapDevices,
