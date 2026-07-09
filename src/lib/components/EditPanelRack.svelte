@@ -22,6 +22,7 @@
   } from "$lib/utils/rack-resize";
   import {
     COMMON_RACK_HEIGHTS,
+    MINI_RACK_HEIGHTS,
     RACK_DEPTH_PRESETS_MM,
     DEFAULT_RACK_DEPTH_MM,
     DEFAULT_RACK_BASE_WEIGHT,
@@ -57,6 +58,10 @@
     { value: "wall-mount", label: "Wall mount" },
     { value: "open-frame", label: "Open frame" },
   ];
+
+  const heightPresets = $derived(
+    selectedRack.width === 10 ? MINI_RACK_HEIGHTS : COMMON_RACK_HEIGHTS,
+  );
 
   // Local state for form fields
   let rackName = $state("");
@@ -268,7 +273,7 @@
       <p class="helper-text error">Cannot resize: {resizeError}</p>
     {/if}
     <div class="height-presets">
-      {#each COMMON_RACK_HEIGHTS as preset (preset)}
+      {#each heightPresets as preset (preset)}
         <button
           type="button"
           class="preset-btn"

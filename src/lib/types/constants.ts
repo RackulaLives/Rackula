@@ -60,6 +60,11 @@ export const COMMON_RACK_HEIGHTS: readonly number[] = [
 ] as const;
 
 /**
+ * Common mini-rack heights for 10-inch rack layouts.
+ */
+export const MINI_RACK_HEIGHTS: readonly number[] = [4, 6, 8, 12] as const;
+
+/**
  * Rack height constraints
  */
 export const MIN_RACK_HEIGHT = 1;

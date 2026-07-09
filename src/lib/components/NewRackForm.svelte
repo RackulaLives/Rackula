@@ -6,14 +6,12 @@
   import Dialog from "./Dialog.svelte";
   import {
     COMMON_RACK_HEIGHTS,
+    MINI_RACK_HEIGHTS,
     MIN_RACK_HEIGHT,
     MAX_RACK_HEIGHT,
     STANDARD_RACK_WIDTH,
     ALLOWED_RACK_WIDTHS,
   } from "$lib/types/constants";
-
-  // Height options for 10" racks (smaller form factor)
-  const SMALL_RACK_HEIGHTS = [4, 6, 8, 12];
 
   interface Props {
     open: boolean;
@@ -37,7 +35,7 @@
 
   // Available heights based on rack width
   const availableHeights = $derived(
-    selectedWidth === 10 ? SMALL_RACK_HEIGHTS : COMMON_RACK_HEIGHTS,
+    selectedWidth === 10 ? MINI_RACK_HEIGHTS : COMMON_RACK_HEIGHTS,
   );
 
   // Reset height when width changes if current selection isn't available
