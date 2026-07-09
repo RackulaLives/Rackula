@@ -8,6 +8,12 @@ export const CARRIER_2COL_SLUG = "carrier-1u-2col";
 export const CARRIER_2X2_SLUG = "carrier-1u-2x2";
 export const CARRIER_2U_2COL_SLUG = "carrier-2u-2col";
 
+const RAIL_MOUNT_ACCESSORY_CATEGORIES = new Set([
+  "cable-management",
+  "patch-panel",
+  "shelf",
+]);
+
 /**
  * Whether a device explicitly declares itself native to the current rack width.
  * This is distinct from generic compatibility defaults: devices without
@@ -31,8 +37,10 @@ export function isNativeRackWidthDevice(
  * `slot_width: 1` device that explicitly declares the target rack width in
  * `rack_widths` is treated as native-width for that rack, so 10-inch RackMate
  * gear can rail-mount in a 10-inch rack while still being carrier-only in a
- * standard 19-inch rack. Blank filler panels are exempt: a blank may rail-mount
- * at any height.
+ * standard 19-inch rack. Blank filler panels and passive rack accessories
+ * (shelves, patch panels, cable-management panels) are exempt on their native
+ * rack width: they may rail-mount at any height because they are themselves
+ * rack hardware, not desktop electronics that need a tray.
  */
 export function requiresCarrier(
   deviceType: DeviceType,
@@ -43,9 +51,15 @@ export function requiresCarrier(
   const isHalfWidth =
     (deviceType.slot_width ?? 2) === 1 &&
     !isNativeRackWidthDevice(deviceType, rackWidth);
+  const isNativeRailAccessory =
+    RAIL_MOUNT_ACCESSORY_CATEGORIES.has(deviceType.category) && !isHalfWidth;
   const isSubU = deviceType.u_height < 1;
   const isNonIntegerHeight = !Number.isInteger(deviceType.u_height);
-  return isChassisChild || isHalfWidth || isSubU || isNonIntegerHeight;
+  return (
+    isChassisChild ||
+    isHalfWidth ||
+    (!isNativeRailAccessory && (isSubU || isNonIntegerHeight))
+  );
 }
 
 /**

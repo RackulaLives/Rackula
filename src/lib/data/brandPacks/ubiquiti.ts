@@ -465,6 +465,57 @@ export const ubiquitiDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
   },
+  {
+    slug: "ubiquiti-unifi-cloud-gateway-max",
+    u_height: 0.5,
+    manufacturer: "Ubiquiti",
+    model: "UCG-Max",
+    is_full_depth: false,
+    is_powered: true,
+    airflow: "passive",
+    subdevice_role: "child",
+    slot_width: 1,
+    rack_widths: [10, 19],
+    weight: 0.519,
+    weight_unit: "kg",
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    notes:
+      "Compact desktop 2.5G UniFi Cloud Gateway. Use a RackMate utility tray, floating mount, or printed tray; do not mount directly on rack rails.",
+    links: [
+      {
+        label: "Ubiquiti Store UCG-Max",
+        url: "https://store.ui.com/us/en/category/cloud-gateways-compact/collections/cloud-gateway-max/products/ucg-max",
+      },
+      {
+        label: "UCG-Max Tech Specs",
+        url: "https://techspecs.ui.com/unifi/cloud-gateways/ucg-max",
+      },
+    ],
+    custom_fields: {
+      rackula_fit: {
+        status: "candidate",
+        recommended_tray_u: 1,
+        rackmate_t1_plus_depth_mm: 260,
+        rackmate_t1_plus_depth_clearance_mm: 118.2,
+        dimensions_mm: {
+          width: 141.8,
+          depth: 127.6,
+          height: 30,
+        },
+        ports: {
+          rj45_2_5gbe: 5,
+        },
+        max_power_watts: 16.1,
+        power_method: "USB-C 5V DC / 5A",
+        open_checks: [
+          "USB-C power plug bend clearance",
+          "RJ45 cable bend clearance",
+          "tray retention or floating mount selection",
+        ],
+      },
+    },
+  },
 
   // ============================================
   // EdgeRouter Series
