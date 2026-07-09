@@ -37,6 +37,7 @@ import { juniperDevices } from "./juniper";
 import { vertivDevices } from "./vertiv";
 import { fsDevices } from "./fs";
 import { intelDevices } from "./intel";
+import { minisforumDevices } from "./minisforum";
 import { beelinkDevices } from "./beelink";
 import { raspberryPiDevices } from "./raspberry-pi";
 import { zimaDevices } from "./zima";
@@ -70,6 +71,7 @@ export {
   vertivDevices,
   fsDevices,
   intelDevices,
+  minisforumDevices,
   beelinkDevices,
   raspberryPiDevices,
   zimaDevices,
@@ -309,6 +311,12 @@ export function getBrandPacks(): BrandSection[] {
       icon: "beelink",
     },
     {
+      id: "minisforum",
+      title: "Minisforum",
+      devices: minisforumDevices,
+      defaultExpanded: false,
+    },
+    {
       id: "raspberry-pi",
       title: "Raspberry Pi",
       devices: raspberryPiDevices,
@@ -411,6 +419,8 @@ export function getBrandDevices(brandId: string): DeviceType[] {
       return fsDevices;
     case "intel":
       return intelDevices;
+    case "minisforum":
+      return minisforumDevices;
     case "beelink":
       return beelinkDevices;
     case "raspberry-pi":
@@ -460,6 +470,7 @@ export function getAllBrandDevices(): DeviceType[] {
       ...vertivDevices,
       ...fsDevices,
       ...intelDevices,
+      ...minisforumDevices,
       ...beelinkDevices,
       ...raspberryPiDevices,
       ...zimaDevices,

@@ -63,12 +63,14 @@ describe("loadStarterTemplates", () => {
       "home-lab",
       "network-closet",
       "media-server",
+      "rackmate-t1-plus",
     ]);
     // Each id maps to the layout actually parsed from that file.
     expect(templates.map((t) => t.layout.name)).toEqual([
       "home-lab",
       "network-closet",
       "media-server",
+      "rackmate-t1-plus",
     ]);
   });
 
@@ -81,7 +83,11 @@ describe("loadStarterTemplates", () => {
 
     const templates = await loadStarterTemplates(fetcher);
 
-    expect(templates.map((t) => t.id)).toEqual(["home-lab", "media-server"]);
+    expect(templates.map((t) => t.id)).toEqual([
+      "home-lab",
+      "media-server",
+      "rackmate-t1-plus",
+    ]);
   });
 
   it("skips a template whose YAML fails schema validation", async () => {
@@ -95,7 +101,29 @@ describe("loadStarterTemplates", () => {
 
     const templates = await loadStarterTemplates(fetcher);
 
-    expect(templates.map((t) => t.id)).toEqual(["home-lab", "network-closet"]);
+    expect(templates.map((t) => t.id)).toEqual([
+      "home-lab",
+      "network-closet",
+      "rackmate-t1-plus",
+    ]);
+  });
+
+  it("loads the RackMate starter without synthesizing extra carriers", async () => {
+    const path = join(
+      process.cwd(),
+      "static",
+      "templates",
+      "rackmate-t1-plus.rackula.yaml",
+    );
+    const yamlText = readFileSync(path, "utf8");
+
+    const layout = await parseLayoutYaml(yamlText);
+
+    expect(layout.name).toBe("RackMate T1 Plus");
+    expect(layout.racks[0]?.width).toBe(10);
+    expect(layout.racks[0]?.height).toBe(8);
+    expect(layout.racks[0]?.devices).toHaveLength(10);
+    expect(layout.racks[0]?.devices.some((d) => d.auto_created)).toBe(false);
   });
 
   it("returns an empty array when every template fails to load", async () => {

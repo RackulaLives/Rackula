@@ -116,4 +116,84 @@ export const deskpiDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.shelf,
     category: "shelf",
   },
+
+  // ============================================
+  // RackMate planning placeholders
+  // ============================================
+  {
+    slug: "deskpi-rackmate-1u-cable-entry",
+    u_height: 1,
+    manufacturer: "DeskPi",
+    model: "RackMate 1U Cable Entry / Service Space",
+    is_full_depth: false,
+    is_powered: false,
+    rack_widths: [10],
+    colour: CATEGORY_COLOURS["cable-management"],
+    category: "cable-management",
+    custom_fields: {
+      rackula_fit: {
+        role: "service-clearance",
+      },
+    },
+  },
+  {
+    slug: "deskpi-rackmate-tiny-1u-mount",
+    u_height: 1,
+    manufacturer: "DeskPi",
+    model: "RackMate 1U Tiny Mount Placeholder",
+    is_full_depth: false,
+    is_powered: false,
+    rack_widths: [10],
+    colour: CATEGORY_COLOURS.shelf,
+    category: "shelf",
+    notes: "Planning placeholder for a printable Lenovo Tiny-class mount.",
+    custom_fields: {
+      rackula_fit: {
+        status: "needs_stl_selection",
+        mount_type: "3d-printed",
+      },
+    },
+    slots: [
+      {
+        id: "main",
+        name: "Main",
+        position: { row: 0, col: 0 },
+        width_fraction: 1,
+        height_units: 1,
+        accepts: ["server"],
+      },
+    ],
+  },
+  {
+    slug: "deskpi-rackmate-ms02-3u-shelf",
+    u_height: 3,
+    manufacturer: "DeskPi",
+    model: "RackMate MS-02 Ultra 3U Shelf Placeholder",
+    is_full_depth: false,
+    is_powered: false,
+    rack_widths: [10],
+    weight: 0.8,
+    weight_unit: "kg",
+    colour: CATEGORY_COLOURS.shelf,
+    category: "shelf",
+    notes:
+      "Planning placeholder for a custom MS-02 Ultra shelf. Confirm load, airflow, and cable clearance before building.",
+    custom_fields: {
+      rackula_fit: {
+        status: "needs_design",
+        mount_type: "custom-shelf",
+        rack_internal_depth_mm: 260,
+      },
+    },
+    slots: [
+      {
+        id: "main",
+        name: "Main",
+        position: { row: 0, col: 0 },
+        width_fraction: 1,
+        height_units: 3,
+        accepts: ["server"],
+      },
+    ],
+  },
 ];

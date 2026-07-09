@@ -42,6 +42,7 @@ export const TEMPLATE_FILES = [
   "home-lab",
   "network-closet",
   "media-server",
+  "rackmate-t1-plus",
 ] as const;
 
 /** A shipped starter's id, i.e. one of {@link TEMPLATE_FILES}. */
@@ -57,6 +58,7 @@ const STARTER_COLOURS: Record<StarterTemplateId, string> = {
   "home-lab": "var(--dracula-purple)",
   "network-closet": "var(--dracula-cyan)",
   "media-server": "var(--dracula-green)",
+  "rackmate-t1-plus": "var(--dracula-orange)",
 };
 
 /** Resolve a starter's menu-dot colour token, defaulting to the muted colour. */

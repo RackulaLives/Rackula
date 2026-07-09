@@ -1,0 +1,257 @@
+metadata:
+  id: "a1b2c3d4-1001-4001-8001-000000000001"
+  name: "RackMate T1 Plus"
+  schema_version: "1.0"
+  description: "An 8U 10-inch DeskPi RackMate T1 Plus concept with an MS-02 Ultra shelf candidate and three Lenovo Tiny mounts."
+version: "1.0.0"
+name: "RackMate T1 Plus"
+racks:
+  - id: "rack-rackmate-t1-plus"
+    name: "RackMate T1 Plus"
+    height: 8
+    width: 10
+    depth_mm: 260
+    desc_units: false
+    show_rear: true
+    form_factor: "4-post-cabinet"
+    starting_unit: 1
+    position: 0
+    notes: "DeskPi T1 Plus 8U 10-inch rack. Physical fit metadata is provisional until measured."
+    devices:
+      - id: "dev-cable-entry-u1"
+        device_type: "rackmate-1u-cable-entry"
+        name: "Cable Entry / Service Space"
+        position: 6
+        face: "front"
+      - id: "dev-ms02-shelf-u2"
+        device_type: "rackmate-ms02-3u-shelf"
+        name: "MS-02 Ultra Shelf Candidate"
+        position: 12
+        face: "front"
+        custom_fields:
+          rackula_fit:
+            status: "needs_measurement"
+            concern: "Confirm width, cable bend, side airflow, and shelf load before treating this as build-ready."
+      - id: "dev-ms02-ultra"
+        device_type: "minisforum-ms02-ultra"
+        name: "MS-02 Ultra"
+        position: 0
+        face: "front"
+        container_id: "dev-ms02-shelf-u2"
+        slot_id: "main"
+        custom_fields:
+          rackula_fit:
+            status: "needs_measurement"
+            orientation: "front-facing in 3U shelf"
+      - id: "dev-tiny-mount-u5"
+        device_type: "rackmate-tiny-1u-mount"
+        name: "Tiny Mount 1"
+        position: 30
+        face: "front"
+      - id: "dev-m720q-1"
+        device_type: "lenovo-thinkcentre-m720q-tiny"
+        name: "M720q Tiny 1"
+        position: 0
+        face: "front"
+        container_id: "dev-tiny-mount-u5"
+        slot_id: "main"
+      - id: "dev-tiny-mount-u6"
+        device_type: "rackmate-tiny-1u-mount"
+        name: "Tiny Mount 2"
+        position: 36
+        face: "front"
+      - id: "dev-m720q-2"
+        device_type: "lenovo-thinkcentre-m720q-tiny"
+        name: "Future M720q Tiny 2"
+        position: 0
+        face: "front"
+        container_id: "dev-tiny-mount-u6"
+        slot_id: "main"
+        custom_fields:
+          rackula_fit:
+            status: "planned"
+      - id: "dev-tiny-mount-u7"
+        device_type: "rackmate-tiny-1u-mount"
+        name: "Tiny Mount 3"
+        position: 42
+        face: "front"
+      - id: "dev-m720q-3"
+        device_type: "lenovo-thinkcentre-m720q-tiny"
+        name: "Future M720q Tiny 3"
+        position: 0
+        face: "front"
+        container_id: "dev-tiny-mount-u7"
+        slot_id: "main"
+        custom_fields:
+          rackula_fit:
+            status: "planned"
+      - id: "dev-patch-u8"
+        device_type: "rackmate-1u-patch-panel-placeholder"
+        name: "Patch Panel Placeholder"
+        position: 48
+        face: "front"
+device_types:
+  - slug: "rackmate-1u-cable-entry"
+    manufacturer: "DeskPi"
+    model: "RackMate 1U Cable Entry / Service Space"
+    u_height: 1
+    rack_widths:
+      - 10
+    is_full_depth: false
+    is_powered: false
+    colour: "#6272A4"
+    category: "cable-management"
+    custom_fields:
+      rackula_fit:
+        role: "service-clearance"
+  - slug: "rackmate-ms02-3u-shelf"
+    manufacturer: "DeskPi"
+    model: "RackMate MS-02 Ultra 3U Shelf Placeholder"
+    u_height: 3
+    rack_widths:
+      - 10
+    is_full_depth: false
+    is_powered: false
+    weight: 0.8
+    weight_unit: "kg"
+    colour: "#6272A4"
+    category: "shelf"
+    notes: "Planning placeholder for a custom MS-02 Ultra shelf. Confirm load, airflow, and cable clearance before building."
+    custom_fields:
+      rackula_fit:
+        status: "needs_design"
+        mount_type: "custom-shelf"
+        rack_internal_depth_mm: 260
+    slots:
+      - id: "main"
+        name: "Main"
+        position:
+          row: 0
+          col: 0
+        width_fraction: 1
+        height_units: 3
+        accepts:
+          - "server"
+  - slug: "minisforum-ms02-ultra"
+    manufacturer: "Minisforum"
+    model: "MS-02 Ultra"
+    u_height: 2.5
+    slot_width: 2
+    rack_widths:
+      - 10
+    is_full_depth: false
+    is_powered: true
+    weight: 3.45
+    weight_unit: "kg"
+    airflow: "mixed"
+    colour: "#4A7A8A"
+    category: "server"
+    notes: "4.8 L mini workstation with built-in 350 W PSU. RackMate fit is unverified until measured."
+    links:
+      - label: "Minisforum MS-02 Ultra"
+        url: "https://store.minisforum.com/products/minisforum-ms-02-ultra-workstation"
+      - label: "ServeTheHome MS-02 Ultra review"
+        url: "https://www.servethehome.com/minisforum-ms-02-ultra-review-intel-new-home-lab-king/"
+    custom_fields:
+      rackula_fit:
+        status: "needs_measurement"
+        chassis_liters: 4.8
+        weight_kg: 3.45
+        internal_psu_watts: 350
+        reported_dimensions_mm:
+          width: 222
+          depth: 225
+          height: 97
+          confidence: "third_party_reported"
+        open_checks:
+          - "exact chassis dimensions in planned orientation"
+          - "rack internal rail-to-rail width"
+          - "rear cable bend radius"
+          - "side intake and exhaust clearance"
+          - "shelf load and heat deflection"
+  - slug: "rackmate-tiny-1u-mount"
+    manufacturer: "DeskPi"
+    model: "RackMate 1U Tiny Mount Placeholder"
+    u_height: 1
+    rack_widths:
+      - 10
+    is_full_depth: false
+    is_powered: false
+    colour: "#6272A4"
+    category: "shelf"
+    notes: "Planning placeholder for a printable Lenovo Tiny-class mount."
+    custom_fields:
+      rackula_fit:
+        status: "needs_stl_selection"
+        mount_type: "3d-printed"
+    slots:
+      - id: "main"
+        name: "Main"
+        position:
+          row: 0
+          col: 0
+        width_fraction: 1
+        height_units: 1
+        accepts:
+          - "server"
+  - slug: "lenovo-thinkcentre-m720q-tiny"
+    manufacturer: "Lenovo"
+    model: "ThinkCentre M720q Tiny"
+    u_height: 0.5
+    slot_width: 2
+    rack_widths:
+      - 10
+    is_full_depth: false
+    is_powered: true
+    weight: 1.32
+    weight_unit: "kg"
+    airflow: "mixed"
+    colour: "#4A7A8A"
+    category: "server"
+    links:
+      - label: "Lenovo ThinkCentre M720 Tiny PSREF"
+        url: "https://psref.lenovo.com/syspool/Sys/PDF/ThinkCentre/ThinkCentre_M720_Tiny/ThinkCentre_M720_Tiny_Spec.pdf"
+    custom_fields:
+      rackula_fit:
+        status: "candidate"
+        dimensions_mm:
+          width: 179
+          depth: 183
+          height: 37
+        source_note: "Lenovo PSREF lists Tiny-only 179 x 183 x 34.5 mm, or 37 mm with rubber feet."
+        power_adapter_options_watts:
+          - 65
+          - 90
+          - 135
+  - slug: "rackmate-1u-patch-panel-placeholder"
+    manufacturer: "DeskPi"
+    model: "RackMate 1U Patch Panel Placeholder"
+    u_height: 1
+    rack_widths:
+      - 10
+    is_full_depth: false
+    is_powered: false
+    colour: "#6272A4"
+    category: "patch-panel"
+settings:
+  display_mode: "label"
+  show_labels_on_images: false
+agent_workspace:
+  intent: "Agent-readable RackMate T1 Plus starting layout."
+  owned_hardware:
+    rack: "DeskPi RackMate T1 Plus 8U 10-inch"
+    compute:
+      - "Minisforum MS-02 Ultra"
+      - "Lenovo ThinkCentre M720q Tiny"
+      - "Future Lenovo ThinkCentre M720q Tiny"
+      - "Future Lenovo ThinkCentre M720q Tiny"
+  fit_warnings:
+    - "MS-02 Ultra mount is not build-ready until physical width, depth, airflow, and load are measured."
+    - "M720q Tiny printable mount should be tied to a specific STL/source before finalizing hole positions."
+    - "Rackula elevation visuals show rack occupancy, not millimetre clearance."
+  next_measurements:
+    - "RackMate internal rail-to-rail width"
+    - "RackMate usable internal depth after rear cables"
+    - "MS-02 Ultra exact chassis dimensions in planned orientation"
+    - "M720q with rubber feet and any PCIe riser or extra NIC protrusions"
+    - "Power adapter or centralized DC bus placement"
