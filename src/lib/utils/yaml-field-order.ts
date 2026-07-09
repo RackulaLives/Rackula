@@ -19,7 +19,7 @@ import type { SerializedImages } from "$lib/utils/image-encoding";
 
 /**
  * Order DeviceType fields according to schema v1.0.0
- * Field order: slug, manufacturer, model, part_number, u_height, slot_width, is_full_depth, is_powered,
+ * Field order: slug, manufacturer, model, part_number, u_height, slot_width, rack_widths, is_full_depth, is_powered,
  *              weight, weight_unit, airflow, front_image, rear_image, colour, category, tags,
  *              notes, serial_number, asset_tag, links, custom_fields, interfaces, power_ports,
  *              power_outlets, device_bays, inventory_items, subdevice_role, slots, va_rating
@@ -36,6 +36,8 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
   // --- Physical Properties ---
   ordered.u_height = dt.u_height;
   if (dt.slot_width !== undefined) ordered.slot_width = dt.slot_width;
+  if (dt.rack_widths !== undefined && dt.rack_widths.length > 0)
+    ordered.rack_widths = dt.rack_widths;
   if (dt.is_full_depth !== undefined) ordered.is_full_depth = dt.is_full_depth;
   if (dt.is_powered !== undefined) ordered.is_powered = dt.is_powered;
   if (dt.weight !== undefined) ordered.weight = dt.weight;

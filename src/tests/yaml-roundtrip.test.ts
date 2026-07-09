@@ -14,6 +14,29 @@ import {
 } from "./factories";
 
 describe("YAML layout round-trip", () => {
+  it("preserves rack_widths for 10-inch device compatibility", async () => {
+    const tenInchDevice = createTestDeviceType({
+      slug: "deskpi-ten-inch-device",
+      rack_widths: [10],
+    });
+
+    const layout = createTestLayout({
+      racks: [createTestRack({ id: "rack-1", width: 10 })],
+      device_types: [tenInchDevice],
+    });
+
+    const yaml = await serializeLayoutToYaml(layout);
+
+    // rack_widths must be serialised so 10-inch palette compatibility survives reload.
+    expect(yaml).toContain("rack_widths");
+
+    const restored = await parseLayoutYaml(yaml);
+    const restoredType = restored.device_types.find(
+      (dt) => dt.slug === tenInchDevice.slug,
+    );
+    expect(restoredType?.rack_widths).toEqual([10]);
+  });
+
   it("preserves auto_created for an auto-synthesized carrier placement", async () => {
     const carrierType = createTestDeviceType({
       slug: "carrier-device",
