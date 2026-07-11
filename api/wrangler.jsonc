@@ -47,6 +47,12 @@
   // Real values (account_id, vars, secrets, Access config) are added by the dev
   // cutover. RACKULA_AUTH_MODE is intentionally unset here, so the Worker runs
   // AUTH_MODE=none and the smoke endpoints are reachable under `wrangler dev`.
+  //
+  // Cloudflare Access validation fails closed (denies every request) when
+  // CF_ACCESS_* is unconfigured, unless CF_ACCESS_DISABLED=true is explicitly
+  // set (#2913). That opt-out lives in api/.dev.vars, which `wrangler dev`
+  // reads locally but `wrangler deploy` never bundles, so it cannot leak into
+  // a deployed Worker.
   "observability": {
     "enabled": true,
   },

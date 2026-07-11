@@ -69,8 +69,21 @@ function requestWithToken(token?: string): Request {
 }
 
 describe("resolveAccessJwtConfig", () => {
-  it("returns null when no Access env vars are set", () => {
-    expect(resolveAccessJwtConfig({})).toBeNull();
+  it("throws (fails closed) when no Access env vars are set and there is no explicit opt-out", () => {
+    // A deployed Worker that forgot to configure Access must not fail open
+    // (#2913).
+    expect(() => resolveAccessJwtConfig({})).toThrow(/not configured/);
+  });
+
+  it("returns null when no Access env vars are set and CF_ACCESS_DISABLED=true is explicitly set", () => {
+    // The local `wrangler dev` opt-out.
+    expect(resolveAccessJwtConfig({ CF_ACCESS_DISABLED: "true" })).toBeNull();
+  });
+
+  it("throws (fails closed) when CF_ACCESS_DISABLED is set to anything other than 'true'", () => {
+    expect(() => resolveAccessJwtConfig({ CF_ACCESS_DISABLED: "1" })).toThrow(
+      /not configured/,
+    );
   });
 
   it("throws (fails closed) when Access config is only partially set", () => {

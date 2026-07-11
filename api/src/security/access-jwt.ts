@@ -8,18 +8,20 @@
  * signature, issuer, and audience (AUD tag). Service tokens (used by CI smoke
  * and machine clients) carry the same assertion, so they pass the same check.
  *
- * Validation is conditional. It is only enforced when the three inputs are
- * configured via environment variables:
+ * Validation is enforced when the three inputs are configured via environment
+ * variables:
  *
  *   CF_ACCESS_JWKS_URL  the Access application's JWKS endpoint
  *   CF_ACCESS_ISSUER    the expected `iss` (the team domain, e.g.
  *                       https://<team>.cloudflareaccess.com)
  *   CF_ACCESS_AUD       the Access application AUD tag (the expected `aud`)
  *
- * When any of these is absent (for example local `wrangler dev` with
- * AUTH_MODE=none and no Access in front), validation is skipped so the smoke
- * endpoints return 200. When configured, a missing or invalid assertion yields
- * 401 (missing) or 403 (present but invalid).
+ * A deployed Worker must never silently fail open, so an absent config is
+ * fail-closed by default (#2913): every request is denied. Validation is only
+ * skipped (smoke endpoints return 200) when the config is absent AND
+ * `CF_ACCESS_DISABLED=true` is explicitly set, which opts out for local
+ * `wrangler dev`. When configured, a missing or invalid assertion yields 401
+ * (missing) or 403 (present but invalid).
  *
  * No values are hardcoded; all three are read from env. The real values are set
  * later by the dev cutover (#2675 / #2134).
@@ -34,6 +36,19 @@ import type { EnvMap } from "./types";
 
 /** The header Cloudflare Access uses to carry the signed assertion. */
 export const CF_ACCESS_JWT_HEADER = "Cf-Access-Jwt-Assertion";
+
+/**
+ * The env var that explicitly opts out of Access enforcement when
+ * `CF_ACCESS_*` is fully unconfigured. Intended for local `wrangler dev`
+ * only; a deployed Worker that forgets to set the three `CF_ACCESS_*`
+ * variables must fail closed, not fail open (#2913).
+ */
+export const CF_ACCESS_DISABLED_ENV = "CF_ACCESS_DISABLED";
+
+/** True when the explicit local-dev opt-out is set. */
+function isAccessDisabledOptOut(env: EnvMap): boolean {
+  return env[CF_ACCESS_DISABLED_ENV]?.trim().toLowerCase() === "true";
+}
 
 /** Resolved, validated Access configuration. */
 export interface AccessJwtConfig {
@@ -53,8 +68,9 @@ export type AccessJwtResult =
  * Resolve the Access JWT config from env.
  *
  * @param env - Environment map (defaults to `process.env`).
- * @returns The config when all three inputs are set and non-empty; otherwise
- *   `null`, which means validation is skipped.
+ * @returns The config when all three inputs are set and non-empty; `null`
+ *   only when unset AND `CF_ACCESS_DISABLED=true` is explicitly set (local
+ *   `wrangler dev`). Otherwise throws, so the caller fails closed.
  */
 export function resolveAccessJwtConfig(
   env: EnvMap = typeof process !== "undefined" ? process.env : {},
@@ -65,12 +81,20 @@ export function resolveAccessJwtConfig(
 
   const present = [jwksUrl, issuer, audience].filter(Boolean).length;
 
-  // None set: Access is not configured. This is the local `wrangler dev` /
-  // AUTH_MODE=none mode where validation is skipped so the smoke endpoints
-  // return 200. Production Access enforcement config is wired by the dev
-  // cutover (#2134).
+  // None set: Access is not configured. This is either a deliberate local
+  // `wrangler dev` skip (opted out via CF_ACCESS_DISABLED=true) or a deployed
+  // Worker that forgot to configure Access. A deployed Worker must never
+  // silently fail open (#2913), so treat "absent, no opt-out" the same as a
+  // partial config: fail closed by throwing.
   if (present === 0) {
-    return null;
+    if (isAccessDisabledOptOut(env)) {
+      return null;
+    }
+    throw new Error(
+      "Cloudflare Access is not configured: set all of CF_ACCESS_JWKS_URL, " +
+        "CF_ACCESS_ISSUER, and CF_ACCESS_AUD, or set CF_ACCESS_DISABLED=true " +
+        "to explicitly skip validation (local `wrangler dev` only).",
+    );
   }
 
   // Partially set: an incomplete config must never silently disable the auth
