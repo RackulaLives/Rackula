@@ -48,26 +48,26 @@ type JSZipConstructor = typeof import("jszip");
 type JSZipInstance = ReturnType<JSZipConstructor>;
 
 /**
- * MIME type to file extension mapping
+ * MIME type to file extension mapping.
+ *
+ * Raster-only, matching the reader's IMAGE_EXTENSIONS and SUPPORTED_IMAGE_FORMATS
+ * allowlist. gif/svg are deliberately absent so the writer never emits a
+ * `.gif`/`.svg` asset the reader would then reject on re-import (#2972).
  */
 const MIME_TO_EXTENSION: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
-  "image/gif": "gif",
-  "image/svg+xml": "svg",
 };
 
 /**
- * File extension to MIME type mapping
+ * File extension to MIME type mapping (raster-only, see MIME_TO_EXTENSION).
  */
 const EXTENSION_TO_MIME: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
   webp: "image/webp",
-  gif: "image/gif",
-  svg: "image/svg+xml",
 };
 
 /**

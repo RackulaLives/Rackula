@@ -200,6 +200,46 @@ describe("extractFolderArchive", () => {
       expect(result.images.has("test-device")).toBe(false);
       expect(result.failedImages).toEqual([]);
     });
+
+    it("rejects a raster image whose content does not match its extension (#2972)", async () => {
+      const zip = new JSZip();
+      const folderName = "My Layout-550e8400-e29b-41d4-a716-446655440000";
+      const folder = zip.folder(folderName);
+      folder?.file("my-layout.rackula.yaml", SAMPLE_LAYOUT_YAML);
+
+      // Named front.png but the bytes are a real JPEG (FF D8 FF). Both are
+      // allowlisted raster formats, so the allowlist alone accepts it; only an
+      // extension-to-content parity check (like the YAML declared-vs-detected
+      // check) rejects the mismatch.
+      const assetsFolder = folder?.folder("assets")?.folder("test-device");
+      const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+      assetsFolder?.file("front.png", jpegBytes);
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const result = await extractFolderArchive(blob);
+
+      expect(result.images.has("test-device")).toBe(false);
+      expect(result.failedImages).toContain(
+        `${folderName}/assets/test-device/front.png`,
+      );
+    });
+
+    it("accepts a correctly-labelled JPEG (.jpg with JPEG bytes)", async () => {
+      const zip = new JSZip();
+      const folderName = "My Layout-550e8400-e29b-41d4-a716-446655440000";
+      const folder = zip.folder(folderName);
+      folder?.file("my-layout.rackula.yaml", SAMPLE_LAYOUT_YAML);
+
+      const assetsFolder = folder?.folder("assets")?.folder("test-device");
+      const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+      assetsFolder?.file("front.jpg", jpegBytes);
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const result = await extractFolderArchive(blob);
+
+      expect(result.images.get("test-device")?.front).toBeDefined();
+      expect(result.failedImages).toEqual([]);
+    });
   });
 
   describe("format precedence", () => {

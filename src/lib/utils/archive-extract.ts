@@ -125,6 +125,18 @@ export async function getJSZip(): Promise<JSZipConstructor> {
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp"];
 
 /**
+ * File extension to expected image MIME type, for the extension-to-content
+ * parity check. Every key is an allowed raster extension (IMAGE_EXTENSIONS); the
+ * detected magic-byte MIME must match the extension's entry here (#2972).
+ */
+const EXTENSION_TO_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+};
+
+/**
  * Archive extraction limits (guardrails)
  */
 const LIMITS = {
@@ -299,15 +311,21 @@ export async function extractFolderArchive(
   // re-inflates only the YAML/image files it needs; that overlap is small and
   // bounded by the per-file caps below.
   let totalUncompressedSize = 0;
+  // Retain each entry's measured inflated size so image extraction can reject an
+  // oversized entry BEFORE inflating it into memory, reusing this streamed
+  // measurement instead of inflating a second time just to check the cap (#2972).
+  const uncompressedSizes = new Map<string, number>();
   for (const name of entries) {
     const file = zip.files[name];
     if (!file || file.dir) continue;
     // Pass the remaining global budget as this entry's cap so the stream aborts
     // as soon as the cumulative total would exceed the limit.
-    totalUncompressedSize += await measureUncompressedSize(
+    const size = await measureUncompressedSize(
       file,
       LIMITS.MAX_TOTAL_UNCOMPRESSED_BYTES - totalUncompressedSize,
     );
+    uncompressedSizes.set(name, size);
+    totalUncompressedSize += size;
   }
 
   const ratio = totalUncompressedSize / blob.size;
@@ -325,11 +343,11 @@ export async function extractFolderArchive(
   }
 
   if (format.type === "new-folder") {
-    return await extractNewFormatZip(zip, format);
+    return await extractNewFormatZip(zip, format, uncompressedSizes);
   }
 
   // Old flat format
-  return await extractOldFormatZip(zip, format);
+  return await extractOldFormatZip(zip, format, uncompressedSizes);
 }
 
 /**
@@ -339,6 +357,7 @@ export async function extractFolderArchive(
 async function extractNewFormatZip(
   zip: JSZipInstance,
   format: ZipFormat,
+  uncompressedSizes: Map<string, number>,
 ): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
   // Extract YAML
   const yamlPath = format.yamlPath;
@@ -395,6 +414,7 @@ async function extractNewFormatZip(
         deviceSlug,
         filename,
         layoutId,
+        uncompressedSizes,
       );
 
       if (result.error) {
@@ -419,6 +439,7 @@ async function extractNewFormatZip(
 async function extractOldFormatZip(
   zip: JSZipInstance,
   format: ZipFormat,
+  uncompressedSizes: Map<string, number>,
 ): Promise<{ layout: Layout; images: ImageStoreMap; failedImages: string[] }> {
   // Extract YAML from root
   const yamlPath = format.yamlPath;
@@ -473,6 +494,7 @@ async function extractOldFormatZip(
         deviceSlug,
         filename,
         layoutId,
+        uncompressedSizes,
       );
 
       if (result.error) {
@@ -501,6 +523,8 @@ async function extractOldFormatZip(
           imagePath,
           deviceSlug,
           filename,
+          "",
+          uncompressedSizes,
         );
 
         if (result.error) {
@@ -529,6 +553,7 @@ async function extractImageFromZip(
   deviceSlug: string,
   filename: string,
   layoutId: string = "",
+  uncompressedSizes?: Map<string, number>,
 ): Promise<{
   imageKey?: string;
   face?: "front" | "rear";
@@ -560,21 +585,43 @@ async function extractImageFromZip(
   const imageFile = zip.file(imagePath);
   if (!imageFile) return { error: true };
 
+  // Reject an oversized entry BEFORE inflating it into memory, using the
+  // inflated size already measured by the preflight guard so we do not stream or
+  // allocate the entry twice (#2972). The map is populated for every non-dir
+  // entry; a missing size falls through to the post-decode byteLength backstop.
+  const measuredSize = uncompressedSizes?.get(imagePath);
+  if (measuredSize !== undefined && measuredSize > MAX_IMAGE_SIZE_BYTES) {
+    archiveDebug.extract("Image exceeds size cap: %s", imagePath);
+    return { error: true };
+  }
+
   try {
     // Never trust the file extension or JSZip's extension-inferred blob type:
     // decode the real bytes and validate them the same way the YAML
     // embedded-image path does (detectImageMime + allowlist + size cap, #2933).
     const bytes = await imageFile.async("uint8array");
 
+    // Backstop the pre-decode size gate for any entry missing from the map.
     if (bytes.byteLength > MAX_IMAGE_SIZE_BYTES) {
       archiveDebug.extract("Image exceeds size cap: %s", imagePath);
       return { error: true };
     }
 
+    // Sniff the real bytes, require an allowlisted raster format, AND require the
+    // detected format to match the filename extension. That extension-to-content
+    // parity mirrors the YAML path's declared-vs-detected check, so a file named
+    // front.png carrying JPEG/WebP bytes is rejected rather than silently
+    // accepted (#2972).
     const detected = detectImageMime(bytes);
-    if (!detected || !SUPPORTED_IMAGE_FORMATS.includes(detected)) {
+    const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+    const expected = EXTENSION_TO_MIME[ext];
+    if (
+      !detected ||
+      !SUPPORTED_IMAGE_FORMATS.includes(detected) ||
+      detected !== expected
+    ) {
       archiveDebug.extract(
-        "Rejected image with unsupported or unrecognised format: %s",
+        "Rejected image with unsupported, unrecognised, or mismatched format: %s",
         imagePath,
       );
       return { error: true };
