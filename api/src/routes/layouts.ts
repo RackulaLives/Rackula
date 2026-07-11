@@ -70,8 +70,7 @@ function isValidSnapshotFilenameParam(filename: string): boolean {
 }
 
 type YamlComplexityGuardResult =
-  | { ok: true; value: unknown }
-  | { ok: false; status: 400; error: string };
+  { ok: true; value: unknown } | { ok: false; status: 400; error: string };
 
 /**
  * Parses YAML with JSON_SCHEMA and applies the bounded, cycle-safe complexity
@@ -94,10 +93,7 @@ function parseYamlWithComplexityGuard(
   }
 
   try {
-    assertYamlComplexityBounded(
-      parsed,
-      Buffer.byteLength(yamlContent, "utf8"),
-    );
+    assertYamlComplexityBounded(parsed, Buffer.byteLength(yamlContent, "utf8"));
   } catch (e) {
     if (
       e instanceof YamlCircularReferenceError ||
