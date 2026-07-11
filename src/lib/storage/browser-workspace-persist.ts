@@ -85,8 +85,13 @@ export interface PersistWorkspaceArgs {
 export async function persistBrowserWorkspace(
   args: PersistWorkspaceArgs,
 ): Promise<void> {
-  const { tabs, activeLayoutId, isPaused, withLayoutLock, withWorkspaceIndexLock } =
-    args;
+  const {
+    tabs,
+    activeLayoutId,
+    isPaused,
+    withLayoutLock,
+    withWorkspaceIndexLock,
+  } = args;
 
   const run = async (): Promise<void> => {
     // Write each hydrated body first. saveLayoutBody also refreshes that layout's

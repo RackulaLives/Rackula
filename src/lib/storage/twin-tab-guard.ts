@@ -224,18 +224,24 @@ export function createTwinTabGuard(
     // anyway. That is intentional here: the tab-id stamp is the real ping-pong
     // guard for same-layout writers, so this lock is only a best-effort
     // serialiser where it can be taken (#2044).
-    return withNamedLock(layoutLockName(layoutId), { ifAvailable: true }, write);
+    return withNamedLock(
+      layoutLockName(layoutId),
+      { ifAvailable: true },
+      write,
+    );
   }
 
-  function withWorkspaceIndexLock<T>(
-    write: () => T | Promise<T>,
-  ): Promise<T> {
+  function withWorkspaceIndexLock<T>(write: () => T | Promise<T>): Promise<T> {
     // Exclusive (blocking): the shared index has NO tab-id-stamp fallback, so
     // this lock must genuinely serialise. ifAvailable would hand a contended
     // peer a null lock and let it run its read-modify-write concurrently,
     // leaving the #2930 lost-update race open; an exclusive request queues the
     // peer behind the held lock so the two index RMWs never interleave.
-    return withNamedLock(WORKSPACE_INDEX_LOCK_NAME, { mode: "exclusive" }, write);
+    return withNamedLock(
+      WORKSPACE_INDEX_LOCK_NAME,
+      { mode: "exclusive" },
+      write,
+    );
   }
 
   return {
