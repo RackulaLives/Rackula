@@ -143,7 +143,10 @@ layouts.put("/:uuid", async (c) => {
     // bounded, cycle-safe traversal follows each shared reference only
     // once, so it stays fast and never materializes an expansion.
     try {
-      assertYamlComplexityBounded(parsed, Buffer.byteLength(yamlContent, "utf8"));
+      assertYamlComplexityBounded(
+        parsed,
+        Buffer.byteLength(yamlContent, "utf8"),
+      );
     } catch (e) {
       if (
         e instanceof YamlCircularReferenceError ||
