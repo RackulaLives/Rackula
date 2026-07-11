@@ -10,7 +10,11 @@
 import { describe, it, expect } from "vitest";
 import { generateExportSVG } from "$lib/utils/export";
 import type { ExportOptions, DeviceType } from "$lib/types";
-import { createTestRack, createTestDeviceType, createTestDevice } from "./factories";
+import {
+  createTestRack,
+  createTestDeviceType,
+  createTestDevice,
+} from "./factories";
 
 const QR_DATA_URL = "data:image/png;base64,QRCODE";
 
@@ -87,7 +91,8 @@ describe("export QR / legend layout (#2929)", () => {
     const icons = Array.from(lastItem.getElementsByTagName("svg"));
     expect(icons.length).toBeGreaterThan(0);
     const icon = icons[0]!;
-    const rowBottom = Number(icon.getAttribute("y")) + Number(icon.getAttribute("height"));
+    const rowBottom =
+      Number(icon.getAttribute("y")) + Number(icon.getAttribute("height"));
 
     const legendBottom = translateY(legendGroup(svg)) + rowBottom;
     const qrTop = translateY(qrGroup(svg));

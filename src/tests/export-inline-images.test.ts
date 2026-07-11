@@ -91,8 +91,7 @@ describe("inlineImageHrefs (#2928)", () => {
     const fetchMock = vi.fn((url: string) =>
       Promise.resolve({
         ok: true,
-        blob: () =>
-          Promise.resolve(new Blob([url], { type: "image/webp" })),
+        blob: () => Promise.resolve(new Blob([url], { type: "image/webp" })),
       }),
     );
     vi.stubGlobal("fetch", fetchMock);
