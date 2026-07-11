@@ -12,9 +12,15 @@ describe("getSafeNextPath", () => {
     expect(getSafeNextPath("?next=%2F%5Cevil.com", ORIGIN)).toBe("/");
   });
 
-  it("blocks backslash bypass (uppercase and lowercase encoded backslash)", () => {
+  it("blocks backslash bypass (lowercase encoded backslash)", () => {
     expect(getSafeNextPath("?next=%2F%5cevil.com", ORIGIN)).toBe("/");
-    expect(getSafeNextPath("?next=%2F%5Cevil.com", ORIGIN)).toBe("/");
+  });
+
+  it("blocks backslash bypass smuggled past a control character", () => {
+    // A stray tab/CR between the leading slash and the backslash is
+    // stripped by URL parsing (same as a browser), so this still
+    // normalises to a protocol-relative //evil.com and must be blocked.
+    expect(getSafeNextPath("?next=%2F%09%5Cevil.com", ORIGIN)).toBe("/");
   });
 
   it("blocks protocol-relative //evil.com", () => {
