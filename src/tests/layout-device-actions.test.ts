@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { toInternalUnits } from "$lib/utils/position";
+import { LayoutSchema } from "$lib/schemas";
+import { parseLayoutObject } from "$lib/utils/yaml";
 import {
   setupStoreWithDevice,
   createTestDevice,
@@ -291,6 +293,122 @@ describe("Layout Store", () => {
 
       store.removeDeviceFromRack(rack!.id, 0);
       expect(store.isDirty).toBe(true);
+    });
+  });
+
+  describe("removeDeviceFromRack (carrier cascade, #2911)", () => {
+    /** Place a 2-column carrier with one child in slot-left; return their ids. */
+    function setupCarrierWithChild() {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+
+      const containerType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Carrier",
+          u_height: 1,
+          category: "server",
+          colour: "#8B4513",
+          slots: [
+            {
+              id: "slot-left",
+              position: { row: 0, col: 0 },
+              width_fraction: 0.5,
+            },
+            {
+              id: "slot-right",
+              position: { row: 0, col: 1 },
+              width_fraction: 0.5,
+            },
+          ],
+        }),
+      );
+      const childType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Mini PC",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+          slot_width: 1,
+          is_full_depth: false,
+        }),
+      );
+
+      store.placeDevice(rack.id, containerType.slug, 10);
+      const carrierId = store.activeRack!.devices[0]!.id;
+      store.placeInContainer(
+        rack.id,
+        childType.slug,
+        carrierId,
+        "slot-left",
+        0,
+      );
+      const childId = store.rack.devices.find(
+        (d) => d.container_id === carrierId,
+      )!.id;
+
+      return { store, rack, carrierId, childId };
+    }
+
+    it("removes the carrier's children in the same operation and keeps the layout schema-valid", () => {
+      const { store, rack, carrierId, childId } = setupCarrierWithChild();
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrierId,
+      );
+
+      store.removeDeviceFromRack(rack.id, carrierIndex);
+
+      expect(
+        store.rack.devices.find((d) => d.id === carrierId),
+      ).toBeUndefined();
+      expect(store.rack.devices.find((d) => d.id === childId)).toBeUndefined();
+      expect(store.rack.devices.some((d) => d.container_id === carrierId)).toBe(
+        false,
+      );
+
+      const result = LayoutSchema.safeParse(store.layout);
+      expect(result.success).toBe(true);
+    });
+
+    it("undo restores the carrier and every child together", () => {
+      const { store, rack, carrierId, childId } = setupCarrierWithChild();
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrierId,
+      );
+
+      store.removeDeviceFromRack(rack.id, carrierIndex);
+      expect(
+        store.rack.devices.find((d) => d.id === carrierId),
+      ).toBeUndefined();
+
+      store.undo();
+
+      expect(store.rack.devices.find((d) => d.id === carrierId)).toBeDefined();
+      const restoredChild = store.rack.devices.find(
+        (d) => d.container_id === carrierId,
+      );
+      expect(restoredChild).toBeDefined();
+      expect(restoredChild?.id).toBe(childId);
+    });
+
+    it("loads cleanly through the browser reload path after a carrier delete", () => {
+      const { store, rack, carrierId } = setupCarrierWithChild();
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrierId,
+      );
+
+      store.removeDeviceFromRack(rack.id, carrierIndex);
+
+      // Simulate a save-to-localStorage-and-reload round trip: JSON strips
+      // Svelte 5 $state proxies the same way JSON.stringify does on write.
+      const serialized = JSON.parse(JSON.stringify(store.layout));
+      const reloaded = parseLayoutObject(serialized);
+
+      expect(reloaded).not.toBeNull();
+      expect(
+        reloaded?.racks
+          .flatMap((r) => r.devices)
+          .some((d) => d.container_id === carrierId),
+      ).toBe(false);
     });
   });
 

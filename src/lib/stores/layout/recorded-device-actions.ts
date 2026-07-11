@@ -23,6 +23,7 @@ import {
   createPlaceDeviceCommand,
   createMoveDeviceCommand,
   createRemoveDeviceCommand,
+  createRemoveDeviceWithChildrenCommand,
   createUpdateDeviceFaceCommand,
   createUpdateDeviceNameCommand,
   createUpdateDevicePlacementImageCommand,
@@ -418,12 +419,29 @@ export function removeDeviceRecorded(
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
-  const command = createRemoveDeviceCommand(
-    device,
-    adapter,
-    deviceName,
-    layout.metadata?.id ?? "",
-  );
+  // A carrier's children reference it via container_id. Deleting the carrier
+  // without them leaves a dangling container_id that fails LayoutSchema on
+  // the next load (#2911), so gather and remove them in the same command.
+  // Mirrors the child-gathering in device-actions.ts's cross-rack move.
+  const children = targetRack.devices
+    .filter((d) => d.container_id === device.id)
+    .map((child) => snapshotDevice(child));
+
+  const command =
+    children.length > 0
+      ? createRemoveDeviceWithChildrenCommand(
+          device,
+          children,
+          adapter,
+          deviceName,
+          layout.metadata?.id ?? "",
+        )
+      : createRemoveDeviceCommand(
+          device,
+          adapter,
+          deviceName,
+          layout.metadata?.id ?? "",
+        );
   history.execute(command);
   ctx.markDirty();
 }

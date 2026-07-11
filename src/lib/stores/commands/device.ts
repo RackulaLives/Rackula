@@ -4,6 +4,7 @@
 
 import type { Command } from "./types";
 import type { PlacedDevice, DeviceFace } from "$lib/types";
+import type { DeviceImageData } from "$lib/types/images";
 import { getImageStore } from "../images.svelte";
 import { placementKey } from "$lib/utils/placement-key";
 
@@ -212,6 +213,98 @@ export function createRemoveDeviceCommand(
         if (snapshotCopy.rear)
           imgStore.setDeviceImage(actualKey, "rear", snapshotCopy.rear);
       }
+    },
+  };
+}
+
+/**
+ * Create a command to remove a carrier device along with every device whose
+ * container_id references it, in one atomic, undoable operation (#2911).
+ *
+ * Without this, deleting a carrier leaves its children in the rack with a
+ * container_id pointing at the now-removed carrier. LayoutSchema rejects that
+ * dangling reference on the next load, corrupting the persisted layout even
+ * though the delete looked complete in the UI.
+ *
+ * Mirrors createCrossRackMoveCommand's remove/restore and ID-remap handling
+ * (#1363, #1478), but stays within a single rack: no position/face change,
+ * no rack switch.
+ */
+export function createRemoveDeviceWithChildrenCommand(
+  parentDevice: PlacedDevice,
+  children: PlacedDevice[],
+  store: DeviceCommandStore,
+  deviceName: string = "device",
+  layoutId: string = "",
+): Command {
+  const parentCopy = structuredClone(parentDevice);
+  const childrenCopies = children.map((c) => structuredClone(c));
+
+  // Track live IDs so removal/restore resolve by id at runtime, and stay in
+  // sync across execute/undo when placeDeviceRaw remaps an id on collision (#1363).
+  let currentParentId = parentCopy.id;
+  const currentChildIds: string[] = childrenCopies.map((c) => c.id);
+
+  // Snapshot placement images before removal for undo restoration.
+  const snapshotImage = (id: string): DeviceImageData | undefined => {
+    const data = getImageStore().getAllImages().get(placementKey(layoutId, id));
+    return data ? structuredClone(data) : undefined;
+  };
+  const parentImageCopy = snapshotImage(currentParentId);
+  const childImageCopies = currentChildIds.map((id) => snapshotImage(id));
+
+  const restoreImage = (
+    id: string,
+    snapshot: DeviceImageData | undefined,
+  ): void => {
+    if (!snapshot) return;
+    const imgStore = getImageStore();
+    const key = placementKey(layoutId, id);
+    if (snapshot.front) imgStore.setDeviceImage(key, "front", snapshot.front);
+    if (snapshot.rear) imgStore.setDeviceImage(key, "rear", snapshot.rear);
+  };
+
+  return {
+    type: "REMOVE_DEVICE_WITH_CHILDREN",
+    description: `Remove ${deviceName} and its contents`,
+    timestamp: Date.now(),
+    execute() {
+      // Resolve each id to a live index, then remove in descending index order
+      // so an earlier removal cannot shift a later target. Wipe each device's
+      // placement image only when that device is actually removed, so a redo
+      // that finds a device already gone never destroys an unrelated image.
+      const targets: { id: string; index: number }[] = [];
+      for (const id of [currentParentId, ...currentChildIds]) {
+        const idx = resolveIndexById(store, id);
+        if (idx !== undefined) targets.push({ id, index: idx });
+      }
+      targets.sort((a, b) => b.index - a.index);
+      const imgStore = getImageStore();
+      for (const { id, index } of targets) {
+        imgStore.removeAllDeviceImages(placementKey(layoutId, id));
+        store.removeDeviceAtIndexRaw(index);
+      }
+    },
+    undo() {
+      // Restore the parent first so children can be re-linked to its
+      // (possibly remapped) id.
+      const parentIdx = store.placeDeviceRaw(parentCopy);
+      const actualParent = store.getDeviceAtIndex(parentIdx);
+      const actualParentId = actualParent?.id ?? parentCopy.id;
+      currentParentId = actualParentId;
+      restoreImage(actualParentId, parentImageCopy);
+
+      childrenCopies.forEach((child, i) => {
+        const childToPlace: PlacedDevice =
+          child.container_id && child.container_id !== actualParentId
+            ? { ...child, container_id: actualParentId }
+            : child;
+        const childIdx = store.placeDeviceRaw(childToPlace);
+        const actualChild = store.getDeviceAtIndex(childIdx);
+        const actualChildId = actualChild?.id ?? childToPlace.id;
+        currentChildIds[i] = actualChildId;
+        restoreImage(actualChildId, childImageCopies[i]);
+      });
     },
   };
 }

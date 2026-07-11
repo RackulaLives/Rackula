@@ -72,6 +72,46 @@ function isRackLevel(d: PlacedDevice): boolean {
   );
 }
 
+/**
+ * Drop children whose container_id references a device that no longer exists
+ * in this rack (#2911). A carrier removed without cascading to its children
+ * (a pre-fix release, or any other path that skips it) leaves a dangling
+ * container_id that the full LayoutSchema rejects, making the whole layout
+ * unreadable. Salvage the rest of the layout by dropping just the orphaned
+ * children rather than failing the load outright; removing devices can never
+ * introduce a carrier-first violation, so the result always validates.
+ *
+ * Dropping is repeated to a fixed point: a dropped device may itself be a
+ * container, which orphans its own children, so re-scan until no reference
+ * dangles. A falsy container_id (undefined or "") is rack-level and never
+ * dropped, matching how the rest of the pipeline (PlacedDeviceSchema, the
+ * carrier-first refine, migrations) distinguishes rail devices from children.
+ */
+function dropOrphanedChildren(devices: PlacedDevice[]): {
+  devices: PlacedDevice[];
+  changed: boolean;
+} {
+  let current = devices;
+  let changed = false;
+  for (;;) {
+    const ids = new Set<string>();
+    for (const d of current) {
+      if (d && typeof d === "object" && typeof d.id === "string") {
+        ids.add(d.id);
+      }
+    }
+    const kept = current.filter((d) => {
+      if (d === null || typeof d !== "object") return true;
+      if (!d.container_id) return true;
+      return ids.has(d.container_id);
+    });
+    if (kept.length === current.length) break;
+    changed = true;
+    current = kept;
+  }
+  return changed ? { devices: current, changed } : { devices, changed };
+}
+
 /** Snap an internal-unit rail position to the nearest whole U (min U1). */
 function snapToWholeU(position: number): number {
   if (!Number.isFinite(position)) return UNITS_PER_U;
@@ -185,14 +225,20 @@ function adaptRackDevices(
   deviceTypeBySlug: Map<string, DeviceType>,
 ): { devices: PlacedDevice[]; carrierSlugs: Set<string>; changed: boolean } {
   const carrierSlugs = new Set<string>();
-  let changed = false;
+
+  // Drop children whose container no longer exists in this rack (#2911)
+  // before any other processing, so a dangling reference can never survive
+  // into the carrier-normalization or referential-integrity checks below.
+  const { devices: sanitized, changed: orphansDropped } =
+    dropOrphanedChildren(devices);
+  let changed = orphansDropped;
 
   // Children pass through untouched; only rack-level devices are normalized.
   // A malformed (non-object) entry from untrusted data is passed through as-is
   // rather than dereferenced, so a bad device can never crash the adaptation.
   const passthrough: PlacedDevice[] = [];
   const rackDevices: PlacedDevice[] = [];
-  for (const d of devices) {
+  for (const d of sanitized) {
     if (d === null || typeof d !== "object") {
       passthrough.push(d);
       continue;

@@ -252,7 +252,21 @@ export function parseLayoutObject(parsed: unknown): Layout | null {
     body = rest;
   }
 
-  const result = LayoutSchema.safeParse(body);
+  // Legacy + carrier-first (#2158, #2451) and orphaned-child salvage (#2911):
+  // structurally migrate first via the base schema (no strict enforcement),
+  // then adaptLegacyLayout normalizes sub-U/half-width gear into carriers and
+  // drops any child whose container no longer exists, so a body corrupted by
+  // an older release (e.g. a carrier deleted without cascading) is salvaged
+  // instead of rejected outright. Mirrors validateParsedLayout's pipeline for
+  // the YAML file path, applied here to the localStorage/working-copy path.
+  const baseResult = LayoutSchemaBase.safeParse(body);
+  if (!baseResult.success) {
+    return null;
+  }
+
+  const adapted = adaptLegacyLayout(baseResult.data as unknown as Layout);
+
+  const result = LayoutSchema.safeParse(adapted);
   if (!result.success) {
     return null;
   }

@@ -406,6 +406,44 @@ describe("browser-workspace storage", () => {
       // newer Rackula's data does not silently lose fields on an older app.
       expect(loadLayoutBody("a").ok).toBe(false);
     });
+
+    it("salvages a body with a child whose container was removed without cascading (#2911), instead of rejecting the whole layout", () => {
+      const layout = validLayout();
+      (layout.device_types as Record<string, unknown>[]).push({
+        slug: "orphan-gear",
+        u_height: 1,
+        colour: "#336699",
+        category: "server",
+      });
+      const devices = (layout.racks as Record<string, unknown>[])[0]!
+        .devices as Record<string, unknown>[];
+      devices.push({
+        id: "orphan-child",
+        device_type: "orphan-gear",
+        position: 0,
+        face: "front",
+        container_id: "carrier-that-no-longer-exists",
+        slot_id: "slot-left",
+      });
+      localStorage.setItem("Rackula:layout:a", wrapBody(layout));
+
+      const result = loadLayoutBody("a");
+
+      // Pre-#2911, a dangling container_id (e.g. from a carrier deleted by an
+      // older release that didn't cascade) failed LayoutSchema and rejected
+      // the whole layout (ok: false). The salvage path drops just the orphan
+      // and keeps the rest of the layout loadable.
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const rackDevices = result.layout.racks[0]!.devices;
+      expect(rackDevices.find((d) => d.id === "orphan-child")).toBeUndefined();
+      // No device is left pointing at a container that does not exist.
+      const ids = new Set(rackDevices.map((d) => d.id));
+      expect(
+        rackDevices.every((d) => !d.container_id || ids.has(d.container_id)),
+      ).toBe(true);
+      expect(rackDevices.find((d) => d.id === "dev-1")).toBeDefined();
+    });
   });
 
   describe("everHadLayouts marker", () => {

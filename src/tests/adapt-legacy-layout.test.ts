@@ -4,10 +4,12 @@ import {
   CARRIER_2COL_SLUG,
   CARRIER_2X2_SLUG,
 } from "$lib/storage";
+import { LayoutSchema } from "$lib/schemas";
 import { toInternalUnits } from "$lib/utils/position";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { encodeLayout, decodeLayout } from "$lib/utils/share";
 import {
+  createTestContainerChild,
   createTestContainerType,
   createTestDevice,
   createTestDeviceType,
@@ -656,5 +658,159 @@ describe("adaptLegacyLayout", () => {
       );
       expect(decodedShelfType?.slots?.some((s) => s.id === "bay-1")).toBe(true);
     });
+  });
+});
+
+describe("orphaned child salvage (#2911)", () => {
+  /** Every container_id in the layout resolves to a device that exists. */
+  function noDanglingContainers(layout: Layout): boolean {
+    return layout.racks.every((rack) => {
+      const ids = new Set(rack.devices.map((d) => d.id));
+      return rack.devices.every(
+        (d) => !d.container_id || ids.has(d.container_id),
+      );
+    });
+  }
+
+  it("drops a child whose container_id references a removed carrier, keeping the layout schema-valid", () => {
+    const childType = createTestDeviceType({
+      slug: "orphan-gear",
+      u_height: 1,
+    });
+    const layout = createTestLayout({
+      device_types: [childType],
+      racks: [
+        createTestRack({
+          id: "rack-0",
+          devices: [
+            createTestContainerChild({
+              id: "orphan-child",
+              device_type: "orphan-gear",
+              container_id: "carrier-that-no-longer-exists",
+              slot_id: "slot-left",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const adapted = adaptLegacyLayout(layout);
+
+    expect(
+      adapted.racks[0]?.devices.find((d) => d.id === "orphan-child"),
+    ).toBeUndefined();
+    expect(noDanglingContainers(adapted)).toBe(true);
+    expect(LayoutSchema.safeParse(adapted).success).toBe(true);
+  });
+
+  it("drops a chained orphan to a fixed point: dropping a container also drops its now-orphaned child", () => {
+    // Two-level corruption: an inner carrier points at a missing outer carrier,
+    // and a grandchild points at the inner carrier. Dropping the inner carrier
+    // orphans the grandchild, so a single pass would leave a dangling reference
+    // and re-fail the whole layout. Iterating to a fixed point clears both.
+    const innerCarrier = createTestContainerType({
+      slug: "inner-carrier",
+      u_height: 1,
+    });
+    const grandchildType = createTestDeviceType({
+      slug: "grandchild-gear",
+      u_height: 1,
+    });
+    const layout = createTestLayout({
+      device_types: [innerCarrier, grandchildType],
+      racks: [
+        createTestRack({
+          id: "rack-0",
+          devices: [
+            createTestContainerChild({
+              id: "inner",
+              device_type: "inner-carrier",
+              container_id: "outer-that-no-longer-exists",
+              slot_id: "slot-left",
+            }),
+            createTestContainerChild({
+              id: "grandchild",
+              device_type: "grandchild-gear",
+              container_id: "inner",
+              slot_id: "slot-left",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const adapted = adaptLegacyLayout(layout);
+
+    expect(
+      adapted.racks[0]?.devices.find((d) => d.id === "inner"),
+    ).toBeUndefined();
+    expect(
+      adapted.racks[0]?.devices.find((d) => d.id === "grandchild"),
+    ).toBeUndefined();
+    expect(noDanglingContainers(adapted)).toBe(true);
+    expect(LayoutSchema.safeParse(adapted).success).toBe(true);
+  });
+
+  it("leaves a child whose container still exists in the rack attached", () => {
+    const carrierType = createTestContainerType({
+      slug: "carrier-2col",
+      u_height: 1,
+    });
+    const childType = createTestDeviceType({ slug: "child-gear", u_height: 1 });
+    const layout = createTestLayout({
+      device_types: [carrierType, childType],
+      racks: [
+        createTestRack({
+          id: "rack-0",
+          devices: [
+            createTestDevice({
+              id: "carrier-1",
+              device_type: "carrier-2col",
+              position: 10,
+            }),
+            createTestContainerChild({
+              id: "child-1",
+              device_type: "child-gear",
+              container_id: "carrier-1",
+              slot_id: "slot-left",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const adapted = adaptLegacyLayout(layout);
+
+    const child = adapted.racks[0]?.devices.find((d) => d.id === "child-1");
+    expect(child?.container_id).toBe("carrier-1");
+  });
+
+  it("treats an empty-string container_id as rack-level and does not detach it", () => {
+    // The rest of the pipeline treats a falsy container_id ("" or undefined) as
+    // rack-level; the salvage must not misread "" as a dangling reference and
+    // strip a legitimate rack-level device's data.
+    const deviceType = createTestDeviceType({ slug: "rack-gear", u_height: 1 });
+    const layout = createTestLayout({
+      device_types: [deviceType],
+      racks: [
+        createTestRack({
+          id: "rack-0",
+          devices: [
+            createTestDevice({
+              id: "rack-level",
+              device_type: "rack-gear",
+              position: 5,
+              container_id: "",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const adapted = adaptLegacyLayout(layout);
+
+    expect(
+      adapted.racks[0]?.devices.find((d) => d.id === "rack-level"),
+    ).toBeDefined();
   });
 });
