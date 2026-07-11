@@ -5,6 +5,7 @@ import { LayoutSchema } from "$lib/schemas";
 import { parseLayoutObject } from "$lib/utils/yaml";
 import {
   setupStoreWithDevice,
+  createTestCable,
   createTestDevice,
   createTestDeviceType,
   createTestDeviceTypeInput,
@@ -432,13 +433,13 @@ describe("Layout Store", () => {
       const deviceAId = store.rack.devices[0]!.id;
       const deviceBId = store.rack.devices[1]!.id;
 
-      store.addCableRaw({
-        id: "cable-1",
-        a_device_id: deviceAId,
-        a_interface: "eth0",
-        b_device_id: deviceBId,
-        b_interface: "eth1",
-      });
+      store.addCableRaw(
+        createTestCable({
+          id: "cable-1",
+          a_device_id: deviceAId,
+          b_device_id: deviceBId,
+        }),
+      );
 
       return { store, rack, deviceAId, deviceBId };
     }
@@ -537,13 +538,13 @@ describe("Layout Store", () => {
       // Cable connects the carrier's CHILD (not the carrier itself) to an
       // unrelated device, mirroring how a real cabled peripheral hangs off a
       // contained device.
-      store.addCableRaw({
-        id: "cable-1",
-        a_device_id: childId,
-        a_interface: "eth0",
-        b_device_id: otherId,
-        b_interface: "eth1",
-      });
+      store.addCableRaw(
+        createTestCable({
+          id: "cable-1",
+          a_device_id: childId,
+          b_device_id: otherId,
+        }),
+      );
 
       const carrierIndex = store.rack.devices.findIndex(
         (d) => d.id === carrierId,

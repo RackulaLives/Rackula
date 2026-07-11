@@ -6,7 +6,11 @@ import {
   type DeviceTypeCommandStore,
 } from "$lib/stores/commands/device-type";
 import type { DeviceType } from "$lib/types";
-import { createTestDeviceType, createTestDevice } from "./factories";
+import {
+  createTestCable,
+  createTestDeviceType,
+  createTestDevice,
+} from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
 
 function createMockStore(): DeviceTypeCommandStore & {
@@ -331,13 +335,11 @@ describe("Device Type Commands", () => {
         { rackId: "rack-1", device: devB },
       ];
       const cables = [
-        {
+        createTestCable({
           id: "cable-1",
           a_device_id: devA.id,
-          a_interface: "eth0",
           b_device_id: devB.id,
-          b_interface: "eth1",
-        },
+        }),
       ];
 
       const command = createDeleteDeviceTypeCommand(

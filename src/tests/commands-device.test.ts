@@ -11,7 +11,11 @@ import {
   type DeviceTypeCommandStore,
 } from "$lib/stores/commands/device-type";
 import { createBatchCommand } from "$lib/stores/commands/types";
-import { createTestDevice, createTestDeviceType } from "./factories";
+import {
+  createTestCable,
+  createTestDevice,
+  createTestDeviceType,
+} from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
 import type { PlacedDevice, DeviceFace } from "$lib/types";
 
@@ -247,13 +251,11 @@ describe("Device Commands", () => {
       const device = createTestDevice({ id: "device-with-cable" });
       const otherDevice = createTestDevice({ id: "other-device" });
       const cables = [
-        {
+        createTestCable({
           id: "cable-1",
           a_device_id: device.id,
-          a_interface: "eth0",
           b_device_id: otherDevice.id,
-          b_interface: "eth1",
-        },
+        }),
       ];
 
       const command = createRemoveDeviceCommand(
@@ -293,13 +295,11 @@ describe("Device Commands", () => {
       const store = createMockStore();
       const device = createTestDevice({ id: "device-with-cable" });
       const cables = [
-        {
+        createTestCable({
           id: "cable-1",
           a_device_id: device.id,
-          a_interface: "eth0",
           b_device_id: "other-device",
-          b_interface: "eth1",
-        },
+        }),
       ];
 
       const command = createRemoveDeviceCommand(

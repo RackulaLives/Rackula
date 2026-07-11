@@ -25,6 +25,7 @@ import type {
   Slot,
   RackWidth,
   SlotWidth,
+  Cable,
 } from "$lib/types";
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import type { NetBoxDeviceType } from "$lib/utils/netbox-import";
@@ -208,6 +209,22 @@ export function createTestDevice(
     ...(overrides.position !== undefined
       ? { position: toInternalUnits(overrides.position) }
       : {}),
+  };
+}
+
+/**
+ * Creates a test Cable connecting two devices.
+ * Defaults connect "device-a":eth0 to "device-b":eth1; override the endpoint
+ * ids/interfaces to match the placed devices under test.
+ */
+export function createTestCable(overrides: Partial<Cable> = {}): Cable {
+  return {
+    id: overrides.id ?? generateId(),
+    a_device_id: "device-a",
+    a_interface: "eth0",
+    b_device_id: "device-b",
+    b_interface: "eth1",
+    ...overrides,
   };
 }
 
