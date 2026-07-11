@@ -99,4 +99,32 @@ describe("migrateLayout / schema position-migration parity (#2931)", () => {
 
     expect(migratedPosition).toBe(5 * UNITS_PER_U);
   });
+
+  it("does not stamp the current version when a rack has no rack-level devices to migrate", () => {
+    // An old-versioned body with an empty rack has no position data to
+    // protect from double-migration, so its version must be left untouched.
+    const raw = {
+      version: "0.6.0",
+      name: "Empty Rack",
+      racks: [
+        {
+          id: "rack-1",
+          name: "Main",
+          height: 42,
+          width: 19,
+          desc_units: false,
+          form_factor: "4-post-cabinet",
+          starting_unit: 1,
+          position: 0,
+          devices: [],
+        },
+      ],
+      device_types: [],
+      settings: { display_mode: "label", show_labels_on_images: false },
+    };
+
+    const result = migrateLayout(raw);
+    expect(result).not.toBeNull();
+    expect((result as unknown as { version: string }).version).toBe("0.6.0");
+  });
 });
