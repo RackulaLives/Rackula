@@ -145,10 +145,10 @@ layouts.put("/:uuid", async (c) => {
     try {
       assertYamlComplexityBounded(parsed);
     } catch (e) {
-      if (e instanceof YamlCircularReferenceError) {
-        return c.json({ error: e.message }, 400);
-      }
-      if (e instanceof YamlTooComplexError) {
+      if (
+        e instanceof YamlCircularReferenceError ||
+        e instanceof YamlTooComplexError
+      ) {
         return c.json({ error: e.message }, 400);
       }
       throw e;
