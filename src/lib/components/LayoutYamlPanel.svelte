@@ -222,7 +222,10 @@
     link.href = url;
     link.download = buildYamlFilename(layout.name);
     link.click();
-    URL.revokeObjectURL(url);
+    // Defer revocation so the URL stays valid while the browser starts the
+    // download. Revoking synchronously can race the download start and
+    // produce intermittent failed or empty downloads.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   async function commitParsedLayout(parsed: ParsedYaml): Promise<void> {

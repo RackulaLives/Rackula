@@ -24,6 +24,53 @@ describe("LayoutYamlPanel", () => {
     vi.restoreAllMocks();
   });
 
+  describe("download", () => {
+    let revokeObjectURL: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      revokeObjectURL = vi.fn();
+      vi.stubGlobal("URL", {
+        ...URL,
+        createObjectURL: vi.fn(() => "blob:mock-url"),
+        revokeObjectURL,
+      });
+      // happy-dom anchors throw on click navigation; suppress the no-op click.
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+        () => {},
+      );
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    });
+
+    it("defers revoking the download object URL to a later tick", async () => {
+      render(LayoutYamlPanel, {
+        props: { open: true, layout: baseLayout, onapply: vi.fn() },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("yaml-textarea")).toHaveDisplayValue(
+          /name: Baseline Layout/,
+        );
+      });
+
+      await fireEvent.click(
+        screen.getByRole("button", { name: "Download YAML" }),
+      );
+
+      // The download may begin asynchronously after click(); revoking now
+      // would invalidate the URL before the browser fetches it.
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+
+      vi.runAllTimers();
+
+      expect(revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:mock-url");
+    });
+  });
+
   it("blocks invalid YAML apply and applies once content is valid", async () => {
     const onApply = vi.fn();
     render(LayoutYamlPanel, {
