@@ -498,6 +498,159 @@ describe("Layout Store", () => {
     });
   });
 
+  describe("loadLayout cable endpoint remapping (#2923)", () => {
+    it("rewrites cable endpoints across racks when device ids are regenerated", () => {
+      const store = getLayoutStore();
+      // Both devices collide with ids already reserved by another open tab
+      // (#2182 cross-tab dedup), so both get regenerated. The cable spans
+      // racks, so a per-rack remap map cannot fix both endpoints: the fix
+      // must accumulate a layout-global old -> new id map.
+      store.loadLayout(
+        {
+          version: "0.7.0",
+          name: "Cable Remap Test",
+          racks: [
+            {
+              id: "rack-a",
+              name: "Rack A",
+              height: 42,
+              width: 19,
+              desc_units: false,
+              form_factor: "4-post-cabinet",
+              starting_unit: 1,
+              position: 0,
+              devices: [
+                {
+                  id: "dev-a",
+                  device_type: "server-c",
+                  position: 1,
+                  face: "front" as const,
+                },
+              ],
+            },
+            {
+              id: "rack-b",
+              name: "Rack B",
+              height: 42,
+              width: 19,
+              desc_units: false,
+              form_factor: "4-post-cabinet",
+              starting_unit: 1,
+              position: 1,
+              devices: [
+                {
+                  id: "dev-b",
+                  device_type: "server-c",
+                  position: 1,
+                  face: "front" as const,
+                },
+              ],
+            },
+          ],
+          device_types: [
+            {
+              slug: "server-c",
+              u_height: 1,
+              colour: "#4A90A4",
+              category: "server" as const,
+            },
+          ],
+          cables: [
+            {
+              id: "cable-1",
+              a_device_id: "dev-a",
+              a_interface: "eth0",
+              b_device_id: "dev-b",
+              b_interface: "eth0",
+            },
+          ],
+          settings: {
+            display_mode: "label",
+            show_labels_on_images: false,
+          },
+        },
+        new Set(["dev-a", "dev-b"]),
+      );
+
+      const devices = store.layout.racks.flatMap((r) => r.devices);
+      const liveIds = new Set(devices.map((d) => d.id));
+      const cable = store.layout.cables?.[0];
+      expect(cable).toBeDefined();
+      // Both original ids were reserved, so both were regenerated. Neither
+      // endpoint should still point at the dead original id.
+      expect(cable!.a_device_id).not.toBe("dev-a");
+      expect(cable!.b_device_id).not.toBe("dev-b");
+      // Every endpoint must resolve to a device that actually exists.
+      expect(liveIds.has(cable!.a_device_id)).toBe(true);
+      expect(liveIds.has(cable!.b_device_id)).toBe(true);
+    });
+
+    it("keeps a cable endpoint on the surviving original id, remapping only removed references", () => {
+      const store = getLayoutStore();
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Cable Surviving Id Test",
+        racks: [
+          {
+            id: "rack-1",
+            name: "Test Rack",
+            height: 42,
+            width: 19,
+            desc_units: false,
+            form_factor: "4-post-cabinet",
+            starting_unit: 1,
+            position: 0,
+            devices: [
+              // A keeps "X" (surviving original)
+              {
+                id: "X",
+                device_type: "server-c",
+                position: 100,
+                face: "front" as const,
+              },
+              // B duplicates "X" -> regenerated to a new id
+              {
+                id: "X",
+                device_type: "server-c",
+                position: 200,
+                face: "front" as const,
+              },
+            ],
+          },
+        ],
+        device_types: [
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+        ],
+        cables: [
+          {
+            id: "cable-1",
+            a_device_id: "X",
+            a_interface: "eth0",
+            b_device_id: "X",
+            b_interface: "eth1",
+          },
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      const devices = store.layout.racks[0].devices;
+      const finalIds = new Set(devices.map((d) => d.id));
+      const cable = store.layout.cables?.[0];
+      expect(cable).toBeDefined();
+      // "X" survives on the first device, so a reference to it is untouched.
+      expect(cable!.a_device_id).toBe("X");
+      expect(finalIds.has(cable!.b_device_id)).toBe(true);
+    });
+  });
+
   describe("dirty tracking", () => {
     it("markDirty sets isDirty to true", () => {
       const store = getLayoutStore();

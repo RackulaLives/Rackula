@@ -64,6 +64,13 @@ export function loadLayout(
   // layout and every other open tab (#2182).
   const reserved = new Set<string>(reservedDeviceIds ?? []);
 
+  // Layout-global old -> new device-id map, accumulated across every rack.
+  // container_id resolution below stays scoped to its own rack's local map
+  // (unchanged from #2155); this global copy exists so the layout-level
+  // cable pass can rewrite an endpoint regardless of which rack its device
+  // was regenerated in (#2923).
+  const layoutDeviceIdRemap = new Map<string, string>();
+
   const racksFirstPass = layoutData.racks.map((r, index) => {
     const originalRackId = r.id;
     let rackId =
@@ -93,6 +100,7 @@ export function loadLayout(
         nextId = generateUniqueDeviceId(seenDeviceIds, reserved);
         if (originalId) {
           deviceIdRemap.set(originalId, nextId);
+          layoutDeviceIdRemap.set(originalId, nextId);
         }
       } else {
         seenDeviceIds.add(nextId);
@@ -137,12 +145,34 @@ export function loadLayout(
     ),
   }));
 
+  // Second pass (layout-level): rewrite cable endpoints through the
+  // layout-global device-id map so cables stay attached to their (possibly
+  // regenerated) devices. A cable can connect devices in different racks, so
+  // this runs after every rack's device ids are finalized rather than in the
+  // per-rack pass above. Only remap when the referenced id was renamed away
+  // (no surviving device anywhere in the layout still holds it); a reference
+  // to a surviving original id is preserved, mirroring the container_id and
+  // rack_groups precedence above (#2923).
+  const liveDeviceIds = new Set(
+    racksFirstPass.flatMap((r) => r.devices.map((d) => d.id)),
+  );
+  const cables = layoutData.cables?.map((cable) => ({
+    ...cable,
+    a_device_id: liveDeviceIds.has(cable.a_device_id)
+      ? cable.a_device_id
+      : (layoutDeviceIdRemap.get(cable.a_device_id) ?? cable.a_device_id),
+    b_device_id: liveDeviceIds.has(cable.b_device_id)
+      ? cable.b_device_id
+      : (layoutDeviceIdRemap.get(cable.b_device_id) ?? cable.b_device_id),
+  }));
+
   // Ensure runtime view is set, show_rear defaults, and all racks have valid IDs
   ctx.setLayout({
     ...layoutData,
     metadata,
     racks: racksFirstPass,
     ...(rackGroups !== undefined ? { rack_groups: rackGroups } : {}),
+    ...(cables !== undefined ? { cables } : {}),
   });
   ctx.resetBackupTracking();
 
