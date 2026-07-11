@@ -1,6 +1,7 @@
 import { hash, verify, Algorithm } from "@node-rs/argon2";
 import { timingSafeEqual } from "node:crypto";
 import type { EnvMap } from "./security";
+import { createSemaphore } from "./security/semaphore";
 
 export interface LocalCredentials {
   username: string;
@@ -12,6 +13,41 @@ const ARGON2_MEMORY_COST = 65536; // 64 MiB
 const ARGON2_TIME_COST = 3;
 const ARGON2_PARALLELISM = 4;
 const MIN_PASSWORD_LENGTH = 12;
+
+/**
+ * Maximum Argon2id verifications allowed to run concurrently across the whole
+ * process.
+ *
+ * Each verify() call allocates ARGON2_MEMORY_COST (64 MiB) regardless of the
+ * caller's identity. The per-IP login limiter throttles a single source, but a
+ * flood distributed across many source IPs can still drive unbounded concurrent
+ * 64 MiB allocations. Capping concurrency bounds worst-case argon2 memory use
+ * to this many * 64 MiB regardless of how the flood is spread across sources.
+ */
+export const ARGON2_MAX_CONCURRENT_VERIFICATIONS = 4;
+
+/**
+ * Maximum verifications allowed to wait for a concurrency slot before the gate
+ * sheds load.
+ *
+ * Serializing argon2 lowers throughput, so under a sustained flood the wait
+ * queue would otherwise grow without bound and re-introduce memory exhaustion
+ * via parked login handlers. Once this many callers are queued, further
+ * verifications are rejected immediately (surfaced as a failed login) instead
+ * of being enqueued, keeping worst-case memory and latency bounded. The bound
+ * is generous relative to any legitimate self-hosted concurrent-login load.
+ */
+export const ARGON2_MAX_QUEUED_VERIFICATIONS = 64;
+
+/**
+ * Global, IP-agnostic semaphore bounding concurrent Argon2id verifications and
+ * shedding excess load. Shared by every password verification so the bound
+ * holds regardless of how many distinct sources request verification.
+ */
+export const argon2VerificationGate = createSemaphore(
+  ARGON2_MAX_CONCURRENT_VERIFICATIONS,
+  ARGON2_MAX_QUEUED_VERIFICATIONS,
+);
 export const MAX_PASSWORD_LENGTH = 1024;
 const MAX_USERNAME_LENGTH = 255;
 
@@ -50,17 +86,24 @@ export async function hashPassword(password: string): Promise<string> {
 
 /**
  * Verify a plaintext password against an Argon2id hash.
+ *
+ * Verification runs through {@link argon2VerificationGate}, a global concurrency
+ * cap. When the gate is saturated (flood), the call is rejected without
+ * allocating argon2 memory and is treated as a non-match, shedding load rather
+ * than exhausting memory.
  * @param hashed - The stored Argon2id hash string.
  * @param password - The plaintext password to verify.
- * @returns `true` if the password matches; `false` otherwise (including invalid hashes).
+ * @returns `true` if the password matches; `false` otherwise (including invalid
+ *   hashes and gate saturation).
  */
 export async function verifyPasswordHash(
   hashed: string,
   password: string,
 ): Promise<boolean> {
   try {
-    return await verify(hashed, password);
+    return await argon2VerificationGate.run(() => verify(hashed, password));
   } catch {
+    // Invalid hash or gate saturation: treat as a non-match (load shedding).
     return false;
   }
 }

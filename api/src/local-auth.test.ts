@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
+  ARGON2_MAX_CONCURRENT_VERIFICATIONS,
+  argon2VerificationGate,
   bootstrapLocalCredentials,
   createLoginRateLimiter,
   hashPassword,
@@ -117,6 +119,36 @@ describe("hashPassword / verifyPasswordHash", () => {
 
   it("returns false for malformed hash", async () => {
     expect(await verifyPasswordHash("not-a-hash", "anything")).toBe(false);
+  });
+});
+
+describe("verifyPasswordHash global concurrency cap", () => {
+  it("bounds concurrent argon2 verifications regardless of how many requests arrive at once", async () => {
+    const password = "concurrency-cap-password12";
+    const hashed = await hashPassword(password);
+    const totalCalls = ARGON2_MAX_CONCURRENT_VERIFICATIONS + 3;
+
+    const inFlight = Array.from({ length: totalCalls }, () =>
+      verifyPasswordHash(hashed, password),
+    );
+
+    // Synchronously (before any verification has had a chance to complete),
+    // the gate must have admitted no more than the configured cap and queued
+    // the rest — proving the bound holds regardless of how many verifications
+    // were requested simultaneously, independent of any per-IP identity.
+    expect(argon2VerificationGate.active).toBe(
+      ARGON2_MAX_CONCURRENT_VERIFICATIONS,
+    );
+    expect(argon2VerificationGate.pending).toBe(
+      totalCalls - ARGON2_MAX_CONCURRENT_VERIFICATIONS,
+    );
+
+    const results = await Promise.all(inFlight);
+    expect(results.every((result) => result === true)).toBe(true);
+
+    // The gate is fully drained once every verification settles.
+    expect(argon2VerificationGate.active).toBe(0);
+    expect(argon2VerificationGate.pending).toBe(0);
   });
 });
 
