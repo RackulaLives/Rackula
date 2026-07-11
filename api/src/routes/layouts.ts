@@ -32,6 +32,11 @@ import { UuidSchema, LayoutFileSchema } from "../schemas/layout";
 import type { StorageVariables } from "../storage/driver";
 import { SNAPSHOT_NAME_PATTERN } from "../storage/snapshot-name";
 import { logger } from "../logger";
+import {
+  assertYamlComplexityBounded,
+  YamlCircularReferenceError,
+  YamlTooComplexError,
+} from "../yaml-safety";
 
 /** Header carrying the layout's updatedAt for echo-based conflict detection. */
 export const UPDATED_AT_HEADER = "X-Rackula-Updated-At";
@@ -131,17 +136,22 @@ layouts.put("/:uuid", async (c) => {
       return c.json({ error: `Invalid YAML: ${message}` }, 400);
     }
 
-    // Reject non-serializable bodies (circular references from anchors)
+    // Reject circular and alias-bomb bodies. A naive JSON.stringify guard
+    // would throw on genuine cycles but *succeed* (while fully expanding
+    // shared references) on an acyclic nested-alias body -- the guard
+    // itself was the amplifier for a YAML alias-expansion DoS (#2912). This
+    // bounded, cycle-safe traversal follows each shared reference only
+    // once, so it stays fast and never materializes an expansion.
     try {
-      JSON.stringify(parsed);
-    } catch {
-      return c.json(
-        {
-          error:
-            "YAML body contains circular references and cannot be processed",
-        },
-        400,
-      );
+      assertYamlComplexityBounded(parsed);
+    } catch (e) {
+      if (e instanceof YamlCircularReferenceError) {
+        return c.json({ error: e.message }, 400);
+      }
+      if (e instanceof YamlTooComplexError) {
+        return c.json({ error: e.message }, 400);
+      }
+      throw e;
     }
 
     const layout = LayoutFileSchema.safeParse(parsed);
