@@ -457,8 +457,8 @@ describe("Layout Store", () => {
       expect(result.success).toBe(true);
     });
 
-    it("undo restores the cable", () => {
-      const { store, rack, deviceAId } = setupTwoDevicesWithCable();
+    it("undo restores the cable with both endpoints intact", () => {
+      const { store, rack, deviceAId, deviceBId } = setupTwoDevicesWithCable();
       const deviceAIndex = store.rack.devices.findIndex(
         (d) => d.id === deviceAId,
       );
@@ -468,8 +468,14 @@ describe("Layout Store", () => {
 
       store.undo();
 
+      // Restored cable must point at the same two devices it originally
+      // connected, otherwise the remap logic silently broke the topology.
       expect(store.layout.cables).toEqual([
-        expect.objectContaining({ id: "cable-1" }),
+        expect.objectContaining({
+          id: "cable-1",
+          a_device_id: deviceAId,
+          b_device_id: deviceBId,
+        }),
       ]);
     });
 
@@ -549,8 +555,14 @@ describe("Layout Store", () => {
       expect(result.success).toBe(true);
 
       store.undo();
+      // The cable hung off the carrier's CHILD; undo must restore it pointing
+      // back at that child (and the unrelated device), not a dangling id.
       expect(store.layout.cables).toEqual([
-        expect.objectContaining({ id: "cable-1" }),
+        expect.objectContaining({
+          id: "cable-1",
+          a_device_id: childId,
+          b_device_id: otherId,
+        }),
       ]);
     });
 
