@@ -149,9 +149,16 @@ export function attachPointerDragListeners(
   // resolve or dispatch a drop, only discard whatever preview/hover state the
   // last dragmove left behind. Every rack clears its own local state; there is
   // no source/target rack distinction like dragend has.
+  //
+  // It must also arm the same click-suppression debounce dragend uses
+  // (onDragFinished). The browser synthesises a trailing click on the pointer
+  // release that follows the Escape cancel; without arming the debounce that
+  // click reaches handleClick and would select the rack or place a pending
+  // device. onDragFinished only arms suppression, it does not dispatch a drop.
   function handleDragCancel() {
     ctx.setDropPreview(null);
     ctx.setContainerHoverInfo(null);
+    ctx.onDragFinished();
   }
 
   document.addEventListener(
