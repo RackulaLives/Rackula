@@ -36,8 +36,9 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
   // --- Physical Properties ---
   ordered.u_height = dt.u_height;
   if (dt.slot_width !== undefined) ordered.slot_width = dt.slot_width;
-  if (dt.rack_widths !== undefined && dt.rack_widths.length > 0)
-    ordered.rack_widths = dt.rack_widths;
+  // Preserve rack_widths whenever defined, including an explicitly-empty array,
+  // so an author's `rack_widths: []` survives save/load losslessly (#2927).
+  if (dt.rack_widths !== undefined) ordered.rack_widths = dt.rack_widths;
   if (dt.is_full_depth !== undefined) ordered.is_full_depth = dt.is_full_depth;
   if (dt.is_powered !== undefined) ordered.is_powered = dt.is_powered;
   if (dt.weight !== undefined) ordered.weight = dt.weight;

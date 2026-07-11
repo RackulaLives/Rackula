@@ -456,4 +456,23 @@ describe("YAML nested unknown-field round-trip (#2927)", () => {
     );
     expect(restoredType?.rack_widths).toEqual([10]);
   });
+
+  it("preserves an explicitly-empty rack_widths array on a device type through a round-trip", async () => {
+    const deviceType = createTestDeviceType({
+      slug: "explicit-empty-device",
+      rack_widths: [],
+    });
+    const layout = createTestLayout({ device_types: [deviceType] });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    expect(yaml).toContain("rack_widths");
+
+    const restored = await parseLayoutYaml(yaml);
+    const restoredType = restored.device_types.find(
+      (dt) => dt.slug === "explicit-empty-device",
+    );
+    // An explicitly-set empty array must survive save/load, not be silently
+    // dropped to `undefined`.
+    expect(restoredType?.rack_widths).toEqual([]);
+  });
 });
