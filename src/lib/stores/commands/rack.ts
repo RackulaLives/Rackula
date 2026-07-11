@@ -53,6 +53,7 @@ export interface RackLifecycleCommandStore {
     id: string,
   ): { rack: Rack; index: number; groups: RackGroup[] } | undefined;
   restoreRackRaw(rack: Rack, groups: RackGroup[], originalIndex?: number): void;
+  getActiveRackId(): string | null;
   setActiveRackId(id: string | null): void;
   /**
    * Write both `layout.name` and `layout.metadata.name` directly (bypasses
@@ -86,12 +87,16 @@ export function createAddRackCommand(
 ): Command {
   // Deep copy to avoid mutation issues
   const rackCopy = JSON.parse(JSON.stringify(rack)) as Rack;
+  // Captured on each execute() so undo (and a subsequent redo) restores
+  // whichever rack was active immediately before this command ran (#2940).
+  let previousActiveRackId: string | null = null;
 
   return {
     type: "ADD_RACK",
     description: `Add rack "${rack.name}"`,
     timestamp: Date.now(),
     execute() {
+      previousActiveRackId = store.getActiveRackId();
       store.addRackRaw(rackCopy);
       if (setActive) {
         store.setActiveRackId(rackCopy.id);
@@ -104,6 +109,7 @@ export function createAddRackCommand(
     },
     undo() {
       store.deleteRackRaw(rackCopy.id);
+      store.setActiveRackId(previousActiveRackId);
       if (layoutNameSync) {
         const { previousLayoutName, previousMetadataName } =
           layoutNameSync.snapshot;
@@ -129,12 +135,16 @@ export function createDeleteRackCommand(
   ) as RackGroup[];
   // Capture original index on first execute so undo restores to the correct position
   let originalIndex: number | undefined;
+  // Captured on each execute() so undo restores whichever rack was active
+  // immediately before this delete ran (#2940).
+  let previousActiveRackId: string | null = null;
 
   return {
     type: "DELETE_RACK",
     description: `Delete rack "${rack.name}"`,
     timestamp: Date.now(),
     execute() {
+      previousActiveRackId = store.getActiveRackId();
       const result = store.deleteRackRaw(rackSnapshot.id);
       if (result && originalIndex === undefined) {
         originalIndex = result.index;
@@ -142,6 +152,7 @@ export function createDeleteRackCommand(
     },
     undo() {
       store.restoreRackRaw(rackSnapshot, groupSnapshots, originalIndex);
+      store.setActiveRackId(previousActiveRackId);
     },
   };
 }

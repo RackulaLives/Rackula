@@ -173,6 +173,7 @@ export function getRackLifecycleCommandAdapter(
     deleteRackRaw: (id: string) => deleteRackRaw(ctx, id),
     restoreRackRaw: (rack: Rack, groups: RackGroup[], originalIndex?: number) =>
       restoreRackRaw(ctx, rack, groups, originalIndex),
+    getActiveRackId: () => ctx.getActiveRackId(),
     setActiveRackId: (id: string | null) => ctx.setActiveRackId(id),
     setLayoutNamesRaw: (name: string, metadataName: string | undefined) =>
       setLayoutNamesRaw(ctx, name, metadataName),

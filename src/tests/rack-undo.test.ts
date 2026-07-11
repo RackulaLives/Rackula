@@ -360,6 +360,61 @@ describe("Rack Add/Delete Undo/Redo", () => {
     });
   });
 
+  describe("active rack restoration on undo (#2940)", () => {
+    it("restores the previously active rack after undoing addRack", () => {
+      const store = getLayoutStore();
+      // Rack A occupies index 0; without a fix, deleteRackRaw's naive
+      // racks[0] fallback would land on A even when Z was really active,
+      // masking the bug. Rack Z must be active (and not index 0) to prove
+      // undo restores the *previously active* rack, not just "some" rack.
+      store.addRack("Rack A", 42);
+      const rackZ = store.addRack("Rack Z", 42)!;
+      store.clearHistory();
+      expect(store.activeRackId).toBe(rackZ.id);
+
+      const rackB = store.addRack("Rack B", 42)!;
+      expect(store.activeRackId).toBe(rackB.id);
+
+      store.undo();
+
+      expect(store.activeRackId).toBe(rackZ.id);
+    });
+
+    it("restores the previously active rack after undoing duplicateRack", () => {
+      const store = getLayoutStore();
+      // Same rationale as above: rack Z must be active and not index 0.
+      store.addRack("Rack A", 42);
+      const rackZ = store.addRack("Rack Z", 42)!;
+      store.clearHistory();
+      expect(store.activeRackId).toBe(rackZ.id);
+
+      const result = store.duplicateRack(rackZ.id);
+      expect(result.rack).toBeDefined();
+      expect(store.activeRackId).toBe(result.rack!.id);
+
+      store.undo();
+
+      expect(store.activeRackId).toBe(rackZ.id);
+    });
+
+    it("restores the previously active rack after undoing deleteRack", () => {
+      const store = getLayoutStore();
+      const rackA = store.addRack("Rack A", 42)!;
+      store.addRack("Rack B", 42);
+      store.setActiveRack(rackA.id);
+      store.clearHistory();
+      expect(store.activeRackId).toBe(rackA.id);
+
+      // Deleting the active rack falls back to another rack internally.
+      store.deleteRack(rackA.id);
+      expect(store.activeRackId).not.toBe(rackA.id);
+
+      store.undo();
+
+      expect(store.activeRackId).toBe(rackA.id);
+    });
+  });
+
   describe("undo/redo state consistency", () => {
     it("marks layout as dirty after undo", () => {
       const store = getLayoutStore();
