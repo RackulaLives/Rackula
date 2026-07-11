@@ -43,6 +43,15 @@ export function extractUuidFromFolderName(folderName: string): string | null {
 }
 
 /**
+ * Maximum length of a filename slug.
+ *
+ * This api package can't import the frontend's src/lib/utils/slug.ts (it's a
+ * separate Bun package), so this value is duplicated as SLUG_MAX_LENGTH there
+ * too, applied by slugifyForFilename. Keep both in sync (#2932).
+ */
+const SLUG_MAX_LENGTH = 100;
+
+/**
  * Sanitize a string for safe use in filesystem paths
  * Removes path separators and other dangerous characters while keeping readability
  */
@@ -72,10 +81,12 @@ export function buildFolderName(name: string, uuid: string): string {
  * Slugify a layout name to create a safe filename
  * Handles Unicode names by returning "untitled" if result is empty
  *
- * Behaviour mirrors the frontend slugify (src/lib/utils/slug.ts): a "+" becomes
- * "-plus" before other processing so "DS920+" maps to "ds920-plus", and hyphens
- * are trimmed and collapsed consistently. The api is a separate Bun package and
- * cannot import the frontend module, so the rules are kept in sync here.
+ * Behaviour mirrors the frontend's slugifyForFilename (src/lib/utils/slug.ts):
+ * a "+" becomes "-plus" before other processing so "DS920+" maps to
+ * "ds920-plus", hyphens are trimmed and collapsed consistently, and the result
+ * is truncated to SLUG_MAX_LENGTH (see #2932, where the two had drifted). The
+ * api is a separate Bun package and cannot import the frontend module, so the
+ * rules are kept in sync here.
  */
 export function slugify(name: string): string {
   const slug = name
@@ -89,7 +100,7 @@ export function slugify(name: string): string {
     .replace(/^-+|-+$/g, "")
     // Collapse multiple hyphens
     .replace(/-+/g, "-")
-    .slice(0, 100)
+    .slice(0, SLUG_MAX_LENGTH)
     .replace(/-+$/g, ""); // Remove trailing hyphens after truncation
 
   // Handle empty results (e.g., all-Unicode names like "...")

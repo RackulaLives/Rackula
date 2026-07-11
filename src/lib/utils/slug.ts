@@ -9,6 +9,17 @@
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
+ * Maximum length of a filename slug. Applied by slugifyForFilename, not by
+ * slugify itself (device slugs and NetBox slug mapping are not filenames and
+ * are intentionally left untruncated).
+ *
+ * The api package can't import this module (it's a separate Bun package), so
+ * this value is duplicated as SLUG_MAX_LENGTH in api/src/schemas/layout.ts.
+ * Keep both in sync (#2932).
+ */
+const SLUG_MAX_LENGTH = 100;
+
+/**
  * Convert any string to a valid slug
  *
  * @example
@@ -43,7 +54,9 @@ export function slugify(input: string): string {
  *
  * Built on slugify so the "+" rule and trim/collapse behaviour stay consistent
  * (e.g. "DS920+" becomes "ds920-plus", leading/trailing/repeated separators are
- * trimmed and collapsed).
+ * trimmed and collapsed). Truncated to SLUG_MAX_LENGTH to match the API's
+ * slugify (api/src/schemas/layout.ts), which is the other producer of
+ * layout filenames (#2932).
  *
  * @param name - The human-readable name to sanitize
  * @param fallback - Value returned when the name slugifies to an empty string
@@ -53,7 +66,8 @@ export function slugify(input: string): string {
  * slugifyForFilename('!!!', 'rack') // 'rack'
  */
 export function slugifyForFilename(name: string, fallback: string): string {
-  return slugify(name) || fallback;
+  const slug = slugify(name).slice(0, SLUG_MAX_LENGTH).replace(/-+$/, ""); // Remove trailing hyphens exposed by truncation
+  return slug || fallback;
 }
 
 /**

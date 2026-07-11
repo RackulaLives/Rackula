@@ -93,6 +93,18 @@ describe("Slug Utilities", () => {
       expect(slugifyForFilename("!!!", "rack")).toBe("rack");
       expect(slugifyForFilename("", "layout")).toBe("layout");
     });
+
+    // The API's slugify (api/src/schemas/layout.ts) truncates to
+    // SLUG_MAX_LENGTH (100 chars) since it can't import this module (#2932).
+    // This name is chosen so the 100-char cut lands on a hyphen, exercising
+    // the post-truncation trailing-hyphen trim both implementations apply.
+    it("truncates to the shared 100-character limit, matching the API slugify", () => {
+      const name =
+        "Rack Layout Name With Words Of Various Length To Find A Boundary Hyphen Case For Truncation Testing Purposes";
+      expect(slugifyForFilename(name, "layout")).toBe(
+        "rack-layout-name-with-words-of-various-length-to-find-a-boundary-hyphen-case-for-truncation-testing",
+      );
+    });
   });
 
   describe("filename consistency across export paths", () => {
