@@ -558,6 +558,26 @@ export function convertToDeviceType(
     }));
   }
 
+  // Map inventory items
+  if (netbox.inventory_items && netbox.inventory_items.length > 0) {
+    deviceType.inventory_items = netbox.inventory_items.map((item) => ({
+      name: item.name,
+      manufacturer: item.manufacturer,
+      part_id: item.part_id,
+    }));
+  }
+
+  // Console ports have no Rackula representation yet. Note the gap in
+  // warnings rather than silently dropping the data.
+  const consolePortCount =
+    (netbox.console_ports?.length ?? 0) +
+    (netbox.console_server_ports?.length ?? 0);
+  if (consolePortCount > 0) {
+    warnings.push(
+      `${consolePortCount} console port(s) are not yet supported by Rackula and were not imported`,
+    );
+  }
+
   // Validate the built DeviceType against the schema before it can enter the
   // library. NetBox values pass through as-is, so an out-of-range u_height
   // (2.7, 0, -1, 99999) or a slug that could not be normalised must be refused

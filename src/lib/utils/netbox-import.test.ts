@@ -709,6 +709,42 @@ model: Some Device
 
       expect(result.deviceType.notes).toBe("This is a test device");
     });
+
+    it("maps inventory items", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Dell",
+        model: "PowerEdge R640",
+        slug: "dell-poweredge-r640",
+        inventory_items: [
+          { name: "PSU 1", manufacturer: "Dell", part_id: "450-AEBM" },
+        ],
+      };
+
+      const result = convertOk(netbox);
+
+      expect(result.deviceType.inventory_items).toContainEqual({
+        name: "PSU 1",
+        manufacturer: "Dell",
+        part_id: "450-AEBM",
+      });
+      expect(result.warnings).toEqual([]);
+    });
+
+    it("warns that console ports have no Rackula representation", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Opengear",
+        model: "IM7208",
+        slug: "opengear-im7208",
+        console_ports: [{ name: "Console 1" }],
+        console_server_ports: [{ name: "Serial 1" }, { name: "Serial 2" }],
+      };
+
+      const result = convertOk(netbox);
+
+      expect(result.warnings).toContain(
+        "3 console port(s) are not yet supported by Rackula and were not imported",
+      );
+    });
   });
 
   describe("convertToDeviceType validation gate", () => {
