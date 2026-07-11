@@ -6,6 +6,7 @@ import {
   createTestDeviceTypeInput,
   createTestDeviceType,
   createTestContainerType,
+  createTestCable,
 } from "./factories";
 
 describe("Layout Store", () => {
@@ -556,13 +557,11 @@ describe("Layout Store", () => {
             },
           ],
           cables: [
-            {
+            createTestCable({
               id: "cable-1",
               a_device_id: "dev-a",
-              a_interface: "eth0",
               b_device_id: "dev-b",
-              b_interface: "eth0",
-            },
+            }),
           ],
           settings: {
             display_mode: "label",
@@ -572,82 +571,89 @@ describe("Layout Store", () => {
         new Set(["dev-a", "dev-b"]),
       );
 
-      const devices = store.layout.racks.flatMap((r) => r.devices);
-      const liveIds = new Set(devices.map((d) => d.id));
+      // Exactly one device per rack, so each endpoint has one correct target.
+      const [rackA, rackB] = store.layout.racks;
+      const deviceA = rackA.devices[0];
+      const deviceB = rackB.devices[0];
       const cable = store.layout.cables?.[0];
       expect(cable).toBeDefined();
-      // Both original ids were reserved, so both were regenerated. Neither
-      // endpoint should still point at the dead original id.
-      expect(cable!.a_device_id).not.toBe("dev-a");
-      expect(cable!.b_device_id).not.toBe("dev-b");
-      // Every endpoint must resolve to a device that actually exists.
-      expect(liveIds.has(cable!.a_device_id)).toBe(true);
-      expect(liveIds.has(cable!.b_device_id)).toBe(true);
+      // Both original ids were reserved, so both were regenerated. Each
+      // endpoint must now resolve to the live device that replaced the id it
+      // originally referenced, not merely to some surviving device.
+      expect(deviceA.id).not.toBe("dev-a");
+      expect(deviceB.id).not.toBe("dev-b");
+      expect(cable!.a_device_id).toBe(deviceA.id);
+      expect(cable!.b_device_id).toBe(deviceB.id);
     });
 
-    it("keeps a cable endpoint on the surviving original id, remapping only removed references", () => {
+    it("preserves a surviving endpoint and remaps a regenerated one in the same cable", () => {
       const store = getLayoutStore();
-      store.loadLayout({
-        version: "0.7.0",
-        name: "Cable Surviving Id Test",
-        racks: [
-          {
-            id: "rack-1",
-            name: "Test Rack",
-            height: 42,
-            width: 19,
-            desc_units: false,
-            form_factor: "4-post-cabinet",
-            starting_unit: 1,
-            position: 0,
-            devices: [
-              // A keeps "X" (surviving original)
-              {
-                id: "X",
-                device_type: "server-c",
-                position: 100,
-                face: "front" as const,
-              },
-              // B duplicates "X" -> regenerated to a new id
-              {
-                id: "X",
-                device_type: "server-c",
-                position: 200,
-                face: "front" as const,
-              },
-            ],
+      // "keep-me" is not reserved, so it survives and its endpoint is left
+      // untouched (surviving-original precedence). "regen-me" collides with a
+      // reserved id, so it is regenerated and its endpoint must follow it.
+      store.loadLayout(
+        {
+          version: "0.7.0",
+          name: "Cable Surviving Id Test",
+          racks: [
+            {
+              id: "rack-1",
+              name: "Test Rack",
+              height: 42,
+              width: 19,
+              desc_units: false,
+              form_factor: "4-post-cabinet",
+              starting_unit: 1,
+              position: 0,
+              devices: [
+                {
+                  id: "keep-me",
+                  device_type: "server-c",
+                  position: 100,
+                  face: "front" as const,
+                },
+                {
+                  id: "regen-me",
+                  device_type: "server-c",
+                  position: 200,
+                  face: "front" as const,
+                },
+              ],
+            },
+          ],
+          device_types: [
+            {
+              slug: "server-c",
+              u_height: 1,
+              colour: "#4A90A4",
+              category: "server" as const,
+            },
+          ],
+          cables: [
+            createTestCable({
+              id: "cable-1",
+              a_device_id: "keep-me",
+              b_device_id: "regen-me",
+            }),
+          ],
+          settings: {
+            display_mode: "label",
+            show_labels_on_images: false,
           },
-        ],
-        device_types: [
-          {
-            slug: "server-c",
-            u_height: 1,
-            colour: "#4A90A4",
-            category: "server" as const,
-          },
-        ],
-        cables: [
-          {
-            id: "cable-1",
-            a_device_id: "X",
-            a_interface: "eth0",
-            b_device_id: "X",
-            b_interface: "eth1",
-          },
-        ],
-        settings: {
-          display_mode: "label",
-          show_labels_on_images: false,
         },
-      });
+        new Set(["regen-me"]),
+      );
 
       const devices = store.layout.racks[0].devices;
-      const finalIds = new Set(devices.map((d) => d.id));
+      const regenerated = devices.find((d) => d.id !== "keep-me")!;
       const cable = store.layout.cables?.[0];
       expect(cable).toBeDefined();
-      // "X" survives on the first device, so a reference to it is untouched.
-      expect(cable!.a_device_id).toBe("X");
-      expect(finalIds.has(cable!.b_device_id)).toBe(true);
+      // Surviving original id is preserved.
+      expect(cable!.a_device_id).toBe("keep-me");
+      // The reserved-id collision was regenerated, and the endpoint follows it
+      // to the new id rather than dangling at the dead original.
+      expect(regenerated.id).not.toBe("regen-me");
+      expect(cable!.b_device_id).toBe(regenerated.id);
     });
   });
 
