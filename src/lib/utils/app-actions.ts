@@ -28,6 +28,7 @@ import {
   exportToCSV,
   downloadBlob,
   generateExportFilename,
+  inlineImageHrefs,
 } from "$lib/utils/export";
 import type { ExportFormat, ExportOptions, ExportView } from "$lib/types";
 
@@ -219,6 +220,11 @@ export async function handleExportSubmit(
 
     const handler = imageFormatHandlers[options.format];
     if (handler) {
+      // Bundled device images are url-based (never data URLs, see
+      // vite.config.ts assetsInlineLimit: 0). Inline them to data URLs before
+      // rasterizing or serializing so they survive outside the app's origin
+      // and inside a serialized-SVG-as-image rasterization (#2928).
+      await inlineImageHrefs(svg);
       await handler(svg, layoutStore.layout.name, exportViewOrDefault);
     } else if (options.format === "csv") {
       const firstRack = racksToExport[0];

@@ -121,3 +121,48 @@ describe("PNG export — face filtering (#1681)", () => {
     expect(rectsWithFill(frontSvg, deviceType.colour!)).toHaveLength(0);
   });
 });
+
+describe("exportView 'both' with show_rear false (#2938)", () => {
+  it("renders only front-face devices instead of superimposing both faces", () => {
+    const frontType = createTestDeviceType({
+      slug: "front-server",
+      u_height: 2,
+      is_full_depth: false,
+      colour: "#336699",
+    });
+    const rearType = createTestDeviceType({
+      slug: "rear-pdu",
+      u_height: 1,
+      is_full_depth: false,
+      colour: "#994422",
+    });
+
+    const rack = createTestRack({
+      show_rear: false,
+      devices: [
+        createTestDevice({
+          id: "front-1",
+          device_type: "front-server",
+          position: 10,
+          face: "front",
+        }),
+        createTestDevice({
+          id: "rear-1",
+          device_type: "rear-pdu",
+          position: 5,
+          face: "rear",
+        }),
+      ],
+    });
+
+    const svg = generateExportSVG([rack], [frontType, rearType], {
+      ...baseOptions,
+      exportView: "both",
+    });
+
+    // eslint-disable-next-line no-restricted-syntax -- a rear-only device must not draw when the rack hides its rear
+    expect(rectsWithFill(svg, rearType.colour!)).toHaveLength(0);
+    // eslint-disable-next-line no-restricted-syntax -- the front device must still render exactly once
+    expect(rectsWithFill(svg, frontType.colour!)).toHaveLength(1);
+  });
+});

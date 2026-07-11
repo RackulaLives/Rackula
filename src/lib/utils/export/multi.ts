@@ -3,6 +3,7 @@ import type { ImageStoreMap } from "$lib/types/images";
 import { generateSingleRackSVG } from "./svg";
 import { exportAsSVG, prepareSvgForPdf } from "./vector";
 import { exportAsPNG, exportAsJPEG } from "./raster";
+import { inlineImageHrefs } from "./inline-images";
 
 /**
  * Progress callback for multi-rack exports
@@ -48,6 +49,10 @@ export async function exportAsZip(
       images,
       layoutId,
     );
+
+    // Bundled device images are url-based; inline them to data URLs before
+    // rasterizing or serializing (#2928).
+    await inlineImageHrefs(svg);
 
     // Convert to the requested format
     let blob: Blob;
@@ -124,6 +129,10 @@ export async function exportAsMultiPagePDF(
       images,
       layoutId,
     );
+
+    // Bundled device images are url-based; inline them to data URLs before
+    // svg2pdf converts the SVG to vector PDF content (#2928).
+    await inlineImageHrefs(svg);
 
     // Parse SVG to get dimensions
     const imgWidth = parseInt(svg.getAttribute("width") || "0", 10);

@@ -8,6 +8,7 @@
 export { generateExportSVG, generateSingleRackSVG } from "./svg";
 export { exportAsSVG, exportAsPDF, prepareSvgForPdf } from "./vector";
 export { exportAsPNG, exportAsJPEG } from "./raster";
+export { inlineImageHrefs } from "./inline-images";
 export { exportAsZip, exportAsMultiPagePDF } from "./multi";
 export type { ExportProgressCallback } from "./multi";
 export { exportToCSV } from "./data";

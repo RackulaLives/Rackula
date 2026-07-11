@@ -547,12 +547,16 @@ export function generateExportSVG(
 
   const contentWidth =
     totalRackWidth + (hasSidebar ? LEGEND_PADDING + sidebarWidth : 0);
-  const contentHeight = Math.max(rackAreaHeight, legendHeight);
+  // The QR block sits below the legend in the same sidebar column, so the
+  // column height budget must reserve space for both, not just the taller of
+  // the two (#2929).
+  const contentHeight = Math.max(
+    rackAreaHeight,
+    legendHeight + (shouldRenderQR ? qrAreaHeight : 0),
+  );
 
   const svgWidth = contentWidth + EXPORT_PADDING * 2;
-  const svgHeight =
-    Math.max(contentHeight, shouldRenderQR ? qrAreaHeight : 0) +
-    EXPORT_PADDING * 2;
+  const svgHeight = contentHeight + EXPORT_PADDING * 2;
 
   // Determine colours based on background
   const isDark = background === "dark";
@@ -1266,10 +1270,17 @@ export function generateExportSVG(
         // Single view: render with optional face filter
         // Note: Rack name is handled inside renderRackView when no viewLabel is provided
         const rackX = currentX;
+        // A "both" export with a hidden rear falls into this single-view
+        // branch (effectiveDualView is false above). Without an explicit
+        // filter, filterDevicesByFace returns every device, so rear-face
+        // devices would draw on top of the front view. Default to "front" so
+        // the single view matches what show_rear: false actually shows (#2938).
         const faceFilter =
           exportView === "front" || exportView === "rear"
             ? exportView
-            : undefined;
+            : exportView === "both" && !shouldShowRear
+              ? "front"
+              : undefined;
         const rackGroup = renderRackView(rack, rackX, rackY, faceFilter);
 
         svg.appendChild(rackGroup);
