@@ -99,4 +99,26 @@ describe("export QR / legend layout (#2929)", () => {
 
     expect(qrTop).toBeGreaterThanOrEqual(legendBottom);
   });
+
+  it("does not reserve phantom legend space above the QR when the legend has no items", () => {
+    // includeLegend is true but the rack has no devices, so no legend group is
+    // drawn. The height budget must not reserve legend space, or the QR block
+    // is pushed down by a phantom gap (#2952 CodeAnt finding).
+    const rack = createTestRack({ height: 2, devices: [] });
+
+    const svg = generateExportSVG([rack], [], baseOptions);
+
+    // No legend group is rendered for an empty rack.
+    expect(
+      Array.from(svg.getElementsByTagName("g")).some(
+        (g) => g.getAttribute("class") === "export-legend",
+      ),
+    ).toBe(false);
+
+    // With no legend and QR the tallest element, the QR sits at the top of the
+    // content area (clamped to EXPORT_PADDING), not offset by phantom legend
+    // height.
+    const EXPORT_PADDING = 20;
+    expect(translateY(qrGroup(svg))).toBe(EXPORT_PADDING);
+  });
 });

@@ -528,8 +528,14 @@ export function generateExportSVG(
 
   // Use the larger of bayed group height or standalone rack height
   const rackAreaHeight = Math.max(maxRackAreaHeight, standaloneRackHeight);
-  const legendWidth = includeLegend ? 180 : 0;
-  const legendHeight = includeLegend
+  // The legend group is only rendered when it has at least one item (see the
+  // `includeLegend && usedDevices.length > 0` guard below). Mirror that exact
+  // condition here so the layout budget never reserves legend space (width or
+  // height) for a legend that will not be drawn - otherwise an empty-rack
+  // export leaves a phantom gap above the QR block.
+  const hasLegend = includeLegend && usedDevices.length > 0;
+  const legendWidth = hasLegend ? 180 : 0;
+  const legendHeight = hasLegend
     ? usedDevices.length * LEGEND_ITEM_HEIGHT + LEGEND_PADDING * 2
     : 0;
 
@@ -539,11 +545,8 @@ export function generateExportSVG(
 
   // Calculate sidebar (legend + QR column) dimensions
   // QR code shares the same column as legend, positioned at the bottom
-  const hasSidebar = includeLegend || shouldRenderQR;
-  const sidebarWidth = Math.max(
-    includeLegend ? legendWidth : 0,
-    shouldRenderQR ? qrTotalSize : 0,
-  );
+  const hasSidebar = hasLegend || shouldRenderQR;
+  const sidebarWidth = Math.max(legendWidth, shouldRenderQR ? qrTotalSize : 0);
 
   const contentWidth =
     totalRackWidth + (hasSidebar ? LEGEND_PADDING + sidebarWidth : 0);
