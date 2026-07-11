@@ -36,6 +36,8 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
   // --- Physical Properties ---
   ordered.u_height = dt.u_height;
   if (dt.slot_width !== undefined) ordered.slot_width = dt.slot_width;
+  if (dt.rack_widths !== undefined && dt.rack_widths.length > 0)
+    ordered.rack_widths = dt.rack_widths;
   if (dt.is_full_depth !== undefined) ordered.is_full_depth = dt.is_full_depth;
   if (dt.is_powered !== undefined) ordered.is_powered = dt.is_powered;
   if (dt.weight !== undefined) ordered.weight = dt.weight;
@@ -79,6 +81,8 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
 
   // --- Power Device Properties ---
   if (dt.va_rating !== undefined) ordered.va_rating = dt.va_rating;
+
+  appendUnknownKeys(ordered, dt, KNOWN_DEVICE_TYPE_KEYS);
 
   return ordered;
 }
@@ -135,6 +139,8 @@ function orderPlacedDeviceFields(
   if (device.custom_fields !== undefined)
     ordered.custom_fields = device.custom_fields;
 
+  appendUnknownKeys(ordered, device, KNOWN_PLACED_DEVICE_KEYS);
+
   return ordered;
 }
 
@@ -159,6 +165,8 @@ function orderRackFields(rack: Rack): Record<string, unknown> {
   ordered.position = rack.position;
   ordered.devices = rack.devices.map(orderPlacedDeviceFields);
   if (rack.notes !== undefined) ordered.notes = rack.notes;
+
+  appendUnknownKeys(ordered, rack, KNOWN_RACK_KEYS);
 
   return ordered;
 }
@@ -188,6 +196,8 @@ function orderCableFields(cable: Cable): Record<string, unknown> {
   if (cable.length !== undefined) ordered.length = cable.length;
   if (cable.length_unit !== undefined) ordered.length_unit = cable.length_unit;
   if (cable.status !== undefined) ordered.status = cable.status;
+
+  appendUnknownKeys(ordered, cable, KNOWN_CABLE_KEYS);
 
   return ordered;
 }
@@ -252,6 +262,120 @@ function appendUnknownSections(
     if (UNSAFE_KEYS.has(key)) continue;
     if (KNOWN_TOP_LEVEL_KEYS.has(key)) continue;
     if (key in target) continue;
+    target[key] = value;
+  }
+}
+
+/**
+ * Fields each nested orderer below explicitly handles, whether or not it ends
+ * up writing them (e.g. an empty array skipped for tidiness, or `Rack.view`,
+ * which is runtime-only and deliberately never persisted). Kept separate from
+ * "did the orderer write this key" so appendUnknownKeys can tell an
+ * intentional omission apart from a field the allowlist never learned about.
+ */
+const KNOWN_DEVICE_TYPE_KEYS = new Set<string>([
+  "slug",
+  "manufacturer",
+  "model",
+  "part_number",
+  "u_height",
+  "slot_width",
+  "rack_widths",
+  "is_full_depth",
+  "is_powered",
+  "weight",
+  "weight_unit",
+  "airflow",
+  "front_image",
+  "rear_image",
+  "colour",
+  "category",
+  "tags",
+  "notes",
+  "serial_number",
+  "asset_tag",
+  "links",
+  "custom_fields",
+  "interfaces",
+  "power_ports",
+  "power_outlets",
+  "device_bays",
+  "inventory_items",
+  "subdevice_role",
+  "slots",
+  "va_rating",
+]);
+
+const KNOWN_PLACED_DEVICE_KEYS = new Set<string>([
+  "id",
+  "device_type",
+  "name",
+  "label",
+  "position",
+  "face",
+  "ports",
+  "front_image",
+  "rear_image",
+  "colour_override",
+  "parent_device",
+  "device_bay",
+  "container_id",
+  "slot_id",
+  "auto_created",
+  "notes",
+  "custom_fields",
+]);
+
+const KNOWN_RACK_KEYS = new Set<string>([
+  "id",
+  "name",
+  "height",
+  "width",
+  "depth_mm",
+  "base_weight",
+  "desc_units",
+  "show_rear",
+  "form_factor",
+  "starting_unit",
+  "position",
+  "devices",
+  "notes",
+  // Runtime-only current-face-filter state; never persisted to YAML.
+  "view",
+]);
+
+const KNOWN_CABLE_KEYS = new Set<string>([
+  "id",
+  "a_device_id",
+  "a_interface",
+  "b_device_id",
+  "b_interface",
+  "type",
+  "color",
+  "label",
+  "length",
+  "length_unit",
+  "status",
+]);
+
+/**
+ * Copy any unrecognised keys from a nested source object (a DeviceType,
+ * PlacedDevice, Rack, or Cable parsed by its `.passthrough()` Zod schema)
+ * onto the ordered output, after the known fields, so unknown fields from a
+ * newer schema or legacy declared fields not yet wired into the orderer (e.g.
+ * `comments`, `outlet_count`) survive a load and resave (#2927).
+ */
+function appendUnknownKeys(
+  target: Record<string, unknown>,
+  source: object,
+  knownKeys: ReadonlySet<string>,
+): void {
+  for (const [key, value] of Object.entries(
+    source as Record<string, unknown>,
+  )) {
+    if (value === undefined) continue;
+    if (UNSAFE_KEYS.has(key)) continue;
+    if (knownKeys.has(key)) continue;
     target[key] = value;
   }
 }

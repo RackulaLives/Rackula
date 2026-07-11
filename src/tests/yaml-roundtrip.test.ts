@@ -4,8 +4,9 @@ import {
   serializeLayoutToYamlWithMetadata,
   parseLayoutYaml,
 } from "$lib/utils/yaml";
-import type { DeviceType } from "$lib/types";
+import type { Cable, DeviceType, PlacedDevice, Rack } from "$lib/types";
 import {
+  createTestCable,
   createTestContainerChild,
   createTestDevice,
   createTestDeviceType,
@@ -335,5 +336,126 @@ describe("YAML unknown top-level section round-trip (#2208)", () => {
     // None of the reserved keys are emitted, and the global prototype is intact.
     expect(yaml).not.toContain("hacked");
     expect(({} as Record<string, unknown>).hacked).toBeUndefined();
+  });
+});
+
+describe("YAML nested unknown-field round-trip (#2927)", () => {
+  it("preserves an unknown field on a device type through a save/load/save round-trip", async () => {
+    const deviceType = {
+      ...createTestDeviceType({ slug: "future-device" }),
+      future_dt_field: "keep-me",
+    } as unknown as DeviceType;
+
+    const layout = createTestLayout({ device_types: [deviceType] });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    expect(yaml).toContain("future_dt_field");
+
+    const restored = await parseLayoutYaml(yaml);
+    const restoredType = restored.device_types.find(
+      (dt) => dt.slug === "future-device",
+    ) as unknown as Record<string, unknown> | undefined;
+    expect(restoredType?.future_dt_field).toBe("keep-me");
+
+    // A second resave must not drop it now that it round-tripped once already.
+    const resaved = await serializeLayoutToYaml(restored);
+    expect(resaved).toContain("future_dt_field");
+  });
+
+  it("preserves an unknown field on a placed device through a save/load/save round-trip", async () => {
+    const deviceType = createTestDeviceType({ slug: "host-device" });
+    const device = {
+      ...createTestDevice({ id: "device-1", device_type: deviceType.slug }),
+      future_pd_field: "keep-me",
+    } as unknown as PlacedDevice;
+
+    const layout = createTestLayout({
+      racks: [createTestRack({ id: "rack-1", devices: [device] })],
+      device_types: [deviceType],
+    });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    expect(yaml).toContain("future_pd_field");
+
+    const restored = await parseLayoutYaml(yaml);
+    const restoredDevice = restored.racks[0]?.devices.find(
+      (d) => d.id === "device-1",
+    ) as unknown as Record<string, unknown> | undefined;
+    expect(restoredDevice?.future_pd_field).toBe("keep-me");
+
+    const resaved = await serializeLayoutToYaml(restored);
+    expect(resaved).toContain("future_pd_field");
+  });
+
+  it("preserves an unknown field on a rack through a save/load/save round-trip", async () => {
+    const rack = {
+      ...createTestRack({ id: "rack-1" }),
+      future_rack_field: "keep-me",
+    } as unknown as Rack;
+
+    const layout = createTestLayout({ racks: [rack] });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    expect(yaml).toContain("future_rack_field");
+
+    const restored = await parseLayoutYaml(yaml);
+    const restoredRack = restored.racks.find(
+      (r) => r.id === "rack-1",
+    ) as unknown as Record<string, unknown> | undefined;
+    expect(restoredRack?.future_rack_field).toBe("keep-me");
+
+    const resaved = await serializeLayoutToYaml(restored);
+    expect(resaved).toContain("future_rack_field");
+  });
+
+  it("preserves an unknown field on a cable through a save/load/save round-trip", async () => {
+    const deviceA = createTestDevice({ id: "device-a", position: 10 });
+    const deviceB = createTestDevice({ id: "device-b", position: 12 });
+    const deviceType = createTestDeviceType({ slug: "test-device" });
+    const cable = {
+      ...createTestCable({
+        id: "cable-1",
+        a_device_id: "device-a",
+        b_device_id: "device-b",
+      }),
+      future_cable_field: "keep-me",
+    } as unknown as Cable;
+
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({ id: "rack-1", devices: [deviceA, deviceB] }),
+      ],
+      device_types: [deviceType],
+      cables: [cable],
+    });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    expect(yaml).toContain("future_cable_field");
+
+    const restored = await parseLayoutYaml(yaml);
+    const restoredCable = restored.cables?.find(
+      (c) => c.id === "cable-1",
+    ) as unknown as Record<string, unknown> | undefined;
+    expect(restoredCable?.future_cable_field).toBe("keep-me");
+
+    const resaved = await serializeLayoutToYaml(restored);
+    expect(resaved).toContain("future_cable_field");
+  });
+
+  it("preserves the known-but-unlisted rack_widths field on a device type through a round-trip", async () => {
+    const deviceType = createTestDeviceType({
+      slug: "mini-rack-device",
+      rack_widths: [10],
+    });
+    const layout = createTestLayout({ device_types: [deviceType] });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    expect(yaml).toContain("rack_widths");
+
+    const restored = await parseLayoutYaml(yaml);
+    const restoredType = restored.device_types.find(
+      (dt) => dt.slug === "mini-rack-device",
+    );
+    expect(restoredType?.rack_widths).toEqual([10]);
   });
 });
