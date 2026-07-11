@@ -10,6 +10,7 @@ import JSZip from "jszip";
 import { extractFolderArchive } from "$lib/utils/archive";
 import { serializeLayoutToYaml } from "$lib/utils/yaml";
 import { createTestLayout, createTestRack } from "./factories";
+import { MAX_IMAGE_SIZE_BYTES } from "$lib/types/constants";
 
 // Create a valid layout YAML using factories
 let SAMPLE_LAYOUT_YAML: string;
@@ -127,6 +128,77 @@ describe("extractFolderArchive", () => {
       await expect(extractFolderArchive(blob)).rejects.toThrow(
         "No valid layout file found",
       );
+    });
+  });
+
+  describe("image validation (magic bytes + size cap, #2933)", () => {
+    it("rejects a ZIP-extracted image whose bytes don't match its extension", async () => {
+      const zip = new JSZip();
+      const folderName = "My Layout-550e8400-e29b-41d4-a716-446655440000";
+      const folder = zip.folder(folderName);
+      folder?.file("my-layout.rackula.yaml", SAMPLE_LAYOUT_YAML);
+
+      // Extension claims PNG; content is SVG text. Extension/blob-type alone
+      // would accept this, but magic-byte sniffing must catch the mismatch.
+      const assetsFolder = folder?.folder("assets")?.folder("test-device");
+      const svgBytes = new TextEncoder().encode(
+        "<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>",
+      );
+      assetsFolder?.file("front.png", svgBytes);
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const result = await extractFolderArchive(blob);
+
+      expect(result.layout.name).toBe("Test Layout");
+      expect(result.images.has("test-device")).toBe(false);
+      expect(result.failedImages).toContain(
+        `${folderName}/assets/test-device/front.png`,
+      );
+    });
+
+    it("rejects a ZIP-extracted image exceeding the per-image size cap", async () => {
+      const zip = new JSZip();
+      const folderName = "My Layout-550e8400-e29b-41d4-a716-446655440000";
+      const folder = zip.folder(folderName);
+      folder?.file("my-layout.rackula.yaml", SAMPLE_LAYOUT_YAML);
+
+      // Real PNG header, but the total size pushes past MAX_IMAGE_SIZE_BYTES.
+      const assetsFolder = folder?.folder("assets")?.folder("test-device");
+      const oversizedPng = new Uint8Array(MAX_IMAGE_SIZE_BYTES + 1024);
+      oversizedPng.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+      assetsFolder?.file("front.png", oversizedPng);
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const result = await extractFolderArchive(blob);
+
+      expect(result.images.has("test-device")).toBe(false);
+      expect(result.failedImages).toContain(
+        `${folderName}/assets/test-device/front.png`,
+      );
+    });
+
+    it("excludes .svg and .gif entries entirely, even with valid magic bytes", async () => {
+      const zip = new JSZip();
+      const folderName = "My Layout-550e8400-e29b-41d4-a716-446655440000";
+      const folder = zip.folder(folderName);
+      folder?.file("my-layout.rackula.yaml", SAMPLE_LAYOUT_YAML);
+
+      const assetsFolder = folder?.folder("assets")?.folder("test-device");
+      assetsFolder?.file(
+        "front.svg",
+        "<svg xmlns='http://www.w3.org/2000/svg'></svg>",
+      );
+      // Real GIF magic bytes ("GIF89a"), still must be excluded by extension.
+      assetsFolder?.file(
+        "rear.gif",
+        new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]),
+      );
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const result = await extractFolderArchive(blob);
+
+      expect(result.images.has("test-device")).toBe(false);
+      expect(result.failedImages).toEqual([]);
     });
   });
 

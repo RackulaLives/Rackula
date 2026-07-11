@@ -16,6 +16,11 @@ import { parseLayoutYaml, parseLayoutYamlWithImages } from "./yaml";
 import { extractUuidFromFolderName } from "./folder-structure";
 import { placementKey } from "./placement-key";
 import { archiveDebug } from "./debug";
+import { detectImageMime } from "./image-encoding";
+import {
+  SUPPORTED_IMAGE_FORMATS,
+  MAX_IMAGE_SIZE_BYTES,
+} from "$lib/types/constants";
 
 /**
  * Lazily load JSZip library
@@ -110,9 +115,14 @@ export async function getJSZip(): Promise<JSZipConstructor> {
 }
 
 /**
- * Supported image file extensions
+ * Supported image file extensions.
+ *
+ * SECURITY: gif/svg are intentionally excluded, matching SUPPORTED_IMAGE_FORMATS
+ * (the raster-only allowlist enforced by detectImageMime). SVG can carry
+ * embedded scripts; excluding it here means an entry named `front.svg` is never
+ * even considered a candidate image (#2933).
  */
-const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "svg"];
+const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp"];
 
 /**
  * Archive extraction limits (guardrails)
@@ -551,7 +561,28 @@ async function extractImageFromZip(
   if (!imageFile) return { error: true };
 
   try {
-    const imageBlob = await imageFile.async("blob");
+    // Never trust the file extension or JSZip's extension-inferred blob type:
+    // decode the real bytes and validate them the same way the YAML
+    // embedded-image path does (detectImageMime + allowlist + size cap, #2933).
+    const bytes = await imageFile.async("uint8array");
+
+    if (bytes.byteLength > MAX_IMAGE_SIZE_BYTES) {
+      archiveDebug.extract("Image exceeds size cap: %s", imagePath);
+      return { error: true };
+    }
+
+    const detected = detectImageMime(bytes);
+    if (!detected || !SUPPORTED_IMAGE_FORMATS.includes(detected)) {
+      archiveDebug.extract(
+        "Rejected image with unsupported or unrecognised format: %s",
+        imagePath,
+      );
+      return { error: true };
+    }
+
+    // Re-wrap into a fresh, plain-ArrayBuffer-backed view: JSZip's uint8array
+    // output type is too loose (ArrayBufferLike) for BlobPart.
+    const imageBlob = new Blob([new Uint8Array(bytes)], { type: detected });
     const dataUrl = await blobToDataUrl(imageBlob);
 
     // Graceful degradation: skip images that fail to convert
