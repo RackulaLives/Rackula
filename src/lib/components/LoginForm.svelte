@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { getSafeNextPath } from "$lib/utils/safe-redirect";
+
   let username = $state("");
   let password = $state("");
   let error = $state("");
@@ -7,19 +9,6 @@
   const canSubmit = $derived(
     username.trim() !== "" && password !== "" && !loading,
   );
-
-  function getNextPath(): string {
-    const params = new URLSearchParams(window.location.search);
-    const next = params.get("next") ?? "/";
-    const trimmed = next.trim();
-
-    // Prevent open redirect: must start with / and not // or protocol
-    if (!trimmed.startsWith("/")) return "/";
-    if (trimmed.startsWith("//")) return "/";
-    if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return "/";
-
-    return trimmed;
-  }
 
   async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
@@ -39,7 +28,10 @@
       });
 
       if (response.ok) {
-        window.location.href = getNextPath();
+        window.location.href = getSafeNextPath(
+          window.location.search,
+          window.location.origin,
+        );
         return;
       }
 
