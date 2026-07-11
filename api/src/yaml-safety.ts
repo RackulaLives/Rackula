@@ -1,38 +1,38 @@
 /**
  * Bounded, cycle-safe complexity check for parsed YAML bodies (#2912).
  *
- * js-yaml resolves anchors/aliases to shared object references in O(input):
- * a document with nested aliases (each level referencing the prior twice) is
- * acyclic, but a naive tree walk that re-expands every alias -- including
- * the prior `JSON.stringify(parsed)` guard -- does O(2^depth) work. A body
- * a few hundred bytes long can expand to gigabytes, hanging the event loop
- * or OOMing the process. The same risk exists in any other naive consumer
- * of the parsed value downstream (e.g. schema validation), so this check
- * rejects overly-aliased documents outright rather than merely making its
- * own traversal cheap.
+ * js-yaml resolves anchors/aliases to shared object references in O(input), so
+ * a naive walk that re-expands each alias (the old JSON.stringify guard) does
+ * O(2^depth) work: a sub-1MB body can expand to gigabytes and hang the event
+ * loop or OOM the process. This computes each unique object's would-be-expanded
+ * size once (memoized) and reuses shared references in O(1), so total work is
+ * O(nodes + edges) in the compact graph and the expansion is never
+ * materialized. String leaves count their length, so the bound also covers
+ * value-heavy bombs (one large string aliased many times), not just node-heavy
+ * ones. The cap scales with input byte length: an unaliased body expands to at
+ * most about its own size, so any body whose expansion far exceeds its source
+ * is rejected while legitimate large layouts pass. A separate on-path set
+ * catches genuine cycles.
  *
- * The fix computes each unique object's *would-be-expanded* size exactly
- * once via memoized post-order accumulation: a shared reference's size is
- * looked up (O(1)) rather than re-walked, so total work is O(nodes + edges)
- * in the compact (shared-reference) graph -- not in the expanded tree. A
- * running total is checked after every child is folded in, so a document
- * that would expand past the cap is rejected as soon as that becomes
- * knowable, without ever materializing the expansion. A separate
- * "currently on the traversal path" set catches genuine cycles (a node
- * reachable from itself), which this DP formulation would otherwise recurse
- * into forever.
+ * Input must come from js-yaml JSON_SCHEMA (plain objects, arrays, and JSON
+ * scalars); the traversal does not descend into Map/Date/typed-array
+ * containers, which that schema never produces.
  */
 
 /**
- * Safety cap on the would-be-expanded node count. Exponential growth from
- * aliasing means an attacker needs only a handful of extra alias levels to
- * clear any reasonable cap, so the exact value mostly trades off headroom
- * for legitimate large layouts against how much work a rejected request
- * does. 200,000 comfortably covers realistic self-hosted layouts (hundreds
- * of racks/devices) while still being reached within milliseconds for any
- * alias-bomb shape.
+ * Floor on the expanded-size budget, for small bodies. Above this the budget
+ * scales with input length (SIZE_MULTIPLIER x bytes), so the limit tracks
+ * attacker-controlled input size rather than a fixed magic number.
  */
-const MAX_EXPANDED_NODES = 200_000;
+const MIN_EXPANDED_SIZE = 1_000_000;
+
+/**
+ * How many units of expanded size each input byte may legitimately produce.
+ * An unaliased YAML body expands to roughly its own size or less, so 4x gives
+ * comfortable headroom for legitimate layouts while any real alias bomb
+ * (which amplifies by orders of magnitude) is still rejected.
+ */
+const SIZE_MULTIPLIER = 4;
 
 export class YamlCircularReferenceError extends Error {
   constructor() {
@@ -51,15 +51,28 @@ export class YamlTooComplexError extends Error {
 }
 
 /**
- * Walks a parsed YAML value and throws if it is circular or would expand
- * (via aliases) past MAX_EXPANDED_NODES. Returns normally for legitimate
+ * Throws if a parsed YAML value is circular or would expand (via aliases) past
+ * a size bound derived from inputByteLength. Returns normally for legitimate
  * bodies, including ones with large but non-exponential shared references.
  */
-export function assertYamlComplexityBounded(value: unknown): void {
+export function assertYamlComplexityBounded(
+  value: unknown,
+  inputByteLength: number,
+): void {
+  const maxExpandedSize = Math.max(
+    MIN_EXPANDED_SIZE,
+    inputByteLength * SIZE_MULTIPLIER,
+  );
   const onPath = new Set<object>();
   const sizeOf = new Map<object, number>();
 
   function walk(node: unknown): number {
+    // Count a string by its length so the budget measures expanded size in
+    // characters, not just node count -- a large string aliased many times is
+    // as much a bomb as a deeply nested one.
+    if (typeof node === "string") {
+      return node.length;
+    }
     if (node === null || typeof node !== "object") {
       return 1;
     }
@@ -67,9 +80,9 @@ export function assertYamlComplexityBounded(value: unknown): void {
 
     const memoized = sizeOf.get(obj);
     if (memoized !== undefined) {
-      // Already fully sized via another alias to this same object -- reuse
-      // the computed total instead of re-walking its children. This is what
-      // keeps total work O(nodes + edges) instead of O(expanded size).
+      // Already fully sized via another alias to this same object -- reuse the
+      // computed total instead of re-walking its children. This is what keeps
+      // total work O(nodes + edges) instead of O(expanded size).
       return memoized;
     }
 
@@ -84,7 +97,7 @@ export function assertYamlComplexityBounded(value: unknown): void {
       : Object.values(obj as Record<string, unknown>);
     for (const child of children) {
       total += walk(child);
-      if (total > MAX_EXPANDED_NODES) {
+      if (total > maxExpandedSize) {
         onPath.delete(obj);
         throw new YamlTooComplexError();
       }

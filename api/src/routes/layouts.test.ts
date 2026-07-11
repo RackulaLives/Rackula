@@ -208,8 +208,9 @@ describe("PUT /layouts/:uuid YAML alias-expansion DoS guard (#2912)", () => {
    * a chain of anchors/aliases, each level referencing the previous level
    * twice. js-yaml resolves this to a shared-reference object graph in
    * O(input), but a naive expansion (the prior JSON.stringify guard) would
-   * materialize roughly 10 * 2^depth leaves -- at depth 20 that is ~10.5M
-   * leaves and ~138MB of JSON text from a body of a few hundred bytes.
+   * materialize roughly 10 * 2^depth leaves. At depth 24 that is ~168M leaves
+   * and gigabytes of JSON text from a body of a few hundred bytes, so the old
+   * guard would take multiple seconds or OOM before returning.
    */
   function aliasBombYaml(depth: number): string {
     const lines = [
@@ -229,7 +230,7 @@ describe("PUT /layouts/:uuid YAML alias-expansion DoS guard (#2912)", () => {
   }
 
   it("rejects a nested-alias alias-bomb body with a fast 400 and no runaway allocation", async () => {
-    const body = aliasBombYaml(20);
+    const body = aliasBombYaml(24);
     expect(Buffer.byteLength(body, "utf8")).toBeLessThan(1024 * 1024);
 
     const start = performance.now();
@@ -237,10 +238,12 @@ describe("PUT /layouts/:uuid YAML alias-expansion DoS guard (#2912)", () => {
     const elapsedMs = performance.now() - start;
 
     expect(res.status).toBe(400);
-    // Generous relative to the sub-millisecond bounded traversal, but two
-    // orders of magnitude below the ~1s/138MB the old JSON.stringify guard
-    // took to materialize the same body (see issue #2912 repro).
-    expect(elapsedMs).toBeLessThan(500);
+    // The bounded traversal rejects this in O(depth) work (single-digit ms).
+    // The bound is deliberately generous so a loaded CI runner cannot flake it,
+    // yet it is far below the multi-second/OOM the old JSON.stringify guard
+    // needed to materialize this body's ~168M-leaf expansion: a regression to
+    // full expansion fails this assertion by orders of magnitude.
+    expect(elapsedMs).toBeLessThan(2000);
 
     const data = await res.json();
     expect(data.error).toContain("too complex");
