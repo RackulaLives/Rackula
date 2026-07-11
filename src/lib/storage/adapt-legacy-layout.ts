@@ -201,7 +201,7 @@ function buildCarrier(
 /** Carrier shape a sub-U / half-width device needs. */
 type CarrierShape = "2col" | "2u-2col" | "2x2";
 
-/** Pick the carrier shape for a device: sub-U gear needs the 2x2 grid. */
+/** Pick the carrier shape for a device: sub-U gear needs the 2x2 grid, 2U gear needs 2u-2col, others use 2col. */
 function carrierShapeFor(deviceType: DeviceType | undefined): CarrierShape {
   if (isSubUHeight(deviceType)) return "2x2";
   return deviceType?.u_height === 2 ? "2u-2col" : "2col";
