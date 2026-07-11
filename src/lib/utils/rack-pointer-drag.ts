@@ -145,11 +145,21 @@ export function attachPointerDragListeners(
     ctx.onDragFinished();
   }
 
+  // An Escape-cancelled drag (#2935) never reaches handleDragEnd: it must not
+  // resolve or dispatch a drop, only discard whatever preview/hover state the
+  // last dragmove left behind. Every rack clears its own local state; there is
+  // no source/target rack distinction like dragend has.
+  function handleDragCancel() {
+    ctx.setDropPreview(null);
+    ctx.setContainerHoverInfo(null);
+  }
+
   document.addEventListener(
     "rackula:dragmove",
     handleDragMove as EventListener,
   );
   document.addEventListener("rackula:dragend", handleDragEnd as EventListener);
+  document.addEventListener("rackula:dragcancel", handleDragCancel);
 
   return () => {
     document.removeEventListener(
@@ -160,5 +170,6 @@ export function attachPointerDragListeners(
       "rackula:dragend",
       handleDragEnd as EventListener,
     );
+    document.removeEventListener("rackula:dragcancel", handleDragCancel);
   };
 }

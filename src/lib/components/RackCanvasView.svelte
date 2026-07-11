@@ -303,6 +303,15 @@
   function handleResizeCancel(event: PointerEvent) {
     const drag = resizeDrag;
     if (!drag || event.pointerId !== drag.pointerId) return;
+    cancelResizeDrag();
+  }
+
+  // Shared reset path for a pointercancel and an Escape-cancel (#2935): both
+  // abort an in-progress resize the same way, rewinding the live preview to
+  // the height the rack had before the drag started.
+  function cancelResizeDrag() {
+    const drag = resizeDrag;
+    if (!drag) return;
     const { rackIds, startHeight } = drag;
     resizeDrag = null;
     for (const id of rackIds) {
@@ -423,8 +432,31 @@
   function handleBayDragCancel(event: PointerEvent) {
     const drag = bayDrag;
     if (!drag || event.pointerId !== drag.pointerId) return;
+    cancelBayDrag();
+  }
+
+  // Shared reset path for a pointercancel and an Escape-cancel (#2935): a bay
+  // drag never mutates the store until release, so cancelling is just
+  // discarding the in-progress ghost.
+  function cancelBayDrag() {
     bayDrag = null;
   }
+
+  // Escape-to-cancel (#2935): a window Escape handler active only while a
+  // resize or bay drag is in progress, so it does not interfere with
+  // unrelated Escape presses (e.g. clearing selection).
+  $effect(() => {
+    if (!resizeDrag && !bayDrag) return;
+
+    function handleWindowKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      cancelResizeDrag();
+      cancelBayDrag();
+    }
+
+    window.addEventListener("keydown", handleWindowKeyDown);
+    return () => window.removeEventListener("keydown", handleWindowKeyDown);
+  });
 
   // Handle mobile tap-to-place (uses active rack)
   function handlePlacementTap(

@@ -527,9 +527,28 @@
 
   function handlePointerCancel(event: PointerEvent) {
     if (event.pointerId !== activePointerId) return;
+    cancelActiveDrag();
+  }
 
-    // Cancel any in-progress drag
+  // Shared reset path for a pointercancel and an Escape-cancel (#2935): both
+  // abort an in-progress drag the same way, restoring pre-drag state without
+  // committing a move. Escape can fire while the pointer is still physically
+  // down, so it also releases capture that a real pointercancel/pointerup
+  // would already have released.
+  function cancelActiveDrag() {
+    if (rectElement?.releasePointerCapture && activePointerId !== null) {
+      try {
+        rectElement.releasePointerCapture(activePointerId);
+      } catch {
+        // Already released - safe to ignore
+      }
+    }
+
     if (pointerState === "dragging") {
+      // Tell every Rack listening for the pointer-drag events (Safari #397
+      // workaround, see rack-pointer-drag.ts) to drop its local preview/hover
+      // state without resolving a drop (#2935).
+      document.dispatchEvent(new CustomEvent("rackula:dragcancel"));
       setCurrentDragData(null);
       isDragging = false;
       hideDragTooltip();
@@ -541,6 +560,21 @@
     pointerStartPos = null;
     activePointerId = null;
   }
+
+  // Escape-to-cancel (#2935): a window Escape handler active only while this
+  // device is being dragged, so it does not interfere with unrelated Escape
+  // presses (e.g. clearing selection).
+  $effect(() => {
+    if (!isDragging) return;
+
+    function handleWindowKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      cancelActiveDrag();
+    }
+
+    window.addEventListener("keydown", handleWindowKeyDown);
+    return () => window.removeEventListener("keydown", handleWindowKeyDown);
+  });
 
   function openDeviceContextMenu(x: number, y: number) {
     // If context menu handler is provided, use it; otherwise fall back to duplicate
@@ -638,6 +672,7 @@
        because Safari 18.x doesn't properly compute hit areas on transformed <g> elements -->
   <rect
     bind:this={rectElement}
+    data-testid="rack-device-hitbox"
     class="device-rect"
     class:rear-muted={isRearMuted}
     x="0"
