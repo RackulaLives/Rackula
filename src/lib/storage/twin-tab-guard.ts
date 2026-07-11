@@ -20,6 +20,17 @@
  * Recovery is by design manual: a paused layout stays paused until the user
  * Reloads (a spurious foreign-write signal therefore leaves the tab paused, the
  * documented recovery, not an oversight).
+ *
+ * A second, single well-known lock (`rackula:workspace-index`, #2930) guards
+ * the shared `Rackula:workspace` index separately from the per-layout locks
+ * above: two tabs editing DIFFERENT layouts hold different per-layout locks,
+ * so those alone cannot serialise their read-modify-write of the one shared
+ * index key. The workspace autosave persist path (the high-frequency writer
+ * running in every tab) takes this lock as an exclusive, blocking request, so
+ * two tabs' concurrent persists cannot interleave their index read-modify-
+ * write and drop each other's entries. Lower-frequency, user-initiated index
+ * writers (library delete, first-run legacy adoption) do not yet take this
+ * lock and remain a smaller, separate race (follow-up).
  */
 
 import { generateId } from "$lib/utils/device";
@@ -29,6 +40,8 @@ const log = sessionDebug.storage;
 
 const LAYOUT_KEY_PREFIX = "Rackula:layout:";
 const LOCK_PREFIX = "rackula:layout:";
+/** The single well-known Web Lock name serialising the shared workspace index (#2930). */
+const WORKSPACE_INDEX_LOCK_NAME = "rackula:workspace-index";
 
 /**
  * The single source of truth for the writer-tab-id field name in a serialized
@@ -139,6 +152,17 @@ export interface TwinTabGuard {
    * only serialises concurrent writers when it can be acquired.
    */
   withLayoutLock<T>(layoutId: string, write: () => T): Promise<T>;
+  /**
+   * Run the full workspace-index read-modify-write cycle through the single
+   * well-known `rackula:workspace-index` Web Lock as a blocking exclusive
+   * request where available (#2930). A peer tab persisting a DIFFERENT layout
+   * holds a different per-layout lock, so `withLayoutLock` alone cannot
+   * serialise their shared index writes; both must go through this exclusive
+   * lock instead, which queues a contended peer behind the holder rather than
+   * letting it run concurrently. The write runs regardless when locks are
+   * unavailable, matching `withLayoutLock`'s fallback.
+   */
+  withWorkspaceIndexLock<T>(write: () => T | Promise<T>): Promise<T>;
 }
 
 function resolveLocks(
@@ -176,21 +200,50 @@ export function createTwinTabGuard(
     options.onForeignWrite?.(result.layoutId);
   }
 
-  async function withLayoutLock<T>(
-    layoutId: string,
-    write: () => T,
+  // Shared Web-Lock runner for both public wrappers below. Runs `write` under
+  // the named lock with the given request options where Web Locks exist, and
+  // runs it directly as the fallback where they do not. The callback always
+  // runs (with a null lock under ifAvailable when the lock is held), so
+  // `captured` is assigned before locks.request resolves; if `write` throws,
+  // the rejection propagates through locks.request and the lock is released.
+  async function withNamedLock<T>(
+    name: string,
+    options: LockOptions,
+    write: () => T | Promise<T>,
   ): Promise<T> {
     if (!locks) return write();
     let captured: T;
-    await locks.request(layoutLockName(layoutId), { ifAvailable: true }, () => {
-      captured = write();
+    await locks.request(name, options, async () => {
+      captured = await write();
     });
-    // The callback runs synchronously (own write) whether or not the lock was
-    // granted (ifAvailable yields a null lock when held), so captured is set.
     return captured!;
   }
 
-  return { isPaused, handleStorageEvent, withLayoutLock };
+  function withLayoutLock<T>(layoutId: string, write: () => T): Promise<T> {
+    // ifAvailable (try-lock): a held lock yields a null lock and the write runs
+    // anyway. That is intentional here: the tab-id stamp is the real ping-pong
+    // guard for same-layout writers, so this lock is only a best-effort
+    // serialiser where it can be taken (#2044).
+    return withNamedLock(layoutLockName(layoutId), { ifAvailable: true }, write);
+  }
+
+  function withWorkspaceIndexLock<T>(
+    write: () => T | Promise<T>,
+  ): Promise<T> {
+    // Exclusive (blocking): the shared index has NO tab-id-stamp fallback, so
+    // this lock must genuinely serialise. ifAvailable would hand a contended
+    // peer a null lock and let it run its read-modify-write concurrently,
+    // leaving the #2930 lost-update race open; an exclusive request queues the
+    // peer behind the held lock so the two index RMWs never interleave.
+    return withNamedLock(WORKSPACE_INDEX_LOCK_NAME, { mode: "exclusive" }, write);
+  }
+
+  return {
+    isPaused,
+    handleStorageEvent,
+    withLayoutLock,
+    withWorkspaceIndexLock,
+  };
 }
 
 /**

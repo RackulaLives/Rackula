@@ -121,7 +121,11 @@
   // body is still serialised against a peer tab editing that same layout. Each
   // lock is keyed per layout id, so writing many bodies never nests one lock.
   // The tab-id stamp remains the real ping-pong guard; the lock only serialises
-  // concurrent writers when it can be taken.
+  // concurrent writers when it can be taken. The whole operation also runs
+  // under the single well-known workspace-index lock (#2930), so a peer tab
+  // persisting a DIFFERENT layout (and thus holding a different per-layout
+  // lock) cannot interleave its own read-modify-write of the shared
+  // `Rackula:workspace` index with this one.
   function persistWorkspaceGuarded(snapshot: {
     tabs: PersistTab[];
     activeLayoutId: string | null;
@@ -131,6 +135,8 @@
       isPaused: (layoutId) => twinTabGuard.isPaused(layoutId),
       withLayoutLock: (layoutId, write) =>
         twinTabGuard.withLayoutLock(layoutId, write),
+      withWorkspaceIndexLock: (write) =>
+        twinTabGuard.withWorkspaceIndexLock(write),
     });
   }
 
@@ -167,8 +173,10 @@
     }
     const snapshot = snapshotWorkspaceTabs();
     if (snapshot.tabs.length > 0 && hasPersistableContent()) {
-      // Synchronous last-chance write: skip paused layouts but do not await the
-      // Web Lock (pagehide cannot wait on async work).
+      // Synchronous last-chance write: skip paused layouts but do not await
+      // either Web Lock (pagehide cannot wait on async work), including the
+      // workspace-index lock (#2930). A simultaneous pagehide flush across
+      // tabs remains a residual, accepted risk for the same reason.
       persistBrowserWorkspace({
         ...snapshot,
         isPaused: (layoutId) => twinTabGuard.isPaused(layoutId),

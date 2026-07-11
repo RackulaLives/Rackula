@@ -217,4 +217,65 @@ describe("persistBrowserWorkspace", () => {
     expect(index!.library.b).toBeDefined();
     expect(loadLayoutBody("b").ok).toBe(true);
   });
+
+  // #2930: saveLayoutBody's index read-modify-write only runs under the
+  // per-layout Web Lock, and persistBrowserWorkspace's own final index merge
+  // (reading `current`, layering in this call's entries, then overwriting the
+  // whole index) previously ran completely unlocked. Two tabs editing
+  // different layouts hold different per-layout locks, so the shared
+  // `Rackula:workspace` key was unprotected: a peer's complete write landing
+  // between this call's stale read and its overwrite silently dropped the
+  // peer's library entry. True cross-tab interleaving (separate OS
+  // processes/IPC) cannot be reproduced by async/await timing tricks in a
+  // single-threaded test run, so these tests target the fix's actual
+  // mechanism instead: the entire read-modify-write (body writes and the
+  // index merge+write) must be gated behind one call to the single well-known
+  // workspace-index lock, so a peer holding that same lock can never observe
+  // a half-done state or interleave its own read-modify-write.
+  describe("workspace-index lock (#2930)", () => {
+    it("takes the workspace-index lock exactly once for the whole persist call (body writes plus index merge), not per body", async () => {
+      const acquisitions: number[] = [];
+      let count = 0;
+      const withWorkspaceIndexLock = async <T>(
+        write: () => T | Promise<T>,
+      ): Promise<T> => {
+        count += 1;
+        acquisitions.push(count);
+        return write();
+      };
+
+      await persistBrowserWorkspace({
+        tabs: [tab({ layoutId: "a" }), tab({ layoutId: "b" })],
+        activeLayoutId: "a",
+        withWorkspaceIndexLock,
+      });
+
+      // A single acquisition covering both hydrated bodies' index updates and
+      // the final merge+write: a peer tab serialised on the same well-known
+      // lock cannot interleave anywhere inside this call.
+      expect(acquisitions).toEqual([1]);
+      const index = loadWorkspaceIndex();
+      expect(index!.library.a).toBeDefined();
+      expect(index!.library.b).toBeDefined();
+    });
+
+    it("never writes a body or the index when the workspace-index lock is not granted, proving both are inside its scope", async () => {
+      const withWorkspaceIndexLock = async <T>(
+        _write: () => T | Promise<T>,
+      ): Promise<T> => {
+        throw new Error("lock never granted");
+      };
+
+      await expect(
+        persistBrowserWorkspace({
+          tabs: [tab({ layoutId: "a" })],
+          activeLayoutId: "a",
+          withWorkspaceIndexLock,
+        }),
+      ).rejects.toThrow("lock never granted");
+
+      expect(loadWorkspaceIndex()).toBeNull();
+      expect(loadLayoutBody("a").ok).toBe(false);
+    });
+  });
 });

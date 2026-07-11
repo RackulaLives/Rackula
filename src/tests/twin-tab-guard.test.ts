@@ -202,3 +202,62 @@ describe("createTwinTabGuard.withLayoutLock (Web Locks where available)", () => 
     expect(write).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("createTwinTabGuard.withWorkspaceIndexLock (#2930)", () => {
+  it("takes a blocking exclusive lock under the well-known workspace-index name, NOT ifAvailable, so contended writers truly serialise", async () => {
+    // The index lock must genuinely serialise: unlike the per-layout lock, it
+    // has no tab-id-stamp fallback, so ifAvailable (try-lock) would hand a
+    // contended peer a null lock and let it run its read-modify-write anyway,
+    // leaving the #2930 lost-update race open. An exclusive request queues the
+    // peer behind the held lock instead.
+    const request = vi.fn(
+      async (
+        _name: string,
+        _opts: { mode?: string; ifAvailable?: boolean },
+        cb: (lock: object | null) => unknown,
+      ) => cb({}),
+    );
+    const guard = createTwinTabGuard({
+      tabId: "this-tab",
+      locks: { request } as unknown as LockManager,
+    });
+
+    const write = vi.fn(() => true);
+    const result = await guard.withWorkspaceIndexLock(write);
+
+    expect(result).toBe(true);
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith(
+      "rackula:workspace-index",
+      { mode: "exclusive" },
+      expect.any(Function),
+    );
+  });
+
+  it("awaits an async write and returns its resolved value before releasing the lock", async () => {
+    const request = vi.fn(
+      async (
+        _name: string,
+        _opts: { mode?: string },
+        cb: (lock: object | null) => unknown,
+      ) => cb({}),
+    );
+    const guard = createTwinTabGuard({
+      tabId: "this-tab",
+      locks: { request } as unknown as LockManager,
+    });
+
+    const write = vi.fn(async () => "done");
+    const result = await guard.withWorkspaceIndexLock(write);
+    expect(result).toBe("done");
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it("still runs the write when Web Locks are unavailable (fallback, same as withLayoutLock)", async () => {
+    const guard = createTwinTabGuard({ tabId: "this-tab", locks: undefined });
+    const write = vi.fn(() => true);
+    const result = await guard.withWorkspaceIndexLock(write);
+    expect(result).toBe(true);
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+});

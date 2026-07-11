@@ -56,6 +56,18 @@ export interface PersistWorkspaceArgs {
    * synchronous pagehide path, where async work cannot be awaited.
    */
   withLayoutLock?: <T>(layoutId: string, write: () => T) => Promise<T>;
+  /**
+   * Workspace-index lock wrapper (#2930): runs the ENTIRE persist body (every
+   * hydrated body write's own index update, plus the final open-set/library
+   * merge and write) under the single well-known `rackula:workspace-index`
+   * lock where available. `withLayoutLock` alone does not protect the shared
+   * `Rackula:workspace` key: two tabs editing different layouts hold different
+   * per-layout locks, so without this lock a peer's complete index write
+   * landing between this call's read and its overwrite is silently dropped.
+   * Omitted on the synchronous pagehide path, where async work cannot be
+   * awaited (same trade-off as withLayoutLock).
+   */
+  withWorkspaceIndexLock?: <T>(write: () => T | Promise<T>) => Promise<T>;
 }
 
 /**
@@ -64,82 +76,100 @@ export interface PersistWorkspaceArgs {
  * Returns a promise that resolves once every body write has run. When
  * `withLayoutLock` is supplied, each hydrated body write is taken under its own
  * per-layout lock; the index write that follows reflects the completed bodies.
+ * When `withWorkspaceIndexLock` is supplied, the WHOLE operation (every body's
+ * own index update, plus the final merge+write) runs under the single
+ * well-known workspace-index lock (#2930), so a peer tab persisting a
+ * different layout under the same lock can never interleave its own
+ * read-modify-write of the shared `Rackula:workspace` key with this one.
  */
 export async function persistBrowserWorkspace(
   args: PersistWorkspaceArgs,
 ): Promise<void> {
-  const { tabs, activeLayoutId, isPaused, withLayoutLock } = args;
+  const { tabs, activeLayoutId, isPaused, withLayoutLock, withWorkspaceIndexLock } =
+    args;
 
-  // Write each hydrated body first. saveLayoutBody also refreshes that layout's
-  // library entry in the index (updatedAt, durability); it returns false on
-  // quota, leaving the in-memory copy intact and surfacing the flag via the
-  // index. Shells have no body to write. A paused layout (twin-tab guard) is
-  // skipped so a foreign peer's copy is never clobbered. Each write runs under
-  // its own per-layout lock when one is supplied; the locks are distinct per
-  // layout id so writing many bodies in this loop cannot nest the same lock.
-  for (const tab of tabs) {
-    if (tab.hydrated && !isPaused?.(tab.layoutId)) {
-      const write = () =>
-        saveLayoutBody(tab.layoutId, tab.layout, {
+  const run = async (): Promise<void> => {
+    // Write each hydrated body first. saveLayoutBody also refreshes that layout's
+    // library entry in the index (updatedAt, durability); it returns false on
+    // quota, leaving the in-memory copy intact and surfacing the flag via the
+    // index. Shells have no body to write. A paused layout (twin-tab guard) is
+    // skipped so a foreign peer's copy is never clobbered. Each write runs under
+    // its own per-layout lock when one is supplied; the locks are distinct per
+    // layout id so writing many bodies in this loop cannot nest the same lock.
+    // saveLayoutBody's own index read-modify-write is not itself lock-aware, so
+    // when withWorkspaceIndexLock is supplied it relies on this whole `run`
+    // already executing under that lock (see below) for its index write to be
+    // safe against a peer tab persisting a different layout.
+    for (const tab of tabs) {
+      if (tab.hydrated && !isPaused?.(tab.layoutId)) {
+        const write = () =>
+          saveLayoutBody(tab.layoutId, tab.layout, {
+            changesSinceExport: tab.changesSinceExport,
+            hasEverExported: tab.hasEverExported,
+            lastExportedAt: tab.lastExportedAt,
+          });
+        if (withLayoutLock) {
+          await withLayoutLock(tab.layoutId, write);
+        } else {
+          write();
+        }
+      }
+    }
+
+    // Re-read the index after the body writes so hydrated entries are current,
+    // then layer in shell entries (carrying the shell name so the tab still
+    // renders next launch) and the final open set.
+    const current = loadWorkspaceIndex();
+    const library: Record<string, LibraryEntry> = current
+      ? { ...current.library }
+      : {};
+
+    for (const tab of tabs) {
+      const previous = library[tab.layoutId];
+      if (tab.hydrated) {
+        // A non-paused hydrated tab already wrote its library entry via
+        // saveLayoutBody above, so it is current and left alone. A paused tab
+        // (twin-tab guard) skipped its body write, so it has no fresh entry. Its
+        // id is still in openTabs below; without a library entry loadWorkspaceIndex
+        // would filter it out as dangling and drop the layout even though its body
+        // survives. Carry forward the existing entry (or a default named from the
+        // in-memory layout) so the paused tab survives a persist+reload round-trip.
+        if (!isPaused?.(tab.layoutId) || previous) continue;
+        library[tab.layoutId] = {
+          name: tab.layout.name,
+          updatedAt: "",
           changesSinceExport: tab.changesSinceExport,
           hasEverExported: tab.hasEverExported,
           lastExportedAt: tab.lastExportedAt,
-        });
-      if (withLayoutLock) {
-        await withLayoutLock(tab.layoutId, write);
-      } else {
-        write();
+          writeFailed: false,
+          storageMode: "browser",
+        };
+        continue;
       }
-    }
-  }
-
-  // Re-read the index after the body writes so hydrated entries are current,
-  // then layer in shell entries (carrying the shell name so the tab still
-  // renders next launch) and the final open set.
-  const current = loadWorkspaceIndex();
-  const library: Record<string, LibraryEntry> = current
-    ? { ...current.library }
-    : {};
-
-  for (const tab of tabs) {
-    const previous = library[tab.layoutId];
-    if (tab.hydrated) {
-      // A non-paused hydrated tab already wrote its library entry via
-      // saveLayoutBody above, so it is current and left alone. A paused tab
-      // (twin-tab guard) skipped its body write, so it has no fresh entry. Its
-      // id is still in openTabs below; without a library entry loadWorkspaceIndex
-      // would filter it out as dangling and drop the layout even though its body
-      // survives. Carry forward the existing entry (or a default named from the
-      // in-memory layout) so the paused tab survives a persist+reload round-trip.
-      if (!isPaused?.(tab.layoutId) || previous) continue;
       library[tab.layoutId] = {
-        name: tab.layout.name,
-        updatedAt: "",
-        changesSinceExport: tab.changesSinceExport,
-        hasEverExported: tab.hasEverExported,
-        lastExportedAt: tab.lastExportedAt,
-        writeFailed: false,
-        storageMode: "browser",
+        name: tab.name,
+        updatedAt: previous?.updatedAt ?? "",
+        changesSinceExport: previous?.changesSinceExport ?? 0,
+        hasEverExported: previous?.hasEverExported ?? false,
+        lastExportedAt: previous?.lastExportedAt ?? null,
+        writeFailed: previous?.writeFailed ?? false,
+        storageMode: previous?.storageMode ?? "browser",
       };
-      continue;
     }
-    library[tab.layoutId] = {
-      name: tab.name,
-      updatedAt: previous?.updatedAt ?? "",
-      changesSinceExport: previous?.changesSinceExport ?? 0,
-      hasEverExported: previous?.hasEverExported ?? false,
-      lastExportedAt: previous?.lastExportedAt ?? null,
-      writeFailed: previous?.writeFailed ?? false,
-      storageMode: previous?.storageMode ?? "browser",
-    };
+
+    saveWorkspaceIndex({
+      schemaVersion: 2,
+      activeId: activeLayoutId,
+      openTabs: tabs.map((tab) => tab.layoutId),
+      library,
+    });
+
+    if (tabs.length > 0) markEverHadLayouts();
+  };
+
+  if (withWorkspaceIndexLock) {
+    await withWorkspaceIndexLock(run);
+  } else {
+    await run();
   }
-
-  saveWorkspaceIndex({
-    schemaVersion: 2,
-    activeId: activeLayoutId,
-    openTabs: tabs.map((tab) => tab.layoutId),
-    library,
-  });
-
-  if (tabs.length > 0) markEverHadLayouts();
 }
