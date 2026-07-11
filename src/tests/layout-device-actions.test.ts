@@ -412,6 +412,166 @@ describe("Layout Store", () => {
     });
   });
 
+  describe("removeDeviceFromRack (cable cleanup, #2924)", () => {
+    /** Place two devices and connect a cable between them; return their ids. */
+    function setupTwoDevicesWithCable() {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Switch",
+          u_height: 1,
+          category: "network",
+          colour: "#4A90D9",
+        }),
+      );
+
+      store.placeDevice(rack.id, deviceType.slug, 5);
+      store.placeDevice(rack.id, deviceType.slug, 10);
+      const deviceAId = store.rack.devices[0]!.id;
+      const deviceBId = store.rack.devices[1]!.id;
+
+      store.addCableRaw({
+        id: "cable-1",
+        a_device_id: deviceAId,
+        a_interface: "eth0",
+        b_device_id: deviceBId,
+        b_interface: "eth1",
+      });
+
+      return { store, rack, deviceAId, deviceBId };
+    }
+
+    it("removes cables connected to the deleted device and keeps the layout schema-valid", () => {
+      const { store, rack, deviceAId } = setupTwoDevicesWithCable();
+      const deviceAIndex = store.rack.devices.findIndex(
+        (d) => d.id === deviceAId,
+      );
+
+      store.removeDeviceFromRack(rack.id, deviceAIndex);
+
+      expect(store.layout.cables ?? []).toEqual([]);
+
+      const result = LayoutSchema.safeParse(store.layout);
+      expect(result.success).toBe(true);
+    });
+
+    it("undo restores the cable", () => {
+      const { store, rack, deviceAId } = setupTwoDevicesWithCable();
+      const deviceAIndex = store.rack.devices.findIndex(
+        (d) => d.id === deviceAId,
+      );
+
+      store.removeDeviceFromRack(rack.id, deviceAIndex);
+      expect(store.layout.cables ?? []).toEqual([]);
+
+      store.undo();
+
+      expect(store.layout.cables).toEqual([
+        expect.objectContaining({ id: "cable-1" }),
+      ]);
+    });
+
+    it("also cleans up cables when deleting a carrier with children", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+
+      const containerType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Carrier",
+          u_height: 1,
+          category: "server",
+          colour: "#8B4513",
+          slots: [
+            {
+              id: "slot-left",
+              position: { row: 0, col: 0 },
+              width_fraction: 0.5,
+            },
+          ],
+        }),
+      );
+      const childType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Mini PC",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+          slot_width: 1,
+          is_full_depth: false,
+        }),
+      );
+      const otherType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Other Server",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
+
+      store.placeDevice(rack.id, containerType.slug, 10);
+      const carrierId = store.activeRack!.devices[0]!.id;
+      store.placeInContainer(
+        rack.id,
+        childType.slug,
+        carrierId,
+        "slot-left",
+        0,
+      );
+      const childId = store.rack.devices.find(
+        (d) => d.container_id === carrierId,
+      )!.id;
+      store.placeDevice(rack.id, otherType.slug, 20);
+      const otherId = store.rack.devices.find(
+        (d) => d.device_type === otherType.slug,
+      )!.id;
+
+      // Cable connects the carrier's CHILD (not the carrier itself) to an
+      // unrelated device, mirroring how a real cabled peripheral hangs off a
+      // contained device.
+      store.addCableRaw({
+        id: "cable-1",
+        a_device_id: childId,
+        a_interface: "eth0",
+        b_device_id: otherId,
+        b_interface: "eth1",
+      });
+
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrierId,
+      );
+      store.removeDeviceFromRack(rack.id, carrierIndex);
+
+      expect(store.layout.cables ?? []).toEqual([]);
+      const result = LayoutSchema.safeParse(store.layout);
+      expect(result.success).toBe(true);
+
+      store.undo();
+      expect(store.layout.cables).toEqual([
+        expect.objectContaining({ id: "cable-1" }),
+      ]);
+    });
+
+    it("loads cleanly through the browser reload path after a device delete with cables (no dangling endpoints)", () => {
+      const { store, rack, deviceAId } = setupTwoDevicesWithCable();
+      const deviceAIndex = store.rack.devices.findIndex(
+        (d) => d.id === deviceAId,
+      );
+
+      store.removeDeviceFromRack(rack.id, deviceAIndex);
+
+      // Simulate a save-to-localStorage-and-reload round trip: JSON strips
+      // Svelte 5 $state proxies the same way JSON.stringify does on write.
+      const serialized = JSON.parse(JSON.stringify(store.layout));
+      const reloaded = parseLayoutObject(serialized);
+
+      expect(reloaded).not.toBeNull();
+      expect(reloaded?.cables ?? []).toEqual([]);
+    });
+  });
+
   describe("updateDeviceName", () => {
     it("updates placed device name", () => {
       const store = getLayoutStore();

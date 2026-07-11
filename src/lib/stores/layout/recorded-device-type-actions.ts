@@ -75,9 +75,10 @@ export function updateDeviceTypeRecorded(
 
 /**
  * Find cables connected to any of the given placed devices.
- * Used so DELETE_DEVICE_TYPE can clean up dangling cable endpoints (#1483).
+ * Used so DELETE_DEVICE_TYPE (#1483) and REMOVE_DEVICE (#2924) can clean up
+ * dangling cable endpoints.
  */
-function findCablesForDevices(
+export function findCablesForDevices(
   ctx: LayoutStateAccess,
   placedDevices: { rackId: string; device: PlacedDevice }[],
 ): Cable[] {

@@ -59,6 +59,8 @@ function createMockDeviceStore(devices: PlacedDevice[]): DeviceCommandStore {
     getDeviceAtIndex(index: number) {
       return devices[index];
     },
+    addCableRaw() {},
+    removeCableRaw() {},
   };
 }
 

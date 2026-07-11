@@ -3,7 +3,7 @@
  */
 
 import type { Command } from "./types";
-import type { PlacedDevice, DeviceFace } from "$lib/types";
+import type { Cable, PlacedDevice, DeviceFace } from "$lib/types";
 import type { DeviceImageData } from "$lib/types/images";
 import { getImageStore } from "../images.svelte";
 import { placementKey } from "$lib/utils/placement-key";
@@ -87,6 +87,16 @@ export interface CrossRackMoveStore extends DeviceCommandStore {
 }
 
 /**
+ * Cable operations needed by remove commands to clean up dangling cable
+ * endpoints when a placed device is deleted (#2924, mirrors the
+ * DELETE_DEVICE_TYPE cleanup from #1483).
+ */
+export interface CableCleanupStore {
+  addCableRaw(cable: Cable): void;
+  removeCableRaw(id: string): void;
+}
+
+/**
  * Create a command to place a device
  */
 export function createPlaceDeviceCommand(
@@ -158,13 +168,24 @@ export function createMoveDeviceCommand(
  */
 export function createRemoveDeviceCommand(
   device: PlacedDevice,
-  store: DeviceCommandStore,
+  store: DeviceCommandStore & CableCleanupStore,
   deviceName: string = "device",
   layoutId: string = "",
+  connectedCables: Cable[] = [],
 ): Command {
   // Store a deep copy of the device for restoration
   // structuredClone handles nested objects like ports and custom_fields
   const deviceCopy = structuredClone(device);
+  // Snapshot cables connected to this device so undo can restore them
+  // (#2924, mirrors the DELETE_DEVICE_TYPE cleanup from #1483). Cables read
+  // off the live layout are still Svelte 5 $state proxies here (unlike
+  // `device`, which the caller already ran through $state.snapshot() before
+  // this factory ever sees it) — structuredClone can't clone those, so use
+  // the same JSON round-trip createDeleteDeviceTypeCommand uses for its
+  // placed-device snapshots.
+  const cableData = connectedCables.map(
+    (c) => JSON.parse(JSON.stringify(c)) as Cable,
+  );
 
   // Track the target device by ID, not by a fixed creation-time index (#2656,
   // generalized in #2665). undo() re-appends the device to the end (mutators.ts
@@ -196,6 +217,11 @@ export function createRemoveDeviceCommand(
       getImageStore().removeAllDeviceImages(
         placementKey(layoutId, currentImageId),
       );
+      // Clean up cables connected to this device before removing it, otherwise
+      // their endpoint device ID becomes an orphan reference (#2924, #1483).
+      for (const cable of cableData) {
+        store.removeCableRaw(cable.id);
+      }
       store.removeDeviceAtIndexRaw(targetIndex);
     },
     undo() {
@@ -212,6 +238,17 @@ export function createRemoveDeviceCommand(
           imgStore.setDeviceImage(actualKey, "front", snapshotCopy.front);
         if (snapshotCopy.rear)
           imgStore.setDeviceImage(actualKey, "rear", snapshotCopy.rear);
+      }
+      // Restore cables, rewriting the endpoint that referenced this device
+      // through its (possibly remapped) id.
+      for (const cable of cableData) {
+        store.addCableRaw({
+          ...cable,
+          a_device_id:
+            cable.a_device_id === deviceCopy.id ? actualId : cable.a_device_id,
+          b_device_id:
+            cable.b_device_id === deviceCopy.id ? actualId : cable.b_device_id,
+        });
       }
     },
   };
@@ -233,12 +270,23 @@ export function createRemoveDeviceCommand(
 export function createRemoveDeviceWithChildrenCommand(
   parentDevice: PlacedDevice,
   children: PlacedDevice[],
-  store: DeviceCommandStore,
+  store: DeviceCommandStore & CableCleanupStore,
   deviceName: string = "device",
   layoutId: string = "",
+  connectedCables: Cable[] = [],
 ): Command {
   const parentCopy = structuredClone(parentDevice);
   const childrenCopies = children.map((c) => structuredClone(c));
+  // Snapshot cables connected to the parent or any child so undo can restore
+  // them (#2924, mirrors the DELETE_DEVICE_TYPE cleanup from #1483). JSON
+  // round-trip, not structuredClone: these cables are still live Svelte 5
+  // $state proxies (see createRemoveDeviceCommand for the full explanation).
+  const cableData = connectedCables.map(
+    (c) => JSON.parse(JSON.stringify(c)) as Cable,
+  );
+  // Populated by undo() so cable endpoints can be rewritten through the
+  // (possibly remapped) ids of whichever devices were just restored.
+  const restoredDeviceIdMap = new Map<string, string>();
 
   // Track live IDs so removal/restore resolve by id at runtime, and stay in
   // sync across execute/undo when placeDeviceRaw remaps an id on collision (#1363).
@@ -280,6 +328,16 @@ export function createRemoveDeviceWithChildrenCommand(
       }
       targets.sort((a, b) => b.index - a.index);
       const imgStore = getImageStore();
+      // Clean up cables connected to the parent or any child before removing
+      // them, otherwise their endpoint device IDs become orphan references
+      // (#2924, #1483). Gated on an actual removal happening this pass so a
+      // no-op redo never touches a cable already restored by an intervening
+      // undo.
+      if (targets.length > 0) {
+        for (const cable of cableData) {
+          store.removeCableRaw(cable.id);
+        }
+      }
       for (const { id, index } of targets) {
         imgStore.removeAllDeviceImages(placementKey(layoutId, id));
         store.removeDeviceAtIndexRaw(index);
@@ -293,6 +351,8 @@ export function createRemoveDeviceWithChildrenCommand(
       const actualParentId = actualParent?.id ?? parentCopy.id;
       currentParentId = actualParentId;
       restoreImage(actualParentId, parentImageCopy);
+      restoredDeviceIdMap.clear();
+      restoredDeviceIdMap.set(parentCopy.id, actualParentId);
 
       childrenCopies.forEach((child, i) => {
         const childToPlace: PlacedDevice =
@@ -304,7 +364,20 @@ export function createRemoveDeviceWithChildrenCommand(
         const actualChildId = actualChild?.id ?? childToPlace.id;
         currentChildIds[i] = actualChildId;
         restoreImage(actualChildId, childImageCopies[i]);
+        restoredDeviceIdMap.set(child.id, actualChildId);
       });
+
+      // Restore cables, rewriting each endpoint that referenced the parent or
+      // a child through its (possibly remapped) id.
+      for (const cable of cableData) {
+        store.addCableRaw({
+          ...cable,
+          a_device_id:
+            restoredDeviceIdMap.get(cable.a_device_id) ?? cable.a_device_id,
+          b_device_id:
+            restoredDeviceIdMap.get(cable.b_device_id) ?? cable.b_device_id,
+        });
+      }
     },
   };
 }

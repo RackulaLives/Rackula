@@ -22,6 +22,8 @@ function createMockStore(): DeviceCommandStore & {
   updateDeviceFaceRaw: ReturnType<typeof vi.fn>;
   updateDeviceNameRaw: ReturnType<typeof vi.fn>;
   getDeviceAtIndex: ReturnType<typeof vi.fn>;
+  addCableRaw: ReturnType<typeof vi.fn>;
+  removeCableRaw: ReturnType<typeof vi.fn>;
 } {
   return {
     placeDeviceRaw: vi.fn().mockReturnValue(0),
@@ -43,6 +45,8 @@ function createMockStore(): DeviceCommandStore & {
         ? createTestDevice({ id: `mock-${index}` })
         : undefined,
     ),
+    addCableRaw: vi.fn(),
+    removeCableRaw: vi.fn(),
   };
 }
 
@@ -237,6 +241,78 @@ describe("Device Commands", () => {
         expect.objectContaining({ position: toInternalUnits(15) }),
       );
     });
+
+    it("removes connected cables on execute and restores them (with remapped endpoint id) on undo (#2924)", () => {
+      const store = createMockStore();
+      const device = createTestDevice({ id: "device-with-cable" });
+      const otherDevice = createTestDevice({ id: "other-device" });
+      const cables = [
+        {
+          id: "cable-1",
+          a_device_id: device.id,
+          a_interface: "eth0",
+          b_device_id: otherDevice.id,
+          b_interface: "eth1",
+        },
+      ];
+
+      const command = createRemoveDeviceCommand(
+        device,
+        store,
+        "Switch",
+        "",
+        cables,
+      );
+
+      // Resolve-by-id (#2665): execute() looks up the device's current index
+      // via getDeviceAtIndex. Put it at index 0 so resolution succeeds.
+      store.getDeviceAtIndex.mockImplementation((i: number) =>
+        i === 0 ? device : undefined,
+      );
+
+      command.execute();
+      expect(store.removeCableRaw).toHaveBeenCalledWith("cable-1");
+
+      // placeDeviceRaw remaps the id on collision (#1363) — simulate that here.
+      store.placeDeviceRaw.mockReturnValueOnce(0);
+      store.getDeviceAtIndex.mockImplementationOnce(() =>
+        createTestDevice({ id: "device-with-cable-remapped" }),
+      );
+
+      command.undo();
+      expect(store.addCableRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "cable-1",
+          a_device_id: "device-with-cable-remapped",
+          b_device_id: otherDevice.id,
+        }),
+      );
+    });
+
+    it("does not restore cables until undo is called", () => {
+      const store = createMockStore();
+      const device = createTestDevice({ id: "device-with-cable" });
+      const cables = [
+        {
+          id: "cable-1",
+          a_device_id: device.id,
+          a_interface: "eth0",
+          b_device_id: "other-device",
+          b_interface: "eth1",
+        },
+      ];
+
+      const command = createRemoveDeviceCommand(
+        device,
+        store,
+        "Switch",
+        "",
+        cables,
+      );
+      command.execute();
+
+      expect(store.addCableRaw).not.toHaveBeenCalled();
+    });
   });
 
   describe("batch auto-import + placement", () => {
@@ -378,6 +454,8 @@ describe("Device Commands", () => {
         getDeviceAtIndex(index: number): PlacedDevice | undefined {
           return devices[index];
         },
+        addCableRaw: vi.fn(),
+        removeCableRaw: vi.fn(),
       };
     }
 
@@ -505,6 +583,8 @@ describe("Device Commands", () => {
         getDeviceAtIndex(index: number): PlacedDevice | undefined {
           return devices[index];
         },
+        addCableRaw: vi.fn(),
+        removeCableRaw: vi.fn(),
       };
     }
 
