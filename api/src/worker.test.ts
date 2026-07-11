@@ -4,6 +4,10 @@ import { join } from "node:path";
 import { createWorkerHandler, type WorkerEnv } from "./worker";
 import type { R2BucketLike, R2ListResult } from "./storage/r2-driver";
 
+// `import.meta.dir` (Bun) matches the sibling deploy-config.test.ts convention;
+// these specs run only under `bun test`.
+const THIS_DIR = import.meta.dir;
+
 /**
  * A minimal in-memory R2 bucket stand-in. The tests below never touch storage
  * (the smoke endpoint is unauthenticated and storage-free), but `WorkerEnv`
@@ -98,7 +102,7 @@ describe("wrangler.jsonc does not promote the dev-only opt-out to a deployed var
     // every Worker and silently reopens #2913. Strip `//` comment lines first
     // so this only checks the actual JSONC content, not the doc comment that
     // explains the mechanism.
-    const raw = readFileSync(join(__dirname, "..", "wrangler.jsonc"), "utf-8");
+    const raw = readFileSync(join(THIS_DIR, "..", "wrangler.jsonc"), "utf-8");
     const jsoncOnly = raw
       .split("\n")
       .filter((line) => !line.trim().startsWith("//"))
