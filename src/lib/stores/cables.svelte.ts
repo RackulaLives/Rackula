@@ -54,22 +54,27 @@ export function validateCable(
 ): CableValidationResult {
   const errors: string[] = [];
   const layoutStore = getLayoutStore();
-  const rack = layoutStore.rack;
-  if (!rack)
+  const racks = layoutStore.racks;
+  if (!racks.length)
     return {
       valid: false,
       errors: ["No rack is available in the current layout"],
     };
   const device_types = layoutStore.device_types;
 
+  // Cables are layout-level, device-id-keyed data: resolve endpoints against
+  // every rack's devices, not just the active rack (#2939).
+  const findDeviceById = (deviceId: string) =>
+    racks.flatMap((r) => r.devices).find((d) => d.id === deviceId);
+
   // Check A-side device exists
-  const aDevice = rack.devices.find((d) => d.id === cable.a_device_id);
+  const aDevice = findDeviceById(cable.a_device_id);
   if (!aDevice) {
     errors.push(`A-side device not found: ${cable.a_device_id}`);
   }
 
   // Check B-side device exists
-  const bDevice = rack.devices.find((d) => d.id === cable.b_device_id);
+  const bDevice = findDeviceById(cable.b_device_id);
   if (!bDevice) {
     errors.push(`B-side device not found: ${cable.b_device_id}`);
   }
