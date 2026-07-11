@@ -4,7 +4,6 @@
 -->
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
-  import { onMount } from "svelte";
 
   interface Props {
     open: boolean;
@@ -28,6 +27,9 @@
     oncancel,
   }: Props = $props();
 
+  let cancelButtonEl: HTMLButtonElement | undefined = $state();
+  let confirmButtonEl: HTMLButtonElement | undefined = $state();
+
   function handleConfirm() {
     onconfirm?.();
   }
@@ -36,21 +38,30 @@
     oncancel?.();
   }
 
-  // Handle keyboard shortcuts
+  // Enter confirms as a convenience shortcut, but only when focus isn't
+  // already on one of the dialog's own buttons. When Cancel or Confirm is
+  // focused, native button activation (Enter -> click) decides which action
+  // fires; intercepting unconditionally here suppressed that native
+  // activation and always confirmed, even with Cancel focused.
   function handleKeyDown(event: KeyboardEvent) {
-    if (!open) return;
+    if (event.key !== "Enter") return;
+    const active = document.activeElement;
+    if (active === cancelButtonEl || active === confirmButtonEl) return;
 
-    if (event.key === "Enter") {
-      event.preventDefault();
-      handleConfirm();
-    }
+    event.preventDefault();
+    handleConfirm();
   }
 
-  onMount(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+  // Listen only while open. DevicePaletteItem renders one ConfirmDialog per
+  // deletable custom device, so an unconditional listener accumulated one
+  // idle document keydown listener per instance regardless of `open`.
+  $effect(() => {
+    if (open) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }
   });
 </script>
 
@@ -60,6 +71,7 @@
 
     <div class="actions">
       <button
+        bind:this={cancelButtonEl}
         type="button"
         class="btn btn-secondary"
         data-testid="btn-cancel-confirm"
@@ -68,6 +80,7 @@
         {cancelLabel}
       </button>
       <button
+        bind:this={confirmButtonEl}
         type="button"
         class="btn {destructive ? 'btn-destructive' : 'btn-primary'}"
         data-testid="btn-confirm-action"
