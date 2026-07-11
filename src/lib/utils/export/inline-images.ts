@@ -19,13 +19,33 @@ import { appDebug } from "$lib/utils/debug";
 
 export async function inlineImageHrefs(svg: SVGElement): Promise<void> {
   const imageElements = Array.from(svg.getElementsByTagName("image"));
-  await Promise.all(imageElements.map(inlineImageElement));
+
+  // Group elements by href so each unique url is fetched once. A layout with
+  // many devices sharing one bundled image produces many <image> elements
+  // pointing at the same url; fetching per element would download it N times.
+  const elementsByHref = new Map<string, SVGImageElement[]>();
+  for (const imageEl of imageElements) {
+    const href = imageEl.getAttribute("href");
+    if (!href || href.startsWith("data:")) continue;
+    const group = elementsByHref.get(href);
+    if (group) {
+      group.push(imageEl);
+    } else {
+      elementsByHref.set(href, [imageEl]);
+    }
+  }
+
+  await Promise.all(
+    Array.from(elementsByHref, ([href, elements]) =>
+      inlineHref(href, elements),
+    ),
+  );
 }
 
-async function inlineImageElement(imageEl: SVGImageElement): Promise<void> {
-  const href = imageEl.getAttribute("href");
-  if (!href || href.startsWith("data:")) return;
-
+async function inlineHref(
+  href: string,
+  elements: SVGImageElement[],
+): Promise<void> {
   try {
     const response = await fetch(href);
     if (!response.ok) {
@@ -33,7 +53,9 @@ async function inlineImageElement(imageEl: SVGImageElement): Promise<void> {
     }
     const blob = await response.blob();
     const dataUrl = await blobToDataUrl(blob);
-    imageEl.setAttribute("href", dataUrl);
+    for (const imageEl of elements) {
+      imageEl.setAttribute("href", dataUrl);
+    }
   } catch (error) {
     // Leave the original href if inlining fails (offline, 404, CORS); the
     // image simply won't render in the export rather than breaking it.

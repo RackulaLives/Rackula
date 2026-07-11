@@ -83,7 +83,7 @@ describe("inlineImageHrefs (#2928)", () => {
     expect(imageEl.getAttribute("href")).toBe(href);
   });
 
-  it("inlines multiple images independently", async () => {
+  it("inlines multiple distinct images independently", async () => {
     const imageA = createImageElement("/assets/devices/a.webp");
     const imageB = createImageElement("/assets/devices/b.webp");
     const svg = wrapInSvg(imageA, imageB);
@@ -101,5 +101,31 @@ describe("inlineImageHrefs (#2928)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(imageA.getAttribute("href")).toMatch(/^data:image\/webp;base64,/);
     expect(imageB.getAttribute("href")).toMatch(/^data:image\/webp;base64,/);
+  });
+
+  it("fetches a shared href only once and applies it to every element", async () => {
+    // A layout with N identical devices produces N <image> elements with the
+    // same bundled href; inlining must not fetch the same URL N times (#2952
+    // CodeAnt finding).
+    const sharedHref = "/assets/devices/shared.webp";
+    const imageA = createImageElement(sharedHref);
+    const imageB = createImageElement(sharedHref);
+    const imageC = createImageElement(sharedHref);
+    const svg = wrapInSvg(imageA, imageB, imageC);
+
+    const fetchMock = vi.fn((url: string) =>
+      Promise.resolve({
+        ok: true,
+        blob: () => Promise.resolve(new Blob([url], { type: "image/webp" })),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await inlineImageHrefs(svg);
+
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(sharedHref);
+    for (const el of [imageA, imageB, imageC]) {
+      expect(el.getAttribute("href")).toMatch(/^data:image\/webp;base64,/);
+    }
   });
 });
