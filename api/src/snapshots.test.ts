@@ -520,6 +520,50 @@ describe("POST /layouts/:uuid/snapshots", () => {
   });
 });
 
+describe("POST /layouts/:uuid/snapshots YAML alias-expansion DoS guard (#2944)", () => {
+  /**
+   * Mirrors the PUT layout guard's alias-bomb body (routes/layouts.test.ts,
+   * #2912): a small YAML body whose metadata carries a chain of
+   * anchors/aliases, each level referencing the previous level twice. js-yaml
+   * resolves this to a shared-reference object graph in O(input); the guard
+   * this test exercises is the defense-in-depth application of the same
+   * complexity bound to the snapshot upload's syntax-validation parse.
+   */
+  function aliasBombYaml(depth: number): string {
+    const lines = [
+      'version: "1.0.0"',
+      "name: AliasBomb",
+      "metadata:",
+      `  id: "${TEST_UUID}"`,
+      "  name: AliasBomb",
+      '  schema_version: "1.0.0"',
+      "  a0: &a0 [x, x, x, x, x, x, x, x, x, x]",
+    ];
+    for (let i = 1; i <= depth; i++) {
+      lines.push(`  a${i}: &a${i} [*a${i - 1}, *a${i - 1}]`);
+    }
+    lines.push("racks: []");
+    return lines.join("\n");
+  }
+
+  it("rejects a nested-alias alias-bomb body without expanding it", async () => {
+    const app = await createApp(buildEnv());
+    await putLayout(app, TEST_UUID, createLayoutYaml("My Layout", "v1"));
+
+    const body = aliasBombYaml(24);
+    expect(Buffer.byteLength(body, "utf8")).toBeLessThan(1024 * 1024);
+
+    const response = await postSnapshot(app, TEST_UUID, body);
+
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.error).toContain("too complex");
+
+    // The alias-bomb body must not have been written to disk as a snapshot.
+    expect(await snapshotFilesOnDisk(TEST_UUID)).toEqual([]);
+  });
+});
+
 describe("snapshot route auth gating", () => {
   it("rejects snapshot upload without write token when token auth is enabled", async () => {
     const app = await createApp(

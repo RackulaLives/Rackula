@@ -69,6 +69,48 @@ function isValidSnapshotFilenameParam(filename: string): boolean {
   return SNAPSHOT_NAME_PATTERN.test(filename);
 }
 
+type YamlComplexityGuardResult =
+  | { ok: true; value: unknown }
+  | { ok: false; status: 400; error: string };
+
+/**
+ * Parses YAML with JSON_SCHEMA and applies the bounded, cycle-safe complexity
+ * guard (#2912) shared by every yaml.load reachable from request input. A
+ * naive JSON.stringify guard would throw on genuine cycles but *succeed*
+ * (while fully expanding shared references) on an acyclic nested-alias body
+ * -- the guard itself was the amplifier for a YAML alias-expansion DoS
+ * (#2912). This bounded, cycle-safe traversal follows each shared reference
+ * only once, so it stays fast and never materializes an expansion.
+ */
+function parseYamlWithComplexityGuard(
+  yamlContent: string,
+): YamlComplexityGuardResult {
+  let parsed: unknown;
+  try {
+    parsed = yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, status: 400, error: `Invalid YAML: ${message}` };
+  }
+
+  try {
+    assertYamlComplexityBounded(
+      parsed,
+      Buffer.byteLength(yamlContent, "utf8"),
+    );
+  } catch (e) {
+    if (
+      e instanceof YamlCircularReferenceError ||
+      e instanceof YamlTooComplexError
+    ) {
+      return { ok: false, status: 400, error: e.message };
+    }
+    throw e;
+  }
+
+  return { ok: true, value: parsed };
+}
+
 const layouts = new Hono<{ Variables: StorageVariables }>();
 
 // List all layouts
@@ -128,34 +170,11 @@ layouts.put("/:uuid", async (c) => {
     // Parse once, read metadata.id directly — no JSON.stringify round-trip,
     // which would throw on cyclic objects from YAML anchors and silently
     // bypass this guard (see #2067).
-    let parsed: unknown;
-    try {
-      parsed = yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      return c.json({ error: `Invalid YAML: ${message}` }, 400);
+    const parseResult = parseYamlWithComplexityGuard(yamlContent);
+    if (!parseResult.ok) {
+      return c.json({ error: parseResult.error }, parseResult.status);
     }
-
-    // Reject circular and alias-bomb bodies. A naive JSON.stringify guard
-    // would throw on genuine cycles but *succeed* (while fully expanding
-    // shared references) on an acyclic nested-alias body -- the guard
-    // itself was the amplifier for a YAML alias-expansion DoS (#2912). This
-    // bounded, cycle-safe traversal follows each shared reference only
-    // once, so it stays fast and never materializes an expansion.
-    try {
-      assertYamlComplexityBounded(
-        parsed,
-        Buffer.byteLength(yamlContent, "utf8"),
-      );
-    } catch (e) {
-      if (
-        e instanceof YamlCircularReferenceError ||
-        e instanceof YamlTooComplexError
-      ) {
-        return c.json({ error: e.message }, 400);
-      }
-      throw e;
-    }
+    const parsed = parseResult.value;
 
     const layout = LayoutFileSchema.safeParse(parsed);
     if (layout.success && layout.data.metadata?.id) {
@@ -307,11 +326,14 @@ layouts.post("/:uuid/snapshots", async (c) => {
       return c.json({ error: "Request body is empty" }, 400);
     }
 
-    try {
-      yaml.load(yamlContent, { schema: yaml.JSON_SCHEMA });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      return c.json({ error: `Invalid YAML: ${message}` }, 400);
+    // Defense-in-depth: apply the same bounded, cycle-safe complexity guard
+    // as the layout PUT (#2912). The parse result is discarded below and the
+    // raw text is stored with no expansion, so this is not exploitable today,
+    // but a future restore-snapshot read-back could replay a stored alias
+    // bomb (#2944).
+    const parseResult = parseYamlWithComplexityGuard(yamlContent);
+    if (!parseResult.ok) {
+      return c.json({ error: parseResult.error }, parseResult.status);
     }
 
     const result = await c
