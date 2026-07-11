@@ -98,10 +98,10 @@ describe("handleDelete", () => {
 describe("handleConfirmDelete", () => {
   beforeEach(resetAll);
 
-  // #2918: deleteTarget must snapshot rackId/deviceIndex at open time and act
-  // on that snapshot, not the live selectionStore, so a selection change
-  // between opening the dialog and confirming can't delete a different
-  // object than the one named in the dialog (async/programmatic/mobile paths).
+  // #2918: deleteTarget must snapshot rackId/deviceId at open time and act on
+  // that snapshot, not the live selectionStore, so a selection change between
+  // opening the dialog and confirming can't delete a different object than the
+  // one named in the dialog (async/programmatic/mobile paths).
   it("deletes exactly the device named in the dialog, even if selection moves to a different device before confirm", () => {
     const layoutStore = getLayoutStore();
     const selectionStore = getSelectionStore();
@@ -127,6 +127,52 @@ describe("handleConfirmDelete", () => {
     const rack = layoutStore.getRackById(rackId)!;
     expect(rack.devices.some((d) => d.id === namedDeviceId)).toBe(false);
     expect(rack.devices.some((d) => d.id === otherDevice.id)).toBe(true);
+  });
+
+  // #2918 hardening: the device is identified by a stable id, not a captured
+  // array index, so a reorder that shifts the named device's index between
+  // open and confirm (here: a device removed above it) still deletes exactly
+  // the named device and nothing else.
+  it("deletes exactly the device named in the dialog even if its array index shifts before confirm", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+
+    const rack = layoutStore.addRack("Test Rack", 42);
+    if (!rack) throw new Error("addRack returned null");
+
+    const dt = createTestDeviceType({ slug: "test-server", u_height: 1 });
+    layoutStore.addDeviceTypeRaw(dt);
+
+    // Two devices: "above" is placed first (array index 0), "named" second
+    // (array index 1). placeDeviceRaw appends, so this order is deterministic.
+    expect(layoutStore.placeDevice(rack.id, dt.slug, 5, "front")).toBe(true);
+    expect(layoutStore.placeDevice(rack.id, dt.slug, 10, "front")).toBe(true);
+    const devicesAtOpen = layoutStore.getRackById(rack.id)!.devices;
+    const aboveDeviceId = devicesAtOpen[0]!.id;
+    const namedDeviceId = devicesAtOpen[1]!.id;
+
+    selectionStore.selectDevice(rack.id, namedDeviceId);
+    handleDelete();
+    expect(dialogStore.deleteTarget).toMatchObject({ type: "device" });
+
+    // Remove the device above the named one, shifting the named device from
+    // index 1 to index 0 after the dialog opened but before confirm.
+    layoutStore.removeDeviceFromRack(rack.id, 0);
+    expect(
+      layoutStore
+        .getRackById(rack.id)!
+        .devices.some((d) => d.id === namedDeviceId),
+    ).toBe(true);
+
+    handleConfirmDelete();
+
+    const after = layoutStore.getRackById(rack.id)!.devices;
+    // A stale-index delete would have removed index 1 (now out of bounds, a
+    // silent no-op) and left the named device in place; id resolution removes
+    // exactly the named device.
+    expect(after.some((d) => d.id === namedDeviceId)).toBe(false);
+    expect(after.some((d) => d.id === aboveDeviceId)).toBe(false);
+    expect(after.length).toBe(0);
   });
 
   it("deletes exactly the rack named in the dialog, even if selection moves to a different rack before confirm", () => {

@@ -71,7 +71,7 @@ export function handleDelete(): void {
           type: "device",
           name: deviceDef?.model ?? deviceDef?.slug ?? "Device",
           rackId: rack.id,
-          deviceIndex,
+          deviceId: device.id,
         };
         dialogStore.open("confirmDelete");
       }
@@ -81,10 +81,12 @@ export function handleDelete(): void {
 
 /**
  * Apply the delete confirmed by the confirm-delete dialog. Acts on the
- * rackId/deviceIndex snapshot captured in deleteTarget at open time, not the
- * live selectionStore, so a selection change between opening the dialog and
+ * rackId/deviceId snapshot captured in deleteTarget at open time, not the live
+ * selectionStore, so a selection change between opening the dialog and
  * confirming it can't delete a different object than the one named in the
- * dialog (#2918).
+ * dialog (#2918). The device's array index is resolved from its stable id at
+ * confirm time, so a reorder while the dialog is open (an arrow-key move, or a
+ * device removed above it) can't misroute the removal onto the wrong device.
  */
 export function handleConfirmDelete(): void {
   const layoutStore = getLayoutStore();
@@ -107,9 +109,14 @@ export function handleConfirmDelete(): void {
       layoutStore.deleteRack(rackId);
       selectionStore.clearSelection();
     }
-  } else if (target?.type === "device" && target.deviceIndex !== undefined) {
-    layoutStore.removeDeviceFromRack(target.rackId, target.deviceIndex);
-    selectionStore.clearSelection();
+  } else if (target?.type === "device" && target.deviceId !== undefined) {
+    const rack = layoutStore.getRackById(target.rackId);
+    const deviceIndex =
+      rack?.devices.findIndex((d) => d.id === target.deviceId) ?? -1;
+    if (deviceIndex >= 0) {
+      layoutStore.removeDeviceFromRack(target.rackId, deviceIndex);
+      selectionStore.clearSelection();
+    }
   }
 
   dialogStore.close();

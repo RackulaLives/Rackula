@@ -44,8 +44,13 @@ export interface DeleteTarget {
    * object than the one named in the dialog.
    */
   rackId: string;
-  /** Only set when type is "device". */
-  deviceIndex?: number;
+  /**
+   * Stable device id, only set when type is "device". Confirm resolves the
+   * current array index from this id, so a reorder between open and confirm
+   * (e.g. an arrow-key move, or a device removed above it) can't shift a
+   * captured index onto the wrong device.
+   */
+  deviceId?: string;
 }
 
 // Dialog state
