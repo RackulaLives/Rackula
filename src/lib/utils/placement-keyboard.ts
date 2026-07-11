@@ -16,6 +16,7 @@
 import type { Rack, DeviceType, DeviceFace } from "$lib/types";
 import { getDropFeedback } from "./dragdrop";
 import { requiresChassisBay } from "./collision";
+import { pendingCollisionFace } from "./effective-face";
 
 /**
  * Whole-U start positions (1-indexed, human units, ascending) where `device`
@@ -34,6 +35,10 @@ export function validStartPositions(
   // announcing one would be dishonest and Enter would fail (#2854).
   if (requiresChassisBay(device)) return [];
 
+  // Widen a full-depth pending device to both faces so the keyboard cursor
+  // matches the store's placement (#2925); see pendingCollisionFace.
+  const collisionFace = pendingCollisionFace(device, face);
+
   const positions: number[] = [];
   const deviceHeight = device.u_height;
   const lastStart = rack.height - deviceHeight + 1;
@@ -45,7 +50,7 @@ export function validStartPositions(
         deviceHeight,
         startU,
         undefined,
-        face,
+        collisionFace,
       ) === "valid"
     ) {
       positions.push(startU);

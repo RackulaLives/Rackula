@@ -22,6 +22,15 @@ const twoU = createTestDeviceType({
   u_height: 2,
   is_full_depth: false,
 });
+// Half-depth pending device: only a half-depth device's collision face can be
+// narrowed to a single view face. A full-depth pending device always collides
+// on "both" faces regardless of view (#2925), so face-independence needs a
+// genuinely half-depth device under test here.
+const oneUHalfDepth = createTestDeviceType({
+  slug: "switch-half",
+  u_height: 1,
+  is_full_depth: false,
+});
 
 describe("validStartPositions", () => {
   it("lists every whole-U slot in an empty rack for a 1U device", () => {
@@ -52,16 +61,32 @@ describe("validStartPositions", () => {
     ]);
   });
 
-  it("treats the opposite face as free (face-aware collisions)", () => {
+  it("treats the opposite face as free for a half-depth pending device (face-aware collisions)", () => {
     const rack = createTestRack({
       height: 5,
       devices: [
         createTestDevice({ device_type: "server", position: 2, face: "rear" }),
       ],
     });
-    // The rear-mounted server does not block the front face.
+    // The rear-mounted server does not block the front face for a half-depth
+    // pending device.
+    expect(
+      validStartPositions(rack, [twoU, oneUHalfDepth], oneUHalfDepth, "front"),
+    ).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("collides a full-depth pending device with a rear-mounted device (#2925)", () => {
+    const rack = createTestRack({
+      height: 5,
+      devices: [
+        createTestDevice({ device_type: "server", position: 2, face: "rear" }),
+      ],
+    });
+    // oneU is full-depth (is_full_depth omitted): it spans both faces, so it
+    // collides with the rear-mounted server at U2-U3 even though the cursor
+    // is scanning the front view.
     expect(validStartPositions(rack, [twoU, oneU], oneU, "front")).toEqual([
-      1, 2, 3, 4, 5,
+      1, 4, 5,
     ]);
   });
 

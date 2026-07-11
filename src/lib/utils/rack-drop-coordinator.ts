@@ -23,6 +23,7 @@ import {
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { getDeviceDisplayName } from "$lib/utils/device";
 import { screenToSVG } from "$lib/utils/coordinates";
+import { pendingCollisionFace } from "$lib/utils/effective-face";
 
 /**
  * The rail height of a synthesised carrier, defaulting to 1U if the slug is
@@ -247,13 +248,15 @@ export function resolveDropTarget(
     // Requires a chassis bay but none is under the cursor: honestly invalid.
     feedback = "invalid";
   } else {
+    // Widen a full-depth pending device to both faces so the preview matches
+    // the store's placement (#2925); see pendingCollisionFace.
     feedback = getDropFeedback(
       rack,
       deviceLibrary,
       device.u_height,
       targetU,
       excludeIndex,
-      faceFilter,
+      pendingCollisionFace(device, faceFilter),
     );
   }
 
@@ -373,13 +376,15 @@ export function resolveDropAction(
     };
   }
 
+  // Widen a full-depth pending device to both faces so the resolved drop
+  // matches the store's placement (#2925); see pendingCollisionFace.
   const feedback = getDropFeedback(
     rack,
     deviceLibrary,
     dragData.device.u_height,
     targetU,
     excludeIndex,
-    faceFilter,
+    pendingCollisionFace(dragData.device, faceFilter),
   );
 
   if (feedback !== "valid") {

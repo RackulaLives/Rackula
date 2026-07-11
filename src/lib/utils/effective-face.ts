@@ -20,3 +20,29 @@ export function effectiveFace(
   }
   return placedDevice.face;
 }
+
+/**
+ * The face a *pending* (not yet placed) device should be checked against for
+ * collision purposes, given the raw view/target face the caller is trying to
+ * place onto. Mirrors `effectiveFace` for a device already in the rack: a
+ * full-depth device always collides on "both" faces regardless of which
+ * sub-view (front/rear) the cursor or keyboard cursor is over, so its
+ * collision face can never be narrowed to a single face. Half-depth devices
+ * collide only on the given view face.
+ *
+ * Shared by the drag/tap preview (resolveDropTarget, resolveDropAction) and
+ * the keyboard cursor (validStartPositions, keyboardCursorPreview) so all
+ * three agree with the store (placeDeviceRecorded) on whether a full-depth
+ * device would collide with an existing device on the opposite face (#2925).
+ *
+ * is_full_depth undefined or true means full-depth; false means half-depth.
+ */
+export function pendingCollisionFace(
+  deviceType: Pick<DeviceType, "is_full_depth"> | undefined,
+  viewFace: DeviceFace | undefined,
+): DeviceFace | undefined {
+  if (deviceType && deviceType.is_full_depth !== false) {
+    return "both";
+  }
+  return viewFace;
+}

@@ -68,7 +68,7 @@
   } from "$lib/utils/rack-interaction-handlers";
   import { attachPointerDragListeners } from "$lib/utils/rack-pointer-drag";
   import { createContextMenuHandlers } from "$lib/utils/rack-context-menu-handlers";
-  import { effectiveFace } from "$lib/utils/effective-face";
+  import { effectiveFace, pendingCollisionFace } from "$lib/utils/effective-face";
 
   const canvasStore = getCanvasStore();
   const viewportStore = getViewportStore();
@@ -331,7 +331,9 @@
         deviceHeight,
         position,
         undefined,
-        effectiveFaceFilter,
+        // Widen a full-depth pending device to both faces so the keyboard
+        // preview matches the store's placement (#2925); see pendingCollisionFace.
+        pendingCollisionFace(placementStore.pendingDevice, effectiveFaceFilter),
       ),
     };
   });
