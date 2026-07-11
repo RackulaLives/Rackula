@@ -59,6 +59,9 @@ updates:
       # upstream ships a runes-compatible svelte-core. See issue #2587.
       - dependency-name: "@testing-library/svelte"
         versions: [">=5.4.0"]
+      # typescript-eslint peer range caps at <6.1.0; remove when typescript-eslint supports TS 7
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
 
   # api workspace runs on Bun (api/bun.lock is the source of truth).
   # Dependabot supports bun for version updates (not security updates);
