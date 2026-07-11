@@ -422,9 +422,7 @@ describe("YAML nested unknown-field round-trip (#2927)", () => {
     } as unknown as Cable;
 
     const layout = createTestLayout({
-      racks: [
-        createTestRack({ id: "rack-1", devices: [deviceA, deviceB] }),
-      ],
+      racks: [createTestRack({ id: "rack-1", devices: [deviceA, deviceB] })],
       device_types: [deviceType],
       cables: [cable],
     });
