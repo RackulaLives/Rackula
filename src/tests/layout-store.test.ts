@@ -655,6 +655,93 @@ describe("Layout Store", () => {
       expect(regenerated.id).not.toBe("regen-me");
       expect(cable!.b_device_id).toBe(regenerated.id);
     });
+
+    it("resolves a cable referencing a duplicate id deterministically to the first device", () => {
+      const store = getLayoutStore();
+      // Degenerate input: the same id "dup" is shared across two racks and is
+      // also reserved by another tab, so no copy survives and both are
+      // regenerated. The layout-global remap keeps the first regenerated
+      // mapping (matching the #2155 rack-id remap), so the ambiguous cable
+      // endpoints resolve deterministically to the first device, independent
+      // of rack iteration order.
+      store.loadLayout(
+        {
+          version: "0.7.0",
+          name: "Duplicate Id Cable Test",
+          racks: [
+            {
+              id: "rack-a",
+              name: "Rack A",
+              height: 42,
+              width: 19,
+              desc_units: false,
+              form_factor: "4-post-cabinet",
+              starting_unit: 1,
+              position: 0,
+              devices: [
+                {
+                  id: "dup",
+                  device_type: "server-c",
+                  position: 1,
+                  face: "front" as const,
+                },
+              ],
+            },
+            {
+              id: "rack-b",
+              name: "Rack B",
+              height: 42,
+              width: 19,
+              desc_units: false,
+              form_factor: "4-post-cabinet",
+              starting_unit: 1,
+              position: 1,
+              devices: [
+                {
+                  id: "dup",
+                  device_type: "server-c",
+                  position: 1,
+                  face: "front" as const,
+                },
+              ],
+            },
+          ],
+          device_types: [
+            {
+              slug: "server-c",
+              u_height: 1,
+              colour: "#4A90A4",
+              category: "server" as const,
+            },
+          ],
+          cables: [
+            createTestCable({
+              id: "cable-1",
+              a_device_id: "dup",
+              b_device_id: "dup",
+            }),
+          ],
+          settings: {
+            display_mode: "label",
+            show_labels_on_images: false,
+          },
+        },
+        new Set(["dup"]),
+      );
+
+      const firstDevice = store.layout.racks[0].devices[0];
+      const secondDevice = store.layout.racks[1].devices[0];
+      const cable = store.layout.cables?.[0];
+      expect(cable).toBeDefined();
+      // Both copies were regenerated to distinct live ids.
+      expect(firstDevice.id).not.toBe("dup");
+      expect(secondDevice.id).not.toBe("dup");
+      expect(firstDevice.id).not.toBe(secondDevice.id);
+      // Both endpoints resolve to the first device (first-wins), so the result
+      // is deterministic rather than depending on which rack was processed last.
+      expect(cable!.a_device_id).toBe(firstDevice.id);
+      expect(cable!.b_device_id).toBe(firstDevice.id);
+    });
   });
 
   describe("dirty tracking", () => {

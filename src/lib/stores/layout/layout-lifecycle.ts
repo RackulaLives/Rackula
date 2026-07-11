@@ -100,7 +100,14 @@ export function loadLayout(
         nextId = generateUniqueDeviceId(seenDeviceIds, reserved);
         if (originalId) {
           deviceIdRemap.set(originalId, nextId);
-          layoutDeviceIdRemap.set(originalId, nextId);
+          // First regenerated mapping wins, matching the rack-id remap above
+          // (#2155). If the same original id is regenerated more than once
+          // (a duplicate id shared across racks that is also reserved, so no
+          // copy survives), keep the first so cable resolution is
+          // deterministic and independent of rack iteration order (#2923).
+          if (!layoutDeviceIdRemap.has(originalId)) {
+            layoutDeviceIdRemap.set(originalId, nextId);
+          }
         }
       } else {
         seenDeviceIds.add(nextId);
