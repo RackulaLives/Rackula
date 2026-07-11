@@ -51,7 +51,7 @@ export function handleRackContextDelete(rackId: string): void {
 
   layoutStore.setActiveRack(rackId);
   selectionStore.selectRack(rackId);
-  dialogStore.deleteTarget = { type: "rack", name: rack.name };
+  dialogStore.deleteTarget = { type: "rack", name: rack.name, rackId: rack.id };
   dialogStore.open("confirmDelete");
 }
 

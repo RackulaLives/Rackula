@@ -37,6 +37,15 @@ export type SheetId =
 export interface DeleteTarget {
   type: "rack" | "device";
   name: string;
+  /**
+   * Rack/device identity captured at dialog-open time (#2918). Confirming the
+   * dialog must act on this snapshot, not the live selectionStore, so a
+   * selection change between open and confirm can't delete a different
+   * object than the one named in the dialog.
+   */
+  rackId: string;
+  /** Only set when type is "device". */
+  deviceIndex?: number;
 }
 
 // Dialog state

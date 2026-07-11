@@ -9,6 +9,7 @@ import { getToastStore } from "$lib/stores/toast.svelte";
 import { getViewportStore } from "$lib/utils/viewport.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { handleFitAll } from "$lib/utils/app-actions";
+import { layoutDebug } from "$lib/utils/debug";
 
 /** Stage-1 default height for a directly-created rack (#2732). */
 const NEW_RACK_DEFAULT_HEIGHT = 24;
@@ -45,7 +46,11 @@ export function handleDelete(): void {
   if (selectionStore.isRackSelected && selectionStore.selectedRackId) {
     const rack = layoutStore.getRackById(selectionStore.selectedRackId);
     if (rack) {
-      dialogStore.deleteTarget = { type: "rack", name: rack.name };
+      dialogStore.deleteTarget = {
+        type: "rack",
+        name: rack.name,
+        rackId: rack.id,
+      };
       dialogStore.open("confirmDelete");
     }
   } else if (selectionStore.isDeviceSelected) {
@@ -65,11 +70,49 @@ export function handleDelete(): void {
         dialogStore.deleteTarget = {
           type: "device",
           name: deviceDef?.model ?? deviceDef?.slug ?? "Device",
+          rackId: rack.id,
+          deviceIndex,
         };
         dialogStore.open("confirmDelete");
       }
     }
   }
+}
+
+/**
+ * Apply the delete confirmed by the confirm-delete dialog. Acts on the
+ * rackId/deviceIndex snapshot captured in deleteTarget at open time, not the
+ * live selectionStore, so a selection change between opening the dialog and
+ * confirming it can't delete a different object than the one named in the
+ * dialog (#2918).
+ */
+export function handleConfirmDelete(): void {
+  const layoutStore = getLayoutStore();
+  const selectionStore = getSelectionStore();
+  const target = dialogStore.deleteTarget;
+
+  if (target?.type === "rack") {
+    const rackId = target.rackId;
+    // A bay member removal closes the row and dissolves a 1-member bay; a
+    // standalone rack deletes plainly (#2741).
+    const group = layoutStore.getRackGroupForRack(rackId);
+    if (group?.layout_preset === "bayed") {
+      const { error } = layoutStore.removeRackFromBay(rackId);
+      if (error) {
+        layoutDebug.group("removeRackFromBay failed for %s: %s", rackId, error);
+      } else {
+        selectionStore.clearSelection();
+      }
+    } else {
+      layoutStore.deleteRack(rackId);
+      selectionStore.clearSelection();
+    }
+  } else if (target?.type === "device" && target.deviceIndex !== undefined) {
+    layoutStore.removeDeviceFromRack(target.rackId, target.deviceIndex);
+    selectionStore.clearSelection();
+  }
+
+  dialogStore.close();
 }
 
 /** Open the keyboard-shortcuts help dialog. */

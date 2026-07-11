@@ -54,7 +54,7 @@
   import { parseDeviceLibraryImport } from "$lib/utils/import";
   import { registerImportDevicesTrigger } from "$lib/actions/import-devices-trigger";
   import { hapticTap } from "$lib/utils/haptics";
-  import { appDebug, dialogDebug, layoutDebug } from "$lib/utils/debug";
+  import { appDebug, dialogDebug } from "$lib/utils/debug";
   import type { ImageData } from "$lib/types/images";
   import type { DisplayMode, Layout, RackWidth } from "$lib/types";
   import type { ImportResult } from "$lib/utils/netbox-import";
@@ -69,7 +69,11 @@
     duplicateSelection,
     canMoveSelectedDeviceSlot,
   } from "$lib/actions/selection-actions";
-  import { handleDelete, handleNewRack } from "$lib/utils/dialog-actions";
+  import {
+    handleDelete,
+    handleConfirmDelete,
+    handleNewRack,
+  } from "$lib/utils/dialog-actions";
   import {
     findNextValidPosition,
     canMoveUp,
@@ -217,41 +221,6 @@
   }
 
   // --- Delete handlers ---
-
-  function handleConfirmDelete() {
-    if (deleteTarget?.type === "rack" && selectionStore.selectedRackId) {
-      const rackId = selectionStore.selectedRackId;
-      // A bay member removal closes the row and dissolves a 1-member bay; a
-      // standalone rack deletes plainly (#2741).
-      const group = layoutStore.getRackGroupForRack(rackId);
-      if (group?.layout_preset === "bayed") {
-        const { error } = layoutStore.removeRackFromBay(rackId);
-        if (error) {
-          layoutDebug.group(
-            "removeRackFromBay failed for %s: %s",
-            rackId,
-            error,
-          );
-        } else {
-          selectionStore.clearSelection();
-        }
-      } else {
-        layoutStore.deleteRack(rackId);
-        selectionStore.clearSelection();
-      }
-    } else if (deleteTarget?.type === "device") {
-      const rackId = selectionStore.selectedRackId;
-      const rack = rackId ? layoutStore.getRackById(rackId) : null;
-      const deviceIndex = selectionStore.getSelectedDeviceIndex(
-        rack?.devices ?? [],
-      );
-      if (rackId !== null && deviceIndex !== null) {
-        layoutStore.removeDeviceFromRack(rackId, deviceIndex);
-        selectionStore.clearSelection();
-      }
-    }
-    dialogStore.close();
-  }
 
   function handleCancelDelete() {
     dialogStore.close();
