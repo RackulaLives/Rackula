@@ -24,8 +24,10 @@ const MIN_AUTH_SESSION_TIMEOUT_SECONDS = 60;
 const MAX_AUTH_SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 const DEFAULT_AUTH_SESSION_SAME_SITE: AuthSessionSameSite = "Lax";
 
-function parseBoolean(value: string | undefined): boolean {
-  return value?.toLowerCase() === "true";
+/** Parse a "true"/"false" style env var. Only the literal "true" (after
+ * trimming and case-folding) is truthy; everything else, including unset. */
+export function parseBoolean(value: string | undefined): boolean {
+  return value?.trim().toLowerCase() === "true";
 }
 
 function deriveAuthLogHashKey(authSessionSecret: string): string {

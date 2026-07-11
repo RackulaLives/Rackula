@@ -33,6 +33,7 @@ import {
   type JWTPayload,
 } from "jose";
 import type { EnvMap } from "./types";
+import { parseBoolean } from "./config";
 
 /** The header Cloudflare Access uses to carry the signed assertion. */
 export const CF_ACCESS_JWT_HEADER = "Cf-Access-Jwt-Assertion";
@@ -47,7 +48,7 @@ export const CF_ACCESS_DISABLED_ENV = "CF_ACCESS_DISABLED";
 
 /** True when the explicit local-dev opt-out is set. */
 function isAccessDisabledOptOut(env: EnvMap): boolean {
-  return env[CF_ACCESS_DISABLED_ENV]?.trim().toLowerCase() === "true";
+  return parseBoolean(env[CF_ACCESS_DISABLED_ENV]);
 }
 
 /** Resolved, validated Access configuration. */

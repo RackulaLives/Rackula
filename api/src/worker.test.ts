@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createWorkerHandler, type WorkerEnv } from "./worker";
 import type { R2BucketLike, R2ListResult } from "./storage/r2-driver";
 
@@ -85,5 +87,22 @@ describe("Worker fetch: Cloudflare Access gate", () => {
     const res = await worker.fetch(smokeRequest(), env);
 
     expect(res.status).toBe(401);
+  });
+});
+
+describe("wrangler.jsonc does not promote the dev-only opt-out to a deployed var", () => {
+  it("never sets CF_ACCESS_DISABLED in wrangler.jsonc (the fail-closed default must ship to every deployed Worker)", () => {
+    // The opt-out belongs only in api/.dev.vars, which `wrangler dev` reads
+    // but `wrangler deploy` never bundles. If CF_ACCESS_DISABLED is ever
+    // copied into wrangler.jsonc (e.g. into a "vars" block), it deploys with
+    // every Worker and silently reopens #2913. Strip `//` comment lines first
+    // so this only checks the actual JSONC content, not the doc comment that
+    // explains the mechanism.
+    const raw = readFileSync(join(__dirname, "..", "wrangler.jsonc"), "utf-8");
+    const jsoncOnly = raw
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("//"))
+      .join("\n");
+    expect(jsoncOnly).not.toContain("CF_ACCESS_DISABLED");
   });
 });
