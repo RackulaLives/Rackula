@@ -82,6 +82,25 @@ describe("successful save epilogue", () => {
     expect(layoutStore.isDirty).toBe(true); // newer unsaved edits preserved
   });
 
+  it("advances the server base and re-stamps the session on a stale save (#2926)", () => {
+    const layoutStore = getLayoutStore();
+    layoutStore.loadLayout(createTestLayout());
+    layoutStore.markStarted();
+    layoutStore.markDirty();
+    setServerBaseUpdatedAt("2026-06-14T09:00:00.000Z");
+
+    // Stale completion: the PUT succeeded and the server echoed a new
+    // updatedAt, but newer edits arrived in flight (clearDirtyState=false).
+    // The echo is still this tab's own write and must become the new base,
+    // or the next reconcile sees false divergence against it and can
+    // discard the newer local edits (#2926).
+    finalizeSuccessfulSave(false, "2026-06-14T10:00:00.000Z");
+
+    expect(getServerBaseUpdatedAt()).toBe("2026-06-14T10:00:00.000Z");
+    const session = loadSessionWithTimestamp();
+    expect(session?.serverUpdatedAt).toBe("2026-06-14T10:00:00.000Z");
+  });
+
   it("keeps the working copy and records the server echo on a durable save", () => {
     const layoutStore = getLayoutStore();
     // A started layout with a rack: the conditions under which the working copy

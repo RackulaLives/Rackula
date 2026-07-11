@@ -44,10 +44,14 @@ let _errorToastId: string | undefined = undefined;
 let serverSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-// Bumped on every auto-save effect run. A debounced save captures the id at
-// schedule time; if a newer run bumps it while the save is in flight, the live
-// layout has edits this save did not persist, so its success must not clear the
-// dirty/session state for those newer edits.
+// Bumped only by an auto-save effect run that actually schedules a save (i.e.
+// one that reaches past all of the effect's early-return guards). A debounced
+// save captures the id at schedule time; if a newer run that also schedules a
+// save bumps it while the first save is in flight, the live layout has edits
+// that first save did not persist, so its success must not clear the
+// dirty/session state for those newer edits. A run that early-returns (e.g. a
+// transient availability flip with no new edit) must NOT bump the id, or it
+// falsely invalidates an in-flight save that never lost any edits (#2936).
 let _serverSaveScheduleId = 0;
 
 // After a durable save the pending session debounce must be cancelled, or it
@@ -104,12 +108,16 @@ export function getStorageChipState() {
  * leaves the layout in the same state as a manual one.
  *
  * Always (server is healthy): resets the consecutive-failure counter, marks the
- * API available, and dismisses any lingering error toast.
+ * API available, and dismisses any lingering error toast. Also always, when
+ * newUpdatedAt is present: records the server echo as the new base and
+ * re-stamps the working copy with it, independent of clearDirtyState. A save
+ * finalized "stale" still reached the server under this echo, so the base must
+ * advance immediately, or a reconcile before the follow-up save fires sees
+ * false divergence against this tab's own write and can discard newer local
+ * edits (#2926).
  *
- * When clearDirtyState is true (the default): also sets status to "saved", marks
- * the layout clean, cancels the pending session debounce, records the server
- * echo as the new base, and re-stamps the working copy with it. The copy is kept
- * (not cleared) so a reload can detect divergence against the echoed updatedAt.
+ * When clearDirtyState is true (the default): also sets status to "saved",
+ * marks the layout clean, and cancels the pending session debounce.
  *
  * @param clearDirtyState Pass false for a stale debounced save whose captured
  *   snapshot is older than the live layout (newer unsaved edits arrived while the
@@ -134,7 +142,11 @@ export function finalizeSuccessfulSave(
     _saveStatus = "saved";
     layoutStore.markClean();
     cancelSessionSave();
-    if (newUpdatedAt) setServerBaseUpdatedAt(newUpdatedAt);
+  }
+  if (newUpdatedAt) {
+    setServerBaseUpdatedAt(newUpdatedAt);
+  }
+  if (clearDirtyState || newUpdatedAt) {
     saveSession(
       layoutStore.layout,
       {
@@ -553,9 +565,6 @@ export function initPersistenceEffects(): void {
 
   // Effect 2: Auto-save to server when API is available
   $effect(() => {
-    // Capture this run's schedule id; a later run (e.g. an edit during the
-    // in-flight save) bumps it and marks an earlier save's success stale.
-    const scheduleId = ++_serverSaveScheduleId;
     // Server mode only, matching Effects 1 and 3. isApiAvailable() is the
     // server-mode reachability signal; this explicit mode guard keeps a future
     // browser-mode caller that sets apiAvailable (e.g. a misconfiguration probe)
@@ -570,6 +579,13 @@ export function initPersistenceEffects(): void {
     if (serverSaveTimer) {
       clearTimeout(serverSaveTimer);
     }
+    // Capture this run's schedule id only once the run has committed to
+    // scheduling a save. A run that early-returns above never schedules a
+    // replacement, so it must not bump the id and falsely invalidate an
+    // in-flight save (#2936). A later run that also reaches here (e.g. an
+    // edit during the in-flight save) bumps it and marks that earlier save's
+    // success stale, since the live layout now has edits it did not persist.
+    const scheduleId = ++_serverSaveScheduleId;
     const snapshot = structuredClone($state.snapshot(layout));
     const imagesSnapshot = getImageStore().getUserImages();
     _serverSavePending = true;
