@@ -97,6 +97,9 @@ describe("successful save epilogue", () => {
     finalizeSuccessfulSave(false, "2026-06-14T10:00:00.000Z");
 
     expect(getServerBaseUpdatedAt()).toBe("2026-06-14T10:00:00.000Z");
+    // The stale path must still preserve the dirty flag for the newer
+    // in-flight edits; advancing the base must not clear it.
+    expect(layoutStore.isDirty).toBe(true);
     const session = loadSessionWithTimestamp();
     expect(session?.serverUpdatedAt).toBe("2026-06-14T10:00:00.000Z");
   });
