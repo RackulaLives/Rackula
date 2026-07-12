@@ -276,12 +276,15 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
   // --- Editing --------------------------------------------------------------
   {
     id: "delete-selection",
-    label: "Delete selected",
+    // "Remove" for placement removal, reserving "Delete" for library-type
+    // deletion (#2993); "delete" stays a keyword so search-by-that-term still
+    // finds this action.
+    label: "Remove selected",
     scope: "selection",
     bindings: [{ key: "Delete" }, { key: "Backspace" }],
     enabledWhen: (ctx) => !ctx.readOnly && ctx.hasSelection,
     helpGroup: "Editing",
-    keywords: ["remove"],
+    keywords: ["delete"],
   },
   {
     id: "move-device-up",

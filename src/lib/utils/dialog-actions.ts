@@ -39,10 +39,20 @@ export function handleNewRack(): void {
   requestAnimationFrame(() => handleFitAll());
 }
 
-/** Open the confirm-delete dialog for the selected rack or device. */
+/**
+ * Remove the selected device or rack. A device placement is trivially
+ * undoable, so it is removed immediately with an undo toast rather than
+ * gated behind a confirm dialog; a rack carries a much larger blast radius
+ * (every device it holds), so it still opens the confirm-delete dialog
+ * (#2993). This keeps all five device-removal affordances (Delete key,
+ * verb-bar trash, mobile sheet Remove, desktop context-menu Delete, edit
+ * panel Remove from Rack) behaving identically, since the first three route
+ * through this function.
+ */
 export function handleDelete(): void {
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
+  const toastStore = getToastStore();
   if (selectionStore.isRackSelected && selectionStore.selectedRackId) {
     const rack = layoutStore.getRackById(selectionStore.selectedRackId);
     if (rack) {
@@ -63,37 +73,30 @@ export function handleDelete(): void {
         rack?.devices ?? [],
       );
       if (rack && deviceIndex !== null && rack.devices[deviceIndex]) {
-        const device = rack.devices[deviceIndex];
-        const deviceDef = layoutStore.device_types.find(
-          (d) => d.slug === device?.device_type,
-        );
-        dialogStore.deleteTarget = {
-          type: "device",
-          name: deviceDef?.model ?? deviceDef?.slug ?? "Device",
-          rackId: rack.id,
-          deviceId: device.id,
-        };
-        dialogStore.open("confirmDelete");
+        const name = layoutStore.removeDeviceFromRack(rack.id, deviceIndex);
+        selectionStore.clearSelection();
+        if (name) {
+          toastStore.showUndoToast(`Removed ${name}`, () => layoutStore.undo());
+        }
       }
     }
   }
 }
 
 /**
- * Apply the delete confirmed by the confirm-delete dialog. Acts on the
- * rackId/deviceId snapshot captured in deleteTarget at open time, not the live
- * selectionStore, so a selection change between opening the dialog and
- * confirming it can't delete a different object than the one named in the
- * dialog (#2918). The device's array index is resolved from its stable id at
- * confirm time, so a reorder while the dialog is open (an arrow-key move, or a
- * device removed above it) can't misroute the removal onto the wrong device.
+ * Apply the delete confirmed by the confirm-delete dialog. Racks are the only
+ * target this dialog gates now: device removal is immediate (see
+ * handleDelete). Acts on the rackId snapshot captured in deleteTarget at open
+ * time, not the live selectionStore, so a selection change between opening
+ * the dialog and confirming it can't delete a different rack than the one
+ * named in the dialog (#2918).
  */
 export function handleConfirmDelete(): void {
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
   const target = dialogStore.deleteTarget;
 
-  if (target?.type === "rack") {
+  if (target) {
     const rackId = target.rackId;
     // A bay member removal closes the row and dissolves a 1-member bay; a
     // standalone rack deletes plainly (#2741).
@@ -107,14 +110,6 @@ export function handleConfirmDelete(): void {
       }
     } else {
       layoutStore.deleteRack(rackId);
-      selectionStore.clearSelection();
-    }
-  } else if (target?.type === "device" && target.deviceId !== undefined) {
-    const rack = layoutStore.getRackById(target.rackId);
-    const deviceIndex =
-      rack?.devices.findIndex((d) => d.id === target.deviceId) ?? -1;
-    if (deviceIndex >= 0) {
-      layoutStore.removeDeviceFromRack(target.rackId, deviceIndex);
       selectionStore.clearSelection();
     }
   }

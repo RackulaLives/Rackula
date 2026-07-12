@@ -35,22 +35,21 @@ export type SheetId =
   | "yamlEditor";
 
 export interface DeleteTarget {
-  type: "rack" | "device";
+  /**
+   * Racks are the only target the confirm-delete dialog gates now; device
+   * removal is immediate with an undo toast instead (#2993). The literal type
+   * is kept (rather than dropped) so a future second confirm-gated target
+   * type doesn't need every call site re-touched.
+   */
+  type: "rack";
   name: string;
   /**
-   * Rack/device identity captured at dialog-open time (#2918). Confirming the
+   * Rack identity captured at dialog-open time (#2918). Confirming the
    * dialog must act on this snapshot, not the live selectionStore, so a
    * selection change between open and confirm can't delete a different
-   * object than the one named in the dialog.
+   * rack than the one named in the dialog.
    */
   rackId: string;
-  /**
-   * Stable device id, only set when type is "device". Confirm resolves the
-   * current array index from this id, so a reorder between open and confirm
-   * (e.g. an arrow-key move, or a device removed above it) can't shift a
-   * captured index onto the wrong device.
-   */
-  deviceId?: string;
 }
 
 // Dialog state

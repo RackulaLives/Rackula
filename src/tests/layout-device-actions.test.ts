@@ -278,6 +278,34 @@ describe("Layout Store", () => {
       expect(store.rack.devices).toEqual([]);
     });
 
+    // #2993: every removal affordance names the device in an undo toast using
+    // this return value, so all five stay in sync with a single source of
+    // truth instead of each re-resolving the device type themselves.
+    it("returns the removed device's display name", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Dell PowerEdge R740",
+          u_height: 1,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+
+      const name = store.removeDeviceFromRack(rack!.id, 0);
+      expect(name).toBe("Dell PowerEdge R740");
+    });
+
+    it("returns undefined when the index is out of bounds", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+
+      const name = store.removeDeviceFromRack(rack!.id, 0);
+      expect(name).toBeUndefined();
+    });
+
     it("sets isDirty to true", () => {
       const store = getLayoutStore();
       const rack = store.addRack("Test Rack", 42);

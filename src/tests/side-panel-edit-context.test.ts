@@ -15,7 +15,7 @@ import {
   getSelectionStore,
 } from "$lib/stores/selection.svelte";
 import { resetUIStore } from "$lib/stores/ui.svelte";
-import { resetToastStore } from "$lib/stores/toast.svelte";
+import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 
 function renderEditTab() {
   return render(SidePanelContent, {
@@ -266,5 +266,75 @@ describe("Edit tab contextual properties (#2077)", () => {
 
     // The confirmation reports both placements, not just the one in rack A.
     expect(screen.getByText(/placed 2 times/i)).toBeInTheDocument();
+  });
+});
+
+// #2993: the edit panel's "Remove from Rack" is one of the two previously-
+// silent device-removal paths (no dialog, no toast). It now shows an undo
+// toast, matching the other four removal affordances.
+describe("Edit panel Remove from Rack (#2993)", () => {
+  beforeEach(() => {
+    resetLayoutStore();
+    resetSelectionStore();
+    resetUIStore();
+    resetToastStore();
+  });
+
+  function placeAndSelectDevice() {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const rack = layoutStore.addRack("Test Rack", 42);
+    const rackId = rack!.id;
+    const deviceType = layoutStore.addDeviceType({
+      name: "Server Type",
+      u_height: 1,
+      category: "server",
+      colour: "#4A90D9",
+    });
+    layoutStore.placeDevice(rackId, deviceType.slug, 1, "front");
+    const device = layoutStore.getRackById(rackId)!.devices[0]!;
+    selectionStore.selectDevice(rackId, device.id);
+    return { rackId, deviceId: device.id };
+  }
+
+  it("removes the device immediately and shows an undo toast, no confirm dialog", async () => {
+    const { rackId, deviceId } = placeAndSelectDevice();
+    const layoutStore = getLayoutStore();
+    const toastStore = getToastStore();
+
+    renderEditTab();
+    await fireEvent.click(
+      screen.getByRole("button", { name: /remove from rack/i }),
+    );
+
+    expect(
+      layoutStore.getRackById(rackId)!.devices.some((d) => d.id === deviceId),
+    ).toBe(false);
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: exactly one removal produces exactly one toast
+    expect(toastStore.toasts).toHaveLength(1);
+    expect(toastStore.toasts[0]!.message).toContain("Removed");
+    expect(toastStore.toasts[0]!.action?.label).toBe("Undo");
+  });
+
+  it("undo toast action restores the exact device removed", async () => {
+    const { rackId, deviceId } = placeAndSelectDevice();
+    const layoutStore = getLayoutStore();
+    layoutStore.updateDeviceName(rackId, 0, "Core Switch");
+    const before = layoutStore.getRackById(rackId)!.devices[0]!;
+
+    renderEditTab();
+    await fireEvent.click(
+      screen.getByRole("button", { name: /remove from rack/i }),
+    );
+    const toastStore = getToastStore();
+    toastStore.toasts[0]!.action?.onClick();
+
+    const restored = layoutStore
+      .getRackById(rackId)!
+      .devices.find((d) => d.id === deviceId);
+    expect(restored).toBeDefined();
+    expect(restored?.position).toBe(before.position);
+    expect(restored?.face).toBe(before.face);
+    expect(restored?.name).toBe("Core Switch");
   });
 });

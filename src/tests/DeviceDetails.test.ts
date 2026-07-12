@@ -128,7 +128,7 @@ describe("DeviceDetails", () => {
         label: "Duplicate selection",
         disabled: false,
       },
-      { id: "delete-selection", label: "Delete selected", disabled: false },
+      { id: "delete-selection", label: "Remove selected", disabled: false },
     ];
 
     it("does not show action buttons by default", () => {
@@ -139,7 +139,7 @@ describe("DeviceDetails", () => {
         },
       });
       expect(
-        screen.queryByRole("button", { name: /delete selected/i }),
+        screen.queryByRole("button", { name: /remove selected/i }),
       ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: /move device up/i }),
@@ -155,7 +155,7 @@ describe("DeviceDetails", () => {
         },
       });
       expect(
-        screen.queryByRole("button", { name: /delete selected/i }),
+        screen.queryByRole("button", { name: /remove selected/i }),
       ).not.toBeInTheDocument();
     });
 
@@ -181,7 +181,7 @@ describe("DeviceDetails", () => {
         screen.getByRole("button", { name: /duplicate selection/i }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /delete selected/i }),
+        screen.getByRole("button", { name: /remove selected/i }),
       ).toBeInTheDocument();
     });
 
@@ -203,7 +203,7 @@ describe("DeviceDetails", () => {
       expect(onaction).toHaveBeenCalledWith("move-device-up");
     });
 
-    it("dispatches delete-selection via onaction when Delete is clicked", async () => {
+    it("dispatches delete-selection via onaction when Remove is clicked", async () => {
       const onaction = vi.fn();
       render(DeviceDetails, {
         props: {
@@ -216,7 +216,7 @@ describe("DeviceDetails", () => {
       });
 
       await fireEvent.click(
-        screen.getByRole("button", { name: /delete selected/i }),
+        screen.getByRole("button", { name: /remove selected/i }),
       );
       expect(onaction).toHaveBeenCalledWith("delete-selection");
     });
@@ -301,7 +301,7 @@ describe("DeviceDetails", () => {
         label: "Duplicate selection",
         disabled: false,
       },
-      { id: "delete-selection", label: "Delete selected", disabled: false },
+      { id: "delete-selection", label: "Remove selected", disabled: false },
     ];
 
     function renderInspector(overrides: {
@@ -409,7 +409,7 @@ describe("DeviceDetails", () => {
         label: "Duplicate selection",
         disabled: false,
       },
-      { id: "delete-selection", label: "Delete selected", disabled: false },
+      { id: "delete-selection", label: "Remove selected", disabled: false },
     ];
 
     it("hides action verbs when readOnly is true", () => {
@@ -432,7 +432,7 @@ describe("DeviceDetails", () => {
         screen.queryByRole("button", { name: /duplicate/i }),
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole("button", { name: /delete selected/i }),
+        screen.queryByRole("button", { name: /remove selected/i }),
       ).not.toBeInTheDocument();
     });
 
@@ -472,7 +472,7 @@ describe("DeviceDetails", () => {
         screen.getByRole("button", { name: /move device up/i }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /delete selected/i }),
+        screen.getByRole("button", { name: /remove selected/i }),
       ).toBeInTheDocument();
     });
 

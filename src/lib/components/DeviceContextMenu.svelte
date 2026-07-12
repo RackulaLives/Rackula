@@ -165,7 +165,10 @@
         data-testid="ctx-menu-item"
         onSelect={handleSelect(ondelete)}
       >
-        <span class="context-menu-label">Delete</span>
+        <!-- "Remove" for placement removal, reserving "Delete" for library-type
+             deletion (#2993). The Del shortcut hint names the physical key,
+             which now removes the device the same way this menu item does. -->
+        <span class="context-menu-label">Remove</span>
         <span class="context-menu-shortcut">Del</span>
       </ContextMenu.Item>
     </ContextMenu.Content>

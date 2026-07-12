@@ -112,9 +112,18 @@ export function createContextMenuActions(
     flipDeviceFaceAt(layoutStore, toastStore, rack.id, target.deviceIndex);
   }
 
+  // Removal is immediate with an undo toast rather than a confirm dialog: a
+  // device placement is trivially undoable, and the toast keeps this
+  // affordance consistent with the other four device-removal paths (#2993).
   function handleDelete(target: ContextMenuTarget): void {
-    layoutStore.removeDeviceFromRack(target.rackId, target.deviceIndex);
+    const name = layoutStore.removeDeviceFromRack(
+      target.rackId,
+      target.deviceIndex,
+    );
     selectionStore.clearSelection();
+    if (name) {
+      toastStore.showUndoToast(`Removed ${name}`, () => layoutStore.undo());
+    }
   }
 
   function getCanMoveUp(
