@@ -4,9 +4,10 @@
   Feature parity with EditPanel's rack editing section
 -->
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
+  import Tooltip from "./Tooltip.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import {
@@ -34,6 +35,21 @@
   let rackNotes = $state(untrack(() => rack.notes ?? ""));
   let resizeError = $state<string | null>(null);
 
+  // Save feedback for the Name field (#3005): height and numbering apply on
+  // click and are visibly reflected immediately (active preset, updated
+  // value); Name commits on blur, so it gets the same "Saved" acknowledgement
+  // used by EditPanelRack's (desktop) Name field rather than reading as
+  // frozen next to them.
+  let rackNameSaved = $state(false);
+  let rackNameSavedTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  onDestroy(() => {
+    if (rackNameSavedTimeout) {
+      clearTimeout(rackNameSavedTimeout);
+      rackNameSavedTimeout = undefined;
+    }
+  });
+
   // Check if this rack is part of a bayed group
   const rackGroup = $derived(layoutStore.getRackGroupForRack(rack.id));
   const isBayedRack = $derived(rackGroup?.layout_preset === "bayed");
@@ -60,6 +76,11 @@
   function handleNameBlur() {
     if (rackName !== rack.name) {
       layoutStore.updateRack(rack.id, { name: rackName });
+      clearTimeout(rackNameSavedTimeout);
+      rackNameSaved = true;
+      rackNameSavedTimeout = setTimeout(() => {
+        rackNameSaved = false;
+      }, 2000);
     }
   }
 
@@ -150,7 +171,17 @@
   <div class="edit-form">
     <!-- Rack Name -->
     <div class="form-group">
-      <label for="rack-name-mobile">Name</label>
+      <label for="rack-name-mobile">
+        Name
+        {#if rackNameSaved}
+          <Tooltip text="Saved">
+            <span
+              class="saved-indicator"
+              data-testid="saved-indicator-rack-name">✓</span
+            >
+          </Tooltip>
+        {/if}
+      </label>
       <input
         type="text"
         id="rack-name-mobile"
@@ -345,6 +376,27 @@
     font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--colour-text-secondary);
+  }
+
+  .form-group label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .saved-indicator {
+    color: var(--colour-success);
+    font-size: var(--font-size-sm);
+    animation: fade-in var(--duration-fast) ease-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .input-field {
