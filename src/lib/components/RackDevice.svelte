@@ -343,7 +343,7 @@
 
   // Aria label for accessibility - includes container hierarchy for child devices
   const ariaLabel = $derived.by(() => {
-    const base = `${deviceName}, ${device.u_height}U ${device.category}`;
+    const base = `${displayName}, ${device.u_height}U ${device.category}`;
 
     // Convey the device image and the face shown: the SVG <image> has no native
     // accessible name, so the device button announces it instead.
