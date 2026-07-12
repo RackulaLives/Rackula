@@ -174,9 +174,25 @@ export async function restoreFromSnapshot(uuid: string, filename: string) {
 }
 
 /**
+ * Options for {@link loadFromFile}.
+ */
+export interface LoadFromFileOptions {
+  /**
+   * Override the default "Layout loaded successfully" success toast. Used by
+   * the Ctrl+O replace-guard (#2987) to name what became of the previous
+   * layout when it was replaced over unexported changes, instead of a message
+   * that implies nothing happened to it.
+   */
+  successMessage?: string;
+}
+
+/**
  * Load layout from local .Rackula.zip file
  */
-export async function loadFromFile(file?: File) {
+export async function loadFromFile(
+  file?: File,
+  options: LoadFromFileOptions = {},
+) {
   const toastStore = getToastStore();
 
   try {
@@ -188,7 +204,9 @@ export async function loadFromFile(file?: File) {
     // A file copy has no server base; autosave will create/re-establish one via
     // its first PUT (the server treats a null last-known updatedAt as a create).
     setServerBaseUpdatedAt(null);
-    finalizeLayoutLoad(layout, images, failedImages.length);
+    finalizeLayoutLoad(layout, images, failedImages.length, {
+      successMessage: options.successMessage,
+    });
     // The loaded file is itself a backup: nothing has changed since export
     getLayoutStore().markExported();
     return true;

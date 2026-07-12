@@ -15,6 +15,7 @@ import {
 import { saveSession, clearSession } from "./working-copy";
 import { getServerBaseUpdatedAt, setServerBaseUpdatedAt } from "./server-base";
 import { loadFromFile } from "./load-pipeline";
+import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
 import { getImageStore } from "$lib/stores/images.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
@@ -500,6 +501,11 @@ export function shouldSaveToServer(): boolean {
 export async function handleLoad(): Promise<void> {
   if (getStorageMode() === "server") {
     dialogStore.open("load");
+  } else if (getLayoutStore().changesSinceExport > 0) {
+    // Opening a file replaces the working copy. Confirm first only when there
+    // are changes not yet in any exported file; a fully backed-up copy goes
+    // straight to the file picker (#2987, mirrors restore-file).
+    runOpenFileFlow();
   } else {
     await loadFromFile();
   }

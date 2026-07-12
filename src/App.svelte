@@ -24,6 +24,7 @@
   import PersistenceEffects from "$lib/components/PersistenceEffects.svelte";
   import DialogOrchestrator from "$lib/components/DialogOrchestrator.svelte";
   import RestoreFromFileDialog from "$lib/components/RestoreFromFileDialog.svelte";
+  import OpenFileGuardDialog from "$lib/components/OpenFileGuardDialog.svelte";
   import {
     getShareParam,
     clearShareParam,
@@ -684,6 +685,8 @@
     <DialogOrchestrator />
 
     <RestoreFromFileDialog />
+
+    <OpenFileGuardDialog />
 
     <KeyboardHandler />
 
