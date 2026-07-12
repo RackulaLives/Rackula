@@ -184,7 +184,7 @@ describe("actions registry", () => {
       const shownLabels = new Set(rows.map((r) => r.action));
 
       const keyboundHelpActions = ACTION_REGISTRY.filter(
-        (a) => a.helpGroup && a.bindings.length > 0,
+        (a) => a.bindings.length > 0,
       );
       expect(keyboundHelpActions.length).toBeGreaterThan(0);
       for (const action of keyboundHelpActions) {
