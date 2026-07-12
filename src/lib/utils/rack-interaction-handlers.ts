@@ -234,6 +234,7 @@ function dispatchPlacementAt(
     );
   } else {
     hapticError();
+    ctx.toastStore.showToast("Can't place device here", "warning", 3000);
   }
 }
 

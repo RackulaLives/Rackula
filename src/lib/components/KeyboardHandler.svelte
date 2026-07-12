@@ -14,6 +14,7 @@
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { getToastStore } from "$lib/stores/toast.svelte";
   import {
     createPlacementKeyboardController,
     focusRackContainer,
@@ -25,6 +26,7 @@
   const layoutStore = getLayoutStore();
   const placementStore = getPlacementStore();
   const canvasStore = getCanvasStore();
+  const toastStore = getToastStore();
 
   // Keyboard placement (#106): while a device is armed, arrow / Tab / Enter /
   // Escape drive a U-slot cursor and place via the same store path as
@@ -46,6 +48,7 @@
     placeDevice: (rackId, slug, position, face) =>
       layoutStore.placeDeviceSmart(rackId, slug, position, face),
     completePlacement: (summary) => placementStore.completePlacement(summary),
+    showToast: (message) => toastStore.showToast(message, "warning", 3000),
     onPlaced: () =>
       canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups),
     // Move focus to the newly focused rack so the visible focus ring follows the

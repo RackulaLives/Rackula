@@ -15,7 +15,7 @@ import { resolveDropTarget } from "$lib/utils/rack-drop-coordinator";
 import { hapticError } from "$lib/utils/haptics";
 
 /** Build a minimal RackHandlerContext; only the getters used by placement matter. */
-function makeCtx() {
+function makeCtx(showToast: ReturnType<typeof vi.fn> = vi.fn()) {
   return {
     getRack: () => ({}),
     getDeviceLibrary: () => [],
@@ -26,7 +26,7 @@ function makeCtx() {
     setDropPreview: () => {},
     setContainerHoverInfo: () => {},
     layoutStore: {},
-    toastStore: {},
+    toastStore: { showToast },
   } as unknown as Parameters<typeof handlePlacementClick>[2];
 }
 
@@ -97,6 +97,29 @@ describe("handlePlacementClick — mouse/pointer tap-to-place (#1757)", () => {
     expect(onplacementtap).not.toHaveBeenCalled();
     expect(hapticError).toHaveBeenCalled();
   });
+
+  it("shows the 'Can't place device here' toast when the target is occupied (#2990)", () => {
+    (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
+      feedback: "blocked",
+      targetU: 3,
+    });
+    const showToast = vi.fn();
+    const onplacementtap = vi.fn();
+
+    handlePlacementClick(
+      makeMouseEvent(0, 0),
+      svg,
+      makeCtx(showToast),
+      device,
+      onplacementtap,
+    );
+
+    expect(showToast).toHaveBeenCalledWith(
+      "Can't place device here",
+      "warning",
+      3000,
+    );
+  });
 });
 
 describe("handleTouchEnd — touch tap-to-place (#2454)", () => {
@@ -135,6 +158,24 @@ describe("handleTouchEnd — touch tap-to-place (#2454)", () => {
 
     expect(onplacementtap).not.toHaveBeenCalled();
     expect(hapticError).toHaveBeenCalled();
+  });
+
+  it("shows the 'Can't place device here' toast when the touch target is occupied (#2990)", () => {
+    (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
+      feedback: "blocked",
+      targetU: 2,
+    });
+    const showToast = vi.fn();
+    const onplacementtap = vi.fn();
+    const { event } = makeTouchEvent(0, 0);
+
+    handleTouchEnd(event, makeCtx(showToast), device, onplacementtap);
+
+    expect(showToast).toHaveBeenCalledWith(
+      "Can't place device here",
+      "warning",
+      3000,
+    );
   });
 
   it("ignores a touchend with no changed touch (no placement, no throw)", () => {
