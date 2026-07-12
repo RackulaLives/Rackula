@@ -63,4 +63,37 @@ describe("RackEditSheet Name field save affordance (#3005 fix round 1)", () => {
       ).toBeInTheDocument();
     });
   });
+
+  // Fix round 2 (#3005): the Saved-flash flag was component-global $state,
+  // not tied to the rack being edited. RackEditSheet stays mounted while its
+  // `rack` prop is swapped for a different selection, so saving a rename and
+  // switching to a different rack within the 2-second flash window showed
+  // the checkmark next to a rack that was never saved.
+  it("clears the Saved indicator when switching to a different rack within the flash window", async () => {
+    const layoutStore = getLayoutStore();
+    const rackA = layoutStore.addRack("Rack A", 42)!;
+    const rackB = layoutStore.addRack("Rack B", 42)!;
+
+    const { rerender } = render(RackEditSheet, { props: { rack: rackA } });
+
+    const input = screen.getByLabelText("Name");
+    await fireEvent.input(input, { target: { value: "Renamed A" } });
+    await fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("saved-indicator-rack-name"),
+      ).toBeInTheDocument();
+    });
+
+    // Switch the rack prop to rack B, which was never saved, within the
+    // 2-second flash window.
+    await rerender({ rack: rackB });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("saved-indicator-rack-name"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

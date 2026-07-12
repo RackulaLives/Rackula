@@ -115,4 +115,81 @@ describe("Edit panel confirmation model (#3005)", () => {
       ).toBeInTheDocument();
     });
   });
+
+  // Fix round 2 (#3005): the Saved-flash flags were component-global $state,
+  // not tied to the edited entity. The edit panels stay mounted across
+  // selection changes, so saving a field and switching selection within the
+  // 2-second flash window showed the checkmark next to an entity that was
+  // never saved.
+  it("clears the device Name Saved indicator when switching to a different device within the flash window", async () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+
+    const rack = layoutStore.addRack("Test Rack", 42);
+    const rackId = rack!.id;
+
+    const deviceType = layoutStore.addDeviceType(
+      createTestDeviceTypeInput({ name: "Server Type" }),
+    );
+
+    layoutStore.placeDevice(rackId, deviceType.slug, 1, "front");
+    layoutStore.placeDevice(rackId, deviceType.slug, 2, "front");
+    const deviceA = layoutStore.rack!.devices[0]!;
+    const deviceB = layoutStore.rack!.devices[1]!;
+
+    selectionStore.selectDevice(rackId, deviceA.id);
+    renderEditTab();
+
+    await fireEvent.click(
+      screen.getByRole("button", { name: "Edit display name" }),
+    );
+    await fireEvent.input(screen.getByLabelText("Name"), {
+      target: { value: "Renamed A" },
+    });
+    await fireEvent.blur(screen.getByLabelText("Name"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("saved-indicator-name")).toBeInTheDocument();
+    });
+
+    // Switch selection to device B, which was never saved, within the
+    // 2-second flash window.
+    selectionStore.selectDevice(rackId, deviceB.id);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("saved-indicator-name"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("clears the rack Name Saved indicator when switching to a different rack within the flash window", async () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const rackA = layoutStore.addRack("Rack A", 42)!;
+    const rackB = layoutStore.addRack("Rack B", 42)!;
+
+    selectionStore.selectRack(rackA.id);
+    renderEditTab();
+
+    const input = screen.getByLabelText("Name");
+    await fireEvent.input(input, { target: { value: "Renamed A" } });
+    await fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("saved-indicator-rack-name"),
+      ).toBeInTheDocument();
+    });
+
+    // Switch selection to rack B, which was never saved, within the
+    // 2-second flash window.
+    selectionStore.selectRack(rackB.id);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("saved-indicator-rack-name"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

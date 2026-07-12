@@ -117,6 +117,29 @@
     }
   });
 
+  // Saved-flash flags are component-global $state, not keyed by device, and
+  // this panel stays mounted across device selection changes. Without this,
+  // saving a field and switching to a different device within the 2-second
+  // flash window shows the checkmark next to a device that was never saved
+  // (#3005). Keyed by placedDevice.id (tracked via a plain closure variable
+  // so this effect only reacts to an actual device change, not to every
+  // field write on the currently selected device).
+  let previousDeviceId: string | null = null;
+  $effect(() => {
+    const currentDeviceId = selectedDeviceInfo.placedDevice.id;
+    if (currentDeviceId === previousDeviceId) return;
+    previousDeviceId = currentDeviceId;
+
+    clearTimeout(nameSavedTimeout);
+    nameSaved = false;
+    clearTimeout(colourSavedTimeout);
+    colourSaved = false;
+    clearTimeout(notesSavedTimeout);
+    notesSaved = false;
+    clearTimeout(ipSavedTimeout);
+    ipSaved = false;
+  });
+
   // Escape while the colour picker is open closes only the popover, not the
   // whole device selection (#3005). A capture-phase window listener runs
   // before the entire target/bubble dispatch (including KeyboardHandler's

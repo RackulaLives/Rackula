@@ -64,12 +64,27 @@
   // Device count for clear confirmation
   const deviceCount = $derived(rack.devices.length);
 
-  // Sync form fields when rack prop changes
+  // Identity of the currently edited rack, tracked via a plain closure
+  // variable (not $state) so reading it doesn't add a reactive dependency of
+  // its own; it's only ever compared against inside the effect below.
+  let previousRackId: string | null = null;
+
+  // Sync form fields when rack prop changes. This effect also reruns on
+  // every field write to the *currently* edited rack (e.g. right after this
+  // sheet's own Name save, since that updates rack.name), so the Name
+  // Saved-flash flag is only cleared when the rack identity itself changes,
+  // not on every resync (#3005).
   $effect(() => {
     rackName = rack.name;
     rackHeight = rack.height;
     rackNotes = rack.notes ?? "";
     resizeError = null;
+
+    if (rack.id !== previousRackId) {
+      previousRackId = rack.id;
+      clearTimeout(rackNameSavedTimeout);
+      rackNameSaved = false;
+    }
   });
 
   // Update rack name on blur
