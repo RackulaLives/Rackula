@@ -134,6 +134,16 @@
   function handleRovingKeyDown(event: KeyboardEvent) {
     const mappedKey = ROVING_KEY_MAP[event.key];
     if (!mappedKey) return;
+    // Any mapped roving key belongs to this list, even when it turns out to
+    // be a no-op (Home already on the first row, End already on the last
+    // row, or any mapped key in a single-item list): cancel unconditionally
+    // here, before the boundary checks below can return early. CodeAnt
+    // (PR #3017, comment 3566106209) found the previous version only
+    // cancelled when focus actually moved, so a boundary no-op let the key
+    // bubble to window-level shortcuts (e.g. arrow-key device move) even
+    // though the palette had focus.
+    event.preventDefault();
+    event.stopPropagation();
     const row = event.currentTarget as HTMLElement;
     const list = row.closest('[role="list"]');
     if (!list) return;
@@ -144,8 +154,6 @@
     if (currentIndex === -1) return;
     const nextIndex = nextRovingIndex(currentIndex, mappedKey, items.length);
     if (nextIndex === currentIndex) return;
-    event.preventDefault();
-    event.stopPropagation();
     items[nextIndex]?.focus();
   }
 

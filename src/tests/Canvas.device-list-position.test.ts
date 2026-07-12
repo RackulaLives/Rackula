@@ -92,4 +92,64 @@ describe("Canvas device-list description position (#2999)", () => {
     expect(description.textContent).toContain("U26:");
     expect(description.textContent).not.toContain("U17:");
   });
+
+  it("announces the ruler's label for an ascending rack with an offset starting_unit", () => {
+    const layoutStore = getLayoutStore();
+    // starting_unit: 25, ascending (desc_units false). Ruler formula:
+    // uNumber = startUnit + (height - 1) - i, i = height - positionHuman.
+    // positionHuman 17 in a 42U rack -> i = 25 -> uNumber = 25 + 41 - 25 = 41.
+    const rack = layoutStore.addRack(
+      "Offset Ascending Rack",
+      42,
+      undefined,
+      undefined,
+      false,
+      25,
+    );
+    const rackId = rack!.id;
+
+    const deviceType = layoutStore.addDeviceType({
+      name: "Server Type",
+      u_height: 1,
+      category: "server",
+      colour: "#4A90D9",
+    });
+
+    layoutStore.placeDevice(rackId, deviceType.slug, 17, "front");
+
+    const { getByText } = render(Canvas);
+
+    const description = getByText(/Active rack devices from top to bottom/);
+    expect(description.textContent).toContain("U41:");
+  });
+
+  it("announces the ruler's label for a descending rack with an offset starting_unit", () => {
+    const layoutStore = getLayoutStore();
+    // starting_unit: 25, descending (desc_units true). Ruler formula:
+    // uNumber = startUnit + i, i = height - positionHuman.
+    // positionHuman 17 in a 42U rack -> i = 25 -> uNumber = 25 + 25 = 50.
+    const rack = layoutStore.addRack(
+      "Offset Descending Rack",
+      42,
+      undefined,
+      undefined,
+      true,
+      25,
+    );
+    const rackId = rack!.id;
+
+    const deviceType = layoutStore.addDeviceType({
+      name: "Server Type",
+      u_height: 1,
+      category: "server",
+      colour: "#4A90D9",
+    });
+
+    layoutStore.placeDevice(rackId, deviceType.slug, 17, "front");
+
+    const { getByText } = render(Canvas);
+
+    const description = getByText(/Active rack devices from top to bottom/);
+    expect(description.textContent).toContain("U50:");
+  });
 });

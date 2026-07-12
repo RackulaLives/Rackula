@@ -31,9 +31,18 @@
   );
 
   // Format an internal-unit position for display, honouring the rack's U
-  // numbering direction. Delegates to the shared helper (position.ts).
+  // numbering direction and starting_unit offset. Delegates to the shared
+  // helper (position.ts). Previously omitted starting_unit, so a rack whose
+  // numbering starts above U1 showed a label that diverged from the ruler;
+  // passing it through here brings this display in line with the ruler for
+  // those racks (CodeAnt, PR #3018, comment 3566108076).
   function formatDisplayPosition(position: number, rack: Rack): string {
-    return formatDisplayPositionShared(position, rack.height, rack.desc_units);
+    return formatDisplayPositionShared(
+      position,
+      rack.height,
+      rack.desc_units,
+      rack.starting_unit,
+    );
   }
 
   // Whether the selected device can move up/down. Delegates to the shared

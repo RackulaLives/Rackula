@@ -70,32 +70,40 @@ export function formatPosition(internal: number): string {
 
 /**
  * Format an internal rail position as a whole-U label, honouring the rack's
- * U-numbering direction (`desc_units`, "U1 at top").
+ * U-numbering direction (`desc_units`, "U1 at top") and starting offset
+ * (`starting_unit`).
  *
  * The rail position (`position`) is always measured from the physical
  * bottom of the rack regardless of `desc_units` (#2158); only the label
- * shown on the ruler flips. This mirrors the flip the ruler itself applies
- * (Rack.svelte's `uLabels`): ascending numbering (`desc_units` false)
- * labels a position directly, while descending numbering mirrors it across
- * the rack height so the label matches the row the device physically
- * occupies.
+ * shown on the ruler flips and offsets. This mirrors the formula the ruler
+ * itself applies (Rack.svelte's `uLabels`): for row index `i` counted from
+ * the top (`i = height - wholeU`), the ruler labels a descending rack
+ * `starting_unit + i` and an ascending rack
+ * `starting_unit + (height - 1) - i`. Without `starting_unit`, a rack whose
+ * numbering starts above 1 (e.g. a continuation rack) would show a label
+ * that diverges from the ruler.
  *
  * @param position - Internal position (e.g., 6 = U1, 12 = U2)
  * @param height - Rack height in U
  * @param desc_units - Whether the rack numbers U1 at the top (descending)
+ * @param starting_unit - The rack's first U number (default: 1)
  * @returns Formatted position string matching the ruler's label
  *
  * @example
- * formatDisplayPosition(6, 42, false)  // "U1" (ascending, U1 at bottom)
- * formatDisplayPosition(6, 42, true)   // "U42" (descending, U1 at top)
+ * formatDisplayPosition(6, 42, false)      // "U1" (ascending, U1 at bottom)
+ * formatDisplayPosition(6, 42, true)       // "U42" (descending, U1 at top)
+ * formatDisplayPosition(6, 42, false, 25)  // "U25" (ascending, starts at U25)
  */
 export function formatDisplayPosition(
   position: number,
   height: number,
   desc_units?: boolean,
+  starting_unit?: number,
 ): string {
-  if (!desc_units) return formatPosition(position);
+  const startUnit = starting_unit ?? 1;
   const wholeU = Math.round(toHumanUnits(position));
-  const displayWholeU = height - wholeU + 1;
+  const displayWholeU = desc_units
+    ? startUnit + height - wholeU
+    : startUnit + wholeU - 1;
   return formatPosition(toInternalUnits(displayWholeU));
 }

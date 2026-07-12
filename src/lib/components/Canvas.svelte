@@ -369,7 +369,7 @@
           (dt) => dt.slug === d.device_type,
         );
         const name = d.label || deviceType?.model || d.device_type;
-        return `${formatDisplayPosition(d.position, activeRack.height, activeRack.desc_units)}: ${name}`;
+        return `${formatDisplayPosition(d.position, activeRack.height, activeRack.desc_units, activeRack.starting_unit)}: ${name}`;
       });
     return `Active rack devices from top to bottom: ${deviceNames.join(", ")}`;
   });
