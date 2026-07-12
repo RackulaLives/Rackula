@@ -317,7 +317,7 @@ describe("Edit panel Remove from Rack (#2993)", () => {
     ).toBe(false);
     const toast = toastStore.toasts.find((t) => t.action?.label === "Undo");
     expect(toast).toBeDefined();
-    expect(toast?.message).toContain("Removed");
+    expect(toast?.message).toBe("Removed Server Type");
   });
 
   it("undo toast action restores the exact device removed", async () => {
