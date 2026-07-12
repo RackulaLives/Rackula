@@ -16,7 +16,11 @@
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { debug } from "$lib/utils/debug";
   import { useLongPress } from "$lib/utils/gestures";
-  import { isRackInteractionTarget } from "$lib/utils/canvas-coordinates";
+  import {
+    isRackInteractionTarget,
+    isEmptyCanvasClickTarget,
+    type CanvasPointerTarget,
+  } from "$lib/utils/canvas-coordinates";
   import { createCanvasPanzoom } from "$lib/utils/panzoom-lifecycle";
   import { createRackSwipeController } from "$lib/utils/canvas-swipe.svelte";
   import { createCanvasDoubleTap } from "$lib/utils/canvas-double-tap.svelte";
@@ -328,10 +332,23 @@
   $effect(() => () => swipeController.dispose());
 
   function handleCanvasClick(event: MouseEvent) {
-    // Only clear selection if clicking directly on the canvas (not on a rack)
-    if (event.target === event.currentTarget) {
-      selectionStore.clearSelection();
+    // A click ending a pan/drag gesture must not clear the selection:
+    // canvasStore.isPanning stays true for ~50ms after panend specifically so
+    // a click synthesised at drag release can be told apart from a genuine
+    // tap (mirrors Rack.svelte's handleClick guard). While a device is armed
+    // for placement, an empty-canvas click belongs to that flow, not
+    // selection (Rack.svelte's own click handler owns tap-to-place).
+    if (canvasStore.isPanning || placementStore.isPlacing) return;
+    // Only clear the selection for a genuinely empty background click: not on
+    // a rack (device or frame; those already select/keep their own selection)
+    // and not on an interactive control (verb bar button, placement Cancel,
+    // hint dismiss, "Add a rack"). The panzoom container and the racks row
+    // fill the canvas, so most empty-canvas clicks land on one of those
+    // wrapper elements rather than the #rack-canvas div itself (#3006).
+    if (!isEmptyCanvasClickTarget(event.target as CanvasPointerTarget | null)) {
+      return;
     }
+    selectionStore.clearSelection();
   }
 
   function handleNewRack() {
