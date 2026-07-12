@@ -39,8 +39,10 @@ BUN_ASSET="bun-linux-${BUN_VARIANT}.zip"
 curl_with_retry "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/${BUN_ASSET}" "$BUN_TMP/bun.zip"
 
 # Verify the downloaded zip against Bun's published SHASUMS256.txt before extracting.
+# Strip a leading '*' from the filename field so both text- and binary-mode
+# checksum formats (`<hash>  file` and `<hash> *file`) match.
 curl_with_retry "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/SHASUMS256.txt" "$BUN_TMP/SHASUMS256.txt"
-BUN_EXPECTED_SHA=$(awk -v f="$BUN_ASSET" '$2 == f { print $1 }' "$BUN_TMP/SHASUMS256.txt")
+BUN_EXPECTED_SHA=$(awk -v f="$BUN_ASSET" '{ gsub(/^\*/, "", $2) } $2 == f { print $1 }' "$BUN_TMP/SHASUMS256.txt")
 if [[ -z "$BUN_EXPECTED_SHA" ]]; then
   msg_error "Checksum for ${BUN_ASSET} not found in Bun's SHASUMS256.txt (bun-v${BUN_VERSION})"
   rm -rf "$BUN_TMP"
