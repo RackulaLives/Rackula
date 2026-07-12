@@ -11,7 +11,7 @@
   import ColourPicker from "./ColourPicker.svelte";
   import BrandIcon from "./BrandIcon.svelte";
   import MarkdownPreview from "./MarkdownPreview.svelte";
-  import Tooltip from "./Tooltip.svelte";
+  import SavedIndicator from "./ui/SavedIndicator.svelte";
   import { IconEdit, IconChevronDown } from "./icons";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
@@ -332,13 +332,7 @@
   <div class="form-group">
     <label for="device-display-name">
       Name
-      {#if nameSaved}
-        <Tooltip text="Saved">
-          <span class="saved-indicator" data-testid="saved-indicator-name"
-            >✓</span
-          >
-        </Tooltip>
-      {/if}
+      <SavedIndicator show={nameSaved} data-testid="saved-indicator-name" />
     </label>
     {#if editingDeviceName}
       <input
@@ -371,13 +365,7 @@
   <div class="form-group">
     <span class="field-label" id="device-colour-label">
       Colour
-      {#if colourSaved}
-        <Tooltip text="Saved">
-          <span class="saved-indicator" data-testid="saved-indicator-colour"
-            >✓</span
-          >
-        </Tooltip>
-      {/if}
+      <SavedIndicator show={colourSaved} data-testid="saved-indicator-colour" />
     </span>
     <button
       type="button"
@@ -567,12 +555,7 @@
   <div class="form-group">
     <label for="device-ip">
       IP Address/Hostname
-      {#if ipSaved}
-        <Tooltip text="Saved">
-          <span class="saved-indicator" data-testid="saved-indicator-ip">✓</span
-          >
-        </Tooltip>
-      {/if}
+      <SavedIndicator show={ipSaved} data-testid="saved-indicator-ip" />
     </label>
     <input
       type="text"
@@ -591,13 +574,7 @@
   <div class="form-group">
     <label for="device-notes">
       Notes
-      {#if notesSaved}
-        <Tooltip text="Saved">
-          <span class="saved-indicator" data-testid="saved-indicator-notes"
-            >✓</span
-          >
-        </Tooltip>
-      {/if}
+      <SavedIndicator show={notesSaved} data-testid="saved-indicator-notes" />
     </label>
     <textarea
       id="device-notes"
@@ -696,21 +673,6 @@
     display: flex;
     align-items: center;
     gap: var(--space-1);
-  }
-
-  .saved-indicator {
-    color: var(--colour-success);
-    font-size: var(--font-size-sm);
-    animation: fade-in var(--duration-fast) ease-out;
-  }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
   }
 
   .form-group input {

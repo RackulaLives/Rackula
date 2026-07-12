@@ -7,7 +7,7 @@
   import { onDestroy, untrack } from "svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
-  import Tooltip from "./Tooltip.svelte";
+  import SavedIndicator from "./ui/SavedIndicator.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import {
@@ -173,14 +173,10 @@
     <div class="form-group">
       <label for="rack-name-mobile">
         Name
-        {#if rackNameSaved}
-          <Tooltip text="Saved">
-            <span
-              class="saved-indicator"
-              data-testid="saved-indicator-rack-name">✓</span
-            >
-          </Tooltip>
-        {/if}
+        <SavedIndicator
+          show={rackNameSaved}
+          data-testid="saved-indicator-rack-name"
+        />
       </label>
       <input
         type="text"
@@ -382,21 +378,6 @@
     display: flex;
     align-items: center;
     gap: var(--space-1);
-  }
-
-  .saved-indicator {
-    color: var(--colour-success);
-    font-size: var(--font-size-sm);
-    animation: fade-in var(--duration-fast) ease-out;
-  }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
   }
 
   .input-field {
