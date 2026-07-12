@@ -671,7 +671,16 @@
   tabindex="0"
   aria-label={ariaLabel}
   aria-pressed={selected}
-  onclick={(e) => e.stopPropagation()}
+  onclick={(e) => {
+    // Placement mode owns this gesture (#2990 follow-up): stopping
+    // propagation unconditionally here swallowed the click before it ever
+    // reached Rack.svelte's rack-level handleClick -> handlePlacementClick
+    // path, so a click on an occupied device's body while armed for
+    // placement was a silent no-op (no "Can't place device here" toast, no
+    // retry cue). Outside placement mode, keep stopping propagation so a
+    // device click doesn't also bubble into rack-level selection.
+    if (!placementStore.isPlacing) e.stopPropagation();
+  }}
   oncontextmenu={handleContextMenu}
   onkeydown={handleKeyDown}
 >
