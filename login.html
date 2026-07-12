@@ -2,6 +2,15 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
+    <!-- Fallback CSP for hosting paths that bypass the nginx headers (see
+         deploy/security-headers.conf, the single source of truth for the
+         server-sent policy). Meta CSP cannot carry frame-ancestors (browsers
+         ignore it on a <meta> element), so clickjacking protection there is
+         server-only; a bare static serve loses that layer but keeps the rest. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; base-uri 'self'; form-action 'self';"
+    />
     <link
       rel="icon"
       type="image/png"
