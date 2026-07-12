@@ -415,6 +415,62 @@ describe("Rack Add/Delete Undo/Redo", () => {
     });
   });
 
+  describe("undo does not clobber active rack for non-activating commands (#2976)", () => {
+    it("undo of a non-activating rack add leaves the current active rack unchanged", () => {
+      const store = getLayoutStore();
+      const group = store.addBayedRackGroup("Test Bay", 2, 42, 19)!;
+      const [bay1, bay2] = group.racks;
+      store.clearHistory();
+      expect(store.activeRackId).toBe(bay1!.id);
+
+      // addBayToGroup adds a new rack without activating it.
+      const addResult = store.addBayToGroup(group.group.id);
+      expect(addResult.error).toBeUndefined();
+      expect(store.activeRackId).toBe(bay1!.id);
+
+      // User selects an unrelated, pre-existing rack before undoing.
+      store.setActiveRack(bay2!.id);
+      expect(store.activeRackId).toBe(bay2!.id);
+
+      store.undo();
+
+      // The undone command never activated anything on execute, so its
+      // undo must not restore its stale pre-execute snapshot either.
+      expect(store.activeRackId).toBe(bay2!.id);
+    });
+
+    it("undoing an earlier non-activating command does not clobber a later selection change in a compound undo sequence", () => {
+      const store = getLayoutStore();
+      const group = store.addBayedRackGroup("Test Bay", 2, 42, 19)!;
+      const [bay1, bay2] = group.racks;
+      store.clearHistory();
+      expect(store.activeRackId).toBe(bay1!.id);
+
+      // Earlier command: non-activating add (history entry #1).
+      const addResult = store.addBayToGroup(group.group.id);
+      expect(addResult.error).toBeUndefined();
+      expect(store.activeRackId).toBe(bay1!.id);
+
+      // Later command: activating add (history entry #2).
+      const extraRack = store.addRack("Extra Rack", 42)!;
+      expect(store.activeRackId).toBe(extraRack.id);
+
+      // Undo the later, activating command - this correctly restores
+      // the rack that was active before it ran.
+      store.undo();
+      expect(store.activeRackId).toBe(bay1!.id);
+
+      // User selects a different, unrelated rack before continuing to undo.
+      store.setActiveRack(bay2!.id);
+      expect(store.activeRackId).toBe(bay2!.id);
+
+      // Undo the earlier, non-activating command. It never touched the
+      // active rack on execute, so it must not clobber this selection.
+      store.undo();
+      expect(store.activeRackId).toBe(bay2!.id);
+    });
+  });
+
   describe("undo/redo state consistency", () => {
     it("marks layout as dirty after undo", () => {
       const store = getLayoutStore();

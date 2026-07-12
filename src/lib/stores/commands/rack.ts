@@ -109,7 +109,12 @@ export function createAddRackCommand(
     },
     undo() {
       store.deleteRackRaw(rackCopy.id);
-      store.setActiveRackId(previousActiveRackId);
+      // Only restore the active rack if execute() actually changed it
+      // (setActive: true); otherwise the snapshot is stale and would
+      // clobber whatever is active now (#2976).
+      if (setActive) {
+        store.setActiveRackId(previousActiveRackId);
+      }
       if (layoutNameSync) {
         const { previousLayoutName, previousMetadataName } =
           layoutNameSync.snapshot;
@@ -138,6 +143,10 @@ export function createDeleteRackCommand(
   // Captured on each execute() so undo restores whichever rack was active
   // immediately before this delete ran (#2940).
   let previousActiveRackId: string | null = null;
+  // Tracks whether this rack was the active one at execute() time, i.e.
+  // whether execute() actually changed the active selection (deleteRackRaw
+  // falls back to another rack when the deleted rack was active).
+  let wasActiveAtExecute = false;
 
   return {
     type: "DELETE_RACK",
@@ -145,6 +154,7 @@ export function createDeleteRackCommand(
     timestamp: Date.now(),
     execute() {
       previousActiveRackId = store.getActiveRackId();
+      wasActiveAtExecute = previousActiveRackId === rackSnapshot.id;
       const result = store.deleteRackRaw(rackSnapshot.id);
       if (result && originalIndex === undefined) {
         originalIndex = result.index;
@@ -152,7 +162,13 @@ export function createDeleteRackCommand(
     },
     undo() {
       store.restoreRackRaw(rackSnapshot, groupSnapshots, originalIndex);
-      store.setActiveRackId(previousActiveRackId);
+      // Only restore the active rack if execute() actually changed it
+      // (this rack was active and deleteRackRaw fell back to another one);
+      // otherwise the snapshot is stale and would clobber whatever is
+      // active now (#2976).
+      if (wasActiveAtExecute) {
+        store.setActiveRackId(previousActiveRackId);
+      }
     },
   };
 }
