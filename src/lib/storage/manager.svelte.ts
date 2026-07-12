@@ -501,13 +501,18 @@ export function shouldSaveToServer(): boolean {
 export async function handleLoad(): Promise<void> {
   if (getStorageMode() === "server") {
     dialogStore.open("load");
-  } else if (getLayoutStore().changesSinceExport > 0) {
-    // Opening a file replaces the working copy. Confirm first only when there
-    // are changes not yet in any exported file; a fully backed-up copy goes
-    // straight to the file picker (#2987, mirrors restore-file).
-    runOpenFileFlow();
   } else {
-    await loadFromFile();
+    // Opening a file replaces the working copy. runOpenFileFlow checks
+    // changesSinceExport itself and only prompts when there are changes not
+    // yet in any exported file; a fully backed-up copy goes straight to the
+    // file picker (#2987, mirrors restore-file). The same guard is shared by
+    // LoadDialog's "Import from local file" and saved-layout sub-flows.
+    runOpenFileFlow((guarded) =>
+      loadFromFile(
+        undefined,
+        guarded ? { successMessage: "Previous layout kept in Layouts" } : {},
+      ),
+    );
   }
 }
 

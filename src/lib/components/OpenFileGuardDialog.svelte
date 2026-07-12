@@ -1,11 +1,14 @@
 <!--
   OpenFileGuardDialog Component
-  Owns the "Open layout" (Ctrl+O, browser mode) replace-guard flow (#2987).
-  Opening a local file replaces the working copy. handleLoad checks
-  changesSinceExport and only invokes the registered trigger (opening this
-  dialog) when there are changes not yet in any exported file; a fully
-  backed-up copy goes straight to the file picker without ever touching this
-  component.
+  Owns the confirm-replace UI for the "Open layout" guard (#2987). Three entry
+  points share this one dialog: Ctrl+O / the palette "Open layout" command
+  (browser mode, via handleLoad), and LoadDialog's two server-mode sub-flows,
+  "Import from local file" and clicking a saved-on-server row. Opening a file
+  replaces the working copy. runOpenFileFlow checks changesSinceExport itself
+  and only invokes the registered trigger (opening this dialog, with the
+  caller's load action attached) when there are changes not yet in any
+  exported file; a fully backed-up copy runs its load action immediately,
+  never touching this component.
 
   Self-contained: this owns its own confirm-replace state and does not touch
   the shared dialogStore "confirmReplace" flow, which is the separate
@@ -14,27 +17,35 @@
 -->
 <script lang="ts">
   import ConfirmReplaceDialog from "./ConfirmReplaceDialog.svelte";
-  import { loadFromFile, handleSaveAsArchive } from "$lib/storage";
+  import { handleSaveAsArchive } from "$lib/storage";
   import { shouldShowCleanupPrompt } from "$lib/utils/app-actions";
-  import { registerOpenFileTrigger } from "$lib/actions/open-file-trigger";
+  import {
+    registerOpenFileTrigger,
+    type OpenFileLoadAction,
+  } from "$lib/actions/open-file-trigger";
 
   let confirmOpen = $state(false);
+  let pendingLoad: OpenFileLoadAction | null = null;
 
   function handleCancel() {
     confirmOpen = false;
+    pendingLoad = null;
   }
 
   function handleReplace() {
     confirmOpen = false;
+    const loadAction = pendingLoad;
+    pendingLoad = null;
     // Name what became of the previous layout instead of a generic success
-    // toast that implies nothing happened to it (#2987 AC2).
-    void loadFromFile(undefined, {
-      successMessage: "Previous layout kept in Layouts",
-    });
+    // toast that implies nothing happened to it (#2987 AC2): the caller's
+    // load action is invoked with guarded=true.
+    void loadAction?.(true);
   }
 
   async function handleExportFirst() {
     confirmOpen = false;
+    const loadAction = pendingLoad;
+    pendingLoad = null;
     // Route through the same cleanup-prompt contract as the other save-as
     // paths: when unused custom device types exist, the prompt is shown and
     // the export is deferred into the cleanup dialog. The open does not chain
@@ -45,11 +56,16 @@
     // if the export actually succeeded (not cancelled or failed).
     const exported = await handleSaveAsArchive();
     if (exported) {
-      await loadFromFile();
+      await loadAction?.(true);
     }
   }
 
-  $effect(() => registerOpenFileTrigger(() => (confirmOpen = true)));
+  $effect(() =>
+    registerOpenFileTrigger((loadAction) => {
+      pendingLoad = loadAction;
+      confirmOpen = true;
+    }),
+  );
 </script>
 
 <ConfirmReplaceDialog

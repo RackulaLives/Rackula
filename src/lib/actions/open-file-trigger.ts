@@ -1,18 +1,35 @@
 /**
- * Module-level seam for the "Open layout" (Ctrl+O) replace-guard trigger.
+ * Module-level seam for the "Open layout" replace-guard trigger.
  *
- * Opening a local file replaces the working copy. handleLoad (browser mode)
- * checks changesSinceExport itself and only calls this trigger when there are
- * changes not yet in any exported file; a fully backed-up copy goes straight to
- * the file picker without involving this trigger at all (#2987). The confirm
- * dialog and its export-first-then-load flow live in OpenFileGuardDialog (the
- * stateful UI must stay in a component), which registers its trigger here on
- * mount.
+ * Opening a file replaces the working copy, from any of three entry points:
+ * Ctrl+O / the palette "Open layout" command (browser mode, via handleLoad),
+ * and LoadDialog's two server-mode sub-flows, "Import from local file" and
+ * clicking a saved-on-server row (#2987). Every caller routes its load
+ * through runOpenFileFlow, which checks changesSinceExport itself so any
+ * caller is safe without pre-checking dirty state: a fully backed-up copy
+ * runs loadAction immediately, while unexported changes defer to the
+ * registered trigger, which shows the confirm dialog (Cancel / Export first /
+ * Replace) before loadAction runs. The confirm dialog and its
+ * export-first-then-load flow live in OpenFileGuardDialog (the stateful UI
+ * must stay in a component), which registers its trigger here on mount and
+ * is the single dialog shared by all three entry points.
  *
- * Mirrors restore-file-trigger: callers depend on this module, not on a
- * component-instance ref.
+ * Mirrors restore-file-trigger's module-seam shape; unlike that trigger
+ * (whose registered function does its own dirty check inline in the
+ * component), this one centralizes the check here so callers never need to
+ * duplicate it at each call site.
  */
-type OpenFileTrigger = () => void;
+import { getLayoutStore } from "$lib/stores/layout.svelte";
+
+/**
+ * The deferred load to run once the guard clears. Called with `guarded: true`
+ * when the user confirmed replacing unexported changes, `false` when the
+ * working copy was already fully backed up and the guard let it through
+ * immediately, so callers can vary the success toast accordingly (#2987 AC2).
+ */
+export type OpenFileLoadAction = (guarded: boolean) => unknown;
+
+type OpenFileTrigger = (loadAction: OpenFileLoadAction) => void;
 
 let trigger: OpenFileTrigger | null = null;
 
@@ -27,7 +44,17 @@ export function registerOpenFileTrigger(fn: OpenFileTrigger): () => void {
   };
 }
 
-/** Show the open-file replace-guard dialog. No-op before the dialog mounts. */
-export function runOpenFileFlow(): void {
-  trigger?.();
+/**
+ * Guard a load action behind the open-file replace-confirm flow. Runs
+ * `loadAction(false)` immediately when the working copy has no changes since
+ * the last export; otherwise defers to the registered trigger (opens the
+ * confirm dialog), which runs `loadAction(true)` only if the user confirms.
+ * No-op (loadAction dropped) if the dialog hasn't mounted yet when dirty.
+ */
+export function runOpenFileFlow(loadAction: OpenFileLoadAction): void {
+  if (getLayoutStore().changesSinceExport > 0) {
+    trigger?.(loadAction);
+  } else {
+    void loadAction(false);
+  }
 }

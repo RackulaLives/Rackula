@@ -36,32 +36,9 @@ import { PersistenceError } from "$lib/storage/api";
 import { setApiAvailable } from "$lib/storage/availability.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
-import * as layoutStoreModule from "$lib/stores/layout.svelte";
 
 function setMode(mode: "browser" | "server"): void {
   window.__RACKULA_CONFIG__ = { storage: mode };
-}
-
-// handleLoad's replace-guard branch (#2987) reads changesSinceExport off the
-// live layout store. Wrap the real store and override only that field, so the
-// mock stays a complete, type-sound LayoutStore: any other field handleLoad
-// might read returns the real value rather than silently being undefined.
-// Mirrors the equivalent helper in dispatch.test.ts for new-layout. Tracked
-// separately (not vi.restoreAllMocks) so restoring it in afterEach never
-// touches the vi.hoisted loadFromFile/runOpenFileFlow mock implementations.
-let layoutStoreSpy: ReturnType<typeof vi.spyOn> | undefined;
-
-function stubChangesSinceExport(value: number) {
-  const real = layoutStoreModule.getLayoutStore();
-  const stub = new Proxy(real, {
-    get(target, prop) {
-      if (prop === "changesSinceExport") return value;
-      return Reflect.get(target, prop, target);
-    },
-  });
-  layoutStoreSpy = vi
-    .spyOn(layoutStoreModule, "getLayoutStore")
-    .mockReturnValue(stub);
 }
 
 /**
@@ -83,8 +60,6 @@ describe("storage-mode branching in the persistence manager", () => {
 
   afterEach(() => {
     window.__RACKULA_CONFIG__ = original;
-    layoutStoreSpy?.mockRestore();
-    layoutStoreSpy = undefined;
   });
 
   it("shouldSaveToServer is false in browser mode even when the API is available", () => {
@@ -102,12 +77,45 @@ describe("storage-mode branching in the persistence manager", () => {
     expect(shouldSaveToServer()).toBe(false);
   });
 
-  it("handleLoad uses the file picker in browser mode", async () => {
+  // Opening a file replaces the working copy. #2987: browser-mode handleLoad
+  // routes every load through the open-file guard rather than pre-checking
+  // changesSinceExport itself (finding 2 from the task-2987 fix-round review:
+  // the guard must own the dirty check so every caller is safe). The guard's
+  // own dirty/clean branching is covered directly in open-file-trigger.test.ts;
+  // this file only asserts handleLoad wires into it and never calls
+  // loadFromFile eagerly on its own.
+  it("handleLoad routes browser-mode loads through the open-file guard (#2987)", async () => {
     setMode("browser");
     setApiAvailable(true);
     await handleLoad();
-    expect(loadPipelineMocks.loadFromFile).toHaveBeenCalledTimes(1);
+    expect(openFileTriggerMocks.runOpenFileFlow).toHaveBeenCalledTimes(1);
+    expect(
+      openFileTriggerMocks.runOpenFileFlow.mock.calls[0][0],
+    ).toBeInstanceOf(Function);
+    expect(loadPipelineMocks.loadFromFile).not.toHaveBeenCalled();
     expect(dialogStore.isOpen("load")).toBe(false);
+  });
+
+  it("the browser-mode load action names the outcome only when the guard fired (#2987)", async () => {
+    setMode("browser");
+    setApiAvailable(true);
+    await handleLoad();
+    const loadAction = openFileTriggerMocks.runOpenFileFlow.mock
+      .calls[0][0] as (guarded: boolean) => unknown;
+
+    // Clean pass-through (guarded=false): default toast, no naming needed.
+    await loadAction(false);
+    expect(loadPipelineMocks.loadFromFile).toHaveBeenLastCalledWith(
+      undefined,
+      {},
+    );
+
+    // Confirmed replace (guarded=true): names what became of the previous
+    // layout instead of a generic toast that implies nothing happened (AC2).
+    await loadAction(true);
+    expect(loadPipelineMocks.loadFromFile).toHaveBeenLastCalledWith(undefined, {
+      successMessage: "Previous layout kept in Layouts",
+    });
   });
 
   it("handleLoad opens the server load dialog in server mode", async () => {
@@ -115,28 +123,8 @@ describe("storage-mode branching in the persistence manager", () => {
     setApiAvailable(true);
     await handleLoad();
     expect(loadPipelineMocks.loadFromFile).not.toHaveBeenCalled();
-    expect(dialogStore.isOpen("load")).toBe(true);
-  });
-
-  // Opening a file replaces the working copy. #2987: guard it behind a confirm
-  // (mirrors restore-file / new-layout) when there are changes not yet in any
-  // exported file; a fully backed-up copy still goes straight to the picker.
-  it("handleLoad guards the file picker behind a confirm when there are unexported changes (#2987)", async () => {
-    setMode("browser");
-    setApiAvailable(true);
-    stubChangesSinceExport(2);
-    await handleLoad();
-    expect(loadPipelineMocks.loadFromFile).not.toHaveBeenCalled();
-    expect(openFileTriggerMocks.runOpenFileFlow).toHaveBeenCalledTimes(1);
-  });
-
-  it("handleLoad uses the file picker directly when there are no unexported changes (#2987)", async () => {
-    setMode("browser");
-    setApiAvailable(true);
-    stubChangesSinceExport(0);
-    await handleLoad();
-    expect(loadPipelineMocks.loadFromFile).toHaveBeenCalledTimes(1);
     expect(openFileTriggerMocks.runOpenFileFlow).not.toHaveBeenCalled();
+    expect(dialogStore.isOpen("load")).toBe(true);
   });
 });
 

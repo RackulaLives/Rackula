@@ -101,9 +101,25 @@ export function finalizeLayoutLoad(
 }
 
 /**
+ * Options for {@link loadFromApi}.
+ */
+export interface LoadFromApiOptions {
+  /**
+   * Override the default "Layout loaded successfully" success toast. Used by
+   * the LoadDialog open-file replace-guard (#2987) to name what became of the
+   * previous layout when it was replaced over unexported changes, instead of
+   * a message that implies nothing happened to it.
+   */
+  successMessage?: string;
+}
+
+/**
  * Load layout from Persist API
  */
-export async function loadFromApi(uuid: string) {
+export async function loadFromApi(
+  uuid: string,
+  options: LoadFromApiOptions = {},
+) {
   const toastStore = getToastStore();
 
   try {
@@ -112,7 +128,10 @@ export async function loadFromApi(uuid: string) {
     // Record the server's updatedAt as the base for this copy before finalizing,
     // so the first autosave PUT carries the correct last-known timestamp.
     setServerBaseUpdatedAt(updatedAt ?? null);
-    finalizeLayoutLoad(layout, images, failedImagesCount, { failedKeys });
+    finalizeLayoutLoad(layout, images, failedImagesCount, {
+      failedKeys,
+      successMessage: options.successMessage,
+    });
     return true;
   } catch (e) {
     let message: string;
