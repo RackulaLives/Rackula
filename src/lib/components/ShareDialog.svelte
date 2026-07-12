@@ -36,8 +36,11 @@
 
   const toastStore = getToastStore();
 
-  // Generate share URL
-  const shareUrl = $derived(generateShareUrl(layout));
+  // Generate share URL only while the dialog is open: encoding the whole
+  // layout is real work (compression, base64), and re-deriving it on every
+  // edit while closed served nothing, logging a spurious "Layout must have
+  // at least one rack" warning on every fresh load besides (R6d/#2988).
+  const shareUrl = $derived(open ? generateShareUrl(layout) : null);
   const urlLength = $derived(shareUrl?.length ?? 0);
   const isTooLong = $derived(urlLength > URL_LENGTH_WARNING);
   const fitsInQR = $derived(shareUrl ? canFitInQR(shareUrl) : false);

@@ -26,6 +26,11 @@
   import RestoreFromFileDialog from "$lib/components/RestoreFromFileDialog.svelte";
   import OpenFileGuardDialog from "$lib/components/OpenFileGuardDialog.svelte";
   import {
+    runOpenFileFlow,
+    type OpenFileLoadAction,
+  } from "$lib/actions/open-file-trigger";
+  import { hasUnrestoredLocalChanges } from "$lib/actions/share-entry-guard";
+  import {
     getShareParam,
     clearShareParam,
     decodeLayout,
@@ -232,202 +237,254 @@
 
     // Priority 1: Check for shared layout in URL (highest priority)
     const shareParam = getShareParam();
+    let pendingShareLoad: OpenFileLoadAction | null = null;
     if (shareParam) {
       const { layout: sharedLayout, error: shareError } =
         decodeLayout(shareParam);
       if (sharedLayout) {
-        layoutStore.loadLayout(sharedLayout);
-        layoutStore.markClean();
-        clearShareParam();
-        toastStore.showToast("Shared layout loaded", "success");
+        const loadSharedLayout: OpenFileLoadAction = (guarded) => {
+          layoutStore.loadLayout(sharedLayout);
+          layoutStore.markClean();
+          // Name what became of the previous layout instead of a generic
+          // success toast that implies nothing happened to it, mirroring
+          // #2987's open-file guard (R3/#2988).
+          toastStore.showToast(
+            guarded
+              ? "Previous layout kept in Layouts"
+              : "Shared layout loaded",
+            "success",
+          );
 
-        // Reset view to center the loaded rack after DOM updates
-        requestAnimationFrame(() => {
-          canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-        });
-        return; // Don't check autosave or show start screen
+          // Reset view to center the loaded rack after DOM updates
+          requestAnimationFrame(() => {
+            canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+          });
+        };
+
+        // Drop the URL payload now regardless of outcome: a refresh mid-decision
+        // (or after a clean load) must never re-decode or re-prompt (#2988).
+        clearShareParam();
+
+        if (hasUnrestoredLocalChanges(serverMode)) {
+          // Unexported local work is sitting in storage but has not been
+          // restored into the live layout store yet, so runOpenFileFlow's own
+          // changesSinceExport check would see the pristine boot-time store
+          // and wrongly skip the guard. Defer applying the share until after
+          // the normal restore below hydrates the real local layout: the
+          // guard dialog then has real content to protect, "Export first" has
+          // real content to export, and Cancel simply leaves that restored
+          // layout in place.
+          pendingShareLoad = loadSharedLayout;
+        } else {
+          // No unexported changes anywhere in local storage: load the shared
+          // layout immediately, exactly as before this fix (AC3).
+          loadSharedLayout(false);
+          return; // Don't check autosave or show start screen
+        }
       } else {
         clearShareParam();
         toastStore.showToast(shareError ?? "Invalid share link", "error");
       }
     }
 
-    // Browser mode: no server compare. Lazily restore the previously open tab
-    // set from the multi-layout workspace (#2080), hydrating the active tab now
-    // and the rest on first focus. With no persisted workspace, open straight to
-    // the canvas empty state. Surface a server->browser flip notice when the
-    // restored copy came from a server deployment (never silently degrade), else
-    // a one-time first-run notice. No offline toasts ever in browser mode. Entry
-    // actions (new/open/import) live in the sidebar and app menu.
-    if (!serverMode) {
-      const launch = resolveBrowserLaunch();
-      if (launch.action === "empty") {
-        if (!launch.everHadLayouts) {
-          // Genuine fresh install: add one default rack to the already-seeded
-          // first tab (its active layout has zero racks), so first run lands in
-          // a layout with one rack and never a bare zero-rack void (#2831). Use
-          // handleNewRack rather than handleNewLayout here: the latter opens a
-          // second tab on top of the seed, leaving a phantom empty tab. The
-          // first-run notice is for genuine fresh installs.
-          handleNewRack();
-          maybeShowFirstRunNotice();
+    await restoreLocalWorkspaceOrSession();
+
+    // A share link decoded successfully but was deferred above because local
+    // storage had unexported changes. The restore just hydrated them into the
+    // live layout store, so runOpenFileFlow's own check now sees the truth and
+    // opens OpenFileGuardDialog (#2987) with the shared layout as its pending
+    // load (Cancel / Export first / Replace).
+    if (pendingShareLoad) {
+      runOpenFileFlow(pendingShareLoad);
+    }
+
+    // Wrapped so the share-link guard above can await this exact restore
+    // logic (unchanged from before #2988) before deciding whether to apply
+    // a deferred share load; a hoisted function declaration so the earlier
+    // await call can reach it.
+    async function restoreLocalWorkspaceOrSession(): Promise<void> {
+      // Browser mode: no server compare. Lazily restore the previously open tab
+      // set from the multi-layout workspace (#2080), hydrating the active tab now
+      // and the rest on first focus. With no persisted workspace, open straight to
+      // the canvas empty state. Surface a server->browser flip notice when the
+      // restored copy came from a server deployment (never silently degrade), else
+      // a one-time first-run notice. No offline toasts ever in browser mode. Entry
+      // actions (new/open/import) live in the sidebar and app menu.
+      if (!serverMode) {
+        const launch = resolveBrowserLaunch();
+        if (launch.action === "empty") {
+          if (!launch.everHadLayouts) {
+            // Genuine fresh install: add one default rack to the already-seeded
+            // first tab (its active layout has zero racks), so first run lands in
+            // a layout with one rack and never a bare zero-rack void (#2831). Use
+            // handleNewRack rather than handleNewLayout here: the latter opens a
+            // second tab on top of the seed, leaving a phantom empty tab. The
+            // first-run notice is for genuine fresh installs.
+            handleNewRack();
+            maybeShowFirstRunNotice();
+          } else {
+            // Returning user whose workspace is empty (data lost or wiped). The
+            // zero-rack canvas shows the inline "Add a rack" affordance, so this
+            // is not a dead end; do not tell them this is their first time.
+            // #2095/#2018 own the lost-data recovery state.
+            layoutStore.resetLayout();
+          }
+          return;
+        }
+
+        const activeEntry = launch.index.activeId
+          ? launch.index.library[launch.index.activeId]
+          : undefined;
+        if (
+          activeEntry &&
+          detectModeFlip(activeEntry.storageMode) === "server-to-browser"
+        ) {
+          showStorageToast(
+            "This deployment now stores layouts in your browser; your previous server library is not loaded here.",
+            "warning",
+            0,
+          );
         } else {
-          // Returning user whose workspace is empty (data lost or wiped). The
-          // zero-rack canvas shows the inline "Add a rack" affordance, so this
-          // is not a dead end; do not tell them this is their first time.
-          // #2095/#2018 own the lost-data recovery state.
-          layoutStore.resetLayout();
+          maybeShowFirstRunNotice();
         }
+
+        // restoreWorkspace hydrates the active tab and restores its durability
+        // (dirty by autosave convention, not explicitly saved). deleteBody wires
+        // true library deletion (#2325): removing a layout drops its persisted
+        // body and index entry, not just the open tab.
+        workspaceStore.restoreWorkspace({
+          index: launch.index,
+          loadBody: launch.loadBody,
+          deleteBody: deleteLayoutBody,
+        });
+        requestAnimationFrame(() => {
+          if (!canvasStore.restoreViewport()) {
+            canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+          }
+        });
         return;
       }
 
-      const activeEntry = launch.index.activeId
-        ? launch.index.library[launch.index.activeId]
-        : undefined;
-      if (
-        activeEntry &&
-        detectModeFlip(activeEntry.storageMode) === "server-to-browser"
-      ) {
-        showStorageToast(
-          "This deployment now stores layouts in your browser; your previous server library is not loaded here.",
-          "warning",
-          0,
-        );
-      } else {
-        maybeShowFirstRunNotice();
+      // Server mode below.
+
+      // Get localStorage session data (with timestamp and stored mode if available)
+      const localSession = loadSessionWithTimestamp();
+
+      // No local session: open straight to the canvas empty state. The server
+      // library is reachable through the sidebar Layouts tab and the app menu;
+      // there is no blocking modal while the health check resolves.
+      // Reset layout to clear any stale hasStarted flag from a previous session (#1326)
+      if (!localSession) {
+        layoutStore.resetLayout();
+        return;
       }
 
-      // restoreWorkspace hydrates the active tab and restores its durability
-      // (dirty by autosave convention, not explicitly saved). deleteBody wires
-      // true library deletion (#2325): removing a layout drops its persisted
-      // body and index entry, not just the open tab.
-      workspaceStore.restoreWorkspace({
-        index: launch.index,
-        loadBody: launch.loadBody,
-        deleteBody: deleteLayoutBody,
-      });
-      requestAnimationFrame(() => {
-        if (!canvasStore.restoreViewport()) {
-          canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-        }
-      });
-      return;
-    }
-
-    // Server mode below.
-
-    // Get localStorage session data (with timestamp and stored mode if available)
-    const localSession = loadSessionWithTimestamp();
-
-    // No local session: open straight to the canvas empty state. The server
-    // library is reachable through the sidebar Layouts tab and the app menu;
-    // there is no blocking modal while the health check resolves.
-    // Reset layout to clear any stale hasStarted flag from a previous session (#1326)
-    if (!localSession) {
-      layoutStore.resetLayout();
-      return;
-    }
-
-    const instanceLabel = getServerInstanceLabel();
-    const apiAvailable = await persistenceInitPromise;
-    // initializePersistence() resolves to false for the common API-unavailable
-    // case (checkApiHealth returns false rather than rejecting). In server mode
-    // a down server is surfaced with an instance-named drop toast, and the
-    // working copy keeps continuity.
-    if (!apiAvailable) {
-      showStorageToast(
-        `Cannot reach ${instanceLabel}. Working from your local copy; reload to retry.`,
-        "warning",
-        0,
-      );
-    }
-
-    // browser->server flip: the working copy's UUID is unknown to the server, so
-    // offer to upload it as a new server layout rather than shadowing it with the
-    // server list. Only meaningful while the server is reachable.
-    const flip = detectModeFlip(localSession.storageMode);
-    if (apiAvailable && flip === "browser-to-server") {
-      restoreLocalSession(localSession);
-      showStorageToast(
-        "This deployment now stores layouts on the server. Upload your local copy to keep it here.",
-        "info",
-        0,
-        {
-          label: "Upload",
-          onClick: () => {
-            void handleSaveToServer(true);
-          },
-        },
-      );
-      return;
-    }
-
-    // Priority 3: When API and local session are both available, reconcile the
-    // local working copy against the server's layout list by the echo model
-    // (UUID match + updatedAt recency), snapshotting any losing local copy
-    // before it is discarded (#2041).
-    if (apiAvailable) {
-      try {
-        const savedLayouts = await listSavedLayouts();
-        const localUuid = localSession.layout.metadata?.id ?? null;
-        const action = reconcileSession({
-          localUuid,
-          localSavedAt: localSession.savedAt,
-          localServerUpdatedAt: localSession.serverUpdatedAt,
-          serverLayouts: savedLayouts,
-        });
-        await applyReconcile(action, {
-          serializeLosingCopy: () =>
-            serializeLayoutToYaml(localSession.layout, {}),
-          uploadSnapshot,
-          loadServer: async (item) => {
-            const { layout, images, failedImagesCount, failedKeys, updatedAt } =
-              await loadSavedLayout(item.id);
-            if (failedKeys.length > 0) {
-              persistenceDebug.api(
-                "reconciliation: %d image(s) failed to read: %o",
-                failedKeys.length,
-                failedKeys,
-              );
-            }
-            setServerBaseUpdatedAt(updatedAt ?? null);
-            finalizeLayoutLoad(layout, images, failedImagesCount, {
-              successMessage: null,
-              failedKeys,
-            });
-          },
-          restoreLocal: (reason) => {
-            // A copy the server has never seen has no valid base: clear it so
-            // the re-establishing PUT creates fresh instead of echoing a stale
-            // updatedAt. Diverged/ahead copies keep their base.
-            setServerBaseUpdatedAt(
-              reason === "unknown-to-server"
-                ? null
-                : localSession.serverUpdatedAt,
-            );
-            restoreLocalSession(localSession);
-          },
-          toast: (m, t) => toastStore.showToast(m, t),
-        });
-        return;
-      } catch (error) {
-        persistenceDebug.api(
-          "failed to reconcile saved layouts from server: %O",
-          error,
-        );
-        setApiAvailable(false);
+      const instanceLabel = getServerInstanceLabel();
+      const apiAvailable = await persistenceInitPromise;
+      // initializePersistence() resolves to false for the common API-unavailable
+      // case (checkApiHealth returns false rather than rejecting). In server mode
+      // a down server is surfaced with an instance-named drop toast, and the
+      // working copy keeps continuity.
+      if (!apiAvailable) {
         showStorageToast(
           `Cannot reach ${instanceLabel}. Working from your local copy; reload to retry.`,
           "warning",
           0,
         );
       }
-    }
 
-    // Priority 4: No reachable server or no server layouts - restore the
-    // localStorage working copy for continuity.
-    restoreLocalSession(localSession);
-    return;
+      // browser->server flip: the working copy's UUID is unknown to the server, so
+      // offer to upload it as a new server layout rather than shadowing it with the
+      // server list. Only meaningful while the server is reachable.
+      const flip = detectModeFlip(localSession.storageMode);
+      if (apiAvailable && flip === "browser-to-server") {
+        restoreLocalSession(localSession);
+        showStorageToast(
+          "This deployment now stores layouts on the server. Upload your local copy to keep it here.",
+          "info",
+          0,
+          {
+            label: "Upload",
+            onClick: () => {
+              void handleSaveToServer(true);
+            },
+          },
+        );
+        return;
+      }
+
+      // Priority 3: When API and local session are both available, reconcile the
+      // local working copy against the server's layout list by the echo model
+      // (UUID match + updatedAt recency), snapshotting any losing local copy
+      // before it is discarded (#2041).
+      if (apiAvailable) {
+        try {
+          const savedLayouts = await listSavedLayouts();
+          const localUuid = localSession.layout.metadata?.id ?? null;
+          const action = reconcileSession({
+            localUuid,
+            localSavedAt: localSession.savedAt,
+            localServerUpdatedAt: localSession.serverUpdatedAt,
+            serverLayouts: savedLayouts,
+          });
+          await applyReconcile(action, {
+            serializeLosingCopy: () =>
+              serializeLayoutToYaml(localSession.layout, {}),
+            uploadSnapshot,
+            loadServer: async (item) => {
+              const {
+                layout,
+                images,
+                failedImagesCount,
+                failedKeys,
+                updatedAt,
+              } = await loadSavedLayout(item.id);
+              if (failedKeys.length > 0) {
+                persistenceDebug.api(
+                  "reconciliation: %d image(s) failed to read: %o",
+                  failedKeys.length,
+                  failedKeys,
+                );
+              }
+              setServerBaseUpdatedAt(updatedAt ?? null);
+              finalizeLayoutLoad(layout, images, failedImagesCount, {
+                successMessage: null,
+                failedKeys,
+              });
+            },
+            restoreLocal: (reason) => {
+              // A copy the server has never seen has no valid base: clear it so
+              // the re-establishing PUT creates fresh instead of echoing a stale
+              // updatedAt. Diverged/ahead copies keep their base.
+              setServerBaseUpdatedAt(
+                reason === "unknown-to-server"
+                  ? null
+                  : localSession.serverUpdatedAt,
+              );
+              restoreLocalSession(localSession);
+            },
+            toast: (m, t) => toastStore.showToast(m, t),
+          });
+          return;
+        } catch (error) {
+          persistenceDebug.api(
+            "failed to reconcile saved layouts from server: %O",
+            error,
+          );
+          setApiAvailable(false);
+          showStorageToast(
+            `Cannot reach ${instanceLabel}. Working from your local copy; reload to retry.`,
+            "warning",
+            0,
+          );
+        }
+      }
+
+      // Priority 4: No reachable server or no server layouts - restore the
+      // localStorage working copy for continuity.
+      restoreLocalSession(localSession);
+      return;
+    }
   });
 
   // Refit canvas on orientation change (mobile/tablet only).

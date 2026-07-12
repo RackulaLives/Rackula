@@ -15,7 +15,7 @@ import { resetCanvasStore } from "$lib/stores/canvas.svelte";
 import { resetPlacementStore } from "$lib/stores/placement.svelte";
 import { resetImageStore } from "$lib/stores/images.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
-import { resetToastStore } from "$lib/stores/toast.svelte";
+import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 import { resetViewportStore } from "$lib/utils/viewport.svelte";
 import { createTestLayout, createTestRack } from "./factories";
 
@@ -24,6 +24,22 @@ const shareMocks = vi.hoisted(() => ({
   clearShareParam: vi.fn(),
   decodeLayout: vi.fn(),
   generateShareUrl: vi.fn(() => null),
+}));
+
+// The share-link guard (#2988) defers a dirty share load to runOpenFileFlow,
+// the same open-file replace-confirm mechanism #2987 built for Ctrl+O. Mock
+// it here to assert the App-level wiring (guard invoked / not invoked) without
+// re-testing the guard's own dirty/clean branching, already covered directly
+// in open-file-trigger.test.ts.
+const openFileTriggerMocks = vi.hoisted(() => ({
+  runOpenFileFlow: vi.fn<(loadAction: (guarded: boolean) => unknown) => void>(
+    () => {},
+  ),
+}));
+
+vi.mock("$lib/actions/open-file-trigger", () => ({
+  runOpenFileFlow: openFileTriggerMocks.runOpenFileFlow,
+  registerOpenFileTrigger: vi.fn(() => () => {}),
 }));
 
 const persistenceStoreMocks = vi.hoisted(() => ({
@@ -137,6 +153,7 @@ describe(
       shareMocks.decodeLayout.mockReset();
       shareMocks.decodeLayout.mockReturnValue({ layout: null });
       shareMocks.clearShareParam.mockReset();
+      openFileTriggerMocks.runOpenFileFlow.mockReset();
 
       persistenceStoreMocks.initializePersistence.mockReset();
       persistenceStoreMocks.initializePersistence.mockResolvedValue(true);
@@ -177,7 +194,7 @@ describe(
       expect(getLayoutStore().rackCount).toBe(0);
     });
 
-    it("skips initialization-driven entry when loading a share link", async () => {
+    it("loads a share link directly when local storage has no unexported changes", async () => {
       const sharedLayout = createTestLayout({
         name: "Shared Test",
         racks: [createTestRack({ id: "rack-1", name: "Rack 1" })],
@@ -194,9 +211,89 @@ describe(
 
       expect(screen.queryByTestId("start-screen")).not.toBeInTheDocument();
       expect(shareMocks.clearShareParam).toHaveBeenCalledTimes(1);
-      expect(
-        sessionStorageMocks.loadSessionWithTimestamp,
-      ).not.toHaveBeenCalled();
+      // The #2988 dirty pre-check does read the local session, but finding it
+      // clean (the default mock return) skips the rest of server-mode
+      // restore/reconcile entirely, same as before the fix.
+      expect(sessionStorageMocks.loadSessionWithTimestamp).toHaveBeenCalled();
+      expect(persistenceApiMocks.listSavedLayouts).not.toHaveBeenCalled();
+      expect(openFileTriggerMocks.runOpenFileFlow).not.toHaveBeenCalled();
+      expect(getLayoutStore().layout.name).toBe("Shared Test");
+    });
+
+    // R3/#2988: a share link must not silently replace unexported local work.
+    it("guards a share link behind the open-file confirm flow when local storage has unexported changes", async () => {
+      const localLayout = createTestLayout({
+        name: "Local Work In Progress",
+        racks: [createTestRack({ id: "rack-local", name: "Local Rack" })],
+      });
+      const sharedLayout = createTestLayout({
+        name: "Shared Test",
+        racks: [createTestRack({ id: "rack-1", name: "Rack 1" })],
+      });
+
+      sessionStorageMocks.loadSessionWithTimestamp.mockReturnValue({
+        layout: localLayout,
+        savedAt: new Date("2026-07-11T00:00:00.000Z").toISOString(),
+        changesSinceExport: 2,
+        hasEverExported: false,
+        storageMode: "server",
+      });
+      shareMocks.getShareParam.mockReturnValue("encoded");
+      shareMocks.decodeLayout.mockReturnValue({ layout: sharedLayout });
+
+      render(App);
+
+      await waitFor(() => {
+        expect(openFileTriggerMocks.runOpenFileFlow).toHaveBeenCalledTimes(1);
+      });
+
+      // The URL payload is dropped immediately regardless of the eventual
+      // choice, and the local session is restored (real content for "Export
+      // first" to protect) while the shared layout is withheld pending the
+      // guard's outcome.
+      expect(shareMocks.clearShareParam).toHaveBeenCalledTimes(1);
+      expect(getLayoutStore().layout.name).toBe("Local Work In Progress");
+
+      // Simulate the user confirming "Replace" in OpenFileGuardDialog.
+      const loadAction = openFileTriggerMocks.runOpenFileFlow.mock.calls[0]![0];
+      await loadAction(true);
+
+      expect(getLayoutStore().layout.name).toBe("Shared Test");
+      expect(getToastStore().toasts.at(-1)?.message).toBe(
+        "Previous layout kept in Layouts",
+      );
+    });
+
+    // A Cancelled guard must never apply the deferred share load.
+    it("keeps the restored local layout when the share-link guard is cancelled", async () => {
+      const localLayout = createTestLayout({
+        name: "Local Work In Progress",
+        racks: [createTestRack({ id: "rack-local", name: "Local Rack" })],
+      });
+      const sharedLayout = createTestLayout({
+        name: "Shared Test",
+        racks: [createTestRack({ id: "rack-1", name: "Rack 1" })],
+      });
+
+      sessionStorageMocks.loadSessionWithTimestamp.mockReturnValue({
+        layout: localLayout,
+        savedAt: new Date("2026-07-11T00:00:00.000Z").toISOString(),
+        changesSinceExport: 2,
+        hasEverExported: false,
+        storageMode: "server",
+      });
+      shareMocks.getShareParam.mockReturnValue("encoded");
+      shareMocks.decodeLayout.mockReturnValue({ layout: sharedLayout });
+
+      render(App);
+
+      await waitFor(() => {
+        expect(openFileTriggerMocks.runOpenFileFlow).toHaveBeenCalledTimes(1);
+      });
+
+      // OpenFileGuardDialog's Cancel handler simply never calls the deferred
+      // load action; nothing further to simulate here.
+      expect(getLayoutStore().layout.name).toBe("Local Work In Progress");
     });
 
     it("skips server persistence calls when startup health check resolves unavailable", async () => {
