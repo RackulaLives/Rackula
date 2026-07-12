@@ -79,4 +79,81 @@ describe("device palette tab order", () => {
     expect(tabbable()[0]).toBe(rows[1]);
     expect(rows[1]).toHaveFocus();
   });
+
+  it("roving tabindex keeps exactly one row tabbable, and ArrowUp moves it", async () => {
+    const user = userEvent.setup();
+    render(TestDevicePalette);
+
+    await user.click(screen.getByRole("button", { name: /^AC Infinity/ }));
+    const content = screen.getByTestId("accordion-content-ac-infinity");
+    const rows = within(content).getAllByRole("listitem");
+    expect(rows.length).toBeGreaterThan(1);
+
+    const tabbable = () =>
+      rows.filter((row) => row.getAttribute("tabindex") === "0");
+
+    rows[1]?.focus();
+    // eslint-disable-next-line no-restricted-syntax -- roving tabindex invariant: exactly one row is ever in the tab order
+    expect(tabbable()).toHaveLength(1);
+    expect(tabbable()[0]).toBe(rows[1]);
+
+    await user.keyboard("{ArrowUp}");
+
+    // eslint-disable-next-line no-restricted-syntax -- roving tabindex invariant: exactly one row is ever in the tab order
+    expect(tabbable()).toHaveLength(1);
+    expect(tabbable()[0]).toBe(rows[0]);
+    expect(rows[0]).toHaveFocus();
+  });
+
+  it("roving tabindex keeps exactly one row tabbable, and Home moves it to the first row", async () => {
+    const user = userEvent.setup();
+    render(TestDevicePalette);
+
+    await user.click(screen.getByRole("button", { name: /^AC Infinity/ }));
+    const content = screen.getByTestId("accordion-content-ac-infinity");
+    const rows = within(content).getAllByRole("listitem");
+    expect(rows.length).toBeGreaterThan(1);
+
+    const tabbable = () =>
+      rows.filter((row) => row.getAttribute("tabindex") === "0");
+
+    const lastRow = rows[rows.length - 1];
+    lastRow?.focus();
+    // eslint-disable-next-line no-restricted-syntax -- roving tabindex invariant: exactly one row is ever in the tab order
+    expect(tabbable()).toHaveLength(1);
+    expect(tabbable()[0]).toBe(lastRow);
+
+    await user.keyboard("{Home}");
+
+    // eslint-disable-next-line no-restricted-syntax -- roving tabindex invariant: exactly one row is ever in the tab order
+    expect(tabbable()).toHaveLength(1);
+    expect(tabbable()[0]).toBe(rows[0]);
+    expect(rows[0]).toHaveFocus();
+  });
+
+  it("roving tabindex keeps exactly one row tabbable, and End moves it to the last row", async () => {
+    const user = userEvent.setup();
+    render(TestDevicePalette);
+
+    await user.click(screen.getByRole("button", { name: /^AC Infinity/ }));
+    const content = screen.getByTestId("accordion-content-ac-infinity");
+    const rows = within(content).getAllByRole("listitem");
+    expect(rows.length).toBeGreaterThan(1);
+
+    const tabbable = () =>
+      rows.filter((row) => row.getAttribute("tabindex") === "0");
+
+    rows[0]?.focus();
+    // eslint-disable-next-line no-restricted-syntax -- roving tabindex invariant: exactly one row is ever in the tab order
+    expect(tabbable()).toHaveLength(1);
+    expect(tabbable()[0]).toBe(rows[0]);
+
+    await user.keyboard("{End}");
+
+    const lastRow = rows[rows.length - 1];
+    // eslint-disable-next-line no-restricted-syntax -- roving tabindex invariant: exactly one row is ever in the tab order
+    expect(tabbable()).toHaveLength(1);
+    expect(tabbable()[0]).toBe(lastRow);
+    expect(lastRow).toHaveFocus();
+  });
 });
