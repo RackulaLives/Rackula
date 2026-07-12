@@ -91,7 +91,7 @@ describe("Placement-mode click routing on an occupied device body (#2990 follow-
       ],
     });
 
-    (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
+    vi.mocked(resolveDropTarget).mockReturnValue({
       feedback: "blocked",
       targetU: 10,
       xOffsetInRack: 0,
