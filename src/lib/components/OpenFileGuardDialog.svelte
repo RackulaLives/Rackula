@@ -19,10 +19,13 @@
   import ConfirmReplaceDialog from "./ConfirmReplaceDialog.svelte";
   import { handleSaveAsArchive } from "$lib/storage";
   import { shouldShowCleanupPrompt } from "$lib/utils/app-actions";
+  import { getToastStore } from "$lib/stores/toast.svelte";
   import {
     registerOpenFileTrigger,
     type OpenFileLoadAction,
   } from "$lib/actions/open-file-trigger";
+
+  const toastStore = getToastStore();
 
   let confirmOpen = $state(false);
   let pendingLoad: OpenFileLoadAction | null = null;
@@ -62,6 +65,18 @@
 
   $effect(() =>
     registerOpenFileTrigger((loadAction) => {
+      if (pendingLoad) {
+        // A guarded load is already waiting on the user's Cancel / Export
+        // first / Replace decision (#2987). Overwriting pendingLoad here
+        // would silently drop whichever load registered first with no
+        // trace, permanently losing it once its URL/state has already been
+        // cleared by the caller (#2988 fix-round finding 1, flagged
+        // independently by two reviewers). Refuse the new one instead: the
+        // user resolves the pending dialog first, then retries the action
+        // that produced this one.
+        toastStore.showToast("Finish the current open first", "error");
+        return;
+      }
       pendingLoad = loadAction;
       confirmOpen = true;
     }),

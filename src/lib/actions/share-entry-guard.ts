@@ -1,3 +1,5 @@
+import { loadSessionWithTimestamp, resolveBrowserLaunch } from "$lib/storage";
+
 /**
  * Whether locally persisted state has unexported changes to protect from a
  * `?l=` share-link entry (#2988), read directly off storage rather than the
@@ -10,8 +12,6 @@
  * seeded later in the boot sequence, which is not real work worth guarding.
  * Reading storage directly avoids both false negatives and false positives.
  */
-import { loadSessionWithTimestamp, resolveBrowserLaunch } from "$lib/storage";
-
 export function hasUnrestoredLocalChanges(serverMode: boolean): boolean {
   if (serverMode) {
     return (loadSessionWithTimestamp()?.changesSinceExport ?? 0) > 0;

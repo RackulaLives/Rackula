@@ -11,19 +11,11 @@ vi.mock("$lib/storage", () => ({
 }));
 
 import { hasUnrestoredLocalChanges } from "$lib/actions/share-entry-guard";
-import type { BrowserLaunch, LibraryEntry } from "$lib/storage";
-
-function libraryEntry(changesSinceExport: number): LibraryEntry {
-  return {
-    name: "Test layout",
-    updatedAt: "2026-07-01T00:00:00.000Z",
-    changesSinceExport,
-    hasEverExported: changesSinceExport === 0,
-    lastExportedAt: null,
-    writeFailed: false,
-    storageMode: "browser",
-  };
-}
+import {
+  createTestLibraryEntry,
+  createTestEmptyBrowserLaunch,
+  createTestRestoreBrowserLaunch,
+} from "./factories";
 
 describe("hasUnrestoredLocalChanges (#2988)", () => {
   beforeEach(() => {
@@ -63,63 +55,72 @@ describe("hasUnrestoredLocalChanges (#2988)", () => {
 
   describe("browser mode", () => {
     it("is false for a genuine fresh install (no persisted workspace)", () => {
-      storageMocks.resolveBrowserLaunch.mockReturnValue({
-        action: "empty",
-        everHadLayouts: false,
-      } satisfies BrowserLaunch);
+      storageMocks.resolveBrowserLaunch.mockReturnValue(
+        createTestEmptyBrowserLaunch({ everHadLayouts: false }),
+      );
       expect(hasUnrestoredLocalChanges(false)).toBe(false);
     });
 
     it("is false for a returning user whose workspace is empty", () => {
-      storageMocks.resolveBrowserLaunch.mockReturnValue({
-        action: "empty",
-        everHadLayouts: true,
-      } satisfies BrowserLaunch);
+      storageMocks.resolveBrowserLaunch.mockReturnValue(
+        createTestEmptyBrowserLaunch({ everHadLayouts: true }),
+      );
       expect(hasUnrestoredLocalChanges(false)).toBe(false);
     });
 
     it("is false when the active tab has no unexported changes", () => {
-      storageMocks.resolveBrowserLaunch.mockReturnValue({
-        action: "restore",
-        index: {
-          schemaVersion: 2,
-          activeId: "layout-1",
-          openTabs: ["layout-1"],
-          library: { "layout-1": libraryEntry(0) },
-        },
-        loadBody: vi.fn(),
-      } satisfies BrowserLaunch);
+      storageMocks.resolveBrowserLaunch.mockReturnValue(
+        createTestRestoreBrowserLaunch({
+          index: {
+            schemaVersion: 2,
+            activeId: "layout-1",
+            openTabs: ["layout-1"],
+            library: {
+              "layout-1": createTestLibraryEntry({ changesSinceExport: 0 }),
+            },
+          },
+        }),
+      );
       expect(hasUnrestoredLocalChanges(false)).toBe(false);
     });
 
     it("is true when the active tab has unexported changes", () => {
-      storageMocks.resolveBrowserLaunch.mockReturnValue({
-        action: "restore",
-        index: {
-          schemaVersion: 2,
-          activeId: "layout-1",
-          openTabs: ["layout-1", "layout-2"],
-          library: {
-            "layout-1": libraryEntry(2),
-            "layout-2": libraryEntry(0),
+      storageMocks.resolveBrowserLaunch.mockReturnValue(
+        createTestRestoreBrowserLaunch({
+          index: {
+            schemaVersion: 2,
+            activeId: "layout-1",
+            openTabs: ["layout-1", "layout-2"],
+            library: {
+              "layout-1": createTestLibraryEntry({ changesSinceExport: 2 }),
+              "layout-2": createTestLibraryEntry({ changesSinceExport: 0 }),
+            },
           },
-        },
-        loadBody: vi.fn(),
-      } satisfies BrowserLaunch);
+        }),
+      );
       expect(hasUnrestoredLocalChanges(false)).toBe(true);
     });
 
+    // #2988 fix-round finding 4: this fixture previously named "open tabs"
+    // while supplying openTabs: [] -- an impossible restore fixture, since
+    // resolveBrowserLaunch() only ever returns action: "restore" when
+    // openTabs.length > 0 (browser-launch.ts). Use a genuinely nonempty
+    // openTabs with a matching (and dirty) library entry, so this proves the
+    // false result comes specifically from the missing activeId rather than
+    // from there being no unexported changes anywhere in the workspace.
     it("is false when the index has open tabs but no active id", () => {
-      storageMocks.resolveBrowserLaunch.mockReturnValue({
-        action: "restore",
-        index: {
-          schemaVersion: 2,
-          activeId: null,
-          openTabs: [],
-          library: {},
-        },
-        loadBody: vi.fn(),
-      } satisfies BrowserLaunch);
+      storageMocks.resolveBrowserLaunch.mockReturnValue(
+        createTestRestoreBrowserLaunch({
+          index: {
+            schemaVersion: 2,
+            activeId: null,
+            openTabs: ["layout-1"],
+            library: {
+              "layout-1": createTestLibraryEntry({ changesSinceExport: 2 }),
+            },
+          },
+        }),
+      );
       expect(hasUnrestoredLocalChanges(false)).toBe(false);
     });
   });

@@ -32,7 +32,7 @@ import { resetCanvasStore } from "$lib/stores/canvas.svelte";
 import { resetPlacementStore } from "$lib/stores/placement.svelte";
 import { resetImageStore } from "$lib/stores/images.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
-import { resetToastStore } from "$lib/stores/toast.svelte";
+import { resetToastStore, getToastStore } from "$lib/stores/toast.svelte";
 import { resetViewportStore } from "$lib/utils/viewport.svelte";
 import { createTestLayout, createTestRack } from "./factories";
 import OpenFileGuardDialog from "$lib/components/OpenFileGuardDialog.svelte";
@@ -288,7 +288,8 @@ describe(
   },
 );
 
-// The reviewer's narrow race (#2988 fix-round): the deferred share load's
+// The reviewer's narrow race (#2988 fix-round finding 1, independently
+// flagged by two reviewers): the deferred share load's
 // runOpenFileFlow(pendingShareLoad) call happens strictly after
 // restoreLocalWorkspaceOrSession() resolves in App.svelte. But a competing
 // guarded load (e.g. the user pressing Ctrl+O, or LoadDialog's own guarded
@@ -296,11 +297,7 @@ describe(
 // first, if it fires anywhere in the window between the local store going
 // dirty during restore (restoreLocalSession's layoutStore.markDirty(),
 // App.svelte) and the share flow's own runOpenFileFlow call landing a tick
-// or two later. OpenFileGuardDialog keeps exactly one `pendingLoad` slot and
-// its registered trigger unconditionally overwrites it
-// (OpenFileGuardDialog.svelte's `pendingLoad = loadAction; confirmOpen =
-// true;`), so whichever call arrives second silently wins and the earlier
-// one is dropped with no warning if the user has not yet decided.
+// or two later.
 //
 // Reproducing that exact "during the restore await" timing end-to-end
 // through the full App would require pinning the test to the precise
@@ -309,15 +306,15 @@ describe(
 // resolve between the competing call and the share dispatch) - brittle,
 // implementation-coupled, and liable to silently stop covering anything the
 // moment that internal shape changes. Instead this test drives the same
-// clobber MECHANISM directly against the real trigger module and the real
+// MECHANISM directly against the real trigger module and the real
 // OpenFileGuardDialog (no App, no mocked storage layers), which is exactly
 // what determines the outcome of the race regardless of how the two calls
 // happen to get interleaved: two runOpenFileFlow calls land while dirty and
-// no decision has been made yet, and the dialog's single pendingLoad slot
-// keeps only the second. This documents CURRENT (unprotected) behaviour
-// rather than proving the App-level window is unreachable; see the fix-round
-// report for the accepted-residual-risk framing.
-describe("open-file guard pendingLoad clobber under a competing load (#2988 fix-round, documents current behaviour)", () => {
+// no decision has been made yet. OpenFileGuardDialog now refuses the second
+// registration outright (its `pendingLoad` slot is only ever set from empty)
+// and surfaces a toast, so the first-registered load (the share load, here)
+// is never lost and still runs when the user resolves the dialog.
+describe("open-file guard refuses a competing load while one is pending (#2988 fix-round finding 1)", () => {
   let layoutStoreSpy: ReturnType<typeof vi.spyOn> | undefined;
 
   function stubChangesSinceExport(value: number) {
@@ -336,9 +333,10 @@ describe("open-file guard pendingLoad clobber under a competing load (#2988 fix-
   afterEach(() => {
     layoutStoreSpy?.mockRestore();
     layoutStoreSpy = undefined;
+    resetToastStore();
   });
 
-  it("a second guarded load registered before the user decides overwrites (clobbers) the first, silently", async () => {
+  it("a second guarded load registered before the user decides is refused, with the first still running on Replace", async () => {
     stubChangesSinceExport(2);
     render(OpenFileGuardDialog);
 
@@ -351,15 +349,25 @@ describe("open-file guard pendingLoad clobber under a competing load (#2988 fix-
     await screen.findByText(/Replace this layout\?/i);
 
     // A competing guarded load (e.g. a Ctrl+O mid-boot) registers next, while
-    // the user still has not acted on the dialog.
+    // the user still has not acted on the dialog. It must be refused, not
+    // swap in.
     runOpenFileFlow(competingLoad);
+
+    expect(getToastStore().toasts.at(-1)?.message).toBe(
+      "Finish the current open first",
+    );
+    // The dialog is still showing the FIRST load's confirm prompt; a clobber
+    // would have silently kept it open too, so this alone can't distinguish
+    // the two behaviours -- the resolution below is what proves it.
+    expect(
+      await screen.findByText(/Replace this layout\?/i),
+    ).toBeInTheDocument();
 
     await fireEvent.click(screen.getByTestId("btn-replace-rack"));
 
-    // Current behaviour: the LAST registered load wins; the earlier one never
-    // runs at all, with no toast or warning distinguishing this from a clean
-    // single-load confirm. This is the clobber the reviewer flagged.
-    expect(competingLoad).toHaveBeenCalledWith(true);
-    expect(shareLoad).not.toHaveBeenCalled();
+    // The refusal preserved the first-registered load: Replace resolves the
+    // share load, and the refused competing load never runs at all.
+    expect(shareLoad).toHaveBeenCalledWith(true);
+    expect(competingLoad).not.toHaveBeenCalled();
   });
 });

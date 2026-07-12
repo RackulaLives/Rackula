@@ -30,6 +30,7 @@ import type {
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import type { NetBoxDeviceType } from "$lib/utils/netbox-import";
 import type { Command, CommandType } from "$lib/stores/commands/types";
+import type { LibraryEntry, BrowserLaunch } from "$lib/storage";
 import { toInternalUnits } from "$lib/utils/position";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
@@ -542,6 +543,64 @@ export function createBladeContainerWithChild(): {
     containerId: containerDevice.id,
     childId: childDevice.id,
     childPosition: childDevice.position,
+  };
+}
+
+// =============================================================================
+// Browser Workspace / Storage Factories (#2988)
+// =============================================================================
+
+/**
+ * Creates a test LibraryEntry (browser workspace per-layout durability
+ * record, $lib/storage/browser-workspace.ts).
+ */
+export function createTestLibraryEntry(
+  overrides: Partial<LibraryEntry> = {},
+): LibraryEntry {
+  return {
+    name: "Test layout",
+    updatedAt: "2026-07-01T00:00:00.000Z",
+    changesSinceExport: 0,
+    hasEverExported: true,
+    lastExportedAt: null,
+    writeFailed: false,
+    storageMode: "browser",
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a test BrowserLaunch in the "empty" state (resolveBrowserLaunch()'s
+ * no-open-tabs branch).
+ */
+export function createTestEmptyBrowserLaunch(
+  overrides: Partial<Extract<BrowserLaunch, { action: "empty" }>> = {},
+): BrowserLaunch {
+  return {
+    action: "empty",
+    everHadLayouts: false,
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a test BrowserLaunch in the "restore" state, with a single-tab
+ * WorkspaceIndex by default. `loadBody` is a fresh vi.fn() per call so each
+ * test gets its own spy.
+ */
+export function createTestRestoreBrowserLaunch(
+  overrides: Partial<Extract<BrowserLaunch, { action: "restore" }>> = {},
+): BrowserLaunch {
+  return {
+    action: "restore",
+    index: {
+      schemaVersion: 2,
+      activeId: "layout-1",
+      openTabs: ["layout-1"],
+      library: { "layout-1": createTestLibraryEntry() },
+    },
+    loadBody: vi.fn(),
+    ...overrides,
   };
 }
 
