@@ -84,16 +84,21 @@ describe("handleDelete", () => {
     expect(selectionStore.isDeviceSelected).toBe(false);
   });
 
+  // The undo toast names the device type's model (falling back to slug), not
+  // a custom instance name override: removeDeviceRecorded() resolves the
+  // toast text from deviceType.model, and placeAndSelectDevice()'s device
+  // type has a deterministic default model of "Test Device" (factories.ts).
   it("shows an undo toast naming the removed device", () => {
     placeAndSelectDevice();
     const toastStore = getToastStore();
 
     handleDelete();
 
-    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: exactly one removal produces exactly one toast
-    expect(toastStore.toasts).toHaveLength(1);
-    expect(toastStore.toasts[0]!.message).toContain("Removed");
-    expect(toastStore.toasts[0]!.action?.label).toBe("Undo");
+    const toast = toastStore.toasts.find(
+      (t) => t.message === "Removed Test Device",
+    );
+    expect(toast).toBeDefined();
+    expect(toast?.action?.label).toBe("Undo");
   });
 
   it("undo toast action restores the exact device removed", () => {

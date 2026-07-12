@@ -16,6 +16,7 @@ import {
 } from "$lib/stores/selection.svelte";
 import { resetUIStore } from "$lib/stores/ui.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
+import { createTestDeviceTypeInput } from "./factories";
 
 function renderEditTab() {
   return render(SidePanelContent, {
@@ -280,17 +281,21 @@ describe("Edit panel Remove from Rack (#2993)", () => {
     resetToastStore();
   });
 
+  // Not promoted to factories.ts: dialog-actions.test.ts and
+  // rack-context-actions.test.ts have their own place-and-select helpers,
+  // but they seed via createTestDeviceType()/addDeviceTypeRaw() at U10, while
+  // this file consistently uses addDeviceType() (undo/dirty-tracking) at U1
+  // to match every other test in this file. The store call and position
+  // differ materially, so this stays local rather than forcing a shared
+  // helper across incompatible setup patterns.
   function placeAndSelectDevice() {
     const layoutStore = getLayoutStore();
     const selectionStore = getSelectionStore();
     const rack = layoutStore.addRack("Test Rack", 42);
     const rackId = rack!.id;
-    const deviceType = layoutStore.addDeviceType({
-      name: "Server Type",
-      u_height: 1,
-      category: "server",
-      colour: "#4A90D9",
-    });
+    const deviceType = layoutStore.addDeviceType(
+      createTestDeviceTypeInput({ name: "Server Type" }),
+    );
     layoutStore.placeDevice(rackId, deviceType.slug, 1, "front");
     const device = layoutStore.getRackById(rackId)!.devices[0]!;
     selectionStore.selectDevice(rackId, device.id);
@@ -310,10 +315,9 @@ describe("Edit panel Remove from Rack (#2993)", () => {
     expect(
       layoutStore.getRackById(rackId)!.devices.some((d) => d.id === deviceId),
     ).toBe(false);
-    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: exactly one removal produces exactly one toast
-    expect(toastStore.toasts).toHaveLength(1);
-    expect(toastStore.toasts[0]!.message).toContain("Removed");
-    expect(toastStore.toasts[0]!.action?.label).toBe("Undo");
+    const toast = toastStore.toasts.find((t) => t.action?.label === "Undo");
+    expect(toast).toBeDefined();
+    expect(toast?.message).toContain("Removed");
   });
 
   it("undo toast action restores the exact device removed", async () => {

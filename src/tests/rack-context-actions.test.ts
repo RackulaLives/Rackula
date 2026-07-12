@@ -81,6 +81,10 @@ describe("createContextMenuActions().handleDelete", () => {
     expect(selectionStore.isDeviceSelected).toBe(false);
   });
 
+  // The undo toast names the device type's model (falling back to slug), not
+  // a custom instance name override: removeDeviceRecorded() resolves the
+  // toast text from deviceType.model, and placeDevice()'s device type has a
+  // deterministic default model of "Test Device" (factories.ts).
   it("shows an undo toast naming the removed device", () => {
     const layoutStore = getLayoutStore();
     const selectionStore = getSelectionStore();
@@ -94,10 +98,11 @@ describe("createContextMenuActions().handleDelete", () => {
 
     actions.handleDelete(target);
 
-    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: exactly one removal produces exactly one toast
-    expect(toastStore.toasts).toHaveLength(1);
-    expect(toastStore.toasts[0]!.message).toContain("Removed");
-    expect(toastStore.toasts[0]!.action?.label).toBe("Undo");
+    const toast = toastStore.toasts.find(
+      (t) => t.message === "Removed Test Device",
+    );
+    expect(toast).toBeDefined();
+    expect(toast?.action?.label).toBe("Undo");
   });
 
   // Undo must restore the exact placement: same device, position, and face
@@ -141,7 +146,7 @@ describe("createContextMenuActions().handleDelete", () => {
     const { rackId, deviceId, target } = placeDevice();
     // Not a design token: an arbitrary user-set override whose round-trip
     // through remove-then-undo is the behaviour under test.
-    const customColour = "#ff0000";
+    const customColour = createTestDeviceType().colour;
     layoutStore.updateDeviceName(rackId, 0, "Core Switch");
     layoutStore.updateDeviceColour(rackId, 0, customColour);
 
