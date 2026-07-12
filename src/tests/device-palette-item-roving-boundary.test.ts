@@ -65,6 +65,13 @@ function buildList({
 }
 
 describe("DevicePaletteItem roving key boundary handling", () => {
+  const globalKeydown = vi.fn();
+
+  afterEach(() => {
+    window.removeEventListener("keydown", globalKeydown);
+    globalKeydown.mockClear();
+  });
+
   afterEach(() => {
     cleanup();
   });
@@ -75,14 +82,12 @@ describe("DevicePaletteItem roving key boundary handling", () => {
     const row = within(list).getByRole("listitem", {
       name: new RegExp(DEVICE_NAME),
     });
-    const globalKeydown = vi.fn();
     window.addEventListener("keydown", globalKeydown);
 
     row.focus();
     await user.keyboard("{ArrowUp}");
 
     expect(globalKeydown).not.toHaveBeenCalled();
-    window.removeEventListener("keydown", globalKeydown);
   });
 
   it("does not leak Home to a global handler when already on the first row", async () => {
@@ -91,14 +96,12 @@ describe("DevicePaletteItem roving key boundary handling", () => {
     const row = within(list).getByRole("listitem", {
       name: new RegExp(DEVICE_NAME),
     });
-    const globalKeydown = vi.fn();
     window.addEventListener("keydown", globalKeydown);
 
     row.focus();
     await user.keyboard("{Home}");
 
     expect(globalKeydown).not.toHaveBeenCalled();
-    window.removeEventListener("keydown", globalKeydown);
   });
 
   it("does not leak End to a global handler when already on the last row", async () => {
@@ -107,13 +110,11 @@ describe("DevicePaletteItem roving key boundary handling", () => {
     const row = within(list).getByRole("listitem", {
       name: new RegExp(DEVICE_NAME),
     });
-    const globalKeydown = vi.fn();
     window.addEventListener("keydown", globalKeydown);
 
     row.focus();
     await user.keyboard("{End}");
 
     expect(globalKeydown).not.toHaveBeenCalled();
-    window.removeEventListener("keydown", globalKeydown);
   });
 });
