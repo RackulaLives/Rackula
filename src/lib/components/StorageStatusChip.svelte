@@ -220,6 +220,7 @@
 
 <style>
   .storage-chip {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
@@ -234,6 +235,22 @@
     font-family: inherit;
     cursor: pointer;
   }
+
+  /* Mobile (#3001): the visible chip stays 28px tall; a transparent overlay
+     grows the tap target to the project's touch-target minimum without
+     changing the rendered size. */
+  @media (max-width: 1024px) {
+    .storage-chip::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: max(100%, var(--touch-target-min));
+      height: var(--touch-target-min);
+    }
+  }
+
   .storage-chip:hover,
   .storage-chip[data-state="open"] {
     background: var(--colour-surface-hover);

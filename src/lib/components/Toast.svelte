@@ -192,6 +192,7 @@
   }
 
   .toast__action {
+    position: relative;
     flex-shrink: 0;
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
@@ -202,6 +203,20 @@
     border-radius: var(--radius-sm);
     cursor: pointer;
     transition: all 0.15s ease;
+  }
+
+  /* Mobile (#3001): keep the pill's rendered size; a transparent overlay
+     grows the tap target to the touch-target minimum. */
+  @media (max-width: 1024px) {
+    .toast__action::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: max(100%, var(--touch-target-min));
+      height: var(--touch-target-min);
+    }
   }
 
   .toast__action:hover {
@@ -215,6 +230,7 @@
   }
 
   .toast__dismiss {
+    position: relative;
     flex-shrink: 0;
     width: 1.5rem;
     height: 1.5rem;
@@ -228,6 +244,20 @@
     color: var(--colour-text-muted);
     font-size: 0.75rem;
     transition: all 0.15s ease;
+  }
+
+  /* Mobile (#3001): keep the 24px icon; a transparent overlay grows the tap
+     target to the touch-target minimum without changing the rendered size. */
+  @media (max-width: 1024px) {
+    .toast__dismiss::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: var(--touch-target-min);
+      height: var(--touch-target-min);
+    }
   }
 
   .toast__dismiss:hover {

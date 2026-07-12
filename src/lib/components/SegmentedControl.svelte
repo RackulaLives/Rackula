@@ -98,6 +98,21 @@
     position: relative;
   }
 
+  /* Mobile (#3001): the segment's rendered height stays as authored; a
+     transparent overlay grows the tap target to the touch-target minimum
+     without changing the layout. */
+  @media (max-width: 1024px) {
+    .segment::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      transform: translateY(-50%);
+      min-height: var(--touch-target-min);
+    }
+  }
+
   .segment.first {
     border-radius: var(--radius-sm) 0 0 var(--radius-sm);
   }

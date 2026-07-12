@@ -708,12 +708,14 @@
                  suppressed in read-only mode. Pull right past the snap threshold
                  to create a bayed rack. -->
             {#if !uiStore.readOnly && uiStore.enableBayedRacks && baySourceForItem(item, activeRackId) !== null}
+              {@const bayGripScale = 1 / canvasStore.zoom}
               <button
                 type="button"
                 class="bay-edge-grip"
                 aria-label="Drag right to bay a new rack"
                 title="Drag right to create a bayed rack"
                 tabindex="-1"
+                style:--bay-grip-scale={bayGripScale}
                 onpointerdown={(e) => handleBayDragStart(rack.id, e)}
                 onpointermove={handleBayDragMove}
                 onpointerup={handleBayDragEnd}
@@ -1075,6 +1077,17 @@
     touch-action: none;
     transform: translate(50%, -50%);
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mobile (#3001): counter-scale the invisible hit box to a constant 44px
+     screen-space square regardless of canvas zoom (same technique as the
+     resize grips, #2824), so the tap target is reliable at any zoom level.
+     The visible edge-grip-bar is untouched and keeps scaling with the canvas. */
+  @media (max-width: 1024px) {
+    .bay-edge-grip {
+      width: calc(44px * var(--bay-grip-scale, 1));
+      height: calc(44px * var(--bay-grip-scale, 1));
+    }
   }
 
   .edge-grip-bar {

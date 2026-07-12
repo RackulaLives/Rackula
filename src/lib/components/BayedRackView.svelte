@@ -23,6 +23,7 @@
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
   import { appDebug } from "$lib/utils/debug";
   import { hapticTap } from "$lib/utils/haptics";
+  import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import {
     RACK_PADDING_HIDDEN,
     ANNOTATION_WIDTH_COMPACT,
@@ -159,6 +160,8 @@
     onbaydragend,
     onbaydragcancel,
   }: Props = $props();
+
+  const canvasStore = getCanvasStore();
 
   // Calculate max height for U-label column (use tallest rack)
   const maxHeight = $derived(Math.max(...racks.map((r) => r.height), 0));
@@ -477,12 +480,14 @@
                affordance and handlers as a standalone empty rack. enableBayDrag
                already encodes selection, the bayed-racks setting, and read-only. -->
           {#if enableBayDrag && bayIndex === racks.length - 1}
+            {@const bayGripScale = 1 / canvasStore.zoom}
             <button
               type="button"
               class="bay-edge-grip"
               aria-label="Drag right to bay a new rack"
               title="Drag right to create a bayed rack"
               tabindex="-1"
+              style:--bay-grip-scale={bayGripScale}
               onpointerdown={(e) => onbaydragstart?.(rack.id, e)}
               onpointermove={(e) => onbaydragmove?.(e)}
               onpointerup={(e) => onbaydragend?.(e)}
@@ -754,6 +759,18 @@
     touch-action: none;
     transform: translate(50%, -50%);
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mobile (#3001): counter-scale the invisible hit box to a constant 44px
+     screen-space square regardless of canvas zoom (same technique as the
+     resize grips in RackCanvasView, #2824), so the tap target is reliable at
+     any zoom level. The visible edge-grip-bar is untouched and keeps scaling
+     with the canvas. */
+  @media (max-width: 1024px) {
+    .bay-edge-grip {
+      width: calc(44px * var(--bay-grip-scale, 1));
+      height: calc(44px * var(--bay-grip-scale, 1));
+    }
   }
 
   .edge-grip-bar {
