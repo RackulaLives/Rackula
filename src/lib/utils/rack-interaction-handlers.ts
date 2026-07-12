@@ -265,6 +265,46 @@ export function handleTouchEnd(
 }
 
 /**
+ * Track the pointer during click/tap-to-place so the placement ghost follows
+ * the mouse (#2992). Resolves the U under the pointer with the exact same
+ * pipeline the placement click uses (resolveDropTarget), then moves the
+ * placement store's cursor there. The ghost rendered from that cursor
+ * (keyboardCursorPreview in Rack.svelte) therefore always shows where a click
+ * would land, and the keyboard arrows continue from wherever the pointer left
+ * the cursor.
+ *
+ * Hot path: this runs on every pointermove over the rack, like the drag
+ * preview's dragmove handler. The cursor and face writes are primitive-valued
+ * store assignments, so Svelte's signal equality makes the per-pixel calls
+ * no-ops until the resolved U (or hovered rack/face) actually changes.
+ */
+export function handlePlacementHover(
+  event: MouseEvent | PointerEvent,
+  svg: SVGSVGElement,
+  ctx: RackHandlerContext,
+  device: DeviceType,
+  placement: {
+    setCursor: (rackId: string, position: number | null) => void;
+    setTargetFace: (face: "front" | "rear") => void;
+  },
+): void {
+  const result = resolveDropTarget(
+    { svgElement: svg, clientX: event.clientX, clientY: event.clientY },
+    ctx.getRackDims(),
+    ctx.getRack(),
+    ctx.getDeviceLibrary(),
+    device,
+    ctx.getFaceFilter(),
+  );
+
+  // Keep the armed face in step with the hovered rack copy (front/rear in
+  // dual view), matching the face the click path would place onto.
+  const faceFilter = ctx.getFaceFilter();
+  placement.setTargetFace(faceFilter === "rear" ? "rear" : "front");
+  placement.setCursor(ctx.getRack().id, result.targetU);
+}
+
+/**
  * Handle mouse/pointer tap-to-place onto the rack.
  *
  * The touch flow (handleTouchEnd) only fires for real TouchEvents, which

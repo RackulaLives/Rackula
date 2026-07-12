@@ -14,6 +14,7 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { hapticSuccess, hapticError } from "$lib/utils/haptics";
   import { resolveSelectedDevice } from "$lib/utils/device-selection";
+  import { completePointerPlacement } from "$lib/utils/placement-completion";
   import type { RackSwipeDirection } from "$lib/utils/gestures";
   import type { DeviceFace } from "$lib/types";
   import RackDualView from "./RackDualView.svelte";
@@ -458,7 +459,8 @@
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
   });
 
-  // Handle mobile tap-to-place (uses active rack)
+  // Handle click/tap-to-place on any viewport (desktop palette pick-up and
+  // mobile tap-to-place share this path).
   function handlePlacementTap(
     rackId: string,
     event: CustomEvent<{ position: number; face: "front" | "rear" }>,
@@ -467,18 +469,18 @@
     if (!device) return;
 
     const { position, face } = event.detail;
-    // Carrier-first: a sub-U / half-width device synthesises (or fills) a
-    // carrier; whole-U full-width gear mounts directly to the rails.
-    const success = layoutStore.placeDeviceSmart(
+    // Places carrier-first and, on success, confirms visibly: selects the
+    // placed device and ends placement mode with a rich announcement (#2992).
+    const success = completePointerPlacement(
+      { layoutStore, selectionStore, placementStore },
       rackId,
-      device.slug,
+      device,
       position,
       face,
     );
 
     if (success) {
       hapticSuccess();
-      placementStore.completePlacement();
       // Reset view to show full rack after placement completes
       canvasStore.fitAll(layoutStore.racks);
     } else {

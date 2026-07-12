@@ -417,6 +417,7 @@
     <PlacementIndicator
       isPlacing={placementStore.isPlacing}
       device={placementStore.pendingDevice}
+      isMobile={viewportStore.isMobile}
       oncancel={handleCancelPlacement}
     />
 

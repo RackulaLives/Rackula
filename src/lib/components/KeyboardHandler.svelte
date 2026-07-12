@@ -35,7 +35,12 @@
   const placementKeyboard = createPlacementKeyboardController({
     getRacks: () => layoutStore.racks,
     getDeviceLibrary: () => layoutStore.device_types,
-    getActiveRackId: () => layoutStore.activeRackId,
+    // Prefer the rack the placement cursor is in: the pointer moves the cursor
+    // across racks as it hovers (#2992), and Enter/arrows must act on the rack
+    // whose ghost the user is looking at. Falls back to the active rack while
+    // no cursor is set (e.g. before the first hover or key press).
+    getActiveRackId: () =>
+      placementStore.targetRackId ?? layoutStore.activeRackId,
     isPlacing: () => placementStore.isPlacing,
     getPendingDevice: () => placementStore.pendingDevice,
     getTargetFace: () => placementStore.targetFace,
