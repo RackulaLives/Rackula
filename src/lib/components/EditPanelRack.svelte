@@ -9,8 +9,10 @@
   here for now to preserve current behaviour.
 -->
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import MarkdownPreview from "./MarkdownPreview.svelte";
+  import Tooltip from "./Tooltip.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -70,6 +72,21 @@
   let depthError = $state<string | null>(null);
   let weightError = $state<string | null>(null);
 
+  // Save feedback for the Name field (#3005): height, width, depth, and
+  // numbering apply on click and are visibly reflected immediately (active
+  // preset, updated value); Name commits on blur, so it gets the same
+  // "Saved" acknowledgement used by the device edit panel's blur-committed
+  // fields rather than reading as frozen next to them.
+  let rackNameSaved = $state(false);
+  let rackNameSavedTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  onDestroy(() => {
+    if (rackNameSavedTimeout) {
+      clearTimeout(rackNameSavedTimeout);
+      rackNameSavedTimeout = undefined;
+    }
+  });
+
   // Sync local state with selected rack/group and clear errors
   $effect(() => {
     // For bayed racks, use the group name; otherwise use rack name
@@ -96,6 +113,11 @@
         // Update rack name for regular racks
         layoutStore.updateRack(selectedRack.id, { name: rackName });
       }
+      clearTimeout(rackNameSavedTimeout);
+      rackNameSaved = true;
+      rackNameSavedTimeout = setTimeout(() => {
+        rackNameSaved = false;
+      }, 2000);
     }
   }
 
@@ -240,7 +262,16 @@
 
 <div class="edit-form">
   <div class="form-group">
-    <label for="rack-name">Name</label>
+    <label for="rack-name">
+      Name
+      {#if rackNameSaved}
+        <Tooltip text="Saved">
+          <span class="saved-indicator" data-testid="saved-indicator-rack-name"
+            >✓</span
+          >
+        </Tooltip>
+      {/if}
+    </label>
     <input
       type="text"
       id="rack-name"
@@ -472,6 +503,21 @@
     display: flex;
     align-items: center;
     gap: var(--space-1);
+  }
+
+  .saved-indicator {
+    color: var(--colour-success);
+    font-size: var(--font-size-sm);
+    animation: fade-in var(--duration-fast) ease-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .form-group input {

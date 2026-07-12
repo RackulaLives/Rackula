@@ -84,7 +84,14 @@
   // State for colour picker visibility
   let showColourPicker = $state(false);
 
-  // State for save feedback indicators
+  // State for save feedback indicators. Every placement field (name, colour,
+  // IP, notes) commits on a discrete action (blur or a picker selection) and
+  // flashes the same "Saved" acknowledgement, so no field is silent while a
+  // sibling flashes one (#3005).
+  let nameSaved = $state(false);
+  let nameSavedTimeout: ReturnType<typeof setTimeout> | undefined;
+  let colourSaved = $state(false);
+  let colourSavedTimeout: ReturnType<typeof setTimeout> | undefined;
   let notesSaved = $state(false);
   let notesSavedTimeout: ReturnType<typeof setTimeout> | undefined;
   let ipSaved = $state(false);
@@ -92,6 +99,14 @@
 
   // Cleanup timeouts on component destroy
   onDestroy(() => {
+    if (nameSavedTimeout) {
+      clearTimeout(nameSavedTimeout);
+      nameSavedTimeout = undefined;
+    }
+    if (colourSavedTimeout) {
+      clearTimeout(colourSavedTimeout);
+      colourSavedTimeout = undefined;
+    }
     if (notesSavedTimeout) {
       clearTimeout(notesSavedTimeout);
       notesSavedTimeout = undefined;
@@ -101,6 +116,41 @@
       ipSavedTimeout = undefined;
     }
   });
+
+  // Escape while the colour picker is open closes only the popover, not the
+  // whole device selection (#3005). A capture-phase window listener runs
+  // before the entire target/bubble dispatch (including KeyboardHandler's
+  // bubble-phase Escape handler on window), so stopPropagation() here
+  // reliably pre-empts it regardless of component mount order.
+  $effect(() => {
+    if (!showColourPicker) return;
+
+    function handleWindowKeydown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      showColourPicker = false;
+    }
+
+    window.addEventListener("keydown", handleWindowKeydown, true);
+    return () =>
+      window.removeEventListener("keydown", handleWindowKeydown, true);
+  });
+
+  function flashNameSaved() {
+    clearTimeout(nameSavedTimeout);
+    nameSaved = true;
+    nameSavedTimeout = setTimeout(() => {
+      nameSaved = false;
+    }, 2000);
+  }
+
+  function flashColourSaved() {
+    clearTimeout(colourSavedTimeout);
+    colourSaved = true;
+    colourSavedTimeout = setTimeout(() => {
+      colourSaved = false;
+    }, 2000);
+  }
 
   // Check if selected device is full-depth (determines if face can be changed).
   // is_full_depth undefined or true means full-depth.
@@ -157,12 +207,20 @@
     // If same as device type name, clear the custom name
     const nameToSave =
       newName === deviceName || newName === "" ? undefined : newName;
+    const existingName = selectedDeviceInfo.placedDevice.name;
+    editingDeviceId = null;
+
+    // Only update (and flash Saved) if the value changed, matching the
+    // notes/IP no-op guard so a blur with no edit does not create a history
+    // entry or a misleading acknowledgement.
+    if (nameToSave === existingName) return;
+
     layoutStore.updateDeviceName(
       selectedDeviceInfo.rack.id,
       selectedDeviceInfo.deviceIndex,
       nameToSave,
     );
-    editingDeviceId = null;
+    flashNameSaved();
   }
 
   // Handle device name input keydown
@@ -272,7 +330,16 @@
 
   <!-- Display Name (click-to-edit) -->
   <div class="form-group">
-    <label for="device-display-name">Name</label>
+    <label for="device-display-name">
+      Name
+      {#if nameSaved}
+        <Tooltip text="Saved">
+          <span class="saved-indicator" data-testid="saved-indicator-name"
+            >✓</span
+          >
+        </Tooltip>
+      {/if}
+    </label>
     {#if editingDeviceName}
       <input
         id="device-display-name"
@@ -302,7 +369,16 @@
 
   <!-- Colour (click-to-edit swatch button, opens picker) -->
   <div class="form-group">
-    <span class="field-label" id="device-colour-label">Colour</span>
+    <span class="field-label" id="device-colour-label">
+      Colour
+      {#if colourSaved}
+        <Tooltip text="Saved">
+          <span class="saved-indicator" data-testid="saved-indicator-colour"
+            >✓</span
+          >
+        </Tooltip>
+      {/if}
+    </span>
     <button
       type="button"
       class="colour-swatch-btn"
@@ -324,18 +400,22 @@
         <ColourPicker
           value={resolvedColour}
           defaultValue={selectedDeviceInfo.device.colour}
-          onchange={(colour) =>
+          onchange={(colour) => {
             layoutStore.updateDeviceColour(
               selectedDeviceInfo.rack.id,
               selectedDeviceInfo.deviceIndex,
               colour,
-            )}
-          onreset={() =>
+            );
+            flashColourSaved();
+          }}
+          onreset={() => {
             layoutStore.updateDeviceColour(
               selectedDeviceInfo.rack.id,
               selectedDeviceInfo.deviceIndex,
               undefined,
-            )}
+            );
+            flashColourSaved();
+          }}
         />
       </div>
     {/if}

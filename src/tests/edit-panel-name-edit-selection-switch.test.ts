@@ -8,7 +8,10 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
-import SidePanelContent from "$lib/components/SidePanelContent.svelte";
+// SidePanelContent's Name field now flashes a Tooltip-based Saved
+// indicator on commit (#3005), which needs the Tooltip.Provider context
+// App.svelte supplies in the real app.
+import SidePanelContent from "./helpers/TestSidePanelContent.svelte";
 import { resetLayoutStore, getLayoutStore } from "$lib/stores/layout.svelte";
 import {
   resetSelectionStore,

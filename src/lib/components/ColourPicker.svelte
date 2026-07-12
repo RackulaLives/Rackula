@@ -5,6 +5,7 @@
 <script lang="ts">
   import ColourSwatch from "./ColourSwatch.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
+  import { COLOUR_PRESETS } from "$lib/constants/colourPresets";
 
   interface Props {
     /** Currently selected colour (hex format) */
@@ -19,22 +20,10 @@
 
   let { value, defaultValue, onchange, onreset }: Props = $props();
 
-  // Dracula palette colours for presets
-  const presetColours = [
-    { name: "Purple", hex: "#BD93F9" },
-    { name: "Pink", hex: "#FF79C6" },
-    { name: "Cyan", hex: "#8BE9FD" },
-    { name: "Green", hex: "#50FA7B" },
-    { name: "Orange", hex: "#FFB86C" },
-    { name: "Red", hex: "#FF5555" },
-    { name: "Yellow", hex: "#F1FA8C" },
-    { name: "Comment", hex: "#6272A4" },
-    // Additional common server colours
-    { name: "Blue", hex: "#4A90D9" },
-    { name: "Teal", hex: "#2AA198" },
-    { name: "Gray", hex: "#6B7280" },
-    { name: "Dark", hex: "#374151" },
-  ];
+  // Muted device-fill palette for presets (#3005): raw bright Dracula accents
+  // put white device labels under WCAG AA. Hex entry below still accepts the
+  // brighter values for anyone who wants them.
+  const presetColours = COLOUR_PRESETS;
 
   // Track pending (possibly invalid) input value - undefined means use prop value
   let pendingInput: string | undefined = $state(undefined);
