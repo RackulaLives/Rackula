@@ -52,18 +52,27 @@ export function extractUuidFromFolderName(folderName: string): string | null {
 const SLUG_MAX_LENGTH = 100;
 
 /**
+ * C0 control characters (0x00-0x1F) and DEL (0x7F). A NUL byte reaching
+ * `path.join()` throws `ERR_INVALID_ARG_VALUE`; other control characters are
+ * similarly unsafe or meaningless in filesystem paths (#2942).
+ */
+// eslint-disable-next-line no-control-regex -- intentionally matching control characters to strip them
+const CONTROL_CHAR_PATTERN = /[\x00-\x1f\x7f]/g;
+
+/**
  * Sanitize a string for safe use in filesystem paths
  * Removes path separators and other dangerous characters while keeping readability
  */
 function sanitizeForPath(name: string): string {
   return (
     name
+      .replace(CONTROL_CHAR_PATTERN, "") // Strip control characters (e.g. NUL) before they reach the filesystem
       .replace(/[/\\:*?"<>|]/g, "-") // Replace path separators and reserved chars
       .replace(/\.\./g, "-") // Prevent directory traversal
       .replace(/-+/g, "-") // Collapse multiple hyphens
-      .replace(/^-|-$/g, "") // Remove leading/trailing hyphens
       .trim()
-      .slice(0, 100) || // Limit length
+      .slice(0, 100) // Limit length
+      .replace(/^[-.]+|[-.]+$/g, "") || // Remove leading/trailing hyphens and dots AFTER truncation, so the slice can't reintroduce a boundary dot/hyphen
     "untitled"
   ); // Fallback for empty result
 }
@@ -120,6 +129,17 @@ export function buildYamlFilename(name: string): string {
 }
 
 /**
+ * Rejects C0 control characters (and DEL). Names (both the top-level `name` and
+ * `metadata.name`) feed `buildFolderName`/`buildYamlFilename`; `sanitizeForPath`
+ * also strips control characters as defense-in-depth, but a NUL byte reaching
+ * the filesystem layer unvalidated previously surfaced as a 500 instead of a
+ * clean 400. The `version` field never reaches the filesystem, so its check is
+ * purely about rejecting clearly-malformed data with a clean 400 (#2942).
+ */
+// eslint-disable-next-line no-control-regex -- intentionally rejecting control characters
+const NO_CONTROL_CHARS_PATTERN = /^[^\x00-\x1f\x7f]*$/;
+
+/**
  * Layout YAML metadata section schema.
  * Part of the data directory refactor (#570, #915).
  * This is the new `metadata:` section in YAML files.
@@ -135,7 +155,11 @@ export const LayoutYamlMetadataSchema = z
     name: z
       .string()
       .min(1, "Metadata name is required")
-      .max(100, "Metadata name must be 100 characters or less"),
+      .max(100, "Metadata name must be 100 characters or less")
+      .regex(
+        NO_CONTROL_CHARS_PATTERN,
+        "Metadata name must not contain control characters",
+      ),
     /** Format version for future migrations (e.g., "1.0") */
     schema_version: z.string().min(1, "Schema version is required"),
     /** Optional notes about the layout */
@@ -171,8 +195,24 @@ export const PlacedDeviceFileSchema = z
 // bodies before they are persisted (#2449). The full schema validation happens
 // in the SPA against the richer src/lib/schemas LayoutSchema.
 export const LayoutFileSchema = z.object({
-  version: z.string(),
-  name: z.string().min(1, "Layout name is required"),
+  // No `.min(1)`: the prior schema was a bare `z.string()` that accepted an
+  // empty version, so keep accepting it (backward compatibility). Only the
+  // upper bound and charset are new (#2942).
+  version: z
+    .string()
+    .max(20, "Layout version must be 20 characters or less")
+    .regex(
+      NO_CONTROL_CHARS_PATTERN,
+      "Layout version must not contain control characters",
+    ),
+  name: z
+    .string()
+    .min(1, "Layout name is required")
+    .max(100, "Layout name must be 100 characters or less")
+    .regex(
+      NO_CONTROL_CHARS_PATTERN,
+      "Layout name must not contain control characters",
+    ),
   /** Optional metadata section for new YAML format (#570, #915) */
   metadata: LayoutYamlMetadataSchema.optional(),
   racks: z
