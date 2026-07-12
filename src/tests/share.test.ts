@@ -265,12 +265,14 @@ describe("encodeLayout", () => {
   // not an encoding error, so it must not log a warning.
   it("returns null for a zero-rack layout without logging a warning", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const layout = createTestLayout({ racks: [], device_types: [] });
+    try {
+      const layout = createTestLayout({ racks: [], device_types: [] });
 
-    expect(encodeLayout(layout)).toBeNull();
-    expect(warnSpy).not.toHaveBeenCalled();
-
-    warnSpy.mockRestore();
+      expect(encodeLayout(layout)).toBeNull();
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
 
