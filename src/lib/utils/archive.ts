@@ -271,7 +271,7 @@ export async function downloadYamlFile(
     ? encodeUserImagesToYaml(userImages)
     : { serialized: undefined, oversized: 0 };
   const yamlContent = await serializeLayoutToYaml(layout, serialized);
-  const blob = new Blob([yamlContent], { type: "text/yaml;charset=utf-8" });
+  const blob = new Blob([yamlContent], { type: "text/yaml" });
   const filename = buildYamlFilename(layout.name);
   await fileSave(blob, {
     fileName: filename,

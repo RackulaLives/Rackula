@@ -325,10 +325,7 @@ export async function handleSaveAsArchive(): Promise<boolean> {
       return false;
     }
     persistenceDebug.api("Failed to save layout: %O", error);
-    toastStore.showToast(
-      error instanceof Error ? error.message : "Failed to save layout",
-      "error",
-    );
+    toastStore.showToast("Failed to save layout. Please try again.", "error");
     return false;
   }
 }
