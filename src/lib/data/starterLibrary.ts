@@ -13,6 +13,8 @@
 import type {
   DeviceType,
   DeviceCategory,
+  InterfaceTemplate,
+  InterfaceType,
   Slot,
   SubdeviceRole,
 } from "$lib/types";
@@ -30,6 +32,22 @@ interface StarterDeviceSpec {
   slots?: Slot[];
   /** Subdevice role: parent (container) or child (fits in parent bay) */
   subdevice_role?: SubdeviceRole;
+  /** Network interface templates, for port-bearing devices (switches, patch panels) */
+  interfaces?: InterfaceTemplate[];
+}
+
+/**
+ * Generate numbered port templates (e.g. "1".."24") of a single interface type.
+ * Used for generic starter switches and patch panels.
+ */
+function portInterfaces(
+  count: number,
+  type: InterfaceType,
+): InterfaceTemplate[] {
+  return Array.from({ length: count }, (_, i) => ({
+    name: String(i + 1),
+    type,
+  }));
 }
 
 const STARTER_DEVICES: StarterDeviceSpec[] = [
@@ -59,12 +77,14 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     model: "Switch (24-Port)",
     u_height: 1,
     category: "network",
+    interfaces: portInterfaces(24, "1000base-t"),
   },
   {
     slug: "48-port-switch",
     model: "Switch (48-Port)",
     u_height: 1,
     category: "network",
+    interfaces: portInterfaces(48, "1000base-t"),
   },
 
   // Storage (4)
@@ -98,6 +118,7 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     u_height: 1,
     category: "patch-panel",
     is_full_depth: false,
+    interfaces: portInterfaces(12, "1000base-x-sfp"),
   },
   {
     slug: "24-port-patch-panel",
@@ -105,6 +126,7 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     u_height: 1,
     category: "patch-panel",
     is_full_depth: false,
+    interfaces: portInterfaces(24, "1000base-t"),
   },
   {
     slug: "48-port-patch-panel",
@@ -112,6 +134,7 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     u_height: 2,
     category: "patch-panel",
     is_full_depth: false,
+    interfaces: portInterfaces(48, "1000base-t"),
   },
 
   // KVM (2)
@@ -670,6 +693,7 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     category: "patch-panel",
     is_full_depth: false,
     slot_width: 1,
+    interfaces: portInterfaces(12, "1000base-t"),
   },
   {
     slug: "1u-half-switch",
@@ -678,6 +702,7 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
     category: "network",
     is_full_depth: false,
     slot_width: 1,
+    interfaces: portInterfaces(8, "1000base-t"),
   },
   {
     slug: "1u-half-brush-panel",
@@ -724,6 +749,7 @@ export function getStarterLibrary(): DeviceType[] {
       category: spec.category,
       slots: spec.slots,
       subdevice_role: spec.subdevice_role,
+      interfaces: spec.interfaces,
     }));
   }
   return cachedStarterLibrary;
