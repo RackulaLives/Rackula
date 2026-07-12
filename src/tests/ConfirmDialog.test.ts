@@ -44,6 +44,31 @@ describe("ConfirmDialog keyboard behaviour", () => {
     expect(onconfirm).not.toHaveBeenCalled();
   });
 
+  it("does not confirm when Enter is pressed while the close/X button is focused (#2975)", async () => {
+    const user = userEvent.setup();
+    const onconfirm = vi.fn();
+    const oncancel = vi.fn();
+
+    render(ConfirmDialog, {
+      props: {
+        open: true,
+        title: "Delete Device Type",
+        message: 'Delete "Test Device"? This will remove it from your library.',
+        onconfirm,
+        oncancel,
+      },
+    });
+
+    // The dialog auto-focuses the close button on open; wait for that to
+    // settle so the Enter below targets it deterministically.
+    const closeButton = screen.getByRole("button", { name: "Close dialog" });
+    await waitFor(() => expect(closeButton).toHaveFocus());
+
+    await user.keyboard("{Enter}");
+
+    expect(onconfirm).not.toHaveBeenCalled();
+  });
+
   it("does not react to Enter while closed, and stops reacting once closed again", async () => {
     const onconfirm = vi.fn();
     const oncancel = vi.fn();
