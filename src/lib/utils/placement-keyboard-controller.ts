@@ -33,8 +33,7 @@ import {
   placedAnnouncement,
 } from "./placement-keyboard";
 
-// Matches the drag path's equivalent toast (rack-drop-handlers.ts).
-const NO_ROOM_MESSAGE = "No room for this device here";
+import { NO_ROOM_MESSAGE } from "$lib/constants/toast-messages";
 
 export interface PlacementKeyboardDeps {
   /** All racks in canvas order. */
