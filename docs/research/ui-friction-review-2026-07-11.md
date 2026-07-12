@@ -8,7 +8,7 @@ Raw finding IDs (J1-F1, C-F3, etc.) are preserved for traceability to the underl
 
 ## Executive summary: top 10 by impact
 
-1. Saving to YAML is broken in every Chromium browser. Ctrl+S and the palette save/export-backup commands fail with a raw `showSaveFilePicker` exception because the blob MIME carries `;charset=utf-8`, which the File System Access API rejects. Reproduced in real Google Chrome, headed and headless. The fix is one line. (R1, blocker, quick win)
+1. Saving to YAML is broken in Chromium-based browsers that expose `showSaveFilePicker`; verified in Google Chrome (headed and headless) and Playwright Chromium. Ctrl+S and the palette save/export-backup commands fail with a raw `showSaveFilePicker` exception because the blob MIME carries `;charset=utf-8`, which the File System Access API rejects. Reproduced in real Google Chrome, headed and headless. The fix is one line. (R1, blocker, quick win)
 2. Loading a layout file silently swaps out the current layout. No prompt fires even with unexported changes, undo does not restore it, and the success toast hides the swap. The old layout survives only as a closed row in the Layouts library, which two independent reviewers failed to discover. New layout guards the same situation with a confirm; open does not. (R2, major, small)
 3. Opening a share link does the same silent replacement. A user mid-edit who clicks a shared URL gets their layout swapped with no warning and no visible recovery path. (R3, major, medium)
 4. Placing a device onto an occupied slot fails with no visible feedback, and the same click selects the occupying device and opens its editor while the "Placing" banner stays armed. The app enters a contradictory dual state that reads as broken. (R7, major, small)
