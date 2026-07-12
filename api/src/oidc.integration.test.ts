@@ -409,6 +409,32 @@ describe("OIDC integration", () => {
     }
   });
 
+  // #2942: a discovery document advertising only unknown / non-JWS algorithm
+  // names must not suppress the RS256 fallback. Only known asymmetric JWS
+  // algorithms are honoured; an unrecognised value is ignored, leaving the
+  // RS256 fallback so a valid RS256 token still verifies and login succeeds.
+  it("falls back to RS256 when discovery advertises only an unknown algorithm", async () => {
+    const mock = await installMockOidcFetch({
+      idTokenAlgorithm: "RS256",
+      idTokenIncludeJwkAlg: false,
+      discoverySigningAlgs: ["FOO256"],
+    });
+    try {
+      const app = await createApp(buildOidcEnv());
+      const authedCookieHeader = await completeOidcLogin(app);
+
+      const checkResponse = await app.request("/auth/check", {
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
+        },
+      });
+      expect(checkResponse.status).toBe(204);
+    } finally {
+      mock.restore();
+    }
+  });
+
   // #2942: a discovery document advertising `none` (or an HS* symmetric alg)
   // must not weaken the pin. Those are stripped, leaving the RS256 fallback, so
   // an RS384 token is still rejected.
