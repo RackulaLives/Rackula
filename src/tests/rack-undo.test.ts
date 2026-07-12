@@ -469,6 +469,31 @@ describe("Rack Add/Delete Undo/Redo", () => {
       store.undo();
       expect(store.activeRackId).toBe(bay2!.id);
     });
+
+    it("undo of a non-active rack delete leaves the current active rack unchanged", () => {
+      const store = getLayoutStore();
+      const rackA = store.addRack("Rack A", 42)!;
+      const rackB = store.addRack("Rack B", 42)!;
+      const rackC = store.addRack("Rack C", 42)!;
+      store.setActiveRack(rackA.id);
+      store.clearHistory();
+      expect(store.activeRackId).toBe(rackA.id);
+
+      // Deleting a non-active rack (C) does not change the active rack,
+      // so the delete command's wasActiveAtExecute flag stays false.
+      store.deleteRack(rackC.id);
+      expect(store.activeRackId).toBe(rackA.id);
+
+      // User selects a different, pre-existing rack before undoing.
+      store.setActiveRack(rackB.id);
+      expect(store.activeRackId).toBe(rackB.id);
+
+      store.undo();
+
+      // The delete never changed the active rack on execute, so its undo
+      // must not restore the stale snapshot and clobber this selection.
+      expect(store.activeRackId).toBe(rackB.id);
+    });
   });
 
   describe("undo/redo state consistency", () => {
