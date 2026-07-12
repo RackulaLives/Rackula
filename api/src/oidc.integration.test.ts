@@ -274,6 +274,43 @@ describe("OIDC integration", () => {
     );
   }
 
+  // Runs the login -> callback flow and asserts the callback rejected the ID
+  // token: it redirects with user_info_is_missing and sets no session cookie.
+  // Shared by the algorithm-pinning regression tests.
+  async function expectOidcLoginRejected(
+    app: Awaited<ReturnType<typeof createApp>>,
+  ): Promise<void> {
+    const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
+    expect(loginResponse.status).toBe(302);
+    const loginUrl = new URL(loginResponse.headers.get("location")!);
+    const state = loginUrl.searchParams.get("state");
+    expect(state).not.toBeNull();
+    const loginCookieHeader = cookieHeaderFromSetCookies(
+      readSetCookies(loginResponse.headers),
+    );
+
+    const callbackResponse = await app.request(
+      `/auth/callback?code=entra-code&state=${encodeURIComponent(state!)}`,
+      {
+        headers: {
+          Cookie: loginCookieHeader,
+        },
+      },
+    );
+
+    expect(callbackResponse.status).toBe(302);
+    expect(callbackResponse.headers.get("location")).toContain(
+      "user_info_is_missing",
+    );
+
+    const callbackCookies = readSetCookies(callbackResponse.headers);
+    expect(
+      callbackCookies.some((cookie) =>
+        cookie.includes("rackula_auth_session="),
+      ),
+    ).toBe(false);
+  }
+
   it("accepts Entra common issuer config when discovery returns tenant issuer", async () => {
     const mock = await installMockOidcFetch();
     try {
@@ -349,36 +386,7 @@ describe("OIDC integration", () => {
     });
     try {
       const app = await createApp(buildOidcEnv());
-
-      const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
-      expect(loginResponse.status).toBe(302);
-      const loginUrl = new URL(loginResponse.headers.get("location")!);
-      const state = loginUrl.searchParams.get("state");
-      expect(state).not.toBeNull();
-      const loginCookieHeader = cookieHeaderFromSetCookies(
-        readSetCookies(loginResponse.headers),
-      );
-
-      const callbackResponse = await app.request(
-        `/auth/callback?code=entra-code&state=${encodeURIComponent(state!)}`,
-        {
-          headers: {
-            Cookie: loginCookieHeader,
-          },
-        },
-      );
-
-      expect(callbackResponse.status).toBe(302);
-      expect(callbackResponse.headers.get("location")).toContain(
-        "user_info_is_missing",
-      );
-
-      const callbackCookies = readSetCookies(callbackResponse.headers);
-      expect(
-        callbackCookies.some((cookie) =>
-          cookie.includes("rackula_auth_session="),
-        ),
-      ).toBe(false);
+      await expectOidcLoginRejected(app);
     } finally {
       mock.restore();
     }
@@ -446,36 +454,7 @@ describe("OIDC integration", () => {
     });
     try {
       const app = await createApp(buildOidcEnv());
-
-      const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
-      expect(loginResponse.status).toBe(302);
-      const loginUrl = new URL(loginResponse.headers.get("location")!);
-      const state = loginUrl.searchParams.get("state");
-      expect(state).not.toBeNull();
-      const loginCookieHeader = cookieHeaderFromSetCookies(
-        readSetCookies(loginResponse.headers),
-      );
-
-      const callbackResponse = await app.request(
-        `/auth/callback?code=entra-code&state=${encodeURIComponent(state!)}`,
-        {
-          headers: {
-            Cookie: loginCookieHeader,
-          },
-        },
-      );
-
-      expect(callbackResponse.status).toBe(302);
-      expect(callbackResponse.headers.get("location")).toContain(
-        "user_info_is_missing",
-      );
-
-      const callbackCookies = readSetCookies(callbackResponse.headers);
-      expect(
-        callbackCookies.some((cookie) =>
-          cookie.includes("rackula_auth_session="),
-        ),
-      ).toBe(false);
+      await expectOidcLoginRejected(app);
     } finally {
       mock.restore();
     }
