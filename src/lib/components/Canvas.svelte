@@ -395,6 +395,7 @@
   {ontoggledisplaymode}
 >
   <div
+    id="rack-canvas"
     class="canvas"
     class:party-mode={partyMode}
     data-testid="rack-canvas"

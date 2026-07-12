@@ -26,6 +26,7 @@
   import { highlightMatch } from "$lib/utils/searchHighlight";
   import PaletteDeviceContextMenu from "./PaletteDeviceContextMenu.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
+  import { nextRovingIndex } from "$lib/utils/roving-index";
 
   interface Props {
     device: DeviceType;
@@ -39,6 +40,9 @@
     canDelete?: boolean;
     /** Whether this device is pinned (favourited) to the top of the palette */
     isFavourite?: boolean;
+    /** Roving tabindex (#2998): 0 for the row that is this list's single tab
+     *  stop, -1 for every other row. Defaults to 0 for standalone usage. */
+    tabindex?: number;
     onselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
     /** Called when user clicks delete button for unused custom device */
     ondelete?: (event: CustomEvent<{ device: DeviceType }>) => void;
@@ -54,10 +58,21 @@
     incompatibilityReason = null,
     canDelete = false,
     isFavourite = false,
+    tabindex = 0,
     onselect,
     ondelete,
     ontogglefavourite,
   }: Props = $props();
+
+  // Maps vertical roving keys onto nextRovingIndex's horizontal key vocabulary
+  // (ArrowRight/ArrowLeft) so the same pure index math serves both the
+  // horizontal VerbBar and this vertical device list.
+  const ROVING_KEY_MAP: Record<string, string> = {
+    ArrowDown: "ArrowRight",
+    ArrowUp: "ArrowLeft",
+    Home: "Home",
+    End: "End",
+  };
 
   // Device display name: model or slug
   const deviceName = $derived(device.model ?? device.slug);
@@ -105,6 +120,53 @@
       // slot, collapsing pick-up and place into one keystroke.
       event.stopPropagation();
       onselect?.(new CustomEvent("select", { detail: { device } }));
+      return;
+    }
+    handleRovingKeyDown(event);
+  }
+
+  // Roving tabindex within this row's list (#2998): ArrowUp/ArrowDown/Home/End
+  // move the single tabbable stop to another row in the same [role="list"]
+  // container, so the whole list occupies one outer Tab stop. Stops
+  // propagation for the same reason as Enter/Space above: the app also binds
+  // arrow keys to move a placed device, and that must not fire while
+  // navigating the palette.
+  function handleRovingKeyDown(event: KeyboardEvent) {
+    const mappedKey = ROVING_KEY_MAP[event.key];
+    if (!mappedKey) return;
+    const row = event.currentTarget as HTMLElement;
+    const list = row.closest('[role="list"]');
+    if (!list) return;
+    const items = Array.from(
+      list.querySelectorAll<HTMLElement>('[role="listitem"]'),
+    );
+    const currentIndex = items.indexOf(row);
+    if (currentIndex === -1) return;
+    const nextIndex = nextRovingIndex(currentIndex, mappedKey, items.length);
+    if (nextIndex === currentIndex) return;
+    event.preventDefault();
+    event.stopPropagation();
+    items[nextIndex]?.focus();
+  }
+
+  // Any focus arriving on this row or one of its own buttons (Tab, click, or
+  // the roving nav below) makes that row the list's single tab stop; every
+  // sibling row -- and its pin/delete buttons -- drops to -1, so an inactive
+  // row's buttons are never a separate forward-Tab stop.
+  function handleRowFocus(event: FocusEvent) {
+    const target = event.currentTarget as HTMLElement;
+    const row = target.closest('[role="listitem"]');
+    if (!row) return;
+    const list = row.closest('[role="list"]');
+    if (!list) return;
+    for (const item of list.querySelectorAll<HTMLElement>(
+      '[role="listitem"]',
+    )) {
+      const active = item === row;
+      item.tabIndex = active ? 0 : -1;
+      for (const button of item.querySelectorAll<HTMLElement>("button")) {
+        button.tabIndex = active ? 0 : -1;
+      }
     }
   }
 
@@ -248,12 +310,13 @@
   class:library-selected={librarySelected}
   class:incompatible={!isCompatible}
   role="listitem"
-  tabindex="0"
+  {tabindex}
   draggable={isCompatible}
   data-testid="device-palette-item"
   title={!isCompatible ? (incompatibilityReason ?? undefined) : undefined}
   onclick={handleClick}
   onkeydown={handleKeyDown}
+  onfocus={handleRowFocus}
   oncontextmenu={handleContextMenu}
   ondragstart={handleDragStart}
   ondragend={handleDragEnd}
@@ -305,8 +368,10 @@
         type="button"
         class="favourite-btn"
         class:active={isFavourite}
+        {tabindex}
         onclick={handleFavouriteClick}
         onkeydown={handleFavouriteKeyDown}
+        onfocus={handleRowFocus}
         aria-label={favouriteLabel}
         aria-pressed={isFavourite}
         data-testid="favourite-device-btn"
@@ -322,8 +387,10 @@
           {...props}
           type="button"
           class="delete-btn"
+          {tabindex}
           onclick={handleDeleteClick}
           onkeydown={handleDeleteKeyDown}
+          onfocus={handleRowFocus}
           aria-label="Delete {deviceName}"
           data-testid="delete-device-type-btn"
         >
