@@ -23,7 +23,7 @@
   import { dispatchContextMenuAtPoint } from "$lib/utils/context-menu";
   import { hapticTap } from "$lib/utils/haptics";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
-  import { formatPosition } from "$lib/utils/position";
+  import { formatDisplayPosition } from "$lib/utils/position";
   import type { DeviceFace, DisplayMode } from "$lib/types";
   import RackCanvasView from "./RackCanvasView.svelte";
   import CanvasContextMenu from "./CanvasContextMenu.svelte";
@@ -369,7 +369,7 @@
           (dt) => dt.slug === d.device_type,
         );
         const name = d.label || deviceType?.model || d.device_type;
-        return `${formatPosition(d.position)}: ${name}`;
+        return `${formatDisplayPosition(d.position, activeRack.height, activeRack.desc_units)}: ${name}`;
       });
     return `Active rack devices from top to bottom: ${deviceNames.join(", ")}`;
   });

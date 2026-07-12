@@ -60,4 +60,36 @@ describe("Canvas device-list description position (#2999)", () => {
     expect(description.textContent).toContain("U17:");
     expect(description.textContent).not.toContain("U102");
   });
+
+  it("announces the ruler's label for descending-numbered racks (desc_units: true)", () => {
+    const layoutStore = getLayoutStore();
+    // desc_units: true = "U1 at top". Mirrors Rack.svelte's uLabels flip:
+    // uNumber = startUnit + i (row index from top), so a 1U device whose
+    // rail position (physical, bottom-up) is U17 in a 42U rack sits at row
+    // i = height - positionHuman = 42 - 17 = 25, which the ruler labels
+    // "U26" (startUnit 1 + i 25).
+    const rack = layoutStore.addRack(
+      "Descending Rack",
+      42,
+      undefined,
+      undefined,
+      true,
+    );
+    const rackId = rack!.id;
+
+    const deviceType = layoutStore.addDeviceType({
+      name: "Server Type",
+      u_height: 1,
+      category: "server",
+      colour: "#4A90D9",
+    });
+
+    layoutStore.placeDevice(rackId, deviceType.slug, 17, "front");
+
+    const { getByText } = render(Canvas);
+
+    const description = getByText(/Active rack devices from top to bottom/);
+    expect(description.textContent).toContain("U26:");
+    expect(description.textContent).not.toContain("U17:");
+  });
 });
