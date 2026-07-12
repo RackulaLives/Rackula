@@ -18,12 +18,22 @@
 
   type DialogSize = "S" | "M" | "L";
 
+  /**
+   * The dialog's initial-focus category (#3000). "confirm" focuses the element
+   * marked `data-dialog-safe-action` (the Cancel/safe button); "form" focuses
+   * the first enabled field; "info" (the default) leaves bits-ui's own
+   * first-tabbable behaviour untouched. Declared here so every dialog built on
+   * this wrapper gets the same rule instead of diverging case by case.
+   */
+  type DialogType = "confirm" | "form" | "info";
+
   interface Props {
     open: boolean;
     title: string;
     size?: DialogSize;
     testid?: string;
     showClose?: boolean;
+    type?: DialogType;
     onclose?: () => void;
     children?: Snippet;
     headerActions?: Snippet;
@@ -35,10 +45,40 @@
     size = "M",
     testid,
     showClose = true,
+    type = "info",
     onclose,
     children,
     headerActions,
   }: Props = $props();
+
+  let contentBodyEl = $state<HTMLDivElement | null>(null);
+
+  const FORM_FIELD_SELECTOR =
+    "input:not([type='hidden']):not(:disabled), select:not(:disabled), textarea:not(:disabled)";
+
+  function findInitialFocusTarget(): HTMLElement | null {
+    if (!contentBodyEl) return null;
+    if (type === "confirm") {
+      return contentBodyEl.querySelector<HTMLElement>(
+        "[data-dialog-safe-action]",
+      );
+    }
+    if (type === "form") {
+      return contentBodyEl.querySelector<HTMLElement>(FORM_FIELD_SELECTOR);
+    }
+    return null;
+  }
+
+  // bits-ui's own default (focus the first tabbable element) is left in place
+  // for "info" dialogs, or when a "confirm"/"form" dialog has no matching
+  // target - preventDefault() only fires once we actually have somewhere
+  // better to send focus.
+  function handleOpenAutoFocus(event: Event) {
+    const target = findInitialFocusTarget();
+    if (!target) return;
+    event.preventDefault();
+    target.focus();
+  }
 
   const viewportStore = getViewportStore();
   const isSheet = $derived(viewportStore.isMobile);
@@ -132,6 +172,7 @@
         ? `transform: translateY(${dragOffset}px);`
         : ''}"
       data-dragging={isDragging ? "true" : undefined}
+      onOpenAutoFocus={handleOpenAutoFocus}
     >
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
@@ -158,7 +199,7 @@
           </div>
         </div>
       </div>
-      <div class="dialog-content">
+      <div class="dialog-content" bind:this={contentBodyEl}>
         {#if children}
           {@render children()}
         {/if}

@@ -124,6 +124,7 @@
   title="Share Layout"
   size="S"
   showClose={false}
+  type="form"
   onclose={handleClose}
 >
   <div class="share-dialog">

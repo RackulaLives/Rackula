@@ -225,6 +225,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Toggle annotations",
     scope: "layout",
     bindings: [{ key: "a" }, { key: "n" }],
+    helpGroup: "General",
     keywords: ["annotation", "notes", "column"],
   },
   {
@@ -232,6 +233,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Toggle device sidebar",
     scope: "global",
     bindings: [{ key: "d" }],
+    helpGroup: "General",
     keywords: ["devices", "palette", "drawer"],
   },
   {
@@ -242,6 +244,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     // carries shiftKey=true. Bind both states so the shortcut fires whether or
     // not Shift is reported.
     bindings: [{ key: "?" }, { key: "?", shift: true }],
+    helpGroup: "General",
     appMenuGroup: "app",
     keywords: ["shortcuts", "about", "keyboard", "version"],
   },
@@ -295,6 +298,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     scope: "selection",
     bindings: [{ key: "ArrowDown" }],
     enabledWhen: (ctx) => !ctx.readOnly && ctx.isDeviceSelected,
+    helpGroup: "Editing",
     keywords: ["nudge", "down"],
   },
   {
@@ -315,6 +319,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     ],
     enabledWhen: (ctx) =>
       !ctx.readOnly && (ctx.isDeviceSelected || ctx.isRackSelected),
+    helpGroup: "Editing",
     keywords: ["copy", "clone"],
   },
   {
@@ -679,18 +684,52 @@ function formatBindingKey(key: string): string {
 const HELP_GESTURE_SECTION_NAME = "Canvas";
 
 /**
- * Build the help overlay's mouse-gesture list. Keyboard shortcuts are no longer
- * listed here: the command palette shows each command's shortcut inline, so the
- * overlay only documents the mouse gestures the palette has no equivalent for.
+ * Order the generated keyboard-shortcut groups render in, matching the
+ * declared order on the HelpGroup type itself.
+ */
+const HELP_GROUP_ORDER: readonly HelpGroup[] = [
+  "Navigation",
+  "General",
+  "Editing",
+  "File",
+];
+
+/**
+ * Build the help overlay's keyboard-shortcut groups straight from the
+ * registry: every action with a helpGroup and at least one binding becomes a
+ * row, formatted with the same formatBinding the palette/tooltip shortcuts
+ * use. Generated at render time so the list cannot drift from the actual
+ * bindings (#3000, replacing the hand-maintained list #2808 removed).
+ */
+function getKeyboardShortcutGroups(): HelpGroupSection[] {
+  return HELP_GROUP_ORDER.map((name) => {
+    const rows: HelpRow[] = [];
+    for (const action of ACTION_REGISTRY) {
+      if (action.helpGroup !== name) continue;
+      const shortcut = formatMenuShortcut(action);
+      if (!shortcut) continue;
+      rows.push({ key: shortcut, action: action.label });
+    }
+    return { name, rows };
+  }).filter((group) => group.rows.length > 0);
+}
+
+/**
+ * Build the help overlay's full row set: keyboard shortcuts generated from
+ * the registry, followed by the mouse gestures the palette has no equivalent
+ * for.
  */
 export function getHelpGroups(): HelpGroupSection[] {
-  const rows: HelpRow[] = HELP_GESTURE_ROWS.map(({ key, action }) => ({
+  const gestureRows: HelpRow[] = HELP_GESTURE_ROWS.map(({ key, action }) => ({
     key,
     action,
   }));
+  const gestureGroups: HelpGroupSection[] =
+    gestureRows.length > 0
+      ? [{ name: HELP_GESTURE_SECTION_NAME, rows: gestureRows }]
+      : [];
 
-  if (rows.length === 0) return [];
-  return [{ name: HELP_GESTURE_SECTION_NAME, rows }];
+  return [...getKeyboardShortcutGroups(), ...gestureGroups];
 }
 
 /**
