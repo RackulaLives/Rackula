@@ -27,9 +27,14 @@ const NUDGE_THRESHOLD_KEY_PREFIX = "Rackula:backup-nudge-threshold:";
 /** Changes between nudges once the user has exported at least once. */
 export const NUDGE_INTERVAL = 30;
 
-/** Factual nudge copy: states the situation and the remedy, no nagging. */
+/**
+ * Factual nudge copy: states the situation and the remedy, no nagging. Uses
+ * "Save", the same verb as the Ctrl+S toast and the palette's browser-mode
+ * backup command label, so the file-backup action reads as one consistent
+ * action across surfaces rather than Save/Export/Export (#2995, R5).
+ */
 export const NUDGE_MESSAGE =
-  "This layout lives only in this browser. Export a file to keep a copy.";
+  "This layout lives only in this browser. Save a file to keep a copy.";
 
 function thresholdKey(layoutId: string): string {
   return NUDGE_THRESHOLD_KEY_PREFIX + layoutId;

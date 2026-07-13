@@ -172,7 +172,7 @@
     if (safeGetItem(FIRST_RUN_NOTICE_KEY) === "true") return;
     safeSetItem(FIRST_RUN_NOTICE_KEY, "true");
     showStorageToast(
-      "Layouts are saved in this browser. Export to a file to keep a copy.",
+      "Layouts are saved in this browser. Save to a file to keep a copy.",
       "info",
       8000,
     );

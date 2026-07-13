@@ -6,6 +6,7 @@ import * as appActions from "$lib/utils/app-actions";
 import * as storage from "$lib/storage";
 import { registerImportDevicesTrigger } from "$lib/actions/import-devices-trigger";
 import { registerRestoreFromFileTrigger } from "$lib/actions/restore-file-trigger";
+import * as dialogActions from "$lib/utils/dialog-actions";
 
 describe("createActionDispatch", () => {
   afterEach(() => {
@@ -24,6 +25,18 @@ describe("createActionDispatch", () => {
     const spy = vi.spyOn(appActions, "maybeSave").mockReturnValue(undefined);
     const dispatch = createActionDispatch();
     dispatch["save"]();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  // create-rack (#2995, R13): adds a rack to the current layout via the same
+  // handleNewRack the "+" toolbar control and the mobile Racks sheet use, so
+  // the palette gains an "add a rack" command reachable by typing "rack".
+  it("calls handleNewRack when create-rack runs", () => {
+    const spy = vi
+      .spyOn(dialogActions, "handleNewRack")
+      .mockReturnValue(undefined);
+    const dispatch = createActionDispatch();
+    dispatch["create-rack"]();
     expect(spy).toHaveBeenCalledOnce();
   });
 

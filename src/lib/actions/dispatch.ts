@@ -44,6 +44,7 @@ import {
   handleAddDevice,
   handleImportFromNetBox,
   handleOpenYamlEditor,
+  handleNewRack,
 } from "$lib/utils/dialog-actions";
 import {
   handleRackContextFocus,
@@ -156,7 +157,6 @@ export function createActionDispatch(): ActionDispatch {
     escape: handleEscape,
     "show-help": handleHelp,
     settings: () => dialogStore.open("settings"),
-    "toggle-sidebar": () => getUIStore().toggleLeftDrawer(),
     undo: performUndo,
     redo: performRedo,
     save: maybeSave,
@@ -187,6 +187,7 @@ export function createActionDispatch(): ActionDispatch {
     "new-layout-template-network-closet": () =>
       openStarterById("network-closet"),
     "new-layout-template-media-server": () => openStarterById("media-server"),
+    "create-rack": handleNewRack,
     "import-devices": runImportDevices,
     "import-netbox": handleImportFromNetBox,
     "new-custom-device": handleAddDevice,

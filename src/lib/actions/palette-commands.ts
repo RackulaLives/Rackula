@@ -10,13 +10,13 @@
 import {
   ACTION_REGISTRY,
   getActionById,
+  formatMenuShortcut,
   type ActionDefinition,
   type ActionEnabledContext,
   type ActionId,
   type AppMenuGroup,
   type HelpGroup,
 } from "$lib/actions/registry";
-import { formatShortcut } from "$lib/utils/platform";
 
 export interface PaletteCommand {
   id: ActionId;
@@ -76,7 +76,6 @@ const GROUP_OVERRIDES: Partial<Record<ActionId, PaletteGroup>> = {
   "new-custom-device": "Create / Add device",
   // View toggles carry no help or menu group; they are view controls.
   "toggle-annotations": "Navigation / View",
-  "toggle-sidebar": "Navigation / View",
 };
 
 /** Fold an action's app-menu intent group onto the unified scheme. */
@@ -111,18 +110,6 @@ function paletteGroupOf(action: ActionDefinition): PaletteGroup {
     return APP_MENU_GROUP_TO_PALETTE[action.appMenuGroup];
   if (action.helpGroup) return HELP_GROUP_TO_PALETTE[action.helpGroup];
   return "Navigation / View";
-}
-
-function shortcutOf(action: ActionDefinition): string | undefined {
-  const binding = action.bindings[0];
-  if (!binding) return undefined;
-  const parts: string[] = [];
-  if (binding.ctrl || binding.meta) parts.push("mod");
-  if (binding.shift) parts.push("shift");
-  parts.push(
-    binding.key.length === 1 ? binding.key.toUpperCase() : binding.key,
-  );
-  return formatShortcut(...parts);
 }
 
 /**
@@ -202,7 +189,7 @@ function toPaletteCommand(action: ActionDefinition): PaletteCommand {
   return {
     id: action.id,
     label: action.label,
-    shortcut: shortcutOf(action),
+    shortcut: formatMenuShortcut(action),
     keywords: action.keywords ?? [],
   };
 }

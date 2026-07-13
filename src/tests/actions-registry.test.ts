@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   ACTION_REGISTRY,
   getActionById,
@@ -6,6 +6,7 @@ import {
   findActionForEvent,
   getHelpGroups,
 } from "$lib/actions/registry";
+import { buildYamlFilename } from "$lib/utils/archive";
 
 /**
  * The actions registry is the single source of truth for command metadata:
@@ -110,6 +111,16 @@ describe("actions registry", () => {
     it("resolves Cmd+K to the command palette (cross-platform)", () => {
       const event = new KeyboardEvent("keydown", { key: "k", metaKey: true });
       expect(findActionForEvent(event)?.id).toBe("command-palette");
+    });
+
+    it("resolves Ctrl+H to share (#2995, R16c)", () => {
+      const event = new KeyboardEvent("keydown", { key: "h", ctrlKey: true });
+      expect(findActionForEvent(event)?.id).toBe("share");
+    });
+
+    it("no longer resolves Cmd+H: it collides with macOS Hide (#2995, R16c)", () => {
+      const event = new KeyboardEvent("keydown", { key: "h", metaKey: true });
+      expect(findActionForEvent(event)).toBeUndefined();
     });
   });
 
@@ -305,6 +316,74 @@ describe("actions registry", () => {
       const dup = getActionById("duplicate-selection");
       expect(dup).toBeDefined();
       expect(dup?.scope).toBe("selection");
+    });
+  });
+
+  describe("toggle-sidebar removal (#2995, R16b)", () => {
+    it("no longer registers a toggle-sidebar command", () => {
+      expect(getActionById("toggle-sidebar" as never)).toBeUndefined();
+    });
+
+    it("the bare 'd' key no longer resolves to any action", () => {
+      // toggle-sidebar flipped leftDrawerOpen, a flag no component read; it was
+      // removed rather than wired up, per the no-dead-code policy. Nothing else
+      // in the registry claims the bare 'd' key.
+      const event = new KeyboardEvent("keydown", { key: "d" });
+      expect(findActionForEvent(event)).toBeUndefined();
+    });
+  });
+
+  describe("create-rack (#2995, R13)", () => {
+    it("registers a global New rack command reachable by typing 'rack'", () => {
+      const action = getActionById("create-rack");
+      expect(action).toBeDefined();
+      expect(action?.scope).toBe("global");
+      expect(action?.label.toLowerCase()).toContain("rack");
+      expect(
+        action?.keywords?.some((k) => k.toLowerCase().includes("rack")),
+      ).toBe(true);
+    });
+  });
+
+  describe("export-backup relabel (#2995, R5)", () => {
+    it("the displayed extension matches downloadYamlFile's real output", () => {
+      // Regression guard: the label promised '.zip' while downloadYamlFile
+      // (archive.ts) has always written a single '.yaml' file. Derive the
+      // extension from buildYamlFilename - the same helper downloadYamlFile
+      // calls - so the label cannot silently drift from reality again.
+      const action = getActionById("export-backup");
+      const match = action?.label.match(/\.([a-z0-9]+)\)/i);
+      expect(match).not.toBeNull();
+      const labelExtension = match?.[1];
+      const realFilename = buildYamlFilename("Test Layout");
+      expect(realFilename.endsWith(`.${labelExtension}`)).toBe(true);
+    });
+
+    it("uses the same 'Save' verb as the Ctrl+S toast, not 'Export'", () => {
+      const action = getActionById("export-backup");
+      expect(action?.label.toLowerCase().startsWith("save")).toBe(true);
+    });
+  });
+
+  describe("share shortcut display (#2995, R16c)", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("shows the literal Ctrl modifier on macOS, not Cmd (Cmd+H is dead there)", () => {
+      vi.stubGlobal("navigator", {
+        userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+      });
+      const tooltip = getActionTooltip("share");
+      expect(tooltip?.shortcut).toBe("Ctrl + H");
+    });
+
+    it("shows Ctrl on Windows/Linux too", () => {
+      vi.stubGlobal("navigator", {
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      });
+      const tooltip = getActionTooltip("share");
+      expect(tooltip?.shortcut).toBe("Ctrl + H");
     });
   });
 });
