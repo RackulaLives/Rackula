@@ -16,6 +16,7 @@ import {
   handleDelete,
   handleConfirmDelete,
   handleNewRack,
+  formatRackDeleteMessage,
 } from "$lib/utils/dialog-actions";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
@@ -317,5 +318,47 @@ describe("zero-rack add-rack affordance", () => {
     // The affordance's action adds a rack back.
     handleNewRack();
     expect(layoutStore.rackCount).toBe(1);
+  });
+});
+
+describe("formatRackDeleteMessage", () => {
+  // #2994: the rack-delete confirm's warning line used to be static ("All
+  // devices in this rack will be removed") regardless of the rack's actual
+  // contents, so an empty rack got the same devices-lost warning as a full
+  // one. This asserts the count substitution: the number and singular/plural
+  // wording vary with deviceCount, and the devices clause disappears entirely
+  // for an empty rack rather than showing a false warning. Not pinned to the
+  // exact non-count wording, so the surrounding copy can still be edited.
+  it("omits the devices clause entirely for an empty rack", () => {
+    const message = formatRackDeleteMessage("Test Rack", 0);
+    expect(message).not.toMatch(/device/i);
+  });
+
+  it("names the rack being deleted even when it is empty", () => {
+    const message = formatRackDeleteMessage("Test Rack", 0);
+    expect(message).toContain("Test Rack");
+  });
+
+  it("includes the exact count for a rack with devices", () => {
+    const message = formatRackDeleteMessage("Test Rack", 3);
+    expect(message).toContain("3");
+    expect(message).toMatch(/device/i);
+  });
+
+  it("uses singular wording for exactly one device", () => {
+    const message = formatRackDeleteMessage("Test Rack", 1);
+    expect(message).toMatch(/\b1 device\b/);
+    expect(message).not.toMatch(/\b1 devices\b/);
+  });
+
+  it("uses plural wording for more than one device", () => {
+    const message = formatRackDeleteMessage("Test Rack", 5);
+    expect(message).toMatch(/\b5 devices\b/);
+  });
+
+  it("varies output between a 0-device and an N-device rack of the same name", () => {
+    const empty = formatRackDeleteMessage("Test Rack", 0);
+    const withDevices = formatRackDeleteMessage("Test Rack", 4);
+    expect(empty).not.toBe(withDevices);
   });
 });

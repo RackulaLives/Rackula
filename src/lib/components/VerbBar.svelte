@@ -101,11 +101,11 @@
   >
     {#each verbs as verb, index (verb.id)}
       {@const Icon = iconForVerb[verb.id]}
-      {@const tooltip = getActionTooltip(verb.id)}
+      {@const shortcut = getActionTooltip(verb.id)?.shortcut}
       {#if verb.dividerBefore}
         <span class="verb-divider" aria-hidden="true"></span>
       {/if}
-      <Tooltip text={tooltip?.label ?? verb.label} shortcut={tooltip?.shortcut}>
+      <Tooltip text={verb.label} {shortcut}>
         {#snippet triggerChild({ props })}
           <button
             {...props}

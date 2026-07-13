@@ -117,6 +117,25 @@ export function handleConfirmDelete(): void {
   dialogStore.close();
 }
 
+/**
+ * Compose the rack-delete confirm dialog's warning line. The copy used to be
+ * static ("All devices in this rack will be removed") regardless of the
+ * rack's actual contents, so an empty rack got the same devices-lost warning
+ * as a full one. This varies the count and singular/plural wording with the
+ * rack's live device count, and omits the devices clause entirely for an
+ * empty rack rather than showing a false warning (#2994).
+ */
+export function formatRackDeleteMessage(
+  name: string,
+  deviceCount: number,
+): string {
+  const devicesClause =
+    deviceCount > 0
+      ? ` ${deviceCount} device${deviceCount === 1 ? "" : "s"} will be removed.`
+      : "";
+  return `Are you sure you want to delete "${name}"?${devicesClause}`;
+}
+
 /** Open the keyboard-shortcuts help dialog. */
 export function handleHelp(): void {
   dialogStore.open("help");

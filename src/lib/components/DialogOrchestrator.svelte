@@ -73,6 +73,7 @@
     handleDelete,
     handleConfirmDelete,
     handleNewRack,
+    formatRackDeleteMessage,
   } from "$lib/utils/dialog-actions";
   import {
     findNextValidPosition,
@@ -124,6 +125,22 @@
   let deleteTarget = $derived(dialogStore.deleteTarget);
   let selectedDeviceForSheet = $derived(dialogStore.selectedDeviceIndex);
   let exportQrCodeDataUrl = $derived(dialogStore.exportQrCodeDataUrl);
+
+  // The confirm dialog's warning line varies by the target rack's live
+  // device count instead of the old static "All devices in this rack will be
+  // removed" copy, which claimed every rack held devices even when empty
+  // (#2994). Read live rather than snapshotting at dialog-open time like
+  // deleteTarget's rackId/name: the rack itself isn't mutated while the
+  // dialog is open, so this always reflects its true contents at confirm
+  // time.
+  let deleteConfirmMessage = $derived(
+    deleteTarget
+      ? formatRackDeleteMessage(
+          deleteTarget.name,
+          layoutStore.getRackById(deleteTarget.rackId)?.devices.length ?? 0,
+        )
+      : "",
+  );
 
   // Device library import file input ref
   let deviceImportInputRef = $state<HTMLInputElement | null>(null);
@@ -774,7 +791,7 @@
 <ConfirmDialog
   open={confirmDeleteOpen}
   title="Delete Rack"
-  message={`Are you sure you want to delete "${deleteTarget?.name}"? All devices in this rack will be removed.`}
+  message={deleteConfirmMessage}
   confirmLabel="Delete Rack"
   onconfirm={handleConfirmDelete}
   oncancel={handleCancelDelete}

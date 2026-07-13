@@ -104,9 +104,12 @@ test.describe("Delete rack (#2858)", () => {
     const fronts = page.locator(locators.rackView.front);
     await expect(fronts).toHaveCount(2);
 
-    // Delete "Rack Dos" via the verb bar, which opens the confirm dialog.
+    // Delete "Rack Dos" via the verb bar, which opens the confirm dialog. The
+    // trash verb reads "Delete rack" for a rack selection, not the
+    // device-oriented "Remove selected" the shared delete-selection action
+    // defaults to (#2994).
     await selectRack(page, "Rack Dos");
-    await page.getByRole("button", { name: "Remove selected" }).click();
+    await page.getByRole("button", { name: "Delete rack" }).click();
 
     const confirm = page.getByRole("dialog", { name: "Delete Rack" });
     await expect(confirm).toBeVisible();

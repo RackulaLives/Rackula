@@ -19,7 +19,11 @@
     VERB_BAR_LOW_ZOOM_THRESHOLD,
     type VerbBarPosition,
   } from "$lib/utils/verb-bar-position";
-  import type { ActionEnabledContext, ActionId } from "$lib/actions/registry";
+  import {
+    resolveActionLabel,
+    type ActionEnabledContext,
+    type ActionId,
+  } from "$lib/actions/registry";
   import {
     moveSelectedDeviceUp,
     moveSelectedDeviceDown,
@@ -112,7 +116,7 @@
   const verbs = $derived.by<VerbItem[]>(() => {
     const objectVerbs: VerbItem[] = getVerbsForSelection(ctx).map((a) => ({
       id: a.id,
-      label: a.label,
+      label: resolveActionLabel(a, ctx),
     }));
 
     if (!isRackOrGroup) return objectVerbs;
