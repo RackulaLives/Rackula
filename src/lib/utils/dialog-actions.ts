@@ -86,10 +86,10 @@ export function handleDelete(): void {
 /**
  * Apply the delete confirmed by the confirm-delete dialog. Racks are the only
  * target this dialog gates now: device removal is immediate (see
- * handleDelete). Acts on the rackId snapshot captured in deleteTarget at open
- * time, not the live selectionStore, so a selection change between opening
- * the dialog and confirming it can't delete a different rack than the one
- * named in the dialog (#2918).
+ * handleDelete). Acts on the rackId (or groupRackIds) snapshot captured in
+ * deleteTarget at open time, not the live selectionStore, so a selection
+ * change between opening the dialog and confirming it can't delete a
+ * different rack than the one named in the dialog (#2918).
  */
 export function handleConfirmDelete(): void {
   const layoutStore = getLayoutStore();
@@ -97,20 +97,35 @@ export function handleConfirmDelete(): void {
   const target = dialogStore.deleteTarget;
 
   if (target) {
-    const rackId = target.rackId;
-    // A bay member removal closes the row and dissolves a 1-member bay; a
-    // standalone rack deletes plainly (#2741).
-    const group = layoutStore.getRackGroupForRack(rackId);
-    if (group?.layout_preset === "bayed") {
-      const { error } = layoutStore.removeRackFromBay(rackId);
-      if (error) {
-        layoutDebug.group("removeRackFromBay failed for %s: %s", rackId, error);
+    if (target.groupRackIds) {
+      // Whole-bayed-group delete (edit panel's "Delete Bayed Rack", #2994
+      // fold-in): delete every member plainly. The group itself is
+      // auto-removed once its last rack goes, mirroring the pre-guard
+      // behaviour this button already had.
+      for (const rackId of target.groupRackIds) {
+        layoutStore.deleteRack(rackId);
+      }
+      selectionStore.clearSelection();
+    } else {
+      const rackId = target.rackId;
+      // A bay member removal closes the row and dissolves a 1-member bay; a
+      // standalone rack deletes plainly (#2741).
+      const group = layoutStore.getRackGroupForRack(rackId);
+      if (group?.layout_preset === "bayed") {
+        const { error } = layoutStore.removeRackFromBay(rackId);
+        if (error) {
+          layoutDebug.group(
+            "removeRackFromBay failed for %s: %s",
+            rackId,
+            error,
+          );
+        } else {
+          selectionStore.clearSelection();
+        }
       } else {
+        layoutStore.deleteRack(rackId);
         selectionStore.clearSelection();
       }
-    } else {
-      layoutStore.deleteRack(rackId);
-      selectionStore.clearSelection();
     }
   }
 
