@@ -29,16 +29,17 @@ RUN npm run build
 # Production stage - non-root nginx
 FROM nginxinc/nginx-unprivileged:alpine
 # Patch system packages to resolve known CVEs (e.g. libpng, libxml2 CVE-2026-6732,
-# libssl3/libcrypto3 CVE-2026-45447, libexpat CVE-2026-45186). APK_CACHEBUST is
-# fed a per-build value (release version / date) so this layer's buildcache is
-# invalidated each build and apk upgrade re-fetches current Alpine secfixes instead
-# of reusing a stale cached layer. Packages are pinned explicitly so tracked CVE
-# fixes are force-applied even if a future base ships them pinned to older versions.
+# libssl3/libcrypto3 CVE-2026-45447, libexpat CVE-2026-45186, c-ares CVE-2026-33630).
+# APK_CACHEBUST is fed a per-build value (release version / date) so this layer's
+# buildcache is invalidated each build and apk upgrade re-fetches current Alpine
+# secfixes instead of reusing a stale cached layer. Packages are pinned explicitly so
+# tracked CVE fixes are force-applied even if a future base ships them pinned to older
+# versions.
 ARG APK_CACHEBUST=0
 USER root
 RUN echo "apk-cachebust=${APK_CACHEBUST}" && \
     apk upgrade --no-cache && \
-    apk add --no-cache --upgrade "libssl3>=3.5.7-r0" "libcrypto3>=3.5.7-r0" "libexpat>=2.8.1-r0"
+    apk add --no-cache --upgrade "libssl3>=3.5.7-r0" "libcrypto3>=3.5.7-r0" "libexpat>=2.8.1-r0" "c-ares>=1.34.8-r0"
 USER nginx
 
 # OCI labels
