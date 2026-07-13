@@ -86,6 +86,8 @@ describe("storage notice consolidation", () => {
 
   it("uses one canonical phrasing for the notice", () => {
     expect(STORAGE_NOTICE_MESSAGE).toMatch(/browser/i);
-    expect(STORAGE_NOTICE_MESSAGE).toMatch(/export/i);
+    // Verb unified to "Save" across the Ctrl+S toast, palette label, and this
+    // onboarding notice (#2995, R5).
+    expect(STORAGE_NOTICE_MESSAGE).toMatch(/save/i);
   });
 });

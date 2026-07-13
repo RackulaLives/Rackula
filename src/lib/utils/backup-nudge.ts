@@ -39,10 +39,13 @@ export const NUDGE_INTERVAL = 30;
  * Single canonical phrasing for the browser-storage notice (#3004): shown
  * once as the cold-start nudge (first edit of a never-exported layout, doing
  * double duty as the app's only first-run notice), then again every
- * NUDGE_INTERVAL changes.
+ * NUDGE_INTERVAL changes. Uses "Save", the same verb as the Ctrl+S toast and
+ * the palette's browser-mode backup command label, so the file-backup action
+ * reads as one consistent action across surfaces rather than
+ * Save/Export/Export (#2995, R5).
  */
 export const STORAGE_NOTICE_MESSAGE =
-  "Layouts are saved only in this browser. Export a file to keep a copy.";
+  "Layouts are saved only in this browser. Save a file to keep a copy.";
 
 function thresholdKey(layoutId: string): string {
   return NUDGE_THRESHOLD_KEY_PREFIX + layoutId;
