@@ -343,6 +343,29 @@ describe("actions registry", () => {
         action?.keywords?.some((k) => k.toLowerCase().includes("rack")),
       ).toBe(true);
     });
+
+    it("is disabled when the layout is read-only, matching move-rack-left/move-rack-right/bay-rack's !ctx.readOnly guard", () => {
+      // create-rack is a mutating command (adds a rack via handleNewRack) but
+      // shipped with no enabledWhen, so it stayed runnable from the palette
+      // in read-only mode. It must be creatable even with zero racks, so it
+      // cannot gate on hasRacks the way share/view-yaml do; it matches the
+      // bare !ctx.readOnly guard used by move-rack-left, move-rack-right, and
+      // bay-rack instead.
+      const action = getActionById("create-rack");
+      const base = {
+        hasSelection: false,
+        isDeviceSelected: false,
+        isRackSelected: false,
+        canUndo: false,
+        canRedo: false,
+        hasRacks: false,
+        mode: "browser" as const,
+        canMoveDeviceSlot: false,
+      };
+      expect(action?.enabledWhen).toBeDefined();
+      expect(action?.enabledWhen?.({ ...base, readOnly: true })).toBe(false);
+      expect(action?.enabledWhen?.({ ...base, readOnly: false })).toBe(true);
+    });
   });
 
   describe("export-backup relabel (#2995, R5)", () => {

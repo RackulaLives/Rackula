@@ -501,6 +501,11 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "New rack",
     scope: "global",
     bindings: [],
+    // Mutating command: gated on !ctx.readOnly like move-rack-left,
+    // move-rack-right, and bay-rack. No hasRacks requirement - unlike
+    // share/view-yaml, create-rack must stay enabled with zero racks so it
+    // can create the first one (#2995).
+    enabledWhen: (ctx) => !ctx.readOnly,
     appMenuGroup: "layout",
     keywords: ["rack", "add rack", "new rack", "create"],
   },
