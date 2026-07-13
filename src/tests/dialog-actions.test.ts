@@ -125,6 +125,68 @@ describe("handleDelete", () => {
     expect(dialogStore.isOpen("confirmDelete")).toBe(false);
     expect(dialogStore.deleteTarget).toBeNull();
   });
+
+  // #2993, #3028: the undo toast's Undo button always targets the top of the
+  // undo stack. If a later mutation is recorded before the user clicks Undo,
+  // that button would silently revert the later mutation instead of
+  // restoring the device the toast names. Repro: remove A, then move B
+  // within the toast's window -- the stale "Removed A" toast must be gone
+  // rather than left inviting a click that reverts B's move while A stays
+  // removed.
+  it("a later mutation dismisses the removal's undo toast (#2993, #3028)", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const toastStore = getToastStore();
+
+    const rack = layoutStore.addRack("Test Rack", 42);
+    if (!rack) throw new Error("addRack returned null");
+    const dtA = createTestDeviceType({
+      slug: "device-a",
+      model: "Device A",
+      u_height: 1,
+    });
+    const dtB = createTestDeviceType({
+      slug: "device-b",
+      model: "Device B",
+      u_height: 1,
+    });
+    layoutStore.addDeviceTypeRaw(dtA);
+    layoutStore.addDeviceTypeRaw(dtB);
+    layoutStore.placeDevice(rack.id, dtA.slug, 10, "front");
+    layoutStore.placeDevice(rack.id, dtB.slug, 20, "front");
+    const deviceA = layoutStore.getRackById(rack.id)!.devices[0]!;
+    const deviceB = layoutStore.getRackById(rack.id)!.devices[1]!;
+    selectionStore.selectDevice(rack.id, deviceA.id);
+
+    handleDelete();
+    expect(
+      toastStore.toasts.some((t) => t.message === "Removed Device A"),
+    ).toBe(true);
+
+    // A new undoable mutation is recorded before the toast is clicked.
+    const bIndex = layoutStore
+      .getRackById(rack.id)!
+      .devices.findIndex((d) => d.id === deviceB.id);
+    const moved = layoutStore.moveDevice(rack.id, bIndex, 21);
+    expect(moved).toBe(true);
+
+    // The stale "Removed A" toast is gone: there is nothing left to click
+    // that would undo B's move instead of restoring A.
+    expect(
+      toastStore.toasts.some((t) => t.message === "Removed Device A"),
+    ).toBe(false);
+    // A stays removed; B's move stands. Neither was accidentally reverted.
+    expect(
+      layoutStore
+        .getRackById(rack.id)!
+        .devices.some((d) => d.id === deviceA.id),
+    ).toBe(false);
+    expect(
+      layoutStore
+        .getRackById(rack.id)!
+        .devices.some((d) => d.id === deviceB.id),
+    ).toBe(true);
+  });
 });
 
 describe("handleDelete (rack selection)", () => {

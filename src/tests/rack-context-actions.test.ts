@@ -159,4 +159,61 @@ describe("createContextMenuActions().handleDelete", () => {
     expect(restored?.name).toBe("Core Switch");
     expect(restored?.colour_override).toBe(customColour);
   });
+
+  // #2993, #3028: the undo toast's Undo button always targets the top of the
+  // undo stack. If a later mutation is recorded before the user clicks Undo,
+  // that button would silently revert the later mutation instead of
+  // restoring the device the toast names. Repro: remove A via the context
+  // menu, then flip B's face within the toast's window -- the stale
+  // "Removed A" toast must be gone rather than left inviting a click that
+  // reverts B's flip while A stays removed.
+  it("a later mutation dismisses the removal's undo toast (#2993, #3028)", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const toastStore = getToastStore();
+    const actions = createContextMenuActions(
+      layoutStore,
+      selectionStore,
+      toastStore,
+    );
+    const { target: targetA } = placeDevice();
+    const rack = layoutStore.getRackById(targetA.rackId)!;
+    const dtB = createTestDeviceType({
+      slug: "device-b",
+      model: "Device B",
+      u_height: 1,
+      // Not full-depth: full-depth devices are always mounted "both" faces
+      // and can't be flipped, which would make handleFlip a no-op here.
+      is_full_depth: false,
+    });
+    layoutStore.addDeviceTypeRaw(dtB);
+    layoutStore.placeDevice(rack.id, dtB.slug, 20, "front");
+    const deviceB = layoutStore.getRackById(rack.id)!.devices[1]!;
+
+    actions.handleDelete(targetA);
+    expect(
+      toastStore.toasts.some((t) => t.message === "Removed Test Device"),
+    ).toBe(true);
+
+    // A new undoable mutation is recorded before the toast is clicked.
+    const bIndex = layoutStore
+      .getRackById(rack.id)!
+      .devices.findIndex((d) => d.id === deviceB.id);
+    actions.handleFlip(layoutStore.getRackById(rack.id)!, {
+      rackId: rack.id,
+      deviceIndex: bIndex,
+      x: 0,
+      y: 0,
+    });
+
+    // The stale "Removed A" toast is gone: there is nothing left to click
+    // that would undo B's flip instead of restoring A.
+    expect(
+      toastStore.toasts.some((t) => t.message === "Removed Test Device"),
+    ).toBe(false);
+    expect(
+      layoutStore.getRackById(rack.id)!.devices.find((d) => d.id === deviceB.id)
+        ?.face,
+    ).toBe("rear");
+  });
 });

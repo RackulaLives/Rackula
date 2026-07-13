@@ -19,6 +19,14 @@ export interface Toast {
   message: string;
   duration: number; // ms, 0 = permanent
   action?: ToastAction;
+  /**
+   * Marks a toast whose action undoes a specific history command (#2993,
+   * #3028). Its Undo button always targets the top of the undo stack, so once
+   * any newer command is recorded the toast no longer describes what Undo
+   * would do; dismissUndoToasts() clears it at that point rather than letting
+   * a stale toast revert the wrong action.
+   */
+  isUndoAffordance?: boolean;
 }
 
 const DEFAULT_DURATION = 5000; // 5 seconds
@@ -38,9 +46,17 @@ function showToast(
   type: ToastType,
   duration: number = DEFAULT_DURATION,
   action?: ToastAction,
+  isUndoAffordance = false,
 ): string {
   const id = generateId();
-  const toast: Toast = { id, type, message, duration, action };
+  const toast: Toast = {
+    id,
+    type,
+    message,
+    duration,
+    action,
+    isUndoAffordance,
+  };
 
   toasts = [...toasts, toast];
 
@@ -57,13 +73,40 @@ function showToast(
 
 /**
  * Show a toast with an undo action
- * Convenience wrapper for common undo pattern
+ * Convenience wrapper for common undo pattern. Flagged as an undo affordance
+ * (#2993, #3028) so dismissUndoToasts() clears it once a newer command is
+ * recorded, before its Undo button can revert the wrong action.
  */
-function showUndoToast(message: string, onUndo: () => void): string {
-  return showToast(message, "info", DEFAULT_DURATION, {
-    label: "Undo",
-    onClick: onUndo,
-  });
+function showUndoToast(
+  message: string,
+  onUndo: () => void,
+  actionLabel = "Undo",
+): string {
+  return showToast(
+    message,
+    "info",
+    DEFAULT_DURATION,
+    {
+      label: actionLabel,
+      onClick: onUndo,
+    },
+    true,
+  );
+}
+
+/**
+ * Dismiss every toast currently offering an undo affordance (#2993, #3028).
+ * Called whenever a new command enters the undo history, since an undo
+ * toast's action always targets the top of the undo stack: once a newer
+ * command is recorded, the toast no longer describes what its Undo button
+ * would actually revert.
+ */
+function dismissUndoToasts(): void {
+  for (const toast of toasts) {
+    if (toast.isUndoAffordance) {
+      dismissToast(toast.id);
+    }
+  }
 }
 
 /**
@@ -111,6 +154,7 @@ export function getToastStore() {
     showToast,
     showUndoToast,
     dismissToast,
+    dismissUndoToasts,
     clearAllToasts,
   };
 }

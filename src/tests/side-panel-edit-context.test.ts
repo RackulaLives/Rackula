@@ -341,4 +341,49 @@ describe("Edit panel Remove from Rack (#2993)", () => {
     expect(restored?.face).toBe(before.face);
     expect(restored?.name).toBe("Core Switch");
   });
+
+  // #2993, #3028: the undo toast's Undo button always targets the top of the
+  // undo stack. If a later mutation is recorded before the user clicks Undo,
+  // that button would silently revert the later mutation instead of
+  // restoring the device the toast names. Repro: remove A via "Remove from
+  // Rack", then move B within the toast's window -- the stale "Removed A"
+  // toast must be gone rather than left inviting a click that reverts B's
+  // move while A stays removed.
+  it("a later mutation dismisses the removal's undo toast (#2993, #3028)", async () => {
+    const { rackId, deviceId } = placeAndSelectDevice();
+    const layoutStore = getLayoutStore();
+    const dtB = layoutStore.addDeviceType(
+      createTestDeviceTypeInput({ name: "Device B" }),
+    );
+    layoutStore.placeDevice(rackId, dtB.slug, 20, "front");
+    const deviceB = layoutStore.getRackById(rackId)!.devices[1]!;
+
+    renderEditTab();
+    const toastStore = getToastStore();
+    await fireEvent.click(
+      screen.getByRole("button", { name: /remove from rack/i }),
+    );
+    expect(
+      toastStore.toasts.some((t) => t.message === "Removed Server Type"),
+    ).toBe(true);
+
+    // A new undoable mutation is recorded before the toast is clicked.
+    const bIndex = layoutStore
+      .getRackById(rackId)!
+      .devices.findIndex((d) => d.id === deviceB.id);
+    const moved = layoutStore.moveDevice(rackId, bIndex, 21);
+    expect(moved).toBe(true);
+
+    // The stale "Removed A" toast is gone: there is nothing left to click
+    // that would undo B's move instead of restoring A.
+    expect(
+      toastStore.toasts.some((t) => t.message === "Removed Server Type"),
+    ).toBe(false);
+    expect(
+      layoutStore.getRackById(rackId)!.devices.some((d) => d.id === deviceId),
+    ).toBe(false);
+    expect(
+      layoutStore.getRackById(rackId)!.devices.some((d) => d.id === deviceB.id),
+    ).toBe(true);
+  });
 });
