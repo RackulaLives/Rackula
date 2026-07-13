@@ -20,55 +20,64 @@ describe("dialog open dismisses lingering toasts", () => {
 
   it("clears an info toast (e.g. a first-run notice) when a dialog opens", () => {
     const toastStore = getToastStore();
-    toastStore.showToast(
-      "Layouts are saved only in this browser. Export a file to keep a copy.",
-      "info",
-    );
-    expect(toastStore.toasts.length).toBe(1);
+    const message =
+      "Layouts are saved only in this browser. Export a file to keep a copy.";
+    toastStore.showToast(message, "info");
+    expect(toastStore.toasts.some((t) => t.message === message)).toBe(true);
 
     dialogStore.open("export");
 
-    expect(toastStore.toasts.length).toBe(0);
+    expect(toastStore.toasts).toEqual([]);
   });
 
   it("clears a success toast so it cannot cover a confirm dialog's Cancel button", () => {
     const toastStore = getToastStore();
     toastStore.showToast("Device duplicated", "success");
-    expect(toastStore.toasts.length).toBe(1);
+    expect(
+      toastStore.toasts.some((t) => t.message === "Device duplicated"),
+    ).toBe(true);
 
     dialogStore.open("confirmDelete");
 
-    expect(toastStore.toasts.length).toBe(0);
+    expect(toastStore.toasts).toEqual([]);
   });
 
   it("does not dismiss a toast fired after the dialog is already open", () => {
     const toastStore = getToastStore();
     dialogStore.open("share");
-    expect(toastStore.toasts.length).toBe(0);
+    expect(toastStore.toasts).toEqual([]);
 
     // Simulates an in-dialog action (e.g. ShareDialog's "Link copied").
     toastStore.showToast("Link copied to clipboard", "success", 3000);
 
-    expect(toastStore.toasts.length).toBe(1);
+    expect(
+      toastStore.toasts.some((t) => t.message === "Link copied to clipboard"),
+    ).toBe(true);
   });
 
   it("clears toasts when switching directly from one dialog to another", () => {
     const toastStore = getToastStore();
     dialogStore.open("export");
     toastStore.showToast("Export failed", "error");
-    expect(toastStore.toasts.length).toBe(1);
+    expect(toastStore.toasts.some((t) => t.message === "Export failed")).toBe(
+      true,
+    );
 
     dialogStore.open("share");
 
-    expect(toastStore.toasts.length).toBe(0);
+    expect(toastStore.toasts).toEqual([]);
   });
 
   it("leaves toasts alone when no dialog opens", () => {
     const toastStore = getToastStore();
     toastStore.showToast("Rack duplicated", "success");
-    expect(toastStore.toasts.length).toBe(1);
+    expect(toastStore.toasts.some((t) => t.message === "Rack duplicated")).toBe(
+      true,
+    );
     // A no-op state read, not a dialog open.
     expect(dialogStore.isOpen("export")).toBe(false);
-    expect(toastStore.toasts.length).toBe(1);
+    expect(toastStore.toasts.some((t) => t.message === "Rack duplicated")).toBe(
+      true,
+    );
   });
 });

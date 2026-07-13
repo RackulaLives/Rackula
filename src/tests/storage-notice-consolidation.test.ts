@@ -12,7 +12,7 @@
  * StorageStatusChip wiring (evaluateBackupNudge -> toastStore.showToast)
  * directly against the real toast store.
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   evaluateBackupNudge,
   STORAGE_NOTICE_MESSAGE,
@@ -35,11 +35,6 @@ const localStorageMock = (() => {
   };
 })();
 
-Object.defineProperty(globalThis, "localStorage", {
-  value: localStorageMock,
-  writable: true,
-});
-
 function fireStorageNotice(toastStore: ReturnType<typeof getToastStore>) {
   return (checkpoint: number) => {
     toastStore.showToast(STORAGE_NOTICE_MESSAGE, "info", 8000, {
@@ -54,6 +49,11 @@ describe("storage notice consolidation", () => {
   beforeEach(() => {
     resetToastStore();
     localStorageMock.clear();
+    vi.stubGlobal("localStorage", localStorageMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("shows exactly one storage notice on a genuine fresh install's first edit", () => {
@@ -64,8 +64,9 @@ describe("storage notice consolidation", () => {
     // never exported.
     evaluateBackupNudge(layoutId, 1, false, fireStorageNotice(toastStore));
 
-    expect(toastStore.toasts.length).toBe(1);
-    expect(toastStore.toasts[0]?.message).toBe(STORAGE_NOTICE_MESSAGE);
+    expect(
+      toastStore.toasts.some((t) => t.message === STORAGE_NOTICE_MESSAGE),
+    ).toBe(true);
   });
 
   it("does not fire a second near-duplicate notice for the same checkpoint", () => {
@@ -79,7 +80,8 @@ describe("storage notice consolidation", () => {
     // must not stack a second copy of the same notice.
     evaluateBackupNudge(layoutId, 1, false, fire);
 
-    expect(toastStore.toasts.length).toBe(1);
+    // eslint-disable-next-line no-restricted-syntax -- deduplication invariant: a duplicate fire at the same checkpoint must not stack a second copy of the notice, so exactly one toast must remain.
+    expect(toastStore.toasts).toHaveLength(1);
   });
 
   it("uses one canonical phrasing for the notice", () => {

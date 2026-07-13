@@ -45,6 +45,10 @@ describe("toast store", () => {
       for (let i = 0; i < MAX_VISIBLE_TOASTS + 2; i++) {
         toastStore.showToast(`Undid: action ${i}`, "info");
       }
+      // Pagination invariant: MAX_VISIBLE_TOASTS is the visible-stack cap, so
+      // the count must land at exactly that value once it is exceeded (no
+      // eslint-disable needed: the lint rule only flags toHaveLength() with a
+      // literal argument, and this asserts against the named constant).
       expect(toastStore.toasts.length).toBe(MAX_VISIBLE_TOASTS);
     });
 
@@ -54,8 +58,10 @@ describe("toast store", () => {
         toastStore.showToast(`Undid: action ${i}`, "info");
       }
       const messages = toastStore.toasts.map((t) => t.message);
-      // The two oldest ("action 0" and "action 1") were evicted; the newest
-      // MAX_VISIBLE_TOASTS remain, in order.
+      // Pagination invariant: the two oldest ("action 0" and "action 1") were
+      // evicted; the newest MAX_VISIBLE_TOASTS remain, in order (no
+      // eslint-disable needed: the lint rule only flags toHaveLength() with a
+      // literal argument, not toEqual() array comparisons).
       expect(messages).toEqual([
         "Undid: action 2",
         "Undid: action 3",
