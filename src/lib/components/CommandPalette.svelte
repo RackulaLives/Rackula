@@ -193,6 +193,34 @@
     }
   }
 
+  // Anchor to return focus to on close, regardless of how the palette was
+  // opened (the pill's own mouse click, or the global Ctrl/Cmd+K shortcut) or
+  // how it closed (Escape, click-out, the Ctrl+K toggle, or a command
+  // finishing). bits-ui's default close-auto-focus restores whatever was
+  // focused when the dialog opened; the pill's click handler focuses itself
+  // first specifically so that default lands back on the pill (see
+  // Toolbar.svelte), but the global shortcut opens with nothing focused, so
+  // the captured pre-open element is document.body and the default restore
+  // is a no-op - the removed input's focus then falls through to body
+  // (#2997, J7-F5). Overriding the default here, unconditionally, gives every
+  // open/close combination the same predictable landing spot instead of only
+  // the mouse path working.
+  //
+  // Skipped when a command has already opened a different dialog or sheet
+  // (Share, Export, the YAML editor, the rack-delete confirm, ...): that
+  // surface owns focus via its own auto-focus, and stealing it back to the
+  // pill would fight its own focus trap. This mirrors handleOpenChange only
+  // closing the store when the palette is still the current dialog.
+  function handleCloseAutoFocus(event: Event) {
+    event.preventDefault();
+    if (dialogStore.openDialog !== null || dialogStore.currentSheet !== null) {
+      return;
+    }
+    document
+      .querySelector<HTMLElement>('[data-testid="btn-command-palette"]')
+      ?.focus();
+  }
+
   // Backspace on an empty device query returns to the command list (mirrors the
   // VS Code Quick Open back gesture). Guarded on empty so it never also deletes
   // a character mid-query.
@@ -278,6 +306,7 @@
         : 'command-palette--centred'}"
       data-testid="command-palette"
       onEscapeKeydown={handleContentEscapeKeydown}
+      onCloseAutoFocus={handleCloseAutoFocus}
     >
       <!-- Visually-hidden accessible name for the dialog. -->
       <Dialog.Title class="sr-only">Command palette</Dialog.Title>
