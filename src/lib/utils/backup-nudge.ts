@@ -6,6 +6,14 @@
  * accumulated enough unexported changes to risk losing a meaningful editing
  * session. Tone is factual, not nagging (Excalidraw honest-copy precedent).
  *
+ * This is also the app's ONLY browser-storage notice (#3004/R26). App.svelte
+ * previously showed a separate one-time notice on load with near-duplicate
+ * copy ("Layouts are saved in this browser..."); that path is gone. The
+ * cold-start checkpoint below (fired once, on the first edit of a
+ * never-exported layout) now serves as the sole first-run explanation of
+ * where layouts live, using the single STORAGE_NOTICE_MESSAGE phrasing, with
+ * an Export action attached at the call site.
+ *
  * Cadence:
  * - A never-exported layout fires once on the first edit (cold start). Without
  *   this, a brand-new session that never exports gets no reminder until 30
@@ -27,9 +35,14 @@ const NUDGE_THRESHOLD_KEY_PREFIX = "Rackula:backup-nudge-threshold:";
 /** Changes between nudges once the user has exported at least once. */
 export const NUDGE_INTERVAL = 30;
 
-/** Factual nudge copy: states the situation and the remedy, no nagging. */
-export const NUDGE_MESSAGE =
-  "This layout lives only in this browser. Export a file to keep a copy.";
+/**
+ * Single canonical phrasing for the browser-storage notice (#3004): shown
+ * once as the cold-start nudge (first edit of a never-exported layout, doing
+ * double duty as the app's only first-run notice), then again every
+ * NUDGE_INTERVAL changes.
+ */
+export const STORAGE_NOTICE_MESSAGE =
+  "Layouts are saved only in this browser. Export a file to keep a copy.";
 
 function thresholdKey(layoutId: string): string {
   return NUDGE_THRESHOLD_KEY_PREFIX + layoutId;

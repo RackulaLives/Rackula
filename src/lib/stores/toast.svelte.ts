@@ -23,6 +23,14 @@ export interface Toast {
 
 const DEFAULT_DURATION = 5000; // 5 seconds
 
+/**
+ * Maximum number of toasts visible at once (#3004/R27b/R26). Rapid
+ * consecutive actions (e.g. holding undo/redo) must not pile an unbounded
+ * column of toasts over the canvas; once the cap is exceeded, the oldest
+ * toast is dismissed to make room for the newest.
+ */
+export const MAX_VISIBLE_TOASTS = 3;
+
 // Store state
 let toasts = $state<Toast[]>([]);
 
@@ -43,6 +51,15 @@ function showToast(
   const toast: Toast = { id, type, message, duration, action };
 
   toasts = [...toasts, toast];
+
+  // Cap the visible stack: drop the oldest toasts first so the column never
+  // grows past MAX_VISIBLE_TOASTS, however many showToast calls arrive in a
+  // burst (#3004/R27b).
+  while (toasts.length > MAX_VISIBLE_TOASTS) {
+    const oldest = toasts[0];
+    if (!oldest) break;
+    dismissToast(oldest.id);
+  }
 
   // Set up auto-dismiss if duration > 0
   if (duration > 0) {

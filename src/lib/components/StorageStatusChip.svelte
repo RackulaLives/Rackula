@@ -26,7 +26,10 @@
     getLayoutSavedAt,
   } from "$lib/storage";
   import { maybeSaveAs } from "$lib/utils/app-actions";
-  import { evaluateBackupNudge, NUDGE_MESSAGE } from "$lib/utils/backup-nudge";
+  import {
+    evaluateBackupNudge,
+    STORAGE_NOTICE_MESSAGE,
+  } from "$lib/utils/backup-nudge";
   import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
   import ServerAvailableBanner from "./ServerAvailableBanner.svelte";
   import { Popover } from "$lib/components/ui/Popover";
@@ -82,7 +85,7 @@
       const changes = layoutStore.changesSinceExport;
       const exported = layoutStore.hasEverExported;
       evaluateBackupNudge(layoutId, changes, exported, () => {
-        toastStore.showToast(NUDGE_MESSAGE, "info", 8000, {
+        toastStore.showToast(STORAGE_NOTICE_MESSAGE, "info", 8000, {
           label: "Export",
           onClick: () => {
             maybeSaveAs();

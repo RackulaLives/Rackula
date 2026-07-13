@@ -92,7 +92,6 @@
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { Tooltip } from "bits-ui";
   import { debounce } from "$lib/utils/debounce";
-  import { safeGetItem, safeSetItem } from "$lib/utils/safe-storage";
 
   const layoutStore = getLayoutStore();
   const workspaceStore = getWorkspaceStore();
@@ -148,12 +147,13 @@
     }, 10_000);
   }
 
-  // localStorage flag: the browser-mode first-run notice is shown once per device.
-  const FIRST_RUN_NOTICE_KEY = "rackula.browserMode.firstRunSeen";
-
   // Startup must emit at most one storage toast (epic #2071 signal coherence).
-  // First-run notice, mode-flip notice, and server-drop toast are mutually
-  // exclusive; this guard dedups them.
+  // Mode-flip notice and server-drop toast are mutually exclusive; this guard
+  // dedups them. The browser-mode first-run notice used to live here too
+  // (dedicated on-load toast, near-duplicate of backup-nudge's cold-start
+  // copy); it is gone (#3004/R26). backup-nudge's cold-start checkpoint
+  // (STORAGE_NOTICE_MESSAGE, fired once on the layout's first edit) is now
+  // the app's single browser-storage notice.
   let storageToastShown = false;
 
   function showStorageToast(
@@ -165,17 +165,6 @@
     if (storageToastShown) return;
     storageToastShown = true;
     toastStore.showToast(message, type, duration, action);
-  }
-
-  // Browser mode only: a one-time notice explaining where layouts live.
-  function maybeShowFirstRunNotice(): void {
-    if (safeGetItem(FIRST_RUN_NOTICE_KEY) === "true") return;
-    safeSetItem(FIRST_RUN_NOTICE_KEY, "true");
-    showStorageToast(
-      "Layouts are saved in this browser. Export to a file to keep a copy.",
-      "info",
-      8000,
-    );
   }
 
   // Restore an autosaved working copy into the store and recenter the view.
@@ -307,9 +296,11 @@
       // set from the multi-layout workspace (#2080), hydrating the active tab now
       // and the rest on first focus. With no persisted workspace, open straight to
       // the canvas empty state. Surface a server->browser flip notice when the
-      // restored copy came from a server deployment (never silently degrade), else
-      // a one-time first-run notice. No offline toasts ever in browser mode. Entry
-      // actions (new/open/import) live in the sidebar and app menu.
+      // restored copy came from a server deployment (never silently degrade);
+      // otherwise no startup toast here (backup-nudge's cold-start checkpoint
+      // owns the browser-storage notice, #3004). No offline toasts ever in
+      // browser mode. Entry actions (new/open/import) live in the sidebar and
+      // app menu.
       if (!serverMode) {
         const launch = resolveBrowserLaunch();
         if (launch.action === "empty") {
@@ -318,10 +309,11 @@
             // first tab (its active layout has zero racks), so first run lands in
             // a layout with one rack and never a bare zero-rack void (#2831). Use
             // handleNewRack rather than handleNewLayout here: the latter opens a
-            // second tab on top of the seed, leaving a phantom empty tab. The
-            // first-run notice is for genuine fresh installs.
+            // second tab on top of the seed, leaving a phantom empty tab. Seeding
+            // the rack marks the layout dirty, so backup-nudge's cold-start
+            // checkpoint fires the app's one browser-storage notice on its own
+            // (#3004).
             handleNewRack();
-            maybeShowFirstRunNotice();
           } else {
             // Returning user whose workspace is empty (data lost or wiped). The
             // zero-rack canvas shows the inline "Add a rack" affordance, so this
@@ -344,8 +336,6 @@
             "warning",
             0,
           );
-        } else {
-          maybeShowFirstRunNotice();
         }
 
         // restoreWorkspace hydrates the active tab and restores its durability
