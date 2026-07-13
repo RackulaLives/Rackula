@@ -246,6 +246,123 @@ describe("handleConfirmDelete", () => {
     expect(layoutStore.getRackById(rackA.id)).toBeUndefined();
     expect(layoutStore.getRackById(rackB.id)).toBeDefined();
   });
+
+  // The single-rack (non-bayed) branch used to call layoutStore.deleteRack()
+  // and selectionStore.clearSelection() unconditionally, with no way to tell
+  // whether the delete actually did anything. If the snapshotted rackId no
+  // longer resolves to a live rack (e.g. some other action already removed
+  // it while the dialog was open), deleteRack() silently no-ops -- clearing
+  // the selection anyway would present a false success with nothing having
+  // been deleted. Guard shape must match the bayed-member branch just above,
+  // which already only clears selection when removeRackFromBay reports no
+  // error.
+  it("keeps the selection when the single-rack snapshot no longer resolves to a live rack", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+
+    const rack = layoutStore.addRack("Test Rack", 12);
+    if (!rack) throw new Error("addRack returned null");
+    selectionStore.selectRack(rack.id);
+    handleDelete();
+    expect(dialogStore.deleteTarget).toMatchObject({ rackId: rack.id });
+
+    // Simulate the rack having been removed by another action between
+    // dialog-open and confirm (existence, rather than the #2918 identity
+    // race the rackId snapshot already guards against).
+    layoutStore.deleteRack(rack.id);
+    expect(selectionStore.hasSelection).toBe(true);
+
+    handleConfirmDelete();
+
+    expect(selectionStore.hasSelection).toBe(true);
+  });
+
+  // #2994 fix round 2 introduced deleteBayedGroup as the atomic whole-group
+  // delete path, but selection was cleared unconditionally after the branch
+  // regardless of whether a live group resolved or deleteBayedGroup reported
+  // failure. Both failure modes must retain the selection and leave the
+  // group standing rather than presenting a silent success.
+  describe("whole-group branch failure guard", () => {
+    it("keeps the selection and deletes nothing when the group snapshot's anchor rack no longer resolves to a live group", () => {
+      const layoutStore = getLayoutStore();
+      const selectionStore = getSelectionStore();
+      const { group } = layoutStore.addBayedRackGroup("Bay", 2, 42, 19)!;
+      const rackIds = [...group.rack_ids];
+      selectionStore.selectGroup(group.id, rackIds[0]);
+
+      // Stale snapshot: the anchor rack id no longer resolves to any live
+      // group (e.g. it was already ungrouped or deleted while the dialog
+      // was open), so getRackGroupForRack(anchorRackId) resolves undefined.
+      dialogStore.deleteTarget = {
+        type: "rack",
+        name: "Bay",
+        rackId: rackIds[0]!,
+        groupRackIds: ["not-a-real-rack-id"],
+      };
+
+      handleConfirmDelete();
+
+      expect(selectionStore.hasSelection).toBe(true);
+      expect(selectionStore.selectedGroupId).toBe(group.id);
+      for (const rackId of rackIds) {
+        expect(layoutStore.getRackById(rackId)).toBeDefined();
+      }
+      expect(layoutStore.getRackGroupById(group.id)).toBeDefined();
+    });
+
+    it("keeps the selection and deletes nothing when deleteBayedGroup itself reports failure", () => {
+      const layoutStore = getLayoutStore();
+      const selectionStore = getSelectionStore();
+      const rackA = layoutStore.addRack("Rack A", 12);
+      const rackB = layoutStore.addRack("Rack B", 12);
+      if (!rackA || !rackB) throw new Error("addRack returned null");
+      // A "row" group is a real, live group but not a bayed one, so
+      // deleteBayedGroup's own guard rejects it: { error: "Can only delete
+      // a whole bayed rack group" }. This exercises the actual failure
+      // return, not a simulated unresolved snapshot.
+      const { group } = layoutStore.createRackGroup(
+        "Row",
+        [rackA.id, rackB.id],
+        "row",
+      );
+      if (!group) throw new Error("createRackGroup returned no group");
+      selectionStore.selectGroup(group.id, rackA.id);
+      dialogStore.deleteTarget = {
+        type: "rack",
+        name: "Row",
+        rackId: rackA.id,
+        groupRackIds: [rackA.id, rackB.id],
+      };
+
+      handleConfirmDelete();
+
+      expect(selectionStore.hasSelection).toBe(true);
+      expect(layoutStore.getRackById(rackA.id)).toBeDefined();
+      expect(layoutStore.getRackById(rackB.id)).toBeDefined();
+      expect(layoutStore.getRackGroupById(group.id)).toBeDefined();
+    });
+
+    it("clears the selection once a whole-group delete actually succeeds", () => {
+      const layoutStore = getLayoutStore();
+      const selectionStore = getSelectionStore();
+      const { group } = layoutStore.addBayedRackGroup("Bay", 2, 42, 19)!;
+      const rackIds = [...group.rack_ids];
+      selectionStore.selectGroup(group.id, rackIds[0]);
+      dialogStore.deleteTarget = {
+        type: "rack",
+        name: "Bay",
+        rackId: rackIds[0]!,
+        groupRackIds: rackIds,
+      };
+
+      handleConfirmDelete();
+
+      expect(selectionStore.hasSelection).toBe(false);
+      for (const rackId of rackIds) {
+        expect(layoutStore.getRackById(rackId)).toBeUndefined();
+      }
+    });
+  });
 });
 
 describe("handleNewRack", () => {

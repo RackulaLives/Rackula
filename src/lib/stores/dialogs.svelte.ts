@@ -48,19 +48,20 @@ export interface DeleteTarget {
    * dialog must act on this snapshot, not the live selectionStore, so a
    * selection change between open and confirm can't delete a different
    * rack than the one named in the dialog. For a group delete (see
-   * groupRackIds below), this is the group's own name (or a fallback), not
-   * one of its member racks.
+   * groupRackIds below), this is the anchor rack's own ID (the rack
+   * selected when the group delete was triggered), not the group's ID.
    */
   rackId: string;
   /**
    * Present only for a whole-bayed-group delete (EditPanelRack's "Delete
    * Bayed Rack" button, #2994 fold-in): every rack the confirm will delete,
    * captured at open time for the same reason rackId is. handleConfirmDelete
-   * deletes each of these in turn instead of resolving the single-rackId
-   * bayed-vs-standalone branch; DialogOrchestrator sums their live device
-   * counts for the confirm message. Undefined for every other rack-deletion
-   * affordance (context menu, delete key, verb bar, edit panel's plain
-   * "Delete Rack"), where rackId alone is authoritative.
+   * resolves the live group from this snapshot's anchor rack and deletes it
+   * and every member in one atomic deleteBayedGroup batch, rather than
+   * looping deleteRack() per member; DialogOrchestrator sums their live
+   * device counts for the confirm message. Undefined for every other
+   * rack-deletion affordance (context menu, delete key, verb bar, edit
+   * panel's plain "Delete Rack"), where rackId alone is authoritative.
    */
   groupRackIds?: string[];
 }

@@ -110,6 +110,11 @@ export function handleConfirmDelete(): void {
       // violating the >=2-bays invariant removeBayFromGroup enforces).
       // deleteBayedGroup batches the group deletion and every member's
       // deletion into a single BatchCommand instead (#2994 fix round 2).
+      // Selection only clears once the group actually resolved and
+      // deleteBayedGroup reports success; either failure mode (no live
+      // group left to resolve, or deleteBayedGroup itself erroring) must
+      // leave the selection and dialog target alone instead of presenting a
+      // silent success with nothing selected and the group still standing.
       const anchorRackId = target.groupRackIds[0];
       const group = anchorRackId
         ? layoutStore.getRackGroupForRack(anchorRackId)
@@ -122,13 +127,16 @@ export function handleConfirmDelete(): void {
             group.id,
             error,
           );
+        } else {
+          selectionStore.clearSelection();
         }
       }
-      selectionStore.clearSelection();
     } else {
       const rackId = target.rackId;
       // A bay member removal closes the row and dissolves a 1-member bay; a
-      // standalone rack deletes plainly (#2741).
+      // standalone rack deletes plainly (#2741). Same guard shape as the
+      // group branch above: only clear selection once the delete actually
+      // happened.
       const group = layoutStore.getRackGroupForRack(rackId);
       if (group?.layout_preset === "bayed") {
         const { error } = layoutStore.removeRackFromBay(rackId);
@@ -141,7 +149,7 @@ export function handleConfirmDelete(): void {
         } else {
           selectionStore.clearSelection();
         }
-      } else {
+      } else if (layoutStore.getRackById(rackId)) {
         layoutStore.deleteRack(rackId);
         selectionStore.clearSelection();
       }
