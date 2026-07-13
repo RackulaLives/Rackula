@@ -28,6 +28,7 @@ const ctx: ActionEnabledContext = {
   canUndo: false,
   canRedo: false,
   hasRacks: true,
+  canMoveDeviceSlot: false,
   mode: "server",
 };
 
