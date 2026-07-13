@@ -1045,3 +1045,77 @@ export function removeRackFromBay(
 
   return {};
 }
+
+/**
+ * Delete an entire bayed rack group: every member rack and the group itself,
+ * as one BatchCommand so a single undo restores the whole group intact.
+ *
+ * The group-delete command runs first, then each member's delete command
+ * (with no affected-groups snapshot of its own, since group membership is
+ * already handled by the group command), mirroring removeRackFromBay's
+ * "handle the group first" ordering. This keeps the transaction from ever
+ * passing through a "bayed" group holding fewer than two members: forward,
+ * the group is gone before any member is deleted; on undo (reverse order),
+ * every member is restored before the group command recreates it.
+ *
+ * The previous call site looped the plain deleteRack() once per member,
+ * pushing one history command per rack -- a single undo only reverted the
+ * last-deleted member, and the loop itself left the group at exactly one
+ * rack_id mid-loop, violating the >=2-bays invariant removeBayFromGroup
+ * enforces (#2994 fold-in review).
+ *
+ * Confirmation is the caller's concern (EditPanelRack's "Delete Bayed Rack"
+ * button routes through the shared confirmDelete dialog); this deletes
+ * unconditionally.
+ *
+ * @param ctx - Layout state access
+ * @param groupId - The bayed group to delete entirely
+ * @returns Error when the group is missing or not bayed
+ */
+export function deleteBayedGroup(
+  ctx: LayoutStateAccess,
+  groupId: string,
+): { error?: string } {
+  const group = getRackGroupById(ctx, groupId);
+  if (!group) {
+    return { error: "Group not found" };
+  }
+  if (group.layout_preset !== "bayed") {
+    return { error: "Can only delete a whole bayed rack group" };
+  }
+
+  const layout = ctx.getLayout();
+  const history = ctx.getHistory();
+  const rackAdapter = getRackLifecycleCommandAdapter(ctx);
+  const groupAdapter = getRackGroupCommandAdapter(ctx);
+
+  const commands: Command[] = [
+    createDeleteRackGroupCommand(group, groupAdapter),
+  ];
+
+  // Group membership is handled by the command above, so no affected groups
+  // are passed to each rack's delete command: undo restores each rack alone,
+  // and the group command recreates the group -- with its original rack_ids
+  // -- once every rack is back.
+  for (const rackId of group.rack_ids) {
+    const rack = layout.racks.find((r) => r.id === rackId);
+    if (rack) {
+      commands.push(createDeleteRackCommand(rack, [], rackAdapter));
+    }
+  }
+
+  const batch = createBatchCommand(
+    `Delete bayed group "${group.name ?? "Bayed Rack"}"`,
+    commands,
+  );
+  history.execute(batch);
+  ctx.markDirty();
+
+  layoutDebug.group(
+    "deleteBayedGroup: deleted group %s and %d member racks",
+    groupId,
+    group.rack_ids.length,
+  );
+
+  return {};
+}

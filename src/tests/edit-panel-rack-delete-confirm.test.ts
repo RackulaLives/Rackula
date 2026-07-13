@@ -194,4 +194,52 @@ describe("EditPanelRack Delete Bayed Rack button (#2994 fold-in)", () => {
     );
     expect(totalDevices).toBe(2);
   });
+
+  // The fold-in's whole-group branch used to loop layoutStore.deleteRack()
+  // once per member, pushing one history command per rack. A single Ctrl+Z
+  // only reverted the last-deleted member, and the loop itself passed
+  // through an invalid intermediate state (a layout_preset:"bayed" group
+  // left with exactly one rack_id -- the same state removeBayFromGroup
+  // refuses to produce, since bayed groups must hold at least two bays).
+  // deleteBayedGroup batches the group deletion and every member's deletion
+  // into a single BatchCommand so one undo restores the whole group intact.
+  it("deletes the whole group as a single history entry that one undo fully restores (#2994 fix round 2)", async () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const { group } = layoutStore.addBayedRackGroup("Bay", 3, 42, 19)!;
+    const rackIds = [...group.rack_ids];
+    selectionStore.selectGroup(group.id, rackIds[0]);
+    layoutStore.clearHistory();
+    renderEditTab();
+
+    await fireEvent.click(
+      screen.getByRole("button", { name: "Delete bayed rack" }),
+    );
+    handleConfirmDelete();
+
+    for (const rackId of rackIds) {
+      expect(layoutStore.getRackById(rackId)).toBeUndefined();
+    }
+    expect(layoutStore.getRackGroupById(group.id)).toBeUndefined();
+
+    // The whole delete landed as exactly one undo-stack entry: a single
+    // undo call leaves nothing further to revert from this operation.
+    expect(layoutStore.canUndo).toBe(true);
+    layoutStore.undo();
+    expect(layoutStore.canUndo).toBe(false);
+
+    // One undo restored every member, not just the last one deleted.
+    for (const rackId of rackIds) {
+      expect(layoutStore.getRackById(rackId)).toBeDefined();
+    }
+    const restored = layoutStore.getRackGroupById(group.id);
+    expect(restored).toBeDefined();
+    expect(restored!.rack_ids).toEqual(rackIds);
+    expect(restored!.layout_preset).toBe("bayed");
+    // Never left as a partial group: a "bayed" group with fewer than two
+    // members violates the invariant removeBayFromGroup enforces. Since the
+    // whole operation is one history entry, there is no intermediate undo
+    // step where that could be observed.
+    expect(restored!.rack_ids.length).toBe(rackIds.length);
+  });
 });

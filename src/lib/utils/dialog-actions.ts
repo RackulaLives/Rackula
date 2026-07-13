@@ -99,11 +99,30 @@ export function handleConfirmDelete(): void {
   if (target) {
     if (target.groupRackIds) {
       // Whole-bayed-group delete (edit panel's "Delete Bayed Rack", #2994
-      // fold-in): delete every member plainly. The group itself is
-      // auto-removed once its last rack goes, mirroring the pre-guard
-      // behaviour this button already had.
-      for (const rackId of target.groupRackIds) {
-        layoutStore.deleteRack(rackId);
+      // fold-in): resolve the live group from the snapshot's anchor rack
+      // (same #2918 pattern as the standalone branch below, which resolves
+      // its group from the snapshotted rackId rather than trusting a stale
+      // membership list) and delete it as one atomic batch. The previous
+      // per-member deleteRack() loop pushed one history command per rack, so
+      // a single undo only restored the last-deleted member and the loop
+      // itself passed through an invalid intermediate state (a
+      // layout_preset:"bayed" group left with exactly one rack_id,
+      // violating the >=2-bays invariant removeBayFromGroup enforces).
+      // deleteBayedGroup batches the group deletion and every member's
+      // deletion into a single BatchCommand instead (#2994 fix round 2).
+      const anchorRackId = target.groupRackIds[0];
+      const group = anchorRackId
+        ? layoutStore.getRackGroupForRack(anchorRackId)
+        : undefined;
+      if (group) {
+        const { error } = layoutStore.deleteBayedGroup(group.id);
+        if (error) {
+          layoutDebug.group(
+            "deleteBayedGroup failed for %s: %s",
+            group.id,
+            error,
+          );
+        }
       }
       selectionStore.clearSelection();
     } else {
