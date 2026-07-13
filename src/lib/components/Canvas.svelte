@@ -571,7 +571,10 @@
     font-size: var(--font-size-sm);
     max-width: min(90%, 480px);
     pointer-events: none;
-    z-index: 10;
+    /* Above the verb bar (#3004/R27c): a rack auto-selected on first run can
+       show the verb bar in this same lower-canvas area, and the hint must
+       never render hidden behind it. */
+    z-index: var(--z-hint);
   }
 
   .hint-dismiss {

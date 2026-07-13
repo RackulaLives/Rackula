@@ -31,6 +31,14 @@ export interface Toast {
 
 const DEFAULT_DURATION = 5000; // 5 seconds
 
+/**
+ * Maximum number of toasts visible at once (#3004/R27b/R26). Rapid
+ * consecutive actions (e.g. holding undo/redo) must not pile an unbounded
+ * column of toasts over the canvas; once the cap is exceeded, the oldest
+ * toast is dismissed to make room for the newest.
+ */
+export const MAX_VISIBLE_TOASTS = 3;
+
 // Store state
 let toasts = $state<Toast[]>([]);
 
@@ -59,6 +67,20 @@ function showToast(
   };
 
   toasts = [...toasts, toast];
+
+  // Cap the visible stack: drop the oldest toasts first so the column never
+  // grows past MAX_VISIBLE_TOASTS, however many showToast calls arrive in a
+  // burst (#3004/R27b). Evict the oldest non-undo-affordance toast before
+  // ever touching an undo toast, so a stack cap can't silently hide a still
+  // clickable Undo for a destructive action (e.g. device removal) during a
+  // burst. Only when every visible toast is an undo affordance does the
+  // oldest of those get evicted; that edge is safe since undo toasts also
+  // auto-dismiss at 5s and via dismissUndoToasts() on the next command.
+  while (toasts.length > MAX_VISIBLE_TOASTS) {
+    const evictable = toasts.find((t) => !t.isUndoAffordance) ?? toasts[0];
+    if (!evictable) break;
+    dismissToast(evictable.id);
+  }
 
   // Set up auto-dismiss if duration > 0
   if (duration > 0) {

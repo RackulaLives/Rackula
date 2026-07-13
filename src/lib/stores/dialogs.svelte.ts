@@ -10,6 +10,8 @@
  * Sheets (mobile bottom sheets) use a separate state since they coexist with dialogs.
  */
 
+import { getToastStore } from "./toast.svelte";
+
 export type DialogId =
   | "addDevice"
   | "confirmDelete"
@@ -70,8 +72,16 @@ let selectedDeviceIndex = $state<number | null>(null);
  * dialogs always render without a sheet underneath them. On mobile this
  * prevents the device-details bottom sheet from occluding a confirm dialog
  * that opens on top of it (#2490).
+ *
+ * Also dismisses any toast currently on screen (#3004/R27a): a toast left
+ * over from a prior action (e.g. "Device duplicated") must never linger and
+ * cover this dialog's controls, including a destructive confirm's Cancel
+ * button. This only fires once, at the open transition, so a toast raised by
+ * an action taken inside this dialog after it opens (e.g. Share's "Link
+ * copied") is unaffected.
  */
 function open(id: DialogId) {
+  getToastStore().clearAllToasts();
   openSheet = null;
   selectedDeviceIndex = null;
   openDialog = id;
