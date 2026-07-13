@@ -363,7 +363,7 @@ test.describe("Command palette", () => {
     await expect(palette).not.toBeVisible();
   });
 
-  test("Enter before typing is inert (no row armed on open)", async ({
+  test("Enter before typing is inert for ordinary commands (no row armed on open)", async ({
     page,
   }) => {
     await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
@@ -371,12 +371,83 @@ test.describe("Command palette", () => {
     await expect(palette).toBeVisible();
     await expect(page.getByTestId("command-palette-input")).toBeFocused();
 
-    // No row is armed on open, so Enter before the first keystroke runs nothing
-    // (#2777 decision 8). Any command run would close the palette, so its staying
-    // open is the proof that Enter was inert.
+    // No ORDINARY row is armed on open, so Enter before the first keystroke
+    // cannot run one (#2777 decision 8). Running a command would close the
+    // palette, so its staying open (with focus still in the input) is the
+    // proof that no ordinary row fired. This fixture has a rack, so the one
+    // deliberate exception - the persistent "Add device..." row (#2996) -
+    // also arms on this same Enter; that is covered on its own next.
     await page.keyboard.press("Enter");
     await expect(palette).toBeVisible();
     await expect(page.getByTestId("command-palette-input")).toBeFocused();
+  });
+
+  // --- #2996: Add-device row is keyboard-armable; device bridge is dependable ---
+
+  test("Enter on an empty query arms the persistent Add-device row (#106, #2996)", async ({
+    page,
+  }) => {
+    // SMALL_RACK_SHARE provides a rack, so canAddDevice is true and the
+    // "Add device..." lead row is offered. Unlike an ordinary command row, it
+    // is a persistent, explicitly-labelled affordance, so Enter with an empty
+    // query arms it specifically without reversing decision 8 for anything
+    // else (covered by the "Enter before typing is inert" test above).
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    const palette = page.getByRole("dialog", { name: "Command palette" });
+    await expect(palette).toBeVisible();
+    await expect(page.getByTestId("command-palette-add-device")).toBeVisible();
+
+    await page.keyboard.press("Enter");
+
+    // The device sub-page opened: the back affordance and a device result
+    // appear. The palette itself stays open (a run() command would have
+    // closed it), proving no ordinary command fired instead.
+    await expect(palette).toBeVisible();
+    await expect(page.getByTestId("command-palette-device-back")).toBeVisible();
+    await expect(
+      page.getByTestId("command-palette-device-item-1u-server"),
+    ).toBeVisible();
+  });
+
+  test("the device bridge stays available for a query that also fuzzy-matches a command, and Enter goes to the bridge, not the command (#2996)", async ({
+    page,
+  }) => {
+    // "xserve" is the issue's own repro: it fuzzy-matches "Export all layouts"
+    // via a stray character-jump (a coincidental, low-confidence hit), which
+    // previously hid the device bridge entirely and let a bare Enter silently
+    // fire the export command instead of surfacing a way to place a device.
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    const input = page.getByTestId("command-palette-input");
+    await input.fill("xserve");
+
+    const bridge = page.getByTestId("command-palette-create-device");
+    await expect(bridge).toBeVisible();
+
+    await page.keyboard.press("Enter");
+
+    // Enter went to the device bridge, not "Export all layouts": the palette
+    // is still open, in the device sub-page, carrying the typed query. Had the
+    // export command fired instead, the palette would have closed entirely.
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).toBeVisible();
+    await expect(page.getByTestId("command-palette-device-back")).toBeVisible();
+    await expect(input).toHaveValue("xserve");
+  });
+
+  test("the device bridge stays available for a device-category word that also fuzzy-matches a command (#2996)", async ({
+    page,
+  }) => {
+    // "server" fuzzy-matches "New layout from template: Media Server" (a real,
+    // non-spurious interior-word hit), which previously hid the bridge
+    // entirely because any match at all suppressed it. The bridge must remain
+    // reachable so a common device-search word is never a dead end.
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await page.getByTestId("command-palette-input").fill("server");
+
+    await expect(
+      page.getByTestId("command-palette-create-device"),
+    ).toBeVisible();
   });
 
   // --- #2778: search reveals unavailable commands greyed with a reason ---

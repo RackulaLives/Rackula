@@ -86,15 +86,30 @@
   // Flat, relevance-ranked search list (#2777 rule 12). Carries context-gated
   // commands greyed-with-reason (#2778); bits-ui fuzzy-filters and ranks them.
   const searchCommands = $derived(getPaletteSearchCommands(ctx));
-  // True only when the query matches NO command row at all - neither runnable
-  // nor greyed. Computed with the same scorer bits-ui filters by, so it agrees
-  // with what bits-ui renders. Gates the device bridge to a real no-match so it
-  // never blends into command results or hijacks Enter past a greyed row (#2779,
-  // decision 11). Empty/whitespace query is never a no-match (that is browse).
-  const noCommandMatch = $derived.by(() => {
+  // computeCommandScore returns 0..1. A query that starts matching a command's
+  // own label from its first character (the "this IS the command" case) lands
+  // at ~0.99 even after the keyword-string-length penalty; a query that only
+  // hits an interior word or a keyword ("device" inside "Toggle device
+  // sidebar", "server" inside "...Media Server") lands at ~0.89; a stray
+  // character-jump coincidence ("xserve" against "Export all layouts") lands
+  // near 0. 0.95 sits cleanly between the first two bands, so only a genuine,
+  // intentional command-name match counts as "confident" here.
+  const CONFIDENT_COMMAND_MATCH = 0.95;
+  // True when no command row is a *confident* match for the query - covers
+  // both a true zero-match and a query that only coincidentally brushes a
+  // command via a loose interior-word or character-jump hit (#2996, a scope
+  // gap in #106/#2779's original no-command-match bridge). Computed with the
+  // same scorer bits-ui filters by, so it agrees with what bits-ui renders.
+  // Gates the device bridge - and, via handleInputKeydown, Enter itself - so a
+  // device-like query never silently hijacks Enter into an unrelated command
+  // (#2996) nor a greyed row (#2779, decision 11). Empty/whitespace query is
+  // never a no-match (that is browse).
+  const noConfidentCommandMatch = $derived.by(() => {
     if (search.trim() === "") return false;
     return !searchCommands.some(
-      (c) => computeCommandScore(c.label, search, c.keywords) > 0,
+      (c) =>
+        computeCommandScore(c.label, search, c.keywords) >=
+        CONFIDENT_COMMAND_MATCH,
     );
   });
   // While browsing (command mode, empty query) nothing is armed: the highlight
@@ -201,16 +216,37 @@
   }
 
   // One keydown handler for the persistent input. Device mode keeps the
-  // Backspace-to-pop gesture; command mode makes Enter inert while browsing so
-  // no row fires on a stray Enter before the user has typed (#2777 decision 8).
+  // Backspace-to-pop gesture; command mode splits on whether there is a query
+  // yet (#2777 decision 8, #2996):
+  // - Empty query (browsing): ordinary command rows stay unarmed exactly as
+  //   decision 8 requires, but the explicit "Add device..." lead row is a
+  //   persistent, named affordance rather than "whatever bits-ui highlighted
+  //   first" - so Enter arms it specifically (only when it is actually
+  //   offered) instead of staying fully inert. This does not reverse decision
+  //   8 for anything else: no other row can fire from an empty query.
+  // - Non-empty query with no *confident* command match: bits-ui would still
+  //   auto-select and fire whatever row scored above zero, including a stray
+  //   coincidental hit ("xserve" -> "Export all layouts"). Routing Enter to
+  //   the device bridge here - the same condition that renders it - means a
+  //   device-like query can no longer silently run an unrelated command
+  //   instead of surfacing the bridge. A confident command match (the query
+  //   genuinely names a command) is untouched and still runs natively.
   function handleInputKeydown(event: KeyboardEvent) {
     if (mode === "devices") {
       handleDeviceInputKeydown(event);
       return;
     }
-    if (event.key === "Enter" && search.trim() === "") {
+    if (event.key !== "Enter") return;
+    if (search.trim() === "") {
       event.preventDefault();
       event.stopPropagation();
+      if (canAddDevice) enterDeviceMode();
+      return;
+    }
+    if (canAddDevice && noConfidentCommandMatch) {
+      event.preventDefault();
+      event.stopPropagation();
+      enterDeviceMode(search);
     }
   }
 
@@ -513,18 +549,25 @@
                   {/each}
                 </Command.GroupItems>
               </Command.Group>
-              <!-- No-command-match bridge to the device catalogue (#2779,
-                   rule 11). Shown only when the query matches zero command rows
-                   (so top-level search stays commands-only and it never hijacks
-                   Enter past a greyed row). It lives in its OWN forceMounted
-                   group, NOT the command group above: bits-ui culls a group
-                   whose items all score zero by setting hidden on the group
-                   element, which hides a forceMounted item nested inside it too
-                   (#2853). forceMount on the group keeps it rendered and
-                   forceMount on the item keeps the item mounted, so on a true
-                   no-match the bridge is the sole armed item; selecting it enters
-                   device search pre-filled with the typed query. -->
-              {#if canAddDevice && noCommandMatch}
+              <!-- Device-search bridge to the device catalogue (#2779 rule
+                   11, widened by #2996). Shown whenever no command row is a
+                   *confident* match for the query - a true zero-match, or a
+                   query that only coincidentally brushes a command's keyword
+                   or an interior word (see noConfidentCommandMatch) - so a
+                   device-like query ("server", "switch", "xserve") always
+                   keeps a route into device search even if it also brushes an
+                   unrelated command. It lives in its OWN forceMounted group,
+                   NOT the command group above: bits-ui culls a group whose
+                   items all score zero by setting hidden on the group
+                   element, which hides a forceMounted item nested inside it
+                   too (#2853). forceMount on the group keeps it rendered and
+                   forceMount on the item keeps the item mounted. Enter is
+                   routed here explicitly by handleInputKeydown under the same
+                   condition, so a coincidental low-confidence command match
+                   can never fire ahead of it; selecting it (by click or
+                   Enter) enters device search pre-filled with the typed
+                   query. -->
+              {#if canAddDevice && noConfidentCommandMatch}
                 <Command.Group forceMount class="command-group">
                   <Command.GroupItems>
                     <Command.Item
