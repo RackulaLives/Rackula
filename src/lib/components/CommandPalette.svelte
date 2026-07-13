@@ -11,7 +11,7 @@
   Dialog.svelte. All colours via design tokens.
 -->
 <script lang="ts">
-  import { Dialog, Command, computeCommandScore } from "bits-ui";
+  import { Dialog, Command } from "bits-ui";
   import { IconSearch, IconPlus, IconChevronLeft, IconGearBold } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
@@ -25,6 +25,7 @@
   import {
     getPaletteSearchCommands,
     getPaletteEmptyState,
+    noConfidentCommandMatch as computeNoConfidentCommandMatch,
   } from "$lib/actions/palette-commands";
   import {
     searchPaletteDevices,
@@ -86,32 +87,19 @@
   // Flat, relevance-ranked search list (#2777 rule 12). Carries context-gated
   // commands greyed-with-reason (#2778); bits-ui fuzzy-filters and ranks them.
   const searchCommands = $derived(getPaletteSearchCommands(ctx));
-  // computeCommandScore returns 0..1. A query that starts matching a command's
-  // own label from its first character (the "this IS the command" case) lands
-  // at ~0.99 even after the keyword-string-length penalty; a query that only
-  // hits an interior word or a keyword ("device" inside "Toggle device
-  // sidebar", "server" inside "...Media Server") lands at ~0.89; a stray
-  // character-jump coincidence ("xserve" against "Export all layouts") lands
-  // near 0. 0.95 sits cleanly between the first two bands, so only a genuine,
-  // intentional command-name match counts as "confident" here.
-  const CONFIDENT_COMMAND_MATCH = 0.95;
-  // True when no command row is a *confident* match for the query - covers
-  // both a true zero-match and a query that only coincidentally brushes a
-  // command via a loose interior-word or character-jump hit (#2996, a scope
-  // gap in #106/#2779's original no-command-match bridge). Computed with the
-  // same scorer bits-ui filters by, so it agrees with what bits-ui renders.
-  // Gates the device bridge - and, via handleInputKeydown, Enter itself - so a
-  // device-like query never silently hijacks Enter into an unrelated command
-  // (#2996) nor a greyed row (#2779, decision 11). Empty/whitespace query is
-  // never a no-match (that is browse).
-  const noConfidentCommandMatch = $derived.by(() => {
-    if (search.trim() === "") return false;
-    return !searchCommands.some(
-      (c) =>
-        computeCommandScore(c.label, search, c.keywords) >=
-        CONFIDENT_COMMAND_MATCH,
-    );
-  });
+  // The routing threshold and its scorer-comparison logic live in
+  // palette-commands.ts (noConfidentCommandMatch, #2996) so the component and
+  // its unit test share one source of truth instead of two constants silently
+  // drifting apart. True when no command row is a *confident* match for the
+  // query - covers both a true zero-match and a query that only
+  // coincidentally brushes a command via a loose interior-word or
+  // character-jump hit (a scope gap in #106/#2779's original no-command-match
+  // bridge). Gates the device bridge - and, via handleInputKeydown, Enter
+  // itself - so a device-like query never silently hijacks Enter into an
+  // unrelated command nor a greyed row (#2779, decision 11).
+  const noConfidentCommandMatch = $derived(
+    computeNoConfidentCommandMatch(search, searchCommands),
+  );
   // While browsing (command mode, empty query) nothing is armed: the highlight
   // is suppressed and Enter is inert until the first keystroke (#2777 decision 8).
   const browsing = $derived(mode !== "devices" && search.trim() === "");
