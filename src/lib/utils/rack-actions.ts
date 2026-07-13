@@ -13,16 +13,24 @@ import { DRAWER_WIDTH } from "$lib/constants/layout";
 import { handleFitAll, prepareExportQrCode } from "./app-actions";
 import { layoutDebug } from "$lib/utils/debug";
 
-/** Duplicate a rack, then fit all on success or toast the error. */
+/**
+ * Duplicate a rack, select the copy, and fit it into view on success, or
+ * toast the error. Selecting the copy keeps active (sidebar) and selected
+ * (canvas outline, edit panel, delete target) in sync (#3003); the fit call
+ * is deferred a frame, mirroring handleNewRack, so a copy placed beyond the
+ * viewport edge never becomes active while invisible.
+ */
 export function handleRackContextDuplicate(rackId: string): void {
   const layoutStore = getLayoutStore();
+  const selectionStore = getSelectionStore();
   const toastStore = getToastStore();
   const result = layoutStore.duplicateRack(rackId);
   if (result.error) {
     toastStore.showToast(result.error, "error");
-  } else {
+  } else if (result.rack) {
+    selectionStore.selectRack(result.rack.id);
     toastStore.showToast("Rack duplicated", "success");
-    handleFitAll();
+    requestAnimationFrame(() => handleFitAll());
   }
 }
 

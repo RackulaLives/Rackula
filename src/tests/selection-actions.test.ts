@@ -1,10 +1,13 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import {
   getSelectionStore,
   resetSelectionStore,
 } from "$lib/stores/selection.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
+import { dialogStore } from "$lib/stores/dialogs.svelte";
+import { handleDelete, handleConfirmDelete } from "$lib/utils/dialog-actions";
+import * as appActions from "$lib/utils/app-actions";
 import {
   moveSelectedDeviceUp,
   moveSelectedDeviceDown,
@@ -19,6 +22,7 @@ function resetAll() {
   resetLayoutStore();
   resetSelectionStore();
   resetToastStore();
+  dialogStore.close();
 }
 
 /**
@@ -46,6 +50,9 @@ function setupHalfDepthDevice(face: DeviceFace = "front") {
 
 describe("selection-actions", () => {
   beforeEach(resetAll);
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   // ---------------------------------------------------------------------------
   // moveSelectedDeviceUp
@@ -312,6 +319,66 @@ describe("selection-actions", () => {
       expect(layout.getRackById(rackId)!.devices.length).toBe(
         deviceCountBefore,
       );
+    });
+
+    // #3003 (J4-F3): duplicateRack activates the copy but previously left the
+    // selection store pointed at the source, so the sidebar (active) and the
+    // canvas outline / edit panel / delete target (selected) disagreed about
+    // which rack was "current". Both must point at the copy.
+    it("keeps active and selected in sync on the copy after duplicating a rack", () => {
+      const { layout, rackId } = setupHalfDepthDevice();
+      const layoutStore = layout;
+      const selection = getSelectionStore();
+      selection.selectRack(rackId);
+
+      duplicateSelection();
+
+      const newRack = layoutStore.racks.find((r) => r.id !== rackId);
+      expect(newRack).toBeDefined();
+      expect(layoutStore.activeRackId).toBe(newRack!.id);
+      expect(selection.selectedRackId).toBe(newRack!.id);
+    });
+
+    // #3003 (J4-F3): with active and selected desynced, pressing Delete right
+    // after a duplicate destroyed the original rack instead of the copy the
+    // user just made (delete reads selectedRackId). This drives the delete
+    // affordance end-to-end (handleDelete -> confirm) to prove the copy is
+    // the one removed.
+    it("targets the copy, not the source, when Delete is pressed right after duplicating", () => {
+      const { layout, rackId } = setupHalfDepthDevice();
+      const layoutStore = layout;
+      const selection = getSelectionStore();
+      selection.selectRack(rackId);
+
+      duplicateSelection();
+      const newRack = layoutStore.racks.find((r) => r.id !== rackId)!;
+
+      handleDelete();
+      expect(dialogStore.deleteTarget?.rackId).toBe(newRack.id);
+      handleConfirmDelete();
+
+      expect(layoutStore.getRackById(newRack.id)).toBeUndefined();
+      expect(layoutStore.getRackById(rackId)).toBeDefined();
+    });
+
+    // #3003 (J4-F5): the copy was appended beyond the viewport edge with no
+    // re-fit, silently becoming active while invisible. Mirrors handleNewRack,
+    // which fits the canvas after creating and selecting a rack.
+    it("fits the copy into view after duplicating a rack", () => {
+      vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+        cb(0);
+        return 1;
+      });
+      const fitAllSpy = vi
+        .spyOn(appActions, "handleFitAll")
+        .mockReturnValue(undefined);
+      const { rackId } = setupHalfDepthDevice();
+      getSelectionStore().selectRack(rackId);
+
+      duplicateSelection();
+
+      expect(fitAllSpy).toHaveBeenCalled();
+      vi.unstubAllGlobals();
     });
   });
 

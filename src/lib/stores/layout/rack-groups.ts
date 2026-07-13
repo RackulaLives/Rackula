@@ -774,12 +774,14 @@ export interface CreateBayedRackResult {
 }
 
 /**
- * Build the recorded position-update commands that reindex a row after a bayed
- * insert. The new rack carries its position from creation and is not yet in the
- * layout, so it is skipped; existing racks already at their target position are
- * left untouched so the batch stays minimal.
+ * Build the recorded position-update commands that reindex a row after a
+ * position-changing insert (a bayed insert or a rack duplicate placed
+ * adjacent to its source, #3003). The new rack carries its position from
+ * creation and is not yet in the layout, so it is skipped; existing racks
+ * already at their target position are left untouched so the batch stays
+ * minimal. Exported for reuse by duplicateRack (rack-actions.ts).
  */
-function buildRowReindexCommands(
+export function buildRowReindexCommands(
   ctx: LayoutStateAccess,
   assignments: RackPositionAssignment[],
 ): Command[] {

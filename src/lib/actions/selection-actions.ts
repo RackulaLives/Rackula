@@ -12,6 +12,7 @@ import { getCanvasStore } from "$lib/stores/canvas.svelte";
 import { getUIStore } from "$lib/stores/ui.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
 import { getPlacementStore } from "$lib/stores/placement.svelte";
+import { handleFitAll } from "$lib/utils/app-actions";
 import { hapticSuccess, hapticError } from "$lib/utils/haptics";
 import { getRackSlotControls } from "$lib/utils/rack-row";
 import { findNextValidPosition } from "$lib/utils/device-movement";
@@ -294,7 +295,14 @@ export function duplicateSelection(): void {
     if (result.error) {
       toastStore.showToast(result.error, "error");
     } else if (result.rack) {
+      // Keep active (sidebar) and selected (canvas outline, edit panel,
+      // delete target) in sync on the copy, matching user intent (#3003).
+      selectionStore.selectRack(result.rack.id);
       toastStore.showToast("Rack duplicated", "success");
+      // Fit the copy into view, mirroring handleNewRack's fit-after-paint
+      // pattern (#3003): the copy could otherwise land beyond the viewport
+      // edge while silently becoming active.
+      requestAnimationFrame(() => handleFitAll());
     }
   }
 }

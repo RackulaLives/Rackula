@@ -20,9 +20,13 @@ import {
   type RackLifecycleCommandStore,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
-import { getRackGroupCommandAdapter, getRackGroupForRack } from "./rack-groups";
+import {
+  buildRowReindexCommands,
+  getRackGroupCommandAdapter,
+  getRackGroupForRack,
+} from "./rack-groups";
 import { setLayoutNamesRaw } from "./mutators";
-import { reorderRackRow } from "$lib/utils/rack-row";
+import { planBayedInsert, reorderRackRow } from "$lib/utils/rack-row";
 
 /** Recorded single-rack update action injected by the facade. */
 export type UpdateRackRecordedFn = (
@@ -559,6 +563,19 @@ export function duplicateRack(
 
   const newRackId = generateRackId();
 
+  // Place the copy immediately after its source in row order (#3003)
+  // instead of always appending at the far end of the row, which could land
+  // it well beyond the source and off the right viewport edge.
+  const rowAssignments = planBayedInsert(
+    layout.racks,
+    layout.rack_groups ?? [],
+    id,
+    newRackId,
+  );
+  const newPosition =
+    rowAssignments?.find((a) => a.id === newRackId)?.position ??
+    layout.racks.length;
+
   // Build a mapping from old device IDs to new device IDs
   // This ensures container_id references remain valid
   const idMap = new Map<string, string>(
@@ -570,7 +587,7 @@ export function duplicateRack(
   const cloned = JSON.parse(JSON.stringify(sourceRack)) as typeof sourceRack;
   cloned.id = newRackId;
   cloned.name = `${sourceRack.name} (Copy)`;
-  cloned.position = layout.racks.length;
+  cloned.position = newPosition;
   cloned.devices = cloned.devices.map((d) => {
     const newId = idMap.get(d.id)!;
     const newContainerId = d.container_id
@@ -580,10 +597,21 @@ export function duplicateRack(
   });
   const duplicatedRack = cloned;
 
-  // setActive: true ensures redo also restores the active rack selection
+  // setActive: true ensures redo also restores the active rack selection.
+  // Reindexing the rest of the row (when the source isn't already last) is
+  // folded into the same undo step via a batch, so one undo reverts both.
   const history = ctx.getHistory();
   const adapter = getRackLifecycleCommandAdapter(ctx);
-  const command = createAddRackCommand(duplicatedRack, adapter, true);
+  const commands: Command[] = [
+    createAddRackCommand(duplicatedRack, adapter, true),
+  ];
+  if (rowAssignments) {
+    commands.push(...buildRowReindexCommands(ctx, rowAssignments));
+  }
+  const command =
+    commands.length > 1
+      ? createBatchCommand(`Duplicate rack "${sourceRack.name}"`, commands)
+      : commands[0]!;
   history.execute(command);
   ctx.markDirty();
 
