@@ -53,6 +53,7 @@ import {
   getRackById as getRackByIdImpl,
   setActiveRack as setActiveRackImpl,
   getTargetRack as getTargetRackImpl,
+  type RackDuplicateSelectionSync,
 } from "./layout/rack-actions";
 import {
   createRackGroup as createRackGroupImpl,
@@ -507,8 +508,11 @@ export function createLayoutStore(
     );
   }
 
-  function duplicateRack(id: string) {
-    return duplicateRackImpl(stateAccess, id);
+  function duplicateRack(
+    id: string,
+    selectionSync?: RackDuplicateSelectionSync,
+  ) {
+    return duplicateRackImpl(stateAccess, id, selectionSync);
   }
 
   // =============================================================================

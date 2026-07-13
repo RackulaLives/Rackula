@@ -65,6 +65,34 @@ describe("handleRackContextDuplicate", () => {
     expect(layoutStore.getRackById(rack.id)).toBeDefined();
   });
 
+  // Fix round 1 (#3003): same defect class reintroduced in the undo path.
+  // The post-duplicate selectRack() call landed outside the command/history
+  // system, so undo restored activeRackId to the source (#2976) but left
+  // selectedRackId dangling on the now-deleted copy's id. Undo must leave
+  // both pointing at the source; redo must put both back on the copy.
+  it("keeps active and selected coherent through duplicate undo and redo", () => {
+    const layoutStore = getLayoutStore();
+    const selection = getSelectionStore();
+    const rack = layoutStore.addRack("Source Rack", 42)!;
+    layoutStore.setActiveRack(rack.id);
+    selection.selectRack(rack.id);
+
+    handleRackContextDuplicate(rack.id);
+    const newRack = layoutStore.racks.find((r) => r.id !== rack.id);
+    expect(newRack).toBeDefined();
+    expect(layoutStore.activeRackId).toBe(newRack!.id);
+    expect(selection.selectedRackId).toBe(newRack!.id);
+
+    layoutStore.undo();
+    expect(layoutStore.activeRackId).toBe(rack.id);
+    expect(selection.selectedRackId).toBe(rack.id);
+    expect(layoutStore.getRackById(newRack!.id)).toBeUndefined();
+
+    layoutStore.redo();
+    expect(layoutStore.activeRackId).toBe(newRack!.id);
+    expect(selection.selectedRackId).toBe(newRack!.id);
+  });
+
   it("fits the copy into view, mirroring handleNewRack", () => {
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
       cb(0);

@@ -291,13 +291,25 @@ export function duplicateSelection(): void {
   }
 
   if (selectionStore.isRackSelected && selectionStore.selectedRackId) {
-    const result = layoutStore.duplicateRack(selectionStore.selectedRackId);
+    // Keep active (sidebar) and selected (canvas outline, edit panel,
+    // delete target) in sync on the copy, matching user intent (#3003). The
+    // sync object routes through duplicateRack's command so undo/redo keep
+    // selection transactionally coherent with activeRackId (#3003 fix round
+    // 1): a bare selectionStore.selectRack() call after the fact would leave
+    // selection dangling on the copy's id once undo deletes it.
+    const result = layoutStore.duplicateRack(selectionStore.selectedRackId, {
+      getSelectedRackId: () => selectionStore.selectedRackId,
+      setSelectedRackId: (rackId) => {
+        if (rackId) {
+          selectionStore.selectRack(rackId);
+        } else {
+          selectionStore.clearSelection();
+        }
+      },
+    });
     if (result.error) {
       toastStore.showToast(result.error, "error");
     } else if (result.rack) {
-      // Keep active (sidebar) and selected (canvas outline, edit panel,
-      // delete target) in sync on the copy, matching user intent (#3003).
-      selectionStore.selectRack(result.rack.id);
       toastStore.showToast("Rack duplicated", "success");
       // Fit the copy into view, mirroring handleNewRack's fit-after-paint
       // pattern (#3003): the copy could otherwise land beyond the viewport

@@ -361,6 +361,34 @@ describe("selection-actions", () => {
       expect(layoutStore.getRackById(rackId)).toBeDefined();
     });
 
+    // Fix round 1 (#3003): the post-duplicate selectRack() call landed
+    // outside the command/history system, so Ctrl+D then Ctrl+Z restored
+    // activeRackId to the source (via the command's previousActiveRackId,
+    // #2976) but left selectedRackId dangling on the now-deleted copy's id.
+    // Undo must leave both pointing at the source; redo must put both back
+    // on the copy.
+    it("keeps active and selected coherent through duplicate undo and redo", () => {
+      const { layout, rackId } = setupHalfDepthDevice();
+      const layoutStore = layout;
+      const selection = getSelectionStore();
+      selection.selectRack(rackId);
+
+      duplicateSelection();
+      const newRack = layoutStore.racks.find((r) => r.id !== rackId);
+      expect(newRack).toBeDefined();
+      expect(layoutStore.activeRackId).toBe(newRack!.id);
+      expect(selection.selectedRackId).toBe(newRack!.id);
+
+      layoutStore.undo();
+      expect(layoutStore.activeRackId).toBe(rackId);
+      expect(selection.selectedRackId).toBe(rackId);
+      expect(layoutStore.getRackById(newRack!.id)).toBeUndefined();
+
+      layoutStore.redo();
+      expect(layoutStore.activeRackId).toBe(newRack!.id);
+      expect(selection.selectedRackId).toBe(newRack!.id);
+    });
+
     // #3003 (J4-F5): the copy was appended beyond the viewport edge with no
     // re-fit, silently becoming active while invisible. Mirrors handleNewRack,
     // which fits the canvas after creating and selecting a rack.
