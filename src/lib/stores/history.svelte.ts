@@ -10,6 +10,7 @@
  */
 
 import type { Command } from "./commands/types";
+import { getToastStore } from "$lib/stores/toast.svelte";
 
 /** Maximum number of commands to keep in history */
 export const MAX_HISTORY_DEPTH = 50;
@@ -40,6 +41,15 @@ export function createHistoryStore() {
    * Execute a command and add it to history
    */
   function execute(command: Command): void {
+    // Any undo-affordance toast on screen targets the previous top of the
+    // undo stack. A new command is about to become the top, so that toast's
+    // Undo button would now revert the wrong action if left up (#2993,
+    // #3028); dismiss it before the new command lands. This runs before the
+    // command executes, so a toast this same call is about to raise (e.g. a
+    // removal's own undo toast) is created after the dismissal, not caught
+    // by it.
+    getToastStore().dismissUndoToasts();
+
     // Execute the command
     command.execute();
 

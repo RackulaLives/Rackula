@@ -393,16 +393,21 @@ export function moveDeviceRecorded(
  * @param rackId - Rack ID
  * @param deviceIndex - Device index
  * @param snapshotDevice - Snapshot function (for converting reactive proxies to plain objects)
+ * @returns The removed device's display name (model, falling back to slug),
+ * or undefined if the rack/index was invalid and nothing was removed. Callers
+ * use this to name the device in an undo toast without re-resolving the
+ * device type themselves (#2993).
  */
 export function removeDeviceRecorded(
   ctx: LayoutStateAccess,
   rackId: string,
   deviceIndex: number,
   snapshotDevice: (device: PlacedDevice) => PlacedDevice,
-): void {
+): string | undefined {
   const targetRack = getRackById(ctx, rackId);
-  if (!targetRack) return;
-  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length) return;
+  if (!targetRack) return undefined;
+  if (deviceIndex < 0 || deviceIndex >= targetRack.devices.length)
+    return undefined;
 
   // Set active rack so Raw functions target the correct rack
   ctx.setActiveRackId(rackId);
@@ -457,6 +462,7 @@ export function removeDeviceRecorded(
         );
   history.execute(command);
   ctx.markDirty();
+  return deviceName;
 }
 
 /**

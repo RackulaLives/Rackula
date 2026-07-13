@@ -1,10 +1,10 @@
 /**
  * dialog-actions behavioural tests
  *
- * Covers the handleDelete() seam that wires the mobile remove-confirm flow.
- * The critical invariant: dialogStore.open() closes any open sheet so dialogs
- * always render without a sheet underneath them. This prevents the mobile
- * device-details bottom sheet from occluding the confirm dialog (#2490).
+ * Covers the handleDelete() seam shared by three of the five device-removal
+ * affordances (Delete key, verb-bar trash, mobile sheet Remove). Device
+ * removal is immediate with an undo toast (#2993); rack deletion still opens
+ * the confirmDelete dialog, since a rack carries every device it holds.
  *
  * Also covers handleNewRack(), which creates a 24U rack directly on the canvas
  * and selects it (#2732). The New Rack wizard was removed in #2747, so no entry
@@ -23,11 +23,13 @@ import {
   getSelectionStore,
   resetSelectionStore,
 } from "$lib/stores/selection.svelte";
+import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 import { createTestDeviceType } from "./factories";
 
 function resetAll() {
   resetLayoutStore();
   resetSelectionStore();
+  resetToastStore();
   dialogStore.close();
   dialogStore.closeSheet();
 }
@@ -55,35 +57,65 @@ function placeAndSelectDevice() {
 describe("handleDelete", () => {
   beforeEach(resetAll);
 
-  it("opens the confirmDelete dialog when a device is selected", () => {
-    placeAndSelectDevice();
+  // #2993: device removal is trivially undoable, so it's immediate with an
+  // undo toast rather than gated behind the confirm dialog. This keeps the
+  // Delete key, verb-bar trash, and mobile sheet Remove (all three route
+  // through handleDelete) consistent with the desktop context-menu Delete
+  // and edit panel Remove from Rack, which were already immediate.
+  it("removes the device immediately without opening the confirmDelete dialog", () => {
+    const { rackId, deviceId } = placeAndSelectDevice();
+    const layoutStore = getLayoutStore();
+
+    handleDelete();
+
     expect(dialogStore.isOpen("confirmDelete")).toBe(false);
-
-    handleDelete();
-
-    expect(dialogStore.isOpen("confirmDelete")).toBe(true);
+    expect(dialogStore.deleteTarget).toBeNull();
+    expect(
+      layoutStore.getRackById(rackId)!.devices.some((d) => d.id === deviceId),
+    ).toBe(false);
   });
 
-  it("sets deleteTarget to device type when a device is selected", () => {
+  it("clears the selection after removing the device", () => {
     placeAndSelectDevice();
+    const selectionStore = getSelectionStore();
 
     handleDelete();
 
-    expect(dialogStore.deleteTarget).toMatchObject({ type: "device" });
+    expect(selectionStore.isDeviceSelected).toBe(false);
   });
 
-  it("closes any open sheet when opening the confirm dialog (dialogStore.open invariant)", () => {
+  // The undo toast names the device type's model (falling back to slug), not
+  // a custom instance name override: removeDeviceRecorded() resolves the
+  // toast text from deviceType.model, and placeAndSelectDevice()'s device
+  // type has a deterministic default model of "Test Device" (factories.ts).
+  it("shows an undo toast naming the removed device", () => {
     placeAndSelectDevice();
-    // Simulate the state that exists when Remove is tapped from the mobile
-    // device-details bottom sheet: the sheet is open and the device is selected.
-    dialogStore.openSheet("deviceDetails", 0);
-    expect(dialogStore.isSheetOpen("deviceDetails")).toBe(true);
+    const toastStore = getToastStore();
 
     handleDelete();
 
-    // dialogStore.open() closes any open sheet as a built-in invariant (#2490).
-    expect(dialogStore.isSheetOpen("deviceDetails")).toBe(false);
-    expect(dialogStore.isOpen("confirmDelete")).toBe(true);
+    const toast = toastStore.toasts.find(
+      (t) => t.message === "Removed Test Device",
+    );
+    expect(toast).toBeDefined();
+    expect(toast?.action?.label).toBe("Undo");
+  });
+
+  it("undo toast action restores the exact device removed", () => {
+    const { rackId, deviceId } = placeAndSelectDevice();
+    const layoutStore = getLayoutStore();
+    const before = layoutStore.getRackById(rackId)!.devices[0]!;
+
+    handleDelete();
+    const toastStore = getToastStore();
+    toastStore.toasts[0]!.action?.onClick();
+
+    const restored = layoutStore
+      .getRackById(rackId)!
+      .devices.find((d) => d.id === deviceId);
+    expect(restored).toBeDefined();
+    expect(restored?.position).toBe(before.position);
+    expect(restored?.face).toBe(before.face);
   });
 
   it("does nothing when no device or rack is selected", () => {
@@ -93,88 +125,102 @@ describe("handleDelete", () => {
     expect(dialogStore.isOpen("confirmDelete")).toBe(false);
     expect(dialogStore.deleteTarget).toBeNull();
   });
+
+  // #2993, #3028: the undo toast's Undo button always targets the top of the
+  // undo stack. If a later mutation is recorded before the user clicks Undo,
+  // that button would silently revert the later mutation instead of
+  // restoring the device the toast names. Repro: remove A, then move B
+  // within the toast's window -- the stale "Removed A" toast must be gone
+  // rather than left inviting a click that reverts B's move while A stays
+  // removed.
+  it("a later mutation dismisses the removal's undo toast (#2993, #3028)", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const toastStore = getToastStore();
+
+    const rack = layoutStore.addRack("Test Rack", 42);
+    if (!rack) throw new Error("addRack returned null");
+    const dtA = createTestDeviceType({
+      slug: "device-a",
+      model: "Device A",
+      u_height: 1,
+    });
+    const dtB = createTestDeviceType({
+      slug: "device-b",
+      model: "Device B",
+      u_height: 1,
+    });
+    layoutStore.addDeviceTypeRaw(dtA);
+    layoutStore.addDeviceTypeRaw(dtB);
+    layoutStore.placeDevice(rack.id, dtA.slug, 10, "front");
+    layoutStore.placeDevice(rack.id, dtB.slug, 20, "front");
+    const deviceA = layoutStore.getRackById(rack.id)!.devices[0]!;
+    const deviceB = layoutStore.getRackById(rack.id)!.devices[1]!;
+    selectionStore.selectDevice(rack.id, deviceA.id);
+
+    handleDelete();
+    expect(
+      toastStore.toasts.some((t) => t.message === "Removed Device A"),
+    ).toBe(true);
+
+    // A new undoable mutation is recorded before the toast is clicked.
+    const bIndex = layoutStore
+      .getRackById(rack.id)!
+      .devices.findIndex((d) => d.id === deviceB.id);
+    const moved = layoutStore.moveDevice(rack.id, bIndex, 21);
+    expect(moved).toBe(true);
+
+    // The stale "Removed A" toast is gone: there is nothing left to click
+    // that would undo B's move instead of restoring A.
+    expect(
+      toastStore.toasts.some((t) => t.message === "Removed Device A"),
+    ).toBe(false);
+    // A stays removed; B's move stands. Neither was accidentally reverted.
+    expect(
+      layoutStore
+        .getRackById(rack.id)!
+        .devices.some((d) => d.id === deviceA.id),
+    ).toBe(false);
+    expect(
+      layoutStore
+        .getRackById(rack.id)!
+        .devices.some((d) => d.id === deviceB.id),
+    ).toBe(true);
+  });
+});
+
+describe("handleDelete (rack selection)", () => {
+  beforeEach(resetAll);
+
+  // Rack deletion carries a much larger blast radius (every device the rack
+  // holds), so it keeps the confirm dialog rather than moving to the
+  // immediate-and-undoable policy device removal uses (#2993).
+  it("opens the confirmDelete dialog when a rack is selected", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const rack = layoutStore.addRack("Test Rack", 42);
+    if (!rack) throw new Error("addRack returned null");
+    selectionStore.selectRack(rack.id);
+
+    handleDelete();
+
+    expect(dialogStore.isOpen("confirmDelete")).toBe(true);
+    expect(dialogStore.deleteTarget).toMatchObject({
+      type: "rack",
+      name: "Test Rack",
+    });
+  });
 });
 
 describe("handleConfirmDelete", () => {
   beforeEach(resetAll);
 
-  // #2918: deleteTarget must snapshot rackId/deviceId at open time and act on
-  // that snapshot, not the live selectionStore, so a selection change between
-  // opening the dialog and confirming can't delete a different object than the
-  // one named in the dialog (async/programmatic/mobile paths).
-  it("deletes exactly the device named in the dialog, even if selection moves to a different device before confirm", () => {
-    const layoutStore = getLayoutStore();
-    const selectionStore = getSelectionStore();
-
-    const { rackId, deviceId: namedDeviceId } = placeAndSelectDevice();
-
-    handleDelete();
-    expect(dialogStore.deleteTarget).toMatchObject({ type: "device" });
-
-    // Selection moves to a different device after the dialog opened but
-    // before it's confirmed.
-    const dt2 = createTestDeviceType({ slug: "test-server-2", u_height: 1 });
-    layoutStore.addDeviceTypeRaw(dt2);
-    const placed = layoutStore.placeDevice(rackId, dt2.slug, 20, "front");
-    expect(placed).toBe(true);
-    const otherDevice = layoutStore
-      .getRackById(rackId)!
-      .devices.find((d) => d.device_type === dt2.slug)!;
-    selectionStore.selectDevice(rackId, otherDevice.id);
-
-    handleConfirmDelete();
-
-    const rack = layoutStore.getRackById(rackId)!;
-    expect(rack.devices.some((d) => d.id === namedDeviceId)).toBe(false);
-    expect(rack.devices.some((d) => d.id === otherDevice.id)).toBe(true);
-  });
-
-  // #2918 hardening: the device is identified by a stable id, not a captured
-  // array index, so a reorder that shifts the named device's index between
-  // open and confirm (here: a device removed above it) still deletes exactly
-  // the named device and nothing else.
-  it("deletes exactly the device named in the dialog even if its array index shifts before confirm", () => {
-    const layoutStore = getLayoutStore();
-    const selectionStore = getSelectionStore();
-
-    const rack = layoutStore.addRack("Test Rack", 42);
-    if (!rack) throw new Error("addRack returned null");
-
-    const dt = createTestDeviceType({ slug: "test-server", u_height: 1 });
-    layoutStore.addDeviceTypeRaw(dt);
-
-    // Two devices: "above" is placed first (array index 0), "named" second
-    // (array index 1). placeDeviceRaw appends, so this order is deterministic.
-    expect(layoutStore.placeDevice(rack.id, dt.slug, 5, "front")).toBe(true);
-    expect(layoutStore.placeDevice(rack.id, dt.slug, 10, "front")).toBe(true);
-    const devicesAtOpen = layoutStore.getRackById(rack.id)!.devices;
-    const aboveDeviceId = devicesAtOpen[0]!.id;
-    const namedDeviceId = devicesAtOpen[1]!.id;
-
-    selectionStore.selectDevice(rack.id, namedDeviceId);
-    handleDelete();
-    expect(dialogStore.deleteTarget).toMatchObject({ type: "device" });
-
-    // Remove the device above the named one, shifting the named device from
-    // index 1 to index 0 after the dialog opened but before confirm.
-    layoutStore.removeDeviceFromRack(rack.id, 0);
-    expect(
-      layoutStore
-        .getRackById(rack.id)!
-        .devices.some((d) => d.id === namedDeviceId),
-    ).toBe(true);
-
-    handleConfirmDelete();
-
-    const after = layoutStore.getRackById(rack.id)!.devices;
-    // A stale-index delete would have removed index 1 (now out of bounds, a
-    // silent no-op) and left the named device in place; id resolution removes
-    // exactly the named device.
-    expect(after.some((d) => d.id === namedDeviceId)).toBe(false);
-    expect(after.some((d) => d.id === aboveDeviceId)).toBe(false);
-    expect(after.length).toBe(0);
-  });
-
+  // #2993: handleConfirmDelete now only ever acts on a rack target (device
+  // removal bypasses this dialog entirely; see the handleDelete tests above).
+  // #2918: deleteTarget must snapshot rackId at open time and act on that
+  // snapshot, not the live selectionStore, so a selection change between
+  // opening the dialog and confirming can't delete a different rack than the
+  // one named in the dialog.
   it("deletes exactly the rack named in the dialog, even if selection moves to a different rack before confirm", () => {
     const layoutStore = getLayoutStore();
     const selectionStore = getSelectionStore();

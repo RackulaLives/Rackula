@@ -231,10 +231,14 @@
 
     const actionLabel = deletedTypes.length === 1 ? "Undo" : "Undo All";
 
-    // Capture current toast ID for race condition check
-    const thisToastId = toastStore.showToast(message, "info", 5000, {
-      label: actionLabel,
-      onClick: () => {
+    // Capture current toast ID for race condition check. Uses showUndoToast
+    // (#2993, #3028) so this toast is flagged as an undo affordance and gets
+    // dismissed by dismissUndoToasts() once a newer command is recorded,
+    // rather than lingering to undo the wrong actions off the top of the
+    // stack.
+    const thisToastId = toastStore.showUndoToast(
+      message,
+      () => {
         // Undo: call undo() for each deleted device type to maintain history consistency
         // This properly removes the delete actions from history
         for (let i = 0; i < deletedTypes.length; i++) {
@@ -242,7 +246,8 @@
         }
         pendingToastId = null;
       },
-    });
+      actionLabel,
+    );
     pendingToastId = thisToastId;
 
     // Clear toast ID after it auto-dismisses, with race condition check

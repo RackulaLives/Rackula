@@ -754,11 +754,17 @@ export function createLayoutStore(
   }
 
   /**
-   * Remove a device from a rack
-   * Uses undo/redo support via removeDeviceRecorded
+   * Remove a device from a rack. Uses undo/redo support via
+   * removeDeviceRecorded.
+   * @returns The removed device's display name, or undefined if nothing was
+   * removed. Every removal affordance (#2993) uses this to name the device in
+   * its undo toast, so all five stay in sync with a single source of truth.
    */
-  function removeDeviceFromRack(rackId: string, deviceIndex: number): void {
-    removeDeviceRecorded(rackId, deviceIndex);
+  function removeDeviceFromRack(
+    rackId: string,
+    deviceIndex: number,
+  ): string | undefined {
+    return removeDeviceRecorded(rackId, deviceIndex);
   }
 
   /**
@@ -1114,10 +1120,16 @@ export function createLayoutStore(
     );
   }
 
-  function removeDeviceRecorded(rackId: string, deviceIndex: number): void {
+  function removeDeviceRecorded(
+    rackId: string,
+    deviceIndex: number,
+  ): string | undefined {
     // $state.snapshot() is a Svelte rune — must be called from this .svelte.ts file
-    removeDeviceRecordedImpl(stateAccess, rackId, deviceIndex, (device) =>
-      $state.snapshot(device),
+    return removeDeviceRecordedImpl(
+      stateAccess,
+      rackId,
+      deviceIndex,
+      (device) => $state.snapshot(device),
     );
   }
 

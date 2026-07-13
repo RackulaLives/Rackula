@@ -106,7 +106,7 @@ test.describe("Delete rack (#2858)", () => {
 
     // Delete "Rack Dos" via the verb bar, which opens the confirm dialog.
     await selectRack(page, "Rack Dos");
-    await page.getByRole("button", { name: "Delete selected" }).click();
+    await page.getByRole("button", { name: "Remove selected" }).click();
 
     const confirm = page.getByRole("dialog", { name: "Delete Rack" });
     await expect(confirm).toBeVisible();
