@@ -85,4 +85,54 @@ describe("toast store", () => {
       expect(toastStore.toasts.length).toBe(2);
     });
   });
+
+  // CodeAnt review on PR #3031 (Major): the stack cap was a blind FIFO that
+  // could evict a still-valid Undo affordance for a destructive action (e.g.
+  // device removal) during a toast burst, hiding recoverability before the
+  // user could click it. The cap must skip undo-affordance toasts and evict
+  // the oldest non-undo toast instead; only when every visible toast is an
+  // undo affordance is one of those evicted (safe: they still auto-dismiss
+  // at 5s or via dismissUndoToasts()).
+  describe("undo-affordance protection from stack-cap eviction (#3004)", () => {
+    it("evicts the oldest non-undo toast first, leaving an undo toast intact and clickable", () => {
+      const toastStore = getToastStore();
+      let undone = false;
+      toastStore.showUndoToast("Removed A", () => {
+        undone = true;
+      });
+      toastStore.showToast("Info one", "info");
+      toastStore.showToast("Info two", "info");
+      // Cap is 3; this exceeds it and must evict "Info one" (oldest non-undo
+      // toast), never the undo toast.
+      toastStore.showToast("Info three", "info");
+
+      const messages = toastStore.toasts.map((t) => t.message);
+      expect(messages).toEqual(["Removed A", "Info two", "Info three"]);
+
+      const undoToast = toastStore.toasts.find((t) => t.isUndoAffordance);
+      expect(undoToast).toBeDefined();
+      undoToast?.action?.onClick();
+      expect(undone).toBe(true);
+    });
+
+    it("keeps evicting non-undo toasts as more arrive, never touching the undo toast", () => {
+      const toastStore = getToastStore();
+      toastStore.showUndoToast("Removed A", () => {});
+      for (let i = 0; i < 5; i++) {
+        toastStore.showToast(`Info ${i}`, "info");
+      }
+      expect(toastStore.toasts.some((t) => t.isUndoAffordance)).toBe(true);
+      expect(toastStore.toasts.length).toBe(MAX_VISIBLE_TOASTS);
+    });
+
+    it("falls back to evicting the oldest toast when every visible toast is an undo affordance", () => {
+      const toastStore = getToastStore();
+      for (let i = 0; i < MAX_VISIBLE_TOASTS + 1; i++) {
+        toastStore.showUndoToast(`Undo ${i}`, () => {});
+      }
+      const messages = toastStore.toasts.map((t) => t.message);
+      expect(messages).toEqual(["Undo 1", "Undo 2", "Undo 3"]);
+      expect(toastStore.toasts.length).toBe(MAX_VISIBLE_TOASTS);
+    });
+  });
 });

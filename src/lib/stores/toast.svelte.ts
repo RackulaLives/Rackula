@@ -70,11 +70,16 @@ function showToast(
 
   // Cap the visible stack: drop the oldest toasts first so the column never
   // grows past MAX_VISIBLE_TOASTS, however many showToast calls arrive in a
-  // burst (#3004/R27b).
+  // burst (#3004/R27b). Evict the oldest non-undo-affordance toast before
+  // ever touching an undo toast, so a stack cap can't silently hide a still
+  // clickable Undo for a destructive action (e.g. device removal) during a
+  // burst. Only when every visible toast is an undo affordance does the
+  // oldest of those get evicted; that edge is safe since undo toasts also
+  // auto-dismiss at 5s and via dismissUndoToasts() on the next command.
   while (toasts.length > MAX_VISIBLE_TOASTS) {
-    const oldest = toasts[0];
-    if (!oldest) break;
-    dismissToast(oldest.id);
+    const evictable = toasts.find((t) => !t.isUndoAffordance) ?? toasts[0];
+    if (!evictable) break;
+    dismissToast(evictable.id);
   }
 
   // Set up auto-dismiss if duration > 0
