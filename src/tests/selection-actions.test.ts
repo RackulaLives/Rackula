@@ -52,6 +52,7 @@ describe("selection-actions", () => {
   beforeEach(resetAll);
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   // ---------------------------------------------------------------------------
@@ -406,7 +407,6 @@ describe("selection-actions", () => {
       duplicateSelection();
 
       expect(fitAllSpy).toHaveBeenCalled();
-      vi.unstubAllGlobals();
     });
   });
 

@@ -30,6 +30,7 @@ describe("handleRackContextDuplicate", () => {
   beforeEach(resetAll);
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("keeps active and selected in sync on the copy", () => {
@@ -107,6 +108,5 @@ describe("handleRackContextDuplicate", () => {
     handleRackContextDuplicate(rack.id);
 
     expect(fitAllSpy).toHaveBeenCalled();
-    vi.unstubAllGlobals();
   });
 });
