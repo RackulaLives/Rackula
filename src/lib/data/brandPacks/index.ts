@@ -1,6 +1,14 @@
 /**
  * Brand Pack Index
- * Exports all brand-specific device packs
+ *
+ * A brand pack is one vendor section in the device library. To add a new pack,
+ * add a single entry to BRAND_PACK_REGISTRY below (alongside its import). The
+ * palette sections, brand-icon slug lookups, the merged device list, and the
+ * tests all derive from that registry. The one thing that does not is the icon
+ * artwork: a new `icon` slug must also be added to the iconMap in
+ * BrandIcon.svelte (or it renders the generic fallback).
+ *
+ * See docs/guides/BRAND-PACKS.md for the full contribution walkthrough.
  */
 
 import type { DeviceType, Airflow } from "$lib/types";
@@ -17,7 +25,6 @@ import { apcDevices } from "./apc";
 import { dellDevices } from "./dell";
 import { supermicroDevices } from "./supermicro";
 import { hpeDevices } from "./hpe";
-// New brand packs
 import { fortinetDevices } from "./fortinet";
 import { eatonDevices } from "./eaton";
 import { netgearDevices } from "./netgear";
@@ -41,40 +48,6 @@ import { beelinkDevices } from "./beelink";
 import { raspberryPiDevices } from "./raspberry-pi";
 import { zimaDevices } from "./zima";
 
-export {
-  ubiquitiDevices,
-  mikrotikDevices,
-  tplinkDevices,
-  synologyDevices,
-  apcDevices,
-  dellDevices,
-  supermicroDevices,
-  hpeDevices,
-  // New brand packs
-  fortinetDevices,
-  eatonDevices,
-  netgearDevices,
-  paloaltoDevices,
-  qnapDevices,
-  lenovoDevices,
-  cyberpowerDevices,
-  netgateDevices,
-  blackmagicdesignDevices,
-  deskpiDevices,
-  kwsDevices,
-  acInfinityDevices,
-  appleDevices,
-  ciscoDevices,
-  aristaDevices,
-  juniperDevices,
-  vertivDevices,
-  fsDevices,
-  intelDevices,
-  beelinkDevices,
-  raspberryPiDevices,
-  zimaDevices,
-};
-
 /**
  * Brand section data structure
  */
@@ -86,6 +59,117 @@ export interface BrandSection {
   /** simple-icons slug for brand logo, undefined for fallback icon */
   icon?: string;
 }
+
+/**
+ * Single source of truth for brand packs. Each entry becomes one section in the
+ * device library, and getAllBrandDevices()/getBrandSlugs()/getBrandIconSlug()
+ * all derive from it. Adding a pack means adding one entry here (plus its
+ * import); the only separate step is registering the `icon` slug in
+ * BrandIcon.svelte's iconMap.
+ *
+ * Each `id` must be unique (it keys the palette's accordion sections); the
+ * brandpacks test enforces this. Order in this array does not matter:
+ * getBrandPacks() sorts sections A-Z by title and devices A-Z within each
+ * section (#2723). The comment groupings are for humans scanning the file only.
+ * defaultExpanded is false for every pack.
+ */
+const BRAND_PACK_REGISTRY: ReadonlyArray<
+  Omit<BrandSection, "defaultExpanded">
+> = [
+  // Network
+  {
+    id: "ubiquiti",
+    title: "Ubiquiti",
+    devices: ubiquitiDevices,
+    icon: "ubiquiti",
+  },
+  {
+    id: "mikrotik",
+    title: "MikroTik",
+    devices: mikrotikDevices,
+    icon: "mikrotik",
+  },
+  { id: "tp-link", title: "TP-Link", devices: tplinkDevices, icon: "tplink" },
+  {
+    id: "fortinet",
+    title: "Fortinet",
+    devices: fortinetDevices,
+    icon: "fortinet",
+  },
+  { id: "netgear", title: "Netgear", devices: netgearDevices, icon: "netgear" },
+  {
+    id: "palo-alto",
+    title: "Palo Alto",
+    devices: paloaltoDevices,
+    icon: "paloaltonetworks",
+  },
+  { id: "cisco", title: "Cisco", devices: ciscoDevices, icon: "cisco" },
+  { id: "arista", title: "Arista", devices: aristaDevices, icon: "arista" },
+  {
+    id: "juniper",
+    title: "Juniper",
+    devices: juniperDevices,
+    icon: "junipernetworks",
+  },
+  { id: "netgate", title: "Netgate", devices: netgateDevices, icon: "netgate" },
+  { id: "fs", title: "FS.COM", devices: fsDevices, icon: "fs" },
+  // Storage
+  {
+    id: "synology",
+    title: "Synology",
+    devices: synologyDevices,
+    icon: "synology",
+  },
+  { id: "qnap", title: "QNAP", devices: qnapDevices, icon: "qnap" },
+  // Power
+  { id: "apc", title: "APC", devices: apcDevices, icon: "schneiderelectric" },
+  { id: "eaton", title: "Eaton", devices: eatonDevices, icon: "eaton" },
+  { id: "vertiv", title: "Vertiv", devices: vertivDevices, icon: "vertiv" },
+  {
+    id: "cyberpower",
+    title: "CyberPower",
+    devices: cyberpowerDevices,
+    icon: "cyberpower",
+  },
+  // Servers
+  { id: "dell", title: "Dell", devices: dellDevices, icon: "dell" },
+  {
+    id: "supermicro",
+    title: "Supermicro",
+    devices: supermicroDevices,
+    icon: "supermicro",
+  },
+  { id: "hpe", title: "HPE", devices: hpeDevices, icon: "hp" },
+  { id: "lenovo", title: "Lenovo", devices: lenovoDevices, icon: "lenovo" },
+  { id: "apple", title: "Apple", devices: appleDevices, icon: "apple" },
+  // AV/Media
+  {
+    id: "blackmagicdesign",
+    title: "Blackmagic Design",
+    devices: blackmagicdesignDevices,
+    icon: "blackmagicdesign",
+  },
+  // Homelab Accessories
+  { id: "deskpi", title: "DeskPi", devices: deskpiDevices, icon: "deskpi" },
+  { id: "kws", title: "KWS", devices: kwsDevices, icon: "kws" },
+  // Cooling
+  {
+    id: "ac-infinity",
+    title: "AC Infinity",
+    devices: acInfinityDevices,
+    icon: "acinfinity",
+  },
+  // Mini PCs / SBCs
+  { id: "intel", title: "Intel", devices: intelDevices, icon: "intel" },
+  { id: "beelink", title: "Beelink", devices: beelinkDevices, icon: "beelink" },
+  {
+    id: "raspberry-pi",
+    title: "Raspberry Pi",
+    devices: raspberryPiDevices,
+    icon: "raspberrypi",
+  },
+  { id: "zima", title: "Zima", devices: zimaDevices, icon: "zima" },
+];
 
 /**
  * Cached, ordered brand pack sections. Brand packs are static data, so the
@@ -102,237 +186,14 @@ export function getBrandPacks(): BrandSection[] {
     return cachedBrandPacks;
   }
 
-  const sections: BrandSection[] = [
-    // Network Equipment
-    {
-      id: "ubiquiti",
-      title: "Ubiquiti",
-      devices: ubiquitiDevices,
-      defaultExpanded: false,
-      icon: "ubiquiti",
-    },
-    {
-      id: "mikrotik",
-      title: "MikroTik",
-      devices: mikrotikDevices,
-      defaultExpanded: false,
-      icon: "mikrotik",
-    },
-    {
-      id: "tp-link",
-      title: "TP-Link",
-      devices: tplinkDevices,
-      defaultExpanded: false,
-      icon: "tplink",
-    },
-    {
-      id: "fortinet",
-      title: "Fortinet",
-      devices: fortinetDevices,
-      defaultExpanded: false,
-      icon: "fortinet",
-    },
-    {
-      id: "netgear",
-      title: "Netgear",
-      devices: netgearDevices,
-      defaultExpanded: false,
-      icon: "netgear",
-    },
-    {
-      id: "palo-alto",
-      title: "Palo Alto",
-      devices: paloaltoDevices,
-      defaultExpanded: false,
-      icon: "paloaltonetworks",
-    },
-    {
-      id: "cisco",
-      title: "Cisco",
-      devices: ciscoDevices,
-      defaultExpanded: false,
-      icon: "cisco",
-    },
-    {
-      id: "arista",
-      title: "Arista",
-      devices: aristaDevices,
-      defaultExpanded: false,
-      icon: "arista",
-    },
-    {
-      id: "juniper",
-      title: "Juniper",
-      devices: juniperDevices,
-      defaultExpanded: false,
-      icon: "junipernetworks",
-    },
-    {
-      id: "netgate",
-      title: "Netgate",
-      devices: netgateDevices,
-      defaultExpanded: false,
-      icon: "netgate",
-    },
-    {
-      id: "fs",
-      title: "FS.COM",
-      devices: fsDevices,
-      defaultExpanded: false,
-      icon: "fs",
-    },
-    // Storage
-    {
-      id: "synology",
-      title: "Synology",
-      devices: synologyDevices,
-      defaultExpanded: false,
-      icon: "synology",
-    },
-    {
-      id: "qnap",
-      title: "QNAP",
-      devices: qnapDevices,
-      defaultExpanded: false,
-      icon: "qnap",
-    },
-    // Power
-    {
-      id: "apc",
-      title: "APC",
-      devices: apcDevices,
-      defaultExpanded: false,
-      icon: "schneiderelectric",
-    },
-    {
-      id: "eaton",
-      title: "Eaton",
-      devices: eatonDevices,
-      defaultExpanded: false,
-      icon: "eaton",
-    },
-    {
-      id: "vertiv",
-      title: "Vertiv",
-      devices: vertivDevices,
-      defaultExpanded: false,
-      icon: "vertiv",
-    },
-    {
-      id: "cyberpower",
-      title: "CyberPower",
-      devices: cyberpowerDevices,
-      defaultExpanded: false,
-      icon: "cyberpower",
-    },
-    // Servers
-    {
-      id: "dell",
-      title: "Dell",
-      devices: dellDevices,
-      defaultExpanded: false,
-      icon: "dell",
-    },
-    {
-      id: "supermicro",
-      title: "Supermicro",
-      devices: supermicroDevices,
-      defaultExpanded: false,
-      icon: "supermicro",
-    },
-    {
-      id: "hpe",
-      title: "HPE",
-      devices: hpeDevices,
-      defaultExpanded: false,
-      icon: "hp",
-    },
-    {
-      id: "lenovo",
-      title: "Lenovo",
-      devices: lenovoDevices,
-      defaultExpanded: false,
-      icon: "lenovo",
-    },
-    // AV/Media
-    {
-      id: "blackmagicdesign",
-      title: "Blackmagic Design",
-      devices: blackmagicdesignDevices,
-      defaultExpanded: false,
-      icon: "blackmagicdesign",
-    },
-    // Homelab Accessories
-    {
-      id: "deskpi",
-      title: "DeskPi",
-      devices: deskpiDevices,
-      defaultExpanded: false,
-      icon: "deskpi",
-    },
-    {
-      id: "kws",
-      title: "KWS",
-      devices: kwsDevices,
-      defaultExpanded: false,
-      icon: "kws",
-    },
-    // Cooling
-    {
-      id: "ac-infinity",
-      title: "AC Infinity",
-      devices: acInfinityDevices,
-      defaultExpanded: false,
-      icon: "acinfinity",
-    },
-    // Servers - Apple
-    {
-      id: "apple",
-      title: "Apple",
-      devices: appleDevices,
-      defaultExpanded: false,
-      icon: "apple",
-    },
-    // Mini PCs / SBCs
-    {
-      id: "intel",
-      title: "Intel",
-      devices: intelDevices,
-      defaultExpanded: false,
-      icon: "intel",
-    },
-    {
-      id: "beelink",
-      title: "Beelink",
-      devices: beelinkDevices,
-      defaultExpanded: false,
-      icon: "beelink",
-    },
-    {
-      id: "raspberry-pi",
-      title: "Raspberry Pi",
-      devices: raspberryPiDevices,
-      defaultExpanded: false,
-      icon: "raspberrypi",
-    },
-    {
-      id: "zima",
-      title: "Zima",
-      devices: zimaDevices,
-      defaultExpanded: false,
-      icon: "zima",
-    },
-  ];
-
   // Single source of truth for device-library ordering (#2723): brand sections
   // A-Z by title, devices A-Z (numeric-aware) within each section. The palette
   // consumes this pre-sorted, so it does not re-sort at render.
-  cachedBrandPacks = sections
-    .map((section) => ({
-      ...section,
-      devices: sortDevicesAlphabetically(section.devices),
-    }))
-    .sort((a, b) => compareNames(a.title, b.title));
+  cachedBrandPacks = BRAND_PACK_REGISTRY.map((section) => ({
+    ...section,
+    defaultExpanded: false,
+    devices: sortDevicesAlphabetically(section.devices),
+  })).sort((a, b) => compareNames(a.title, b.title));
 
   return cachedBrandPacks;
 }
@@ -352,76 +213,6 @@ export function getBrandIconSlug(deviceSlug?: string): string | undefined {
   )?.icon;
 }
 
-/**
- * Get devices for a specific brand
- */
-export function getBrandDevices(brandId: string): DeviceType[] {
-  switch (brandId) {
-    case "ubiquiti":
-      return ubiquitiDevices;
-    case "mikrotik":
-      return mikrotikDevices;
-    case "tp-link":
-      return tplinkDevices;
-    case "synology":
-      return synologyDevices;
-    case "apc":
-      return apcDevices;
-    case "dell":
-      return dellDevices;
-    case "supermicro":
-      return supermicroDevices;
-    case "hpe":
-      return hpeDevices;
-    case "fortinet":
-      return fortinetDevices;
-    case "eaton":
-      return eatonDevices;
-    case "netgear":
-      return netgearDevices;
-    case "palo-alto":
-      return paloaltoDevices;
-    case "qnap":
-      return qnapDevices;
-    case "lenovo":
-      return lenovoDevices;
-    case "cyberpower":
-      return cyberpowerDevices;
-    case "netgate":
-      return netgateDevices;
-    case "blackmagicdesign":
-      return blackmagicdesignDevices;
-    case "deskpi":
-      return deskpiDevices;
-    case "kws":
-      return kwsDevices;
-    case "ac-infinity":
-      return acInfinityDevices;
-    case "apple":
-      return appleDevices;
-    case "cisco":
-      return ciscoDevices;
-    case "arista":
-      return aristaDevices;
-    case "juniper":
-      return juniperDevices;
-    case "vertiv":
-      return vertivDevices;
-    case "fs":
-      return fsDevices;
-    case "intel":
-      return intelDevices;
-    case "beelink":
-      return beelinkDevices;
-    case "raspberry-pi":
-      return raspberryPiDevices;
-    case "zima":
-      return zimaDevices;
-    default:
-      return [];
-  }
-}
-
 // Cached merged array of all brand devices (built once on first access)
 let cachedBrandDevices: DeviceType[] | null = null;
 
@@ -432,38 +223,7 @@ let cachedBrandDevices: DeviceType[] | null = null;
  */
 export function getAllBrandDevices(): DeviceType[] {
   if (!cachedBrandDevices) {
-    cachedBrandDevices = [
-      ...ubiquitiDevices,
-      ...mikrotikDevices,
-      ...tplinkDevices,
-      ...synologyDevices,
-      ...apcDevices,
-      ...dellDevices,
-      ...supermicroDevices,
-      ...hpeDevices,
-      ...fortinetDevices,
-      ...eatonDevices,
-      ...netgearDevices,
-      ...paloaltoDevices,
-      ...qnapDevices,
-      ...lenovoDevices,
-      ...cyberpowerDevices,
-      ...netgateDevices,
-      ...blackmagicdesignDevices,
-      ...deskpiDevices,
-      ...kwsDevices,
-      ...acInfinityDevices,
-      ...appleDevices,
-      ...ciscoDevices,
-      ...aristaDevices,
-      ...juniperDevices,
-      ...vertivDevices,
-      ...fsDevices,
-      ...intelDevices,
-      ...beelinkDevices,
-      ...raspberryPiDevices,
-      ...zimaDevices,
-    ];
+    cachedBrandDevices = BRAND_PACK_REGISTRY.flatMap((pack) => pack.devices);
   }
   return cachedBrandDevices;
 }
