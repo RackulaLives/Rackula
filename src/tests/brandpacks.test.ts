@@ -57,6 +57,22 @@ describe("Brand Packs", () => {
 });
 
 describe("Cross-Brand Validation", () => {
+  it("no duplicate section ids across brand packs", () => {
+    // Section id keys the palette's accordion (DevicePalette #each ... (section.id));
+    // a collision throws a Svelte each_key_duplicate error at runtime.
+    const ids = ALL_BRAND_PACKS.map((pack) => pack.id);
+    const uniqueIds = new Set(ids);
+    const duplicates = ids.filter((id, i) => ids.indexOf(id) !== i);
+    expect(duplicates).toEqual([]);
+    expect(uniqueIds.size).toBe(ids.length);
+  });
+
+  it("no duplicate titles across brand packs", () => {
+    const titles = ALL_BRAND_PACKS.map((pack) => pack.title);
+    const duplicates = titles.filter((t, i) => titles.indexOf(t) !== i);
+    expect(duplicates).toEqual([]);
+  });
+
   it("no duplicate slugs across all brand packs", () => {
     const allSlugs: string[] = [];
     for (const pack of ALL_BRAND_PACKS) {
