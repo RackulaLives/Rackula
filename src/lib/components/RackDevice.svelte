@@ -27,6 +27,7 @@
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { placementKey } from "$lib/utils/placement-key";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { useLongPress } from "$lib/utils/gestures";
@@ -148,6 +149,7 @@
 
   const imageStore = getImageStore();
   const layoutStore = getLayoutStore();
+  const placementStore = getPlacementStore();
 
   // Check if display mode shows images (either 'image' or 'image-label')
   const isImageMode = $derived(
@@ -343,7 +345,7 @@
 
   // Aria label for accessibility - includes container hierarchy for child devices
   const ariaLabel = $derived.by(() => {
-    const base = `${deviceName}, ${device.u_height}U ${device.category}`;
+    const base = `${displayName}, ${device.u_height}U ${device.category}`;
 
     // Convey the device image and the face shown: the SVG <image> has no native
     // accessible name, so the device button announces it instead.
@@ -489,16 +491,22 @@
       if (event.pointerType === "touch" && !longPressFired) {
         hapticTap();
       }
-      onselect?.(
-        new CustomEvent("select", {
-          detail: {
-            deviceId: placedDeviceId,
-            slug: device.slug,
-            position,
-            face: currentFace,
-          },
-        }),
-      );
+      // Placement mode owns this gesture (#2990): a tap while a device is
+      // armed for placement completes/attempts placement via the rack-level
+      // handler, so selecting the tapped device (and opening its editor)
+      // here would contradict the still-armed "Placing" banner.
+      if (!placementStore.isPlacing) {
+        onselect?.(
+          new CustomEvent("select", {
+            detail: {
+              deviceId: placedDeviceId,
+              slug: device.slug,
+              position,
+              face: currentFace,
+            },
+          }),
+        );
+      }
     } else if (pointerState === "dragging") {
       // Complete the drag operation
       document.dispatchEvent(
@@ -663,7 +671,16 @@
   tabindex="0"
   aria-label={ariaLabel}
   aria-pressed={selected}
-  onclick={(e) => e.stopPropagation()}
+  onclick={(e) => {
+    // Placement mode owns this gesture (#2990 follow-up): stopping
+    // propagation unconditionally here swallowed the click before it ever
+    // reached Rack.svelte's rack-level handleClick -> handlePlacementClick
+    // path, so a click on an occupied device's body while armed for
+    // placement was a silent no-op (no "Can't place device here" toast, no
+    // retry cue). Outside placement mode, keep stopping propagation so a
+    // device click doesn't also bubble into rack-level selection.
+    if (!placementStore.isPlacing) e.stopPropagation();
+  }}
   oncontextmenu={handleContextMenu}
   onkeydown={handleKeyDown}
 >

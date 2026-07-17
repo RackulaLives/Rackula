@@ -15,7 +15,8 @@ import {
   getSelectionStore,
 } from "$lib/stores/selection.svelte";
 import { resetUIStore } from "$lib/stores/ui.svelte";
-import { resetToastStore } from "$lib/stores/toast.svelte";
+import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
+import { createTestDeviceTypeInput } from "./factories";
 
 function renderEditTab() {
   return render(SidePanelContent, {
@@ -266,5 +267,123 @@ describe("Edit tab contextual properties (#2077)", () => {
 
     // The confirmation reports both placements, not just the one in rack A.
     expect(screen.getByText(/placed 2 times/i)).toBeInTheDocument();
+  });
+});
+
+// #2993: the edit panel's "Remove from Rack" is one of the two previously-
+// silent device-removal paths (no dialog, no toast). It now shows an undo
+// toast, matching the other four removal affordances.
+describe("Edit panel Remove from Rack (#2993)", () => {
+  beforeEach(() => {
+    resetLayoutStore();
+    resetSelectionStore();
+    resetUIStore();
+    resetToastStore();
+  });
+
+  // Not promoted to factories.ts: dialog-actions.test.ts and
+  // rack-context-actions.test.ts have their own place-and-select helpers,
+  // but they seed via createTestDeviceType()/addDeviceTypeRaw() at U10, while
+  // this file consistently uses addDeviceType() (undo/dirty-tracking) at U1
+  // to match every other test in this file. The store call and position
+  // differ materially, so this stays local rather than forcing a shared
+  // helper across incompatible setup patterns.
+  function placeAndSelectDevice() {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const rack = layoutStore.addRack("Test Rack", 42);
+    const rackId = rack!.id;
+    const deviceType = layoutStore.addDeviceType(
+      createTestDeviceTypeInput({ name: "Server Type" }),
+    );
+    layoutStore.placeDevice(rackId, deviceType.slug, 1, "front");
+    const device = layoutStore.getRackById(rackId)!.devices[0]!;
+    selectionStore.selectDevice(rackId, device.id);
+    return { rackId, deviceId: device.id };
+  }
+
+  it("removes the device immediately and shows an undo toast, no confirm dialog", async () => {
+    const { rackId, deviceId } = placeAndSelectDevice();
+    const layoutStore = getLayoutStore();
+    const toastStore = getToastStore();
+
+    renderEditTab();
+    await fireEvent.click(
+      screen.getByRole("button", { name: /remove from rack/i }),
+    );
+
+    expect(
+      layoutStore.getRackById(rackId)!.devices.some((d) => d.id === deviceId),
+    ).toBe(false);
+    const toast = toastStore.toasts.find((t) => t.action?.label === "Undo");
+    expect(toast).toBeDefined();
+    expect(toast?.message).toBe("Removed Server Type");
+  });
+
+  it("undo toast action restores the exact device removed", async () => {
+    const { rackId, deviceId } = placeAndSelectDevice();
+    const layoutStore = getLayoutStore();
+    layoutStore.updateDeviceName(rackId, 0, "Core Switch");
+    const before = layoutStore.getRackById(rackId)!.devices[0]!;
+
+    renderEditTab();
+    await fireEvent.click(
+      screen.getByRole("button", { name: /remove from rack/i }),
+    );
+    const toastStore = getToastStore();
+    toastStore.toasts[0]!.action?.onClick();
+
+    const restored = layoutStore
+      .getRackById(rackId)!
+      .devices.find((d) => d.id === deviceId);
+    expect(restored).toBeDefined();
+    expect(restored?.position).toBe(before.position);
+    expect(restored?.face).toBe(before.face);
+    expect(restored?.name).toBe("Core Switch");
+  });
+
+  // #2993, #3028: the undo toast's Undo button always targets the top of the
+  // undo stack. If a later mutation is recorded before the user clicks Undo,
+  // that button would silently revert the later mutation instead of
+  // restoring the device the toast names. Repro: remove A via "Remove from
+  // Rack", then move B within the toast's window -- the stale "Removed A"
+  // toast must be gone rather than left inviting a click that reverts B's
+  // move while A stays removed.
+  it("a later mutation dismisses the removal's undo toast (#2993, #3028)", async () => {
+    const { rackId, deviceId } = placeAndSelectDevice();
+    const layoutStore = getLayoutStore();
+    const dtB = layoutStore.addDeviceType(
+      createTestDeviceTypeInput({ name: "Device B" }),
+    );
+    layoutStore.placeDevice(rackId, dtB.slug, 20, "front");
+    const deviceB = layoutStore.getRackById(rackId)!.devices[1]!;
+
+    renderEditTab();
+    const toastStore = getToastStore();
+    await fireEvent.click(
+      screen.getByRole("button", { name: /remove from rack/i }),
+    );
+    expect(
+      toastStore.toasts.some((t) => t.message === "Removed Server Type"),
+    ).toBe(true);
+
+    // A new undoable mutation is recorded before the toast is clicked.
+    const bIndex = layoutStore
+      .getRackById(rackId)!
+      .devices.findIndex((d) => d.id === deviceB.id);
+    const moved = layoutStore.moveDevice(rackId, bIndex, 21);
+    expect(moved).toBe(true);
+
+    // The stale "Removed A" toast is gone: there is nothing left to click
+    // that would undo B's move instead of restoring A.
+    expect(
+      toastStore.toasts.some((t) => t.message === "Removed Server Type"),
+    ).toBe(false);
+    expect(
+      layoutStore.getRackById(rackId)!.devices.some((d) => d.id === deviceId),
+    ).toBe(false);
+    expect(
+      layoutStore.getRackById(rackId)!.devices.some((d) => d.id === deviceB.id),
+    ).toBe(true);
   });
 });

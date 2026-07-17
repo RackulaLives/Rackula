@@ -13,10 +13,19 @@
   interface Props {
     isPlacing: boolean;
     device: DeviceType | null;
+    /** Mobile phrasing: "tap" instead of "click", no Esc guidance. */
+    isMobile?: boolean;
     oncancel?: () => void;
   }
 
-  let { isPlacing, device, oncancel }: Props = $props();
+  let { isPlacing, device, isMobile = false, oncancel }: Props = $props();
+
+  // Communicate the ongoing mode, not just the armed device (#2992): how to
+  // place and how to leave. Kept on the banner's single text line so the
+  // banner height stays within --banner-clearance (CanvasViewControls).
+  const hint = $derived(
+    isMobile ? "Tap a slot to place." : "Click a slot to place. Esc to cancel.",
+  );
 
   function handleCancel() {
     hapticCancel();
@@ -39,6 +48,7 @@
         Placing: <strong
           >{device.model ?? device.slug} ({device.u_height}U)</strong
         >
+        <span class="indicator-hint">{hint}</span>
       </span>
     </div>
     <button
@@ -94,6 +104,13 @@
   .indicator-text strong {
     color: var(--colour-selection, #ff79c6);
     font-weight: 600;
+  }
+
+  .indicator-hint {
+    margin-left: var(--space-2);
+    color: var(--colour-text-muted, #bbbbbb);
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: 400;
   }
 
   .cancel-label {

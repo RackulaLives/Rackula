@@ -63,6 +63,7 @@
     handleDrop as onDrop,
     handleTouchEnd as onTouchEnd,
     handlePlacementClick as onPlacementClick,
+    handlePlacementHover as onPlacementHover,
     type RackHandlerContext,
     type DropPreviewState,
   } from "$lib/utils/rack-interaction-handlers";
@@ -440,6 +441,20 @@
     onselect?.(new CustomEvent("select", { detail: { rackId: rack.id } }));
   }
 
+  /**
+   * Track the pointer while click/tap-to-place is armed (#2992): the placement
+   * cursor (and so the ghost preview) follows the mouse, showing where a click
+   * would land. Skipped while panning so a pan gesture over the rack does not
+   * drag the cursor along. handlePlacementHover's writes are same-value no-ops
+   * until the resolved U changes, so this per-pixel handler stays cheap.
+   */
+  function handlePointerMove(event: PointerEvent) {
+    if (!placementStore.isPlacing || canvasStore.isPanning) return;
+    const device = placementStore.pendingDevice;
+    if (!device || !svgElement) return;
+    onPlacementHover(event, svgElement, handlerCtx, device, placementStore);
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     // During keyboard placement the global handler owns Enter/Space (it places
     // the armed device), so don't also select the rack from here.
@@ -482,6 +497,7 @@
     ondragenter={onDragEnter}
     ondragleave={(e) => onDragLeave(e, handlerCtx)}
     ondrop={(e) => onDrop(e, handlerCtx)}
+    onpointermove={handlePointerMove}
     ontouchend={(e) => {
       if (!viewportStore.isMobile || !placementStore.isPlacing) return;
       // Don't place when a pan gesture just ended over the rack.

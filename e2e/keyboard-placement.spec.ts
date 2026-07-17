@@ -99,6 +99,32 @@ test.describe("Keyboard device placement (#106)", () => {
     }).toPass({ timeout: 5000 });
   });
 
+  test("Space also picks up a focused palette device, not just Enter (#2996)", async ({
+    page,
+  }) => {
+    // Every other test here picks up with Enter; this covers the other half
+    // of the row's own contract (DevicePaletteItem's handleKeyDown treats
+    // Enter and Space identically), which had no direct coverage: a sidebar
+    // row that is focusable but where Space silently did nothing would be a
+    // keyboard dead end distinct from the confirm-at-slot Space tested above.
+    const devicesBefore = await page.locator(locators.rack.device).count();
+
+    await armServerForKeyboard(page);
+    await page.keyboard.press("Space");
+
+    await expect(
+      page.locator(placementBanner).filter({ hasText: "Placing:" }),
+    ).toBeVisible();
+    await expect(page.locator(announcer)).toContainText("Placing");
+
+    // Confirm with Enter at the seeded slot to prove a real device was armed.
+    await page.keyboard.press("Enter");
+    await expect(async () => {
+      const devicesAfter = await page.locator(locators.rack.device).count();
+      expect(devicesAfter).toBeGreaterThan(devicesBefore);
+    }).toPass({ timeout: 5000 });
+  });
+
   test("Escape cancels placement with no side effects", async ({ page }) => {
     const devicesBefore = await page.locator(locators.rack.device).count();
 

@@ -11,7 +11,7 @@
   import ColourPicker from "./ColourPicker.svelte";
   import BrandIcon from "./BrandIcon.svelte";
   import MarkdownPreview from "./MarkdownPreview.svelte";
-  import Tooltip from "./Tooltip.svelte";
+  import SavedIndicator from "./ui/SavedIndicator.svelte";
   import { IconEdit, IconChevronDown } from "./icons";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
@@ -84,7 +84,14 @@
   // State for colour picker visibility
   let showColourPicker = $state(false);
 
-  // State for save feedback indicators
+  // State for save feedback indicators. Every placement field (name, colour,
+  // IP, notes) commits on a discrete action (blur or a picker selection) and
+  // flashes the same "Saved" acknowledgement, so no field is silent while a
+  // sibling flashes one (#3005).
+  let nameSaved = $state(false);
+  let nameSavedTimeout: ReturnType<typeof setTimeout> | undefined;
+  let colourSaved = $state(false);
+  let colourSavedTimeout: ReturnType<typeof setTimeout> | undefined;
   let notesSaved = $state(false);
   let notesSavedTimeout: ReturnType<typeof setTimeout> | undefined;
   let ipSaved = $state(false);
@@ -92,6 +99,14 @@
 
   // Cleanup timeouts on component destroy
   onDestroy(() => {
+    if (nameSavedTimeout) {
+      clearTimeout(nameSavedTimeout);
+      nameSavedTimeout = undefined;
+    }
+    if (colourSavedTimeout) {
+      clearTimeout(colourSavedTimeout);
+      colourSavedTimeout = undefined;
+    }
     if (notesSavedTimeout) {
       clearTimeout(notesSavedTimeout);
       notesSavedTimeout = undefined;
@@ -101,6 +116,64 @@
       ipSavedTimeout = undefined;
     }
   });
+
+  // Saved-flash flags are component-global $state, not keyed by device, and
+  // this panel stays mounted across device selection changes. Without this,
+  // saving a field and switching to a different device within the 2-second
+  // flash window shows the checkmark next to a device that was never saved
+  // (#3005). Keyed by placedDevice.id (tracked via a plain closure variable
+  // so this effect only reacts to an actual device change, not to every
+  // field write on the currently selected device).
+  let previousDeviceId: string | null = null;
+  $effect(() => {
+    const currentDeviceId = selectedDeviceInfo.placedDevice.id;
+    if (currentDeviceId === previousDeviceId) return;
+    previousDeviceId = currentDeviceId;
+
+    clearTimeout(nameSavedTimeout);
+    nameSaved = false;
+    clearTimeout(colourSavedTimeout);
+    colourSaved = false;
+    clearTimeout(notesSavedTimeout);
+    notesSaved = false;
+    clearTimeout(ipSavedTimeout);
+    ipSaved = false;
+  });
+
+  // Escape while the colour picker is open closes only the popover, not the
+  // whole device selection (#3005). A capture-phase window listener runs
+  // before the entire target/bubble dispatch (including KeyboardHandler's
+  // bubble-phase Escape handler on window), so stopPropagation() here
+  // reliably pre-empts it regardless of component mount order.
+  $effect(() => {
+    if (!showColourPicker) return;
+
+    function handleWindowKeydown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      showColourPicker = false;
+    }
+
+    window.addEventListener("keydown", handleWindowKeydown, true);
+    return () =>
+      window.removeEventListener("keydown", handleWindowKeydown, true);
+  });
+
+  function flashNameSaved() {
+    clearTimeout(nameSavedTimeout);
+    nameSaved = true;
+    nameSavedTimeout = setTimeout(() => {
+      nameSaved = false;
+    }, 2000);
+  }
+
+  function flashColourSaved() {
+    clearTimeout(colourSavedTimeout);
+    colourSaved = true;
+    colourSavedTimeout = setTimeout(() => {
+      colourSaved = false;
+    }, 2000);
+  }
 
   // Check if selected device is full-depth (determines if face can be changed).
   // is_full_depth undefined or true means full-depth.
@@ -157,12 +230,20 @@
     // If same as device type name, clear the custom name
     const nameToSave =
       newName === deviceName || newName === "" ? undefined : newName;
+    const existingName = selectedDeviceInfo.placedDevice.name;
+    editingDeviceId = null;
+
+    // Only update (and flash Saved) if the value changed, matching the
+    // notes/IP no-op guard so a blur with no edit does not create a history
+    // entry or a misleading acknowledgement.
+    if (nameToSave === existingName) return;
+
     layoutStore.updateDeviceName(
       selectedDeviceInfo.rack.id,
       selectedDeviceInfo.deviceIndex,
       nameToSave,
     );
-    editingDeviceId = null;
+    flashNameSaved();
   }
 
   // Handle device name input keydown
@@ -272,7 +353,10 @@
 
   <!-- Display Name (click-to-edit) -->
   <div class="form-group">
-    <label for="device-display-name">Name</label>
+    <label for="device-display-name">
+      Name
+      <SavedIndicator show={nameSaved} data-testid="saved-indicator-name" />
+    </label>
     {#if editingDeviceName}
       <input
         id="device-display-name"
@@ -302,7 +386,10 @@
 
   <!-- Colour (click-to-edit swatch button, opens picker) -->
   <div class="form-group">
-    <span class="field-label" id="device-colour-label">Colour</span>
+    <span class="field-label" id="device-colour-label">
+      Colour
+      <SavedIndicator show={colourSaved} data-testid="saved-indicator-colour" />
+    </span>
     <button
       type="button"
       class="colour-swatch-btn"
@@ -324,18 +411,22 @@
         <ColourPicker
           value={resolvedColour}
           defaultValue={selectedDeviceInfo.device.colour}
-          onchange={(colour) =>
+          onchange={(colour) => {
             layoutStore.updateDeviceColour(
               selectedDeviceInfo.rack.id,
               selectedDeviceInfo.deviceIndex,
               colour,
-            )}
-          onreset={() =>
+            );
+            flashColourSaved();
+          }}
+          onreset={() => {
             layoutStore.updateDeviceColour(
               selectedDeviceInfo.rack.id,
               selectedDeviceInfo.deviceIndex,
               undefined,
-            )}
+            );
+            flashColourSaved();
+          }}
         />
       </div>
     {/if}
@@ -487,12 +578,7 @@
   <div class="form-group">
     <label for="device-ip">
       IP Address/Hostname
-      {#if ipSaved}
-        <Tooltip text="Saved">
-          <span class="saved-indicator" data-testid="saved-indicator-ip">✓</span
-          >
-        </Tooltip>
-      {/if}
+      <SavedIndicator show={ipSaved} data-testid="saved-indicator-ip" />
     </label>
     <input
       type="text"
@@ -511,13 +597,7 @@
   <div class="form-group">
     <label for="device-notes">
       Notes
-      {#if notesSaved}
-        <Tooltip text="Saved">
-          <span class="saved-indicator" data-testid="saved-indicator-notes"
-            >✓</span
-          >
-        </Tooltip>
-      {/if}
+      <SavedIndicator show={notesSaved} data-testid="saved-indicator-notes" />
     </label>
     <textarea
       id="device-notes"
@@ -616,21 +696,6 @@
     display: flex;
     align-items: center;
     gap: var(--space-1);
-  }
-
-  .saved-indicator {
-    color: var(--colour-success);
-    font-size: var(--font-size-sm);
-    animation: fade-in var(--duration-fast) ease-out;
-  }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
   }
 
   .form-group input {

@@ -9,24 +9,32 @@ vi.mock("$lib/utils/haptics", () => ({ hapticError: vi.fn() }));
 
 import {
   handlePlacementClick,
+  handlePlacementHover,
   handleTouchEnd,
 } from "$lib/utils/rack-interaction-handlers";
 import { resolveDropTarget } from "$lib/utils/rack-drop-coordinator";
 import { hapticError } from "$lib/utils/haptics";
+import {
+  getPlacementStore,
+  resetPlacementStore,
+} from "$lib/stores/placement.svelte";
 
 /** Build a minimal RackHandlerContext; only the getters used by placement matter. */
-function makeCtx() {
+function makeCtx(
+  showToast: ReturnType<typeof vi.fn> = vi.fn(),
+  faceFilter: "front" | "rear" = "front",
+) {
   return {
-    getRack: () => ({}),
+    getRack: () => ({ id: "rack-1" }),
     getDeviceLibrary: () => [],
     getRackDims: () => ({}),
-    getFaceFilter: () => "front",
+    getFaceFilter: () => faceFilter,
     getSelectedDeviceId: () => null,
     getEventCallbacks: () => ({}),
     setDropPreview: () => {},
     setContainerHoverInfo: () => {},
     layoutStore: {},
-    toastStore: {},
+    toastStore: { showToast },
   } as unknown as Parameters<typeof handlePlacementClick>[2];
 }
 
@@ -97,6 +105,29 @@ describe("handlePlacementClick — mouse/pointer tap-to-place (#1757)", () => {
     expect(onplacementtap).not.toHaveBeenCalled();
     expect(hapticError).toHaveBeenCalled();
   });
+
+  it("shows the 'Can't place device here' toast when the target is occupied (#2990)", () => {
+    (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
+      feedback: "blocked",
+      targetU: 3,
+    });
+    const showToast = vi.fn();
+    const onplacementtap = vi.fn();
+
+    handlePlacementClick(
+      makeMouseEvent(0, 0),
+      svg,
+      makeCtx(showToast),
+      device,
+      onplacementtap,
+    );
+
+    expect(showToast).toHaveBeenCalledWith(
+      "Can't place device here",
+      "warning",
+      3000,
+    );
+  });
 });
 
 describe("handleTouchEnd — touch tap-to-place (#2454)", () => {
@@ -137,6 +168,24 @@ describe("handleTouchEnd — touch tap-to-place (#2454)", () => {
     expect(hapticError).toHaveBeenCalled();
   });
 
+  it("shows the 'Can't place device here' toast when the touch target is occupied (#2990)", () => {
+    (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
+      feedback: "blocked",
+      targetU: 2,
+    });
+    const showToast = vi.fn();
+    const onplacementtap = vi.fn();
+    const { event } = makeTouchEvent(0, 0);
+
+    handleTouchEnd(event, makeCtx(showToast), device, onplacementtap);
+
+    expect(showToast).toHaveBeenCalledWith(
+      "Can't place device here",
+      "warning",
+      3000,
+    );
+  });
+
   it("ignores a touchend with no changed touch (no placement, no throw)", () => {
     (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
       feedback: "valid",
@@ -152,5 +201,79 @@ describe("handleTouchEnd — touch tap-to-place (#2454)", () => {
     handleTouchEnd(event, makeCtx(), device, onplacementtap);
 
     expect(onplacementtap).not.toHaveBeenCalled();
+  });
+});
+
+describe("handlePlacementHover — pointer-tracking placement ghost (#2992)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetPlacementStore();
+  });
+
+  it("moves the placement cursor to the U under the pointer as it moves", () => {
+    const placementStore = getPlacementStore();
+    placementStore.startPlacement(device);
+
+    (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
+      feedback: "valid",
+      targetU: 7,
+    });
+    handlePlacementHover(makeMouseEvent(120, 240), svg, makeCtx(), device, {
+      setCursor: placementStore.setCursor,
+      setTargetFace: placementStore.setTargetFace,
+    });
+
+    expect(placementStore.targetRackId).toBe("rack-1");
+    expect(placementStore.cursorPosition).toBe(7);
+
+    (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
+      feedback: "valid",
+      targetU: 12,
+    });
+    handlePlacementHover(makeMouseEvent(120, 100), svg, makeCtx(), device, {
+      setCursor: placementStore.setCursor,
+      setTargetFace: placementStore.setTargetFace,
+    });
+
+    expect(placementStore.cursorPosition).toBe(12);
+  });
+
+  it("tracks a blocked slot too, so the ghost mirrors the drag preview", () => {
+    const placementStore = getPlacementStore();
+    placementStore.startPlacement(device);
+
+    (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
+      feedback: "blocked",
+      targetU: 3,
+    });
+    handlePlacementHover(makeMouseEvent(50, 400), svg, makeCtx(), device, {
+      setCursor: placementStore.setCursor,
+      setTargetFace: placementStore.setTargetFace,
+    });
+
+    expect(placementStore.cursorPosition).toBe(3);
+  });
+
+  it("aligns the placement face with the hovered rack copy", () => {
+    const placementStore = getPlacementStore();
+    placementStore.startPlacement(device);
+
+    (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
+      feedback: "valid",
+      targetU: 5,
+    });
+    handlePlacementHover(
+      makeMouseEvent(50, 400),
+      svg,
+      makeCtx(vi.fn(), "rear"),
+      device,
+      {
+        setCursor: placementStore.setCursor,
+        setTargetFace: placementStore.setTargetFace,
+      },
+    );
+
+    expect(placementStore.targetFace).toBe("rear");
+    expect(placementStore.cursorPosition).toBe(5);
   });
 });

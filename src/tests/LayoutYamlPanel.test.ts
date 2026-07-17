@@ -26,13 +26,15 @@ describe("LayoutYamlPanel", () => {
 
   describe("download", () => {
     let revokeObjectURL: ReturnType<typeof vi.fn>;
+    let createObjectURL: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       revokeObjectURL = vi.fn();
+      createObjectURL = vi.fn(() => "blob:mock-url");
       vi.stubGlobal("URL", {
         ...URL,
-        createObjectURL: vi.fn(() => "blob:mock-url"),
+        createObjectURL,
         revokeObjectURL,
       });
       // happy-dom anchors throw on click navigation; suppress the no-op click.
@@ -68,6 +70,25 @@ describe("LayoutYamlPanel", () => {
       vi.runAllTimers();
 
       expect(revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:mock-url");
+    });
+
+    it("saves the blob with plain text/yaml, no charset parameter (#2986)", async () => {
+      render(LayoutYamlPanel, {
+        props: { open: true, layout: baseLayout, onapply: vi.fn() },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("yaml-textarea")).toHaveDisplayValue(
+          /name: Baseline Layout/,
+        );
+      });
+
+      await fireEvent.click(
+        screen.getByRole("button", { name: "Download YAML" }),
+      );
+
+      const blob = createObjectURL.mock.calls[0]?.[0] as Blob;
+      expect(blob.type).toBe("text/yaml");
     });
   });
 

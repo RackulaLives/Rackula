@@ -14,6 +14,7 @@ import {
   exceedsHorizontalPanLock,
   panBlockReason,
   isRackInteractionTarget,
+  isEmptyCanvasClickTarget,
   type CanvasPointerTarget,
 } from "$lib/utils/canvas-coordinates";
 
@@ -204,5 +205,75 @@ describe("isRackInteractionTarget", () => {
 
   it("is false outside any rack element", () => {
     expect(isRackInteractionTarget(stubTarget())).toBe(false);
+  });
+});
+
+describe("isEmptyCanvasClickTarget (#3006)", () => {
+  it("is true for a missing target", () => {
+    expect(isEmptyCanvasClickTarget(null)).toBe(true);
+  });
+
+  it("is true for a plain canvas background target", () => {
+    expect(isEmptyCanvasClickTarget(stubTarget())).toBe(true);
+  });
+
+  it("is false inside a rack (device)", () => {
+    expect(
+      isEmptyCanvasClickTarget(
+        stubTarget({
+          closest: (selector) =>
+            selector.includes(".rack-device") ? {} : null,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("is false inside a rack (dual view)", () => {
+    expect(
+      isEmptyCanvasClickTarget(
+        stubTarget({
+          closest: (selector) =>
+            selector.includes(".rack-dual-view") ? {} : null,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("is false inside a bayed rack view", () => {
+    expect(
+      isEmptyCanvasClickTarget(
+        stubTarget({
+          closest: (selector) =>
+            selector.includes(".bayed-rack-view") ? {} : null,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("is false on a button (verb bar action, hint dismiss, cancel, add-rack)", () => {
+    expect(
+      isEmptyCanvasClickTarget(
+        stubTarget({
+          closest: (selector) => (selector.includes("button") ? {} : null),
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("is false inside a toolbar (verb bar chrome, not on a button)", () => {
+    expect(
+      isEmptyCanvasClickTarget(
+        stubTarget({
+          closest: (selector) =>
+            selector.includes('[role="toolbar"]') ? {} : null,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("is true when the target does not support closest", () => {
+    expect(isEmptyCanvasClickTarget(stubTarget({ closest: undefined }))).toBe(
+      true,
+    );
   });
 });

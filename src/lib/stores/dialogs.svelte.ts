@@ -10,6 +10,8 @@
  * Sheets (mobile bottom sheets) use a separate state since they coexist with dialogs.
  */
 
+import { getToastStore } from "./toast.svelte";
+
 export type DialogId =
   | "addDevice"
   | "confirmDelete"
@@ -35,22 +37,21 @@ export type SheetId =
   | "yamlEditor";
 
 export interface DeleteTarget {
-  type: "rack" | "device";
+  /**
+   * Racks are the only target the confirm-delete dialog gates now; device
+   * removal is immediate with an undo toast instead (#2993). The literal type
+   * is kept (rather than dropped) so a future second confirm-gated target
+   * type doesn't need every call site re-touched.
+   */
+  type: "rack";
   name: string;
   /**
-   * Rack/device identity captured at dialog-open time (#2918). Confirming the
+   * Rack identity captured at dialog-open time (#2918). Confirming the
    * dialog must act on this snapshot, not the live selectionStore, so a
    * selection change between open and confirm can't delete a different
-   * object than the one named in the dialog.
+   * rack than the one named in the dialog.
    */
   rackId: string;
-  /**
-   * Stable device id, only set when type is "device". Confirm resolves the
-   * current array index from this id, so a reorder between open and confirm
-   * (e.g. an arrow-key move, or a device removed above it) can't shift a
-   * captured index onto the wrong device.
-   */
-  deviceId?: string;
 }
 
 // Dialog state
@@ -71,8 +72,16 @@ let selectedDeviceIndex = $state<number | null>(null);
  * dialogs always render without a sheet underneath them. On mobile this
  * prevents the device-details bottom sheet from occluding a confirm dialog
  * that opens on top of it (#2490).
+ *
+ * Also dismisses any toast currently on screen (#3004/R27a): a toast left
+ * over from a prior action (e.g. "Device duplicated") must never linger and
+ * cover this dialog's controls, including a destructive confirm's Cancel
+ * button. This only fires once, at the open transition, so a toast raised by
+ * an action taken inside this dialog after it opens (e.g. Share's "Link
+ * copied") is unaffected.
  */
 function open(id: DialogId) {
+  getToastStore().clearAllToasts();
   openSheet = null;
   selectedDeviceIndex = null;
   openDialog = id;

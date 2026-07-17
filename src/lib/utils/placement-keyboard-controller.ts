@@ -33,6 +33,8 @@ import {
   placedAnnouncement,
 } from "./placement-keyboard";
 
+import { NO_ROOM_MESSAGE } from "$lib/constants/toast-messages";
+
 export interface PlacementKeyboardDeps {
   /** All racks in canvas order. */
   getRacks: () => Rack[];
@@ -60,6 +62,12 @@ export interface PlacementKeyboardDeps {
     face: DeviceFace,
   ) => boolean;
   completePlacement: (summary: string) => void;
+  /**
+   * Show a visible "no room" cue matching the drag path's toast. Optional so
+   * callers that don't wire a toast store (e.g. tests) still work; the
+   * aria-live announcement always fires regardless.
+   */
+  showToast?: (message: string) => void;
   /** Called after a successful placement (e.g. to re-fit the canvas). */
   onPlaced?: () => void;
   /** Called when the focused rack changes, so focus can follow it (e.g. on Tab). */
@@ -228,12 +236,14 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
       // No valid slot in this rack (e.g. it is full). Tell the user rather than
       // letting Enter silently do nothing.
       deps.announce(noSpaceAnnouncement(rack.name));
+      deps.showToast?.(NO_ROOM_MESSAGE);
       return;
     }
     const face = resolveFace(deps.getTargetFace());
     const success = deps.placeDevice(rack.id, device.slug, position, face);
     if (!success) {
       deps.announce(noSpaceAnnouncement(rack.name));
+      deps.showToast?.(NO_ROOM_MESSAGE);
       return;
     }
     deps.completePlacement(placedAnnouncement(device, rack.name, position));

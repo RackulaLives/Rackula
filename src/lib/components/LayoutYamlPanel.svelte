@@ -216,7 +216,7 @@
   }
 
   function handleDownload(): void {
-    const blob = new Blob([yamlText], { type: "text/yaml;charset=utf-8" });
+    const blob = new Blob([yamlText], { type: "text/yaml" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

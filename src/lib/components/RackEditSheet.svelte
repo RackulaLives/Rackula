@@ -4,9 +4,10 @@
   Feature parity with EditPanel's rack editing section
 -->
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
+  import SavedIndicator from "./ui/SavedIndicator.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import {
@@ -34,6 +35,21 @@
   let rackNotes = $state(untrack(() => rack.notes ?? ""));
   let resizeError = $state<string | null>(null);
 
+  // Save feedback for the Name field (#3005): height and numbering apply on
+  // click and are visibly reflected immediately (active preset, updated
+  // value); Name commits on blur, so it gets the same "Saved" acknowledgement
+  // used by EditPanelRack's (desktop) Name field rather than reading as
+  // frozen next to them.
+  let rackNameSaved = $state(false);
+  let rackNameSavedTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  onDestroy(() => {
+    if (rackNameSavedTimeout) {
+      clearTimeout(rackNameSavedTimeout);
+      rackNameSavedTimeout = undefined;
+    }
+  });
+
   // Check if this rack is part of a bayed group
   const rackGroup = $derived(layoutStore.getRackGroupForRack(rack.id));
   const isBayedRack = $derived(rackGroup?.layout_preset === "bayed");
@@ -48,18 +64,38 @@
   // Device count for clear confirmation
   const deviceCount = $derived(rack.devices.length);
 
-  // Sync form fields when rack prop changes
+  // Identity of the currently edited rack, tracked via a plain closure
+  // variable (not $state) so reading it doesn't add a reactive dependency of
+  // its own; it's only ever compared against inside the effect below.
+  let previousRackId: string | null = null;
+
+  // Sync form fields when rack prop changes. This effect also reruns on
+  // every field write to the *currently* edited rack (e.g. right after this
+  // sheet's own Name save, since that updates rack.name), so the Name
+  // Saved-flash flag is only cleared when the rack identity itself changes,
+  // not on every resync (#3005).
   $effect(() => {
     rackName = rack.name;
     rackHeight = rack.height;
     rackNotes = rack.notes ?? "";
     resizeError = null;
+
+    if (rack.id !== previousRackId) {
+      previousRackId = rack.id;
+      clearTimeout(rackNameSavedTimeout);
+      rackNameSaved = false;
+    }
   });
 
   // Update rack name on blur
   function handleNameBlur() {
     if (rackName !== rack.name) {
       layoutStore.updateRack(rack.id, { name: rackName });
+      clearTimeout(rackNameSavedTimeout);
+      rackNameSaved = true;
+      rackNameSavedTimeout = setTimeout(() => {
+        rackNameSaved = false;
+      }, 2000);
     }
   }
 
@@ -150,7 +186,13 @@
   <div class="edit-form">
     <!-- Rack Name -->
     <div class="form-group">
-      <label for="rack-name-mobile">Name</label>
+      <label for="rack-name-mobile">
+        Name
+        <SavedIndicator
+          show={rackNameSaved}
+          data-testid="saved-indicator-rack-name"
+        />
+      </label>
       <input
         type="text"
         id="rack-name-mobile"
@@ -345,6 +387,12 @@
     font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--colour-text-secondary);
+  }
+
+  .form-group label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
   }
 
   .input-field {

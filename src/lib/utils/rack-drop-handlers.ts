@@ -16,6 +16,7 @@ import type { Rack, DeviceType } from "$lib/types";
 import type { getLayoutStore } from "$lib/stores/layout.svelte";
 import type { getToastStore } from "$lib/stores/toast.svelte";
 import { hapticError } from "$lib/utils/haptics";
+import { NO_ROOM_MESSAGE } from "$lib/constants/toast-messages";
 
 export interface RackEventCallbacks {
   ondevicemove?: (
@@ -154,11 +155,7 @@ export function dispatchDropAction(
       );
       if (!success) {
         hapticError();
-        collisionContext.toastStore.showToast(
-          "No room for this device here",
-          "warning",
-          3000,
-        );
+        collisionContext.toastStore.showToast(NO_ROOM_MESSAGE, "warning", 3000);
         break;
       }
       if (

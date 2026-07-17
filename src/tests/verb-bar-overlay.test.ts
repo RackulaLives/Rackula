@@ -108,7 +108,7 @@ describe("VerbBarOverlay", () => {
       await clickVerb("Export");
       expect(onrackexport).toHaveBeenCalledWith([rackId]);
 
-      await clickVerb("Delete selected");
+      await clickVerb("Remove selected");
       expect(ondelete).toHaveBeenCalledTimes(1);
     });
   });

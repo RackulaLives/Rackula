@@ -391,9 +391,17 @@ function base64UrlDecode(str: string): Uint8Array {
 /**
  * Encode Layout to URL-safe compressed string
  * Always encodes as v2 format.
- * Returns null if encoding fails (e.g., empty racks, missing device types)
+ * Returns null if encoding fails (e.g., missing device types), or if the
+ * layout has no racks yet.
  */
 export function encodeLayout(layout: Layout): string | null {
+  // Zero racks is an expected "nothing to share yet" state (for example the
+  // Share dialog computing its preview before any rack exists), not an
+  // encoding error: skip toMinimalLayout's throw and the console.warn below,
+  // which would otherwise fire on every such call (R6d/#2988).
+  if (layout.racks.length === 0) {
+    return null;
+  }
   try {
     const minimal = toMinimalLayout(layout);
     const json = JSON.stringify(minimal);

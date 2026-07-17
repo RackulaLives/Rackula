@@ -222,25 +222,12 @@
 
   // --- Delete handlers ---
 
+  // Racks are the only target the confirm-delete dialog gates now (device
+  // removal is immediate; see handleDelete in dialog-actions.ts, #2993), so
+  // cancel never needs to reopen the mobile device-details sheet.
   function handleCancelDelete() {
     dialogStore.close();
-    // On mobile a device removal was triggered from the device-details bottom
-    // sheet. handleDelete() closed the sheet so the confirm dialog would not
-    // render behind it (#2490). If the device is still selected (cancel path),
-    // reopen the sheet so the user can continue editing.
-    if (viewportStore.isMobile && selectionStore.isDeviceSelected) {
-      const activeRack = layoutStore.activeRack;
-      if (activeRack) {
-        const deviceIndex = selectionStore.getSelectedDeviceIndex(
-          activeRack.devices,
-        );
-        if (deviceIndex !== null) {
-          dialogStore.openSheet("deviceDetails", deviceIndex);
-        }
-      }
-    } else {
-      handleFitAll();
-    }
+    handleFitAll();
   }
 
   // --- Export / Share handlers ---
@@ -786,11 +773,9 @@
 
 <ConfirmDialog
   open={confirmDeleteOpen}
-  title={deleteTarget?.type === "rack" ? "Delete Rack" : "Remove Device"}
-  message={deleteTarget?.type === "rack"
-    ? `Are you sure you want to delete "${deleteTarget?.name}"? All devices in this rack will be removed.`
-    : `Are you sure you want to remove "${deleteTarget?.name}" from this rack?`}
-  confirmLabel={deleteTarget?.type === "rack" ? "Delete Rack" : "Remove"}
+  title="Delete Rack"
+  message={`Are you sure you want to delete "${deleteTarget?.name}"? All devices in this rack will be removed.`}
+  confirmLabel="Delete Rack"
   onconfirm={handleConfirmDelete}
   oncancel={handleCancelDelete}
 />

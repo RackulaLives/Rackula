@@ -15,6 +15,7 @@
     loadFromApi,
     loadFromFile,
   } from "$lib/storage";
+  import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { persistenceDebug } from "$lib/utils/debug";
@@ -80,7 +81,7 @@
     }
   }
 
-  async function handleOpenLayout(item: SavedLayoutItem) {
+  function handleOpenLayout(item: SavedLayoutItem) {
     if (!item.valid) {
       toastStore.showToast(
         `"${item.name}" is corrupted and cannot be opened`,
@@ -89,10 +90,19 @@
       return;
     }
 
-    const success = await loadFromApi(item.id);
-    if (success) {
-      dialogStore.close();
-    }
+    // Opening a saved-on-server layout replaces the working copy; guard it
+    // behind the same open-file replace-confirm flow as Ctrl+O and "Import
+    // from local file" (#2987). runOpenFileFlow checks changesSinceExport
+    // itself.
+    runOpenFileFlow(async (guarded) => {
+      const success = await loadFromApi(
+        item.id,
+        guarded ? { successMessage: "Previous layout kept in Layouts" } : {},
+      );
+      if (success) {
+        dialogStore.close();
+      }
+    });
   }
 
   function handleDeleteLayout(item: SavedLayoutItem) {
@@ -123,11 +133,20 @@
     }
   }
 
-  async function handleImportFile() {
-    const success = await loadFromFile();
-    if (success) {
-      dialogStore.close();
-    }
+  function handleImportFile() {
+    // Importing a local file replaces the working copy; guard it behind the
+    // same open-file replace-confirm flow as Ctrl+O and opening a
+    // saved-on-server layout (#2987). runOpenFileFlow checks
+    // changesSinceExport itself.
+    runOpenFileFlow(async (guarded) => {
+      const success = await loadFromFile(
+        undefined,
+        guarded ? { successMessage: "Previous layout kept in Layouts" } : {},
+      );
+      if (success) {
+        dialogStore.close();
+      }
+    });
   }
 
   async function toggleSnapshots(item: SavedLayoutItem) {

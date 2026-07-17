@@ -78,6 +78,34 @@ describe("PlacementIndicator", () => {
     });
   });
 
+  describe("Placement hint (#2992)", () => {
+    it("tells desktop users how to place and how to leave the mode", () => {
+      render(PlacementIndicator, {
+        props: {
+          isPlacing: true,
+          device: mockDevice,
+          isMobile: false,
+        },
+      });
+
+      expect(screen.getByText(/click a slot to place/i)).toBeInTheDocument();
+      expect(screen.getByText(/esc to cancel/i)).toBeInTheDocument();
+    });
+
+    it("tells mobile users to tap, without keyboard-only guidance", () => {
+      render(PlacementIndicator, {
+        props: {
+          isPlacing: true,
+          device: mockDevice,
+          isMobile: true,
+        },
+      });
+
+      expect(screen.getByText(/tap a slot to place/i)).toBeInTheDocument();
+      expect(screen.queryByText(/esc to cancel/i)).not.toBeInTheDocument();
+    });
+  });
+
   describe("Interaction", () => {
     it("emits oncancel when cancel button is clicked", async () => {
       const handleCancel = vi.fn();

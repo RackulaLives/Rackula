@@ -371,6 +371,10 @@
      a panel occludes them where they overlap (#2491). */
   --z-placement-indicator: 50;
   --z-verb-bar: 50;
+  /* Onboarding drag hint: above the verb bar so a rack auto-selected on first
+     run (verb bar showing rack actions) never hides the hint behind it
+     (#3004/R27c). */
+  --z-hint: 55;
   /* Side panels: persistent chrome that flanks the canvas. Above the canvas
      overlays, below the drawer/modal/dropdown layers. */
   --z-sidebar: 60;

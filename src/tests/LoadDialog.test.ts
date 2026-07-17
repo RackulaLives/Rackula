@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { tick } from "svelte";
 import LoadDialog from "../lib/components/LoadDialog.svelte";
+import OpenFileGuardDialog from "../lib/components/OpenFileGuardDialog.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { resetToastStore } from "$lib/stores/toast.svelte";
 import * as persistenceApi from "$lib/storage/api";
 import * as loadPipeline from "$lib/storage/load-pipeline";
 import * as persistenceStore from "$lib/storage/availability.svelte";
+import * as layoutStoreModule from "$lib/stores/layout.svelte";
 import { formatSnapshotTimestamp } from "$lib/utils/snapshot-timestamp";
 
 // Mock the dependencies
@@ -115,7 +117,9 @@ describe("LoadDialog", () => {
     const layoutItem = await screen.findByText("Test Layout 1");
     await fireEvent.click(layoutItem);
 
-    expect(loadPipeline.loadFromApi).toHaveBeenCalledWith("uuid-1");
+    // #2987: handleOpenLayout now routes through the open-file guard, which
+    // always passes an options object (empty on the clean, unguarded path).
+    expect(loadPipeline.loadFromApi).toHaveBeenCalledWith("uuid-1", {});
     expect(dialogStore.isOpen("load")).toBe(false);
   });
 
@@ -257,5 +261,150 @@ describe("LoadDialog", () => {
       "test-layout-1~20260615-143005.yaml",
     );
     expect(dialogStore.isOpen("load")).toBe(false);
+  });
+});
+
+// Both server-mode sub-flows below replace the working copy exactly like the
+// browser-mode Ctrl+O path, and route through the same open-file guard
+// (#2987 fix-round finding 1). Rendering the real OpenFileGuardDialog
+// alongside LoadDialog (rather than mocking $lib/actions/open-file-trigger,
+// as persistence-manager-mode.test.ts does) exercises the actual wiring: the
+// guard genuinely appears when dirty, and is genuinely skipped when clean.
+describe("LoadDialog open-file replace guard (#2987)", () => {
+  let layoutStoreSpy: ReturnType<typeof vi.spyOn> | undefined;
+
+  // Wrap the real store and override only changesSinceExport, so the mock
+  // stays a complete, type-sound LayoutStore. Mirrors the equivalent helper
+  // in dispatch.test.ts for new-layout and open-file-trigger.test.ts.
+  function stubChangesSinceExport(value: number) {
+    const real = layoutStoreModule.getLayoutStore();
+    const stub = new Proxy(real, {
+      get(target, prop) {
+        if (prop === "changesSinceExport") return value;
+        return Reflect.get(target, prop, target);
+      },
+    });
+    layoutStoreSpy = vi
+      .spyOn(layoutStoreModule, "getLayoutStore")
+      .mockReturnValue(stub);
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetToastStore();
+    dialogStore.close();
+    vi.mocked(persistenceStore.isApiAvailable).mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    dialogStore.close();
+    layoutStoreSpy?.mockRestore();
+    layoutStoreSpy = undefined;
+  });
+
+  it("guards importing a local file behind a confirm when there are unexported changes", async () => {
+    stubChangesSinceExport(2);
+    vi.mocked(loadPipeline.loadFromFile).mockResolvedValue(true);
+
+    dialogStore.open("load");
+    render(LoadDialog);
+    render(OpenFileGuardDialog);
+    await tick();
+
+    const importBtn = screen.getByText(/Import from local file/i);
+    await fireEvent.click(importBtn);
+
+    expect(loadPipeline.loadFromFile).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText(/Replace this layout\?/i),
+    ).toBeInTheDocument();
+
+    await fireEvent.click(screen.getByTestId("btn-replace-rack"));
+
+    expect(loadPipeline.loadFromFile).toHaveBeenCalledWith(undefined, {
+      successMessage: "Previous layout kept in Layouts",
+    });
+  });
+
+  it("guards opening a saved-on-server layout behind a confirm when there are unexported changes", async () => {
+    const mockLayouts: persistenceApi.SavedLayoutItem[] = [
+      {
+        id: "uuid-1",
+        name: "Test Layout 1",
+        version: "1.0",
+        updatedAt: new Date().toISOString(),
+        rackCount: 1,
+        deviceCount: 5,
+        valid: true,
+      },
+    ];
+    vi.mocked(persistenceApi.listSavedLayouts).mockResolvedValue(mockLayouts);
+    vi.mocked(loadPipeline.loadFromApi).mockResolvedValue(true);
+    stubChangesSinceExport(2);
+
+    dialogStore.open("load");
+    render(LoadDialog);
+    render(OpenFileGuardDialog);
+
+    const layoutItem = await screen.findByText("Test Layout 1");
+    await fireEvent.click(layoutItem);
+
+    expect(loadPipeline.loadFromApi).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText(/Replace this layout\?/i),
+    ).toBeInTheDocument();
+
+    await fireEvent.click(screen.getByTestId("btn-replace-rack"));
+
+    expect(loadPipeline.loadFromApi).toHaveBeenCalledWith("uuid-1", {
+      successMessage: "Previous layout kept in Layouts",
+    });
+  });
+
+  it("imports a local file directly with no confirm when there are no unexported changes", async () => {
+    stubChangesSinceExport(0);
+    vi.mocked(loadPipeline.loadFromFile).mockResolvedValue(true);
+
+    dialogStore.open("load");
+    render(LoadDialog);
+    render(OpenFileGuardDialog);
+    await tick();
+
+    const importBtn = screen.getByText(/Import from local file/i);
+    await fireEvent.click(importBtn);
+
+    expect(loadPipeline.loadFromFile).toHaveBeenCalledWith(undefined, {});
+    expect(
+      screen.queryByText(/Replace this layout\?/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens a saved-on-server layout directly with no confirm when there are no unexported changes", async () => {
+    const mockLayouts: persistenceApi.SavedLayoutItem[] = [
+      {
+        id: "uuid-1",
+        name: "Test Layout 1",
+        version: "1.0",
+        updatedAt: new Date().toISOString(),
+        rackCount: 1,
+        deviceCount: 5,
+        valid: true,
+      },
+    ];
+    vi.mocked(persistenceApi.listSavedLayouts).mockResolvedValue(mockLayouts);
+    vi.mocked(loadPipeline.loadFromApi).mockResolvedValue(true);
+    stubChangesSinceExport(0);
+
+    dialogStore.open("load");
+    render(LoadDialog);
+    render(OpenFileGuardDialog);
+
+    const layoutItem = await screen.findByText("Test Layout 1");
+    await fireEvent.click(layoutItem);
+
+    expect(loadPipeline.loadFromApi).toHaveBeenCalledWith("uuid-1", {});
+    expect(
+      screen.queryByText(/Replace this layout\?/i),
+    ).not.toBeInTheDocument();
   });
 });

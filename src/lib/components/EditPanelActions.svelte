@@ -6,6 +6,7 @@
 <script lang="ts">
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
+  import { getToastStore } from "$lib/stores/toast.svelte";
   import { isCustomDevice } from "$lib/utils/device-lookup";
   import type { SelectedDeviceInfo } from "$lib/types";
 
@@ -18,19 +19,26 @@
 
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
+  const toastStore = getToastStore();
 
   // Check if selected device is a custom (user-created) device
   const isSelectedDeviceCustom = $derived.by(() =>
     isCustomDevice(selectedDeviceInfo.device.slug),
   );
 
-  // Remove device from rack
+  // Remove device from rack. Immediate with an undo toast rather than a
+  // confirm dialog: a device placement is trivially undoable, and the toast
+  // keeps this affordance consistent with the other four device-removal
+  // paths (#2993).
   function handleRemoveDevice() {
-    layoutStore.removeDeviceFromRack(
+    const name = layoutStore.removeDeviceFromRack(
       selectedDeviceInfo.rack.id,
       selectedDeviceInfo.deviceIndex,
     );
     selectionStore.clearSelection();
+    if (name) {
+      toastStore.showUndoToast(`Removed ${name}`, () => layoutStore.undo());
+    }
   }
 </script>
 

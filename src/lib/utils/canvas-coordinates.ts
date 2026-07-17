@@ -126,3 +126,25 @@ export function isRackInteractionTarget(
     ),
   );
 }
+
+/**
+ * Whether a canvas click landed on genuinely empty background rather than a
+ * rack or an interactive control. Used to gate click-to-deselect (#3006): a
+ * click that resolves true here clears the current selection, mirroring
+ * Escape. False for anything inside a rendered rack (isRackInteractionTarget)
+ * and for interactive controls such as a verb bar button, the placement
+ * banner's Cancel button, the onboarding hint's dismiss button, or the
+ * zero-rack state's "Add a rack" button, so clicking those does not also
+ * clear the selection as the click bubbles to the canvas.
+ */
+export function isEmptyCanvasClickTarget(
+  target: CanvasPointerTarget | null,
+): boolean {
+  if (!target) return true;
+  if (isRackInteractionTarget(target)) return false;
+  const isInteractiveControl =
+    (target.closest?.(
+      'button, a[href], input, select, textarea, [role="toolbar"]',
+    ) ?? null) !== null;
+  return !isInteractiveControl;
+}

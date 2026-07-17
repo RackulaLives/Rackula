@@ -176,25 +176,48 @@ describe("actions registry", () => {
   });
 
   describe("getHelpGroups (help overlay generation)", () => {
-    it("lists only mouse-gesture rows, no registry keyboard shortcuts", () => {
-      // The command palette now shows each command's shortcut inline, so the
-      // overlay documents only the mouse gestures the palette cannot show.
-      const shownLabels = new Set(
-        getHelpGroups().flatMap((g) => g.rows.map((r) => r.action)),
+    it("includes a shortcut row for every keybound, help-flagged registry action (#3000)", () => {
+      // Generated from the registry, not a hand-maintained list: every action
+      // that declares both a helpGroup and a binding must surface as a row, so
+      // the help panel cannot drift from the actual keybindings.
+      const rows = getHelpGroups().flatMap((g) => g.rows);
+      const shownLabels = new Set(rows.map((r) => r.action));
+
+      const keyboundHelpActions = ACTION_REGISTRY.filter(
+        (a) => a.bindings.length > 0,
       );
-      // No help-flagged registry action leaks a keyboard-shortcut row.
-      const helpActions = ACTION_REGISTRY.filter((a) => a.helpGroup);
-      expect(helpActions.length).toBeGreaterThan(0);
-      for (const action of helpActions) {
+      expect(keyboundHelpActions.length).toBeGreaterThan(0);
+      for (const action of keyboundHelpActions) {
+        expect(shownLabels.has(action.label)).toBe(true);
+      }
+
+      // No row exists for a help-flagged action without any binding: showing
+      // one would be a lie (nothing to press).
+      const unboundHelpActions = ACTION_REGISTRY.filter(
+        (a) => a.helpGroup && a.bindings.length === 0,
+      );
+      for (const action of unboundHelpActions) {
         expect(shownLabels.has(action.label)).toBe(false);
       }
     });
 
-    it("keeps the canvas mouse gestures under one section", () => {
+    it("formats a generated row's key the same way the registry tooltip does", () => {
+      const rows = getHelpGroups().flatMap((g) => g.rows);
+      const saveRow = rows.find((r) => r.action === "Save layout");
+      expect(saveRow?.key).toBe(getActionTooltip("save")?.shortcut);
+    });
+
+    it("groups keyboard shortcuts under their declared help group, ahead of the canvas gestures", () => {
       const groups = getHelpGroups();
-      // The keyboard sections are gone; only the gesture section survives.
       const names = groups.map((g) => g.name);
-      expect(names).toEqual(["Canvas"]);
+      // Keyboard groups render before the mouse-gesture section, and only
+      // groups with at least one row appear.
+      expect(names).toContain("Navigation");
+      expect(names).toContain("Editing");
+      expect(names).toContain("File");
+      expect(names[names.length - 1]).toBe("Canvas");
+      expect(names.indexOf("Canvas")).toBeGreaterThan(names.indexOf("File"));
+
       const zoomRow = groups
         .flatMap((g) => g.rows)
         .find((r) => r.action.toLowerCase().includes("zoom"));

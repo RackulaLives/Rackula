@@ -118,12 +118,17 @@
    *
    * Without this, the wrapper collapses to its content's intrinsic size and
    * .canvas { flex: 1 } resolves against the small wrapper instead of the
-   * full parent, so the canvas does not fill the window.
+   * full parent, so the canvas does not fill the window. min-width: 0 closes
+   * the same gap on the horizontal axis: without it, the wrapper's default
+   * min-width: auto lets wide rack content stretch it past the mobile
+   * viewport, pushing full-bleed overlays like PlacementIndicator off
+   * screen (#2991).
    */
   :global(.canvas-region > div:has(> .canvas)),
   :global(.app-main > div:has(> .canvas)) {
     display: flex;
     flex: 1 1 0;
+    min-width: 0;
     min-height: 0;
     height: 100%;
   }

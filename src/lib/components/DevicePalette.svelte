@@ -231,10 +231,14 @@
 
     const actionLabel = deletedTypes.length === 1 ? "Undo" : "Undo All";
 
-    // Capture current toast ID for race condition check
-    const thisToastId = toastStore.showToast(message, "info", 5000, {
-      label: actionLabel,
-      onClick: () => {
+    // Capture current toast ID for race condition check. Uses showUndoToast
+    // (#2993, #3028) so this toast is flagged as an undo affordance and gets
+    // dismissed by dismissUndoToasts() once a newer command is recorded,
+    // rather than lingering to undo the wrong actions off the top of the
+    // stack.
+    const thisToastId = toastStore.showUndoToast(
+      message,
+      () => {
         // Undo: call undo() for each deleted device type to maintain history consistency
         // This properly removes the delete actions from history
         for (let i = 0; i < deletedTypes.length; i++) {
@@ -242,7 +246,8 @@
         }
         pendingToastId = null;
       },
-    });
+      actionLabel,
+    );
     pendingToastId = thisToastId;
 
     // Clear toast ID after it auto-dismisses, with race condition check
@@ -556,6 +561,8 @@
 </script>
 
 <div class="device-palette">
+  <a href="#rack-canvas" class="skip-to-canvas-link">Skip to canvas</a>
+
   <!-- Grouping Mode and Search -->
   <div class="search-container">
     <div class="grouping-toggle">
@@ -593,9 +600,10 @@
 
   <!-- Device List -->
   <div class="device-list" class:fill-flat={flatFill}>
-    {#snippet deviceRow(device: DeviceType)}
+    {#snippet deviceRow(device: DeviceType, index = 0)}
       <DevicePaletteItem
         {device}
+        tabindex={index === 0 ? 0 : -1}
         searchQuery={isSearchActive ? searchQuery : ""}
         isCompatible={isCompatible(device)}
         incompatibilityReason={incompatibilityReason(device)}
@@ -624,15 +632,15 @@
             key={(device) => device.slug}
             ariaLabel={label}
           >
-            {#snippet row(device)}
-              {@render deviceRow(device)}
+            {#snippet row(device, index)}
+              {@render deviceRow(device, index)}
             {/snippet}
           </VirtualList>
         </div>
       {:else}
         <div class="section-devices" role="list" aria-label={label}>
-          {#each devices as device (device.slug)}
-            {@render deviceRow(device)}
+          {#each devices as device, index (device.slug)}
+            {@render deviceRow(device, index)}
           {/each}
         </div>
       {/if}
@@ -702,7 +710,11 @@
                 {/if}
               </Accordion.Trigger>
             </Accordion.Header>
-            <Accordion.Content class="accordion-content">
+            <Accordion.Content
+              class="accordion-content"
+              data-testid="accordion-content-{section.id}"
+              inert={!isSectionExpanded(section.id)}
+            >
               <div class="accordion-content-inner">
                 {#if section.id === "generic" && groupingMode === "brand"}
                   <!-- Generic section uses category grouping (brand mode only) -->
@@ -771,6 +783,42 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+  }
+
+  /* Skip-to-canvas link (#2998): visually hidden until focused, so a keyboard
+     user can jump forward-Tab from the very start of the palette straight to
+     the canvas instead of traversing every section trigger and device row. */
+  .skip-to-canvas-link {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .skip-to-canvas-link:focus-visible {
+    position: fixed;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: var(--z-tooltip, 400);
+    width: auto;
+    height: auto;
+    padding: var(--space-2) var(--space-3);
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    background: var(--colour-surface);
+    color: var(--colour-text);
+    border: 1px solid var(--colour-selection);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    box-shadow: var(--shadow-lg);
   }
 
   .search-container {

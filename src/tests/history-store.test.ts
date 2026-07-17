@@ -4,6 +4,7 @@ import {
   resetHistoryStore,
   MAX_HISTORY_DEPTH,
 } from "$lib/stores/history.svelte";
+import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 import { createMockCommand } from "./factories";
 
 describe("History Store", () => {
@@ -360,6 +361,77 @@ describe("History Store", () => {
         "exec:B",
         "exec:C",
       ]);
+    });
+  });
+
+  // #2993, #3028: every undo-affordance toast's action calls
+  // layoutStore.undo(), which always reverts the top of this history's undo
+  // stack. Once execute() records a newer command, an existing toast no
+  // longer describes what its Undo button would revert. Hooking dismissal
+  // into execute() -- the single choke point every recorded mutation passes
+  // through -- makes the affordance honest by construction rather than
+  // patching each of the four call sites that raise one of these toasts.
+  describe("execute() dismisses undo toasts", () => {
+    beforeEach(() => {
+      resetToastStore();
+    });
+
+    it("dismisses a live undo-affordance toast when a new command is recorded", () => {
+      const store = getHistoryStore();
+      const toastStore = getToastStore();
+      toastStore.showUndoToast("Removed A", () => {});
+
+      expect(toastStore.toasts.some((t) => t.message === "Removed A")).toBe(
+        true,
+      );
+
+      // Repro: A is removed (toast shown), then an unrelated mutation (move
+      // B) is recorded before the toast is clicked.
+      store.execute(createMockCommand("Move B"));
+
+      // The stale toast is gone -- nothing left to click that would silently
+      // undo "Move B" instead of restoring "A".
+      expect(toastStore.toasts.some((t) => t.message === "Removed A")).toBe(
+        false,
+      );
+    });
+
+    it("dismisses a custom-label undo toast the same way (DevicePalette's Undo All site, #3028)", () => {
+      const store = getHistoryStore();
+      const toastStore = getToastStore();
+      toastStore.showUndoToast("Deleted 3 device types", () => {}, "Undo All");
+
+      store.execute(createMockCommand("Place device"));
+
+      expect(
+        toastStore.toasts.some((t) => t.message === "Deleted 3 device types"),
+      ).toBe(false);
+    });
+
+    it("does not dismiss toasts that carry no undo affordance", () => {
+      const store = getHistoryStore();
+      const toastStore = getToastStore();
+      toastStore.showToast("Layout saved", "success");
+
+      store.execute(createMockCommand("Move B"));
+
+      expect(toastStore.toasts.some((t) => t.message === "Layout saved")).toBe(
+        true,
+      );
+    });
+
+    it("leaves the newest undo toast alone: only prior toasts are stale", () => {
+      const store = getHistoryStore();
+      const toastStore = getToastStore();
+
+      // The site that just recorded a command shows its own toast afterward,
+      // synchronously -- execute()'s dismissal already ran by then.
+      store.execute(createMockCommand("Remove A"));
+      toastStore.showUndoToast("Removed A", () => {});
+
+      expect(toastStore.toasts.some((t) => t.message === "Removed A")).toBe(
+        true,
+      );
     });
   });
 });

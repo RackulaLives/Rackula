@@ -6,11 +6,7 @@
 <script lang="ts">
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { isContainerChild } from "$lib/utils/collision";
-  import {
-    toHumanUnits,
-    toInternalUnits,
-    formatPosition,
-  } from "$lib/utils/position";
+  import { formatDisplayPosition as formatDisplayPositionShared } from "$lib/utils/position";
   import { canMoveUp, canMoveDown } from "$lib/utils/device-movement";
   import {
     moveSelectedDeviceUp,
@@ -35,13 +31,18 @@
   );
 
   // Format an internal-unit position for display, honouring the rack's U
-  // numbering direction. Carrier-first rail positions are whole-U, so the
-  // desc_units flip just mirrors the whole-U value.
+  // numbering direction and starting_unit offset. Delegates to the shared
+  // helper (position.ts). Previously omitted starting_unit, so a rack whose
+  // numbering starts above U1 showed a label that diverged from the ruler;
+  // passing it through here brings this display in line with the ruler for
+  // those racks (CodeAnt, PR #3018, comment 3566108076).
   function formatDisplayPosition(position: number, rack: Rack): string {
-    if (!rack.desc_units) return formatPosition(position);
-    const wholeU = Math.round(toHumanUnits(position));
-    const displayWholeU = rack.height - wholeU + 1;
-    return formatPosition(toInternalUnits(displayWholeU));
+    return formatDisplayPositionShared(
+      position,
+      rack.height,
+      rack.desc_units,
+      rack.starting_unit,
+    );
   }
 
   // Whether the selected device can move up/down. Delegates to the shared

@@ -226,6 +226,34 @@ describe("load-pipeline", () => {
         expect.objectContaining({ message: "Not found", type: "error" }),
       );
     });
+
+    // LoadDialog's open-file replace-guard names what became of the previous
+    // layout on the confirmed-replace path instead of a generic toast that
+    // implies nothing happened to it (#2987 AC2, fix-round finding 1).
+    it("overrides the success toast when successMessage is given", async () => {
+      const layout = createTestLayout({ name: "API Load Guarded" });
+      vi.mocked(persistenceApi.loadSavedLayout).mockResolvedValue({
+        layout,
+        images: new Map(),
+        failedImagesCount: 0,
+      });
+
+      await loadFromApi("uuid-1", {
+        successMessage: "Previous layout kept in Layouts",
+      });
+
+      expect(toastStore.toasts).toContainEqual(
+        expect.objectContaining({
+          message: "Previous layout kept in Layouts",
+          type: "success",
+        }),
+      );
+      expect(
+        toastStore.toasts.some(
+          (t) => t.message === "Layout loaded successfully",
+        ),
+      ).toBe(false);
+    });
   });
 
   describe("restoreFromSnapshot", () => {

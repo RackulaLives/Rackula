@@ -14,7 +14,7 @@ import {
   getLayoutSavedAt,
   loadWorkspaceIndex,
 } from "$lib/storage/browser-workspace";
-import { resetToastStore } from "$lib/stores/toast.svelte";
+import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 import { downloadYamlFile } from "$lib/utils/archive";
 
 vi.mock("$lib/utils/archive", async (importOriginal) => {
@@ -102,6 +102,22 @@ describe("changesSinceExport", () => {
     expect(saved).toBe(false);
     expect(store.changesSinceExport).toBe(1);
     expect(store.hasEverExported).toBe(false);
+  });
+
+  it("shows plain-language toast copy on a residual save failure, not the raw exception message (#2986)", async () => {
+    mockedDownload.mockRejectedValue(
+      new TypeError("Failed to execute 'showSaveFilePicker'"),
+    );
+    const store = getLayoutStore();
+    store.markDirty();
+
+    const saved = await handleSaveAsArchive();
+
+    expect(saved).toBe(false);
+    const toast = getToastStore().toasts.at(-1);
+    expect(toast?.type).toBe("error");
+    expect(toast?.message).not.toMatch(/showSaveFilePicker/);
+    expect(toast?.message).toBe("Failed to save layout. Please try again.");
   });
 
   it("exposes backup state through the storage chip data source", () => {

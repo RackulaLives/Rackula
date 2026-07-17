@@ -15,6 +15,7 @@ import {
 import { saveSession, clearSession } from "./working-copy";
 import { getServerBaseUpdatedAt, setServerBaseUpdatedAt } from "./server-base";
 import { loadFromFile } from "./load-pipeline";
+import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
 import { getImageStore } from "$lib/stores/images.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
@@ -325,10 +326,7 @@ export async function handleSaveAsArchive(): Promise<boolean> {
       return false;
     }
     persistenceDebug.api("Failed to save layout: %O", error);
-    toastStore.showToast(
-      error instanceof Error ? error.message : "Failed to save layout",
-      "error",
-    );
+    toastStore.showToast("Failed to save layout. Please try again.", "error");
     return false;
   }
 }
@@ -501,7 +499,17 @@ export async function handleLoad(): Promise<void> {
   if (getStorageMode() === "server") {
     dialogStore.open("load");
   } else {
-    await loadFromFile();
+    // Opening a file replaces the working copy. runOpenFileFlow checks
+    // changesSinceExport itself and only prompts when there are changes not
+    // yet in any exported file; a fully backed-up copy goes straight to the
+    // file picker (#2987, mirrors restore-file). The same guard is shared by
+    // LoadDialog's "Import from local file" and saved-layout sub-flows.
+    runOpenFileFlow((guarded) =>
+      loadFromFile(
+        undefined,
+        guarded ? { successMessage: "Previous layout kept in Layouts" } : {},
+      ),
+    );
   }
 }
 

@@ -42,7 +42,14 @@
   const resolvedMessage = $derived(message ?? defaultMessage);
 </script>
 
-<Dialog {open} {title} size="S" showClose={false} onclose={onCancel}>
+<Dialog
+  {open}
+  {title}
+  size="S"
+  type="confirm"
+  showClose={false}
+  onclose={onCancel}
+>
   <div class="confirm-replace-dialog">
     <p class="message">{resolvedMessage}</p>
 
@@ -51,6 +58,7 @@
         type="button"
         class="btn btn-secondary"
         data-testid="btn-cancel-replace"
+        data-dialog-safe-action
         onclick={onCancel}
       >
         Cancel

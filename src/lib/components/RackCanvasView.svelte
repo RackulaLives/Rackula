@@ -14,6 +14,7 @@
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { hapticSuccess, hapticError } from "$lib/utils/haptics";
   import { resolveSelectedDevice } from "$lib/utils/device-selection";
+  import { completePointerPlacement } from "$lib/utils/placement-completion";
   import type { RackSwipeDirection } from "$lib/utils/gestures";
   import type { DeviceFace } from "$lib/types";
   import RackDualView from "./RackDualView.svelte";
@@ -458,7 +459,8 @@
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
   });
 
-  // Handle mobile tap-to-place (uses active rack)
+  // Handle click/tap-to-place on any viewport (desktop palette pick-up and
+  // mobile tap-to-place share this path).
   function handlePlacementTap(
     rackId: string,
     event: CustomEvent<{ position: number; face: "front" | "rear" }>,
@@ -467,18 +469,18 @@
     if (!device) return;
 
     const { position, face } = event.detail;
-    // Carrier-first: a sub-U / half-width device synthesises (or fills) a
-    // carrier; whole-U full-width gear mounts directly to the rails.
-    const success = layoutStore.placeDeviceSmart(
+    // Places carrier-first and, on success, confirms visibly: selects the
+    // placed device and ends placement mode with a rich announcement (#2992).
+    const success = completePointerPlacement(
+      { layoutStore, selectionStore, placementStore },
       rackId,
-      device.slug,
+      device,
       position,
       face,
     );
 
     if (success) {
       hapticSuccess();
-      placementStore.completePlacement();
       // Reset view to show full rack after placement completes
       canvasStore.fitAll(layoutStore.racks);
     } else {
@@ -708,12 +710,14 @@
                  suppressed in read-only mode. Pull right past the snap threshold
                  to create a bayed rack. -->
             {#if !uiStore.readOnly && uiStore.enableBayedRacks && baySourceForItem(item, activeRackId) !== null}
+              {@const bayGripScale = 1 / canvasStore.zoom}
               <button
                 type="button"
                 class="bay-edge-grip"
                 aria-label="Drag right to bay a new rack"
                 title="Drag right to create a bayed rack"
                 tabindex="-1"
+                style:--bay-grip-scale={bayGripScale}
                 onpointerdown={(e) => handleBayDragStart(rack.id, e)}
                 onpointermove={handleBayDragMove}
                 onpointerup={handleBayDragEnd}
@@ -1075,6 +1079,17 @@
     touch-action: none;
     transform: translate(50%, -50%);
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mobile (#3001): counter-scale the invisible hit box to a constant 44px
+     screen-space square regardless of canvas zoom (same technique as the
+     resize grips, #2824), so the tap target is reliable at any zoom level.
+     The visible edge-grip-bar is untouched and keeps scaling with the canvas. */
+  @media (max-width: 1024px) {
+    .bay-edge-grip {
+      width: calc(44px * var(--bay-grip-scale, 1));
+      height: calc(44px * var(--bay-grip-scale, 1));
+    }
   }
 
   .edge-grip-bar {

@@ -10,6 +10,15 @@ vi.mock("$lib/storage/load-pipeline", () => ({
   loadFromApi: loadPipelineMocks.loadFromApi,
 }));
 
+const openFileTriggerMocks = vi.hoisted(() => ({
+  runOpenFileFlow: vi.fn(),
+}));
+
+vi.mock("$lib/actions/open-file-trigger", () => ({
+  runOpenFileFlow: openFileTriggerMocks.runOpenFileFlow,
+  registerOpenFileTrigger: vi.fn(() => () => {}),
+}));
+
 // finalizeSuccessfulSave touches the working copy; stub it out.
 vi.mock("$lib/storage/working-copy", () => ({
   saveSession: vi.fn(),
@@ -46,6 +55,7 @@ describe("storage-mode branching in the persistence manager", () => {
     dialogStore.close();
     loadPipelineMocks.loadFromFile.mockClear();
     loadPipelineMocks.loadFromApi.mockClear();
+    openFileTriggerMocks.runOpenFileFlow.mockClear();
   });
 
   afterEach(() => {
@@ -67,12 +77,45 @@ describe("storage-mode branching in the persistence manager", () => {
     expect(shouldSaveToServer()).toBe(false);
   });
 
-  it("handleLoad uses the file picker in browser mode", async () => {
+  // Opening a file replaces the working copy. #2987: browser-mode handleLoad
+  // routes every load through the open-file guard rather than pre-checking
+  // changesSinceExport itself (finding 2 from the task-2987 fix-round review:
+  // the guard must own the dirty check so every caller is safe). The guard's
+  // own dirty/clean branching is covered directly in open-file-trigger.test.ts;
+  // this file only asserts handleLoad wires into it and never calls
+  // loadFromFile eagerly on its own.
+  it("handleLoad routes browser-mode loads through the open-file guard (#2987)", async () => {
     setMode("browser");
     setApiAvailable(true);
     await handleLoad();
-    expect(loadPipelineMocks.loadFromFile).toHaveBeenCalledTimes(1);
+    expect(openFileTriggerMocks.runOpenFileFlow).toHaveBeenCalledTimes(1);
+    expect(
+      openFileTriggerMocks.runOpenFileFlow.mock.calls[0][0],
+    ).toBeInstanceOf(Function);
+    expect(loadPipelineMocks.loadFromFile).not.toHaveBeenCalled();
     expect(dialogStore.isOpen("load")).toBe(false);
+  });
+
+  it("the browser-mode load action names the outcome only when the guard fired (#2987)", async () => {
+    setMode("browser");
+    setApiAvailable(true);
+    await handleLoad();
+    const loadAction = openFileTriggerMocks.runOpenFileFlow.mock
+      .calls[0][0] as (guarded: boolean) => unknown;
+
+    // Clean pass-through (guarded=false): default toast, no naming needed.
+    await loadAction(false);
+    expect(loadPipelineMocks.loadFromFile).toHaveBeenLastCalledWith(
+      undefined,
+      {},
+    );
+
+    // Confirmed replace (guarded=true): names what became of the previous
+    // layout instead of a generic toast that implies nothing happened (AC2).
+    await loadAction(true);
+    expect(loadPipelineMocks.loadFromFile).toHaveBeenLastCalledWith(undefined, {
+      successMessage: "Previous layout kept in Layouts",
+    });
   });
 
   it("handleLoad opens the server load dialog in server mode", async () => {
@@ -80,6 +123,7 @@ describe("storage-mode branching in the persistence manager", () => {
     setApiAvailable(true);
     await handleLoad();
     expect(loadPipelineMocks.loadFromFile).not.toHaveBeenCalled();
+    expect(openFileTriggerMocks.runOpenFileFlow).not.toHaveBeenCalled();
     expect(dialogStore.isOpen("load")).toBe(true);
   });
 });

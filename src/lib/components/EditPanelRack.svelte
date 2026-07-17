@@ -9,8 +9,10 @@
   here for now to preserve current behaviour.
 -->
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import SegmentedControl from "./SegmentedControl.svelte";
   import MarkdownPreview from "./MarkdownPreview.svelte";
+  import SavedIndicator from "./ui/SavedIndicator.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -70,7 +72,31 @@
   let depthError = $state<string | null>(null);
   let weightError = $state<string | null>(null);
 
-  // Sync local state with selected rack/group and clear errors
+  // Save feedback for the Name field (#3005): height, width, depth, and
+  // numbering apply on click and are visibly reflected immediately (active
+  // preset, updated value); Name commits on blur, so it gets the same
+  // "Saved" acknowledgement used by the device edit panel's blur-committed
+  // fields rather than reading as frozen next to them.
+  let rackNameSaved = $state(false);
+  let rackNameSavedTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  onDestroy(() => {
+    if (rackNameSavedTimeout) {
+      clearTimeout(rackNameSavedTimeout);
+      rackNameSavedTimeout = undefined;
+    }
+  });
+
+  // Identity of the currently edited rack/group, tracked via a plain closure
+  // variable (not $state) so reading it doesn't add a reactive dependency of
+  // its own; it's only ever compared against inside the effect below.
+  let previousEntityKey: string | null = null;
+
+  // Sync local state with selected rack/group and clear errors. This effect
+  // also reruns on every field write to the *currently* selected rack (e.g.
+  // right after this panel's own Name save, since that updates
+  // selectedRack.name), so the Name Saved-flash flag is only cleared when the
+  // entity identity itself changes, not on every resync (#3005).
   $effect(() => {
     // For bayed racks, use the group name; otherwise use rack name
     rackName = selectedGroup?.name ?? selectedRack.name;
@@ -81,6 +107,15 @@
     resizeError = null; // Clear any previous resize error
     depthError = null;
     weightError = null;
+
+    const entityKey = selectedGroup
+      ? `group:${selectedGroup.id}`
+      : `rack:${selectedRack.id}`;
+    if (entityKey !== previousEntityKey) {
+      previousEntityKey = entityKey;
+      clearTimeout(rackNameSavedTimeout);
+      rackNameSaved = false;
+    }
   });
 
   // Update rack/group name on blur
@@ -96,6 +131,11 @@
         // Update rack name for regular racks
         layoutStore.updateRack(selectedRack.id, { name: rackName });
       }
+      clearTimeout(rackNameSavedTimeout);
+      rackNameSaved = true;
+      rackNameSavedTimeout = setTimeout(() => {
+        rackNameSaved = false;
+      }, 2000);
     }
   }
 
@@ -240,7 +280,13 @@
 
 <div class="edit-form">
   <div class="form-group">
-    <label for="rack-name">Name</label>
+    <label for="rack-name">
+      Name
+      <SavedIndicator
+        show={rackNameSaved}
+        data-testid="saved-indicator-rack-name"
+      />
+    </label>
     <input
       type="text"
       id="rack-name"

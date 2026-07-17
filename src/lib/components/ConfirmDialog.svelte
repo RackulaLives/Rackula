@@ -63,7 +63,7 @@
   });
 </script>
 
-<Dialog {open} {title} onclose={handleCancel} size="S">
+<Dialog {open} {title} onclose={handleCancel} size="S" type="confirm">
   <div class="confirm-dialog">
     <p class="message">{message}</p>
 
@@ -72,6 +72,7 @@
         type="button"
         class="btn btn-secondary"
         data-testid="btn-cancel-confirm"
+        data-dialog-safe-action
         onclick={handleCancel}
       >
         {cancelLabel}

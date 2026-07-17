@@ -136,9 +136,8 @@
     }
   }
 
-  // Mouse-gesture rows for the canvas. Keyboard shortcuts are not listed here:
-  // the command palette shows each command's shortcut inline, so the overlay
-  // only documents the gestures the palette has no equivalent for.
+  // Keyboard shortcuts generated from the registry, followed by the
+  // mouse-gesture rows the palette has no equivalent for (#3000).
   const shortcutGroups = getHelpGroups();
 
   const GITHUB_URL = "https://github.com/RackulaLives/Rackula";
@@ -165,7 +164,7 @@
       </div>
     </header>
 
-    <!-- Canvas mouse gestures. Keyboard shortcuts live in the command palette. -->
+    <!-- Keyboard shortcuts, then canvas mouse gestures; both generated from getHelpGroups(). -->
     {#each shortcutGroups as group (group.name)}
       <section class="shortcut-group">
         <h4>{group.name}</h4>

@@ -259,6 +259,21 @@ describe("encodeLayout", () => {
 
     expect(encoded.length).toBeLessThan(200);
   });
+
+  // R6d/#2988: a zero-rack layout is an expected "nothing to share yet"
+  // state (the Share dialog computes its preview before any rack exists),
+  // not an encoding error, so it must not log a warning.
+  it("returns null for a zero-rack layout without logging a warning", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const layout = createTestLayout({ racks: [], device_types: [] });
+
+      expect(encodeLayout(layout)).toBeNull();
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
 });
 
 describe("decodeLayout", () => {

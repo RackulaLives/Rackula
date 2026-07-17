@@ -19,9 +19,25 @@ export interface Toast {
   message: string;
   duration: number; // ms, 0 = permanent
   action?: ToastAction;
+  /**
+   * Marks a toast whose action undoes a specific history command (#2993,
+   * #3028). Its Undo button always targets the top of the undo stack, so once
+   * any newer command is recorded the toast no longer describes what Undo
+   * would do; dismissUndoToasts() clears it at that point rather than letting
+   * a stale toast revert the wrong action.
+   */
+  isUndoAffordance?: boolean;
 }
 
 const DEFAULT_DURATION = 5000; // 5 seconds
+
+/**
+ * Maximum number of toasts visible at once (#3004/R27b/R26). Rapid
+ * consecutive actions (e.g. holding undo/redo) must not pile an unbounded
+ * column of toasts over the canvas; once the cap is exceeded, the oldest
+ * toast is dismissed to make room for the newest.
+ */
+export const MAX_VISIBLE_TOASTS = 3;
 
 // Store state
 let toasts = $state<Toast[]>([]);
@@ -38,11 +54,33 @@ function showToast(
   type: ToastType,
   duration: number = DEFAULT_DURATION,
   action?: ToastAction,
+  isUndoAffordance = false,
 ): string {
   const id = generateId();
-  const toast: Toast = { id, type, message, duration, action };
+  const toast: Toast = {
+    id,
+    type,
+    message,
+    duration,
+    action,
+    isUndoAffordance,
+  };
 
   toasts = [...toasts, toast];
+
+  // Cap the visible stack: drop the oldest toasts first so the column never
+  // grows past MAX_VISIBLE_TOASTS, however many showToast calls arrive in a
+  // burst (#3004/R27b). Evict the oldest non-undo-affordance toast before
+  // ever touching an undo toast, so a stack cap can't silently hide a still
+  // clickable Undo for a destructive action (e.g. device removal) during a
+  // burst. Only when every visible toast is an undo affordance does the
+  // oldest of those get evicted; that edge is safe since undo toasts also
+  // auto-dismiss at 5s and via dismissUndoToasts() on the next command.
+  while (toasts.length > MAX_VISIBLE_TOASTS) {
+    const evictable = toasts.find((t) => !t.isUndoAffordance) ?? toasts[0];
+    if (!evictable) break;
+    dismissToast(evictable.id);
+  }
 
   // Set up auto-dismiss if duration > 0
   if (duration > 0) {
@@ -57,13 +95,40 @@ function showToast(
 
 /**
  * Show a toast with an undo action
- * Convenience wrapper for common undo pattern
+ * Convenience wrapper for common undo pattern. Flagged as an undo affordance
+ * (#2993, #3028) so dismissUndoToasts() clears it once a newer command is
+ * recorded, before its Undo button can revert the wrong action.
  */
-function showUndoToast(message: string, onUndo: () => void): string {
-  return showToast(message, "info", DEFAULT_DURATION, {
-    label: "Undo",
-    onClick: onUndo,
-  });
+function showUndoToast(
+  message: string,
+  onUndo: () => void,
+  actionLabel = "Undo",
+): string {
+  return showToast(
+    message,
+    "info",
+    DEFAULT_DURATION,
+    {
+      label: actionLabel,
+      onClick: onUndo,
+    },
+    true,
+  );
+}
+
+/**
+ * Dismiss every toast currently offering an undo affordance (#2993, #3028).
+ * Called whenever a new command enters the undo history, since an undo
+ * toast's action always targets the top of the undo stack: once a newer
+ * command is recorded, the toast no longer describes what its Undo button
+ * would actually revert.
+ */
+function dismissUndoToasts(): void {
+  for (const toast of toasts) {
+    if (toast.isUndoAffordance) {
+      dismissToast(toast.id);
+    }
+  }
 }
 
 /**
@@ -111,6 +176,7 @@ export function getToastStore() {
     showToast,
     showUndoToast,
     dismissToast,
+    dismissUndoToasts,
     clearAllToasts,
   };
 }
