@@ -86,7 +86,7 @@
       const exported = layoutStore.hasEverExported;
       evaluateBackupNudge(layoutId, changes, exported, () => {
         toastStore.showToast(STORAGE_NOTICE_MESSAGE, "info", 8000, {
-          label: "Export",
+          label: "Save",
           onClick: () => {
             maybeSaveAs();
           },

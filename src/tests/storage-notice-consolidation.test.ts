@@ -38,7 +38,7 @@ const localStorageMock = (() => {
 function fireStorageNotice(toastStore: ReturnType<typeof getToastStore>) {
   return (checkpoint: number) => {
     toastStore.showToast(STORAGE_NOTICE_MESSAGE, "info", 8000, {
-      label: "Export",
+      label: "Save",
       onClick: vi.fn(),
     });
     return checkpoint;

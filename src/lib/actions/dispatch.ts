@@ -187,7 +187,13 @@ export function createActionDispatch(): ActionDispatch {
     "new-layout-template-network-closet": () =>
       openStarterById("network-closet"),
     "new-layout-template-media-server": () => openStarterById("media-server"),
-    "create-rack": handleNewRack,
+    // Mutating command: guarded here like the other mutation verbs below, so
+    // the read-only lock holds even if a caller reaches this entry outside
+    // the palette's own enabledWhen gating (#2995).
+    "create-rack": () => {
+      if (getUIStore().readOnly) return;
+      handleNewRack();
+    },
     "import-devices": runImportDevices,
     "import-netbox": handleImportFromNetBox,
     "new-custom-device": handleAddDevice,
