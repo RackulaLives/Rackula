@@ -254,6 +254,14 @@ export function baySelectedRack(): void {
 /**
  * Duplicate the currently selected item (device takes priority over rack).
  * No-op if nothing is selected.
+ *
+ * For a rack duplicate, this is the public contract callers rely on:
+ * - Selection restoration: passes a selection-sync bridge into
+ *   layoutStore.duplicateRack so the selected rack follows the copy and
+ *   stays coherent with activeRackId through undo/redo.
+ * - Deferred viewport fitting: schedules handleFitAll on the next animation
+ *   frame (mirroring handleNewRack) so the copy is visible even when it
+ *   lands beyond the current viewport edge.
  */
 export function duplicateSelection(): void {
   const selectionStore = getSelectionStore();

@@ -95,8 +95,9 @@ describe("handleRackContextDuplicate", () => {
   });
 
   it("fits the copy into view, mirroring handleNewRack", () => {
+    let rafCallback: FrameRequestCallback | undefined;
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
-      cb(0);
+      rafCallback = cb;
       return 1;
     });
     const fitAllSpy = vi
@@ -107,6 +108,9 @@ describe("handleRackContextDuplicate", () => {
 
     handleRackContextDuplicate(rack.id);
 
+    expect(fitAllSpy).not.toHaveBeenCalled();
+    expect(rafCallback).toBeDefined();
+    rafCallback!(0);
     expect(fitAllSpy).toHaveBeenCalled();
   });
 });
