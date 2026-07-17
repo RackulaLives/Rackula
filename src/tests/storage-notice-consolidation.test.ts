@@ -84,10 +84,20 @@ describe("storage notice consolidation", () => {
     expect(toastStore.toasts).toHaveLength(1);
   });
 
-  it("uses one canonical phrasing for the notice", () => {
-    expect(STORAGE_NOTICE_MESSAGE).toMatch(/browser/i);
+  it("uses one canonical phrasing and action label for the notice", () => {
+    const toastStore = getToastStore();
+    const layoutId = "phrasing-layout";
+
+    evaluateBackupNudge(layoutId, 1, false, fireStorageNotice(toastStore));
+
+    const toast = toastStore.toasts.find(
+      (t) => t.message === STORAGE_NOTICE_MESSAGE,
+    );
+    expect(toast?.message).toMatch(/browser/i);
+    expect(toast?.message).toMatch(/save/i);
     // Verb unified to "Save" across the Ctrl+S toast, palette label, and this
-    // onboarding notice (#2995, R5).
-    expect(STORAGE_NOTICE_MESSAGE).toMatch(/save/i);
+    // onboarding notice (#2995, R5): the emitted action label must match, not
+    // just the message text.
+    expect(toast?.action?.label).toBe("Save");
   });
 });

@@ -12,7 +12,7 @@
  * cold-start checkpoint below (fired once, on the first edit of a
  * never-exported layout) now serves as the sole first-run explanation of
  * where layouts live, using the single STORAGE_NOTICE_MESSAGE phrasing, with
- * an Export action attached at the call site.
+ * a Save action attached at the call site.
  *
  * Cadence:
  * - A never-exported layout fires once on the first edit (cold start). Without

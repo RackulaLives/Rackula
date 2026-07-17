@@ -71,7 +71,7 @@
   // mode persists to the server, so an export reminder would be noise. The nudge
   // tracks changesSinceExport and fires a factual toast when a new checkpoint is
   // crossed; evaluateBackupNudge owns the cadence and snooze persistence. The
-  // toast's Export action routes through maybeSaveAs directly, independent of
+  // toast's Save action routes through maybeSaveAs directly, independent of
   // the chip UI.
   if (!isServerMode) {
     $effect(() => {
