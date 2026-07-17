@@ -7,6 +7,8 @@ import {
   getSelectionStore,
   resetSelectionStore,
 } from "$lib/stores/selection.svelte";
+import { resetPaletteRecents } from "$lib/stores/palette-recents.svelte";
+import * as dispatchModule from "$lib/actions/dispatch";
 
 // #2997 fix round 1 (Finding 1): the Export command's dispatch is async -
 // maybeExport -> handleExport awaits QR-code generation BEFORE calling
@@ -40,14 +42,24 @@ vi.mock("$lib/utils/qrcode", () => ({
  * command that opens another dialog/sheet must leave focus there, not steal
  * it to the pill, whether that dialog opens synchronously (Settings) or
  * asynchronously (Export, gated on the mocked QR-code generation above). The
- * guard now defers its decision by one animation frame (Finding 1), so the
- * four pre-existing tests below use waitFor to absorb that frame instead of
- * asserting the pill has focus in the same tick as the close.
+ * guard now awaits the settled outcome of the dispatched command (a Promise
+ * microtask chain over lastDispatchOutcome, not a fixed timer) and re-checks
+ * live dialog/sheet state before focusing, so the four pre-existing tests
+ * below use waitFor to absorb that settling instead of asserting the pill
+ * has focus in the same tick as the close.
  */
 describe("Command palette focus restoration (#2997)", () => {
   beforeEach(() => {
     resetLayoutStore();
     resetSelectionStore();
+    // Recents are a module-level MRU (src/lib/stores/palette-recents.svelte.ts)
+    // shared across every test in this file, not component-local state torn
+    // down by @testing-library/svelte's cleanup(). Without resetting it here,
+    // a command exercised by an earlier test (e.g. "export" in the async
+    // back-off test below) reappears under the palette's "Recent" section on
+    // a later test, changing its list testid from command-palette-item-{id}
+    // to command-palette-recent-item-{id} out from under that later test.
+    resetPaletteRecents();
     dialogStore.close();
   });
 
@@ -71,9 +83,10 @@ describe("Command palette focus restoration (#2997)", () => {
     // (blocked by testing-library/no-node-access). Asserting focus IS the
     // pill is strictly stronger than "not body": it also proves the anchor
     // is the specific meaningful element the fix restores focus to. Wrapped
-    // in waitFor because the guard now defers this decision by one
-    // animation frame so it can back off for an async dialog-open (#2997
-    // fix round 1, Finding 1).
+    // in waitFor because the guard now awaits the settled command outcome
+    // (a Promise microtask chain, not a timer) and re-checks live dialog
+    // state before focusing, so it can back off for an async dialog-open
+    // (#2997 fix round 1, Finding 1).
     await waitFor(() => {
       expect(getByTestId("btn-command-palette")).toHaveFocus();
     });
@@ -204,5 +217,39 @@ describe("Command palette focus restoration (#2997)", () => {
     // pill focus while waiting on the async dialog to open - not merely that
     // the dialog eventually reclaimed it after a fight-and-lose.
     expect(pillFocusSpy).not.toHaveBeenCalled();
+  }, 60000);
+
+  it("still restores focus to the pill when a command's dispatch rejects", async () => {
+    const layoutStore = getLayoutStore();
+    layoutStore.addRack("Test Rack", 42);
+
+    // Swap in a dispatch map identical to the real one except "export"
+    // rejects instead of ever reaching dialogStore.open("export") - the
+    // guard's two no-op .then() handlers (fulfilled and rejected) exist
+    // specifically to absorb an outcome like this one and still fall
+    // through to focusing the pill, rather than leaving focus stranded on
+    // the removed palette input. If the rejection were not absorbed here it
+    // would also surface as an unhandled promise rejection and fail the
+    // test run.
+    const realCreateActionDispatch = dispatchModule.createActionDispatch;
+    vi.spyOn(dispatchModule, "createActionDispatch").mockImplementation(() => ({
+      ...realCreateActionDispatch(),
+      export: () => Promise.reject(new Error("mock async command failure")),
+    }));
+
+    const { getByTestId } = render(App);
+
+    await fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    expect(dialogStore.isOpen("commandPalette")).toBe(true);
+
+    await fireEvent.click(getByTestId("command-palette-item-export"));
+
+    expect(dialogStore.isOpen("commandPalette")).toBe(false);
+    expect(dialogStore.isOpen("export")).toBe(false);
+
+    await waitFor(() => {
+      expect(getByTestId("btn-command-palette")).toHaveFocus();
+    });
+    expect(dialogStore.isOpen("export")).toBe(false);
   }, 60000);
 });
