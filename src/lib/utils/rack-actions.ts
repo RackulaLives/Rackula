@@ -13,16 +13,36 @@ import { DRAWER_WIDTH } from "$lib/constants/layout";
 import { handleFitAll, prepareExportQrCode } from "./app-actions";
 import { layoutDebug } from "$lib/utils/debug";
 
-/** Duplicate a rack, then fit all on success or toast the error. */
+/**
+ * Duplicate a rack, select the copy, and fit it into view on success, or
+ * toast the error. Selecting the copy keeps active (sidebar) and selected
+ * (canvas outline, edit panel, delete target) in sync (#3003). The sync
+ * object routes the selection change through duplicateRack's command so
+ * undo/redo keep selection transactionally coherent with activeRackId
+ * (#3003 fix round 1): a bare selectionStore.selectRack() call after the
+ * fact would leave selection dangling on the copy's id once undo deletes
+ * it. The fit call is deferred a frame, mirroring handleNewRack, so a copy
+ * placed beyond the viewport edge never becomes active while invisible.
+ */
 export function handleRackContextDuplicate(rackId: string): void {
   const layoutStore = getLayoutStore();
+  const selectionStore = getSelectionStore();
   const toastStore = getToastStore();
-  const result = layoutStore.duplicateRack(rackId);
+  const result = layoutStore.duplicateRack(rackId, {
+    getSelectedRackId: () => selectionStore.selectedRackId,
+    setSelectedRackId: (id) => {
+      if (id) {
+        selectionStore.selectRack(id);
+      } else {
+        selectionStore.clearSelection();
+      }
+    },
+  });
   if (result.error) {
     toastStore.showToast(result.error, "error");
-  } else {
+  } else if (result.rack) {
     toastStore.showToast("Rack duplicated", "success");
-    handleFitAll();
+    requestAnimationFrame(() => handleFitAll());
   }
 }
 

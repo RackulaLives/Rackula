@@ -487,6 +487,87 @@ describe("Layout Store", () => {
       expect(result.rack!.name).toBe("First Rack (Copy)");
       expect(result.error).toBeUndefined();
     });
+
+    // #3003 (J4-F5): the copy previously always appended at the end of the
+    // row (Rack.position = racks.length), landing far from a source that
+    // wasn't already last and pushing it beyond the viewport edge. It must
+    // land immediately after its source in row order instead.
+    it("places the copy immediately after its source, reindexing the row", () => {
+      const store = getLayoutStore();
+      const a = store.addRack("A", 42)!;
+      const b = store.addRack("B", 42)!;
+      const c = store.addRack("C", 42)!;
+
+      const result = store.duplicateRack(a.id);
+      const copy = result.rack!;
+
+      const row = organizeRackRow(store.racks, store.rack_groups).map((item) =>
+        item.kind === "rack" ? item.rack.id : item.group.id,
+      );
+      expect(row).toEqual([a.id, copy.id, b.id, c.id]);
+    });
+
+    it("appends after the source when the source is already last in row order", () => {
+      const store = getLayoutStore();
+      const a = store.addRack("A", 42)!;
+      const b = store.addRack("B", 42)!;
+
+      const result = store.duplicateRack(b.id);
+      const copy = result.rack!;
+
+      const row = organizeRackRow(store.racks, store.rack_groups).map((item) =>
+        item.kind === "rack" ? item.rack.id : item.group.id,
+      );
+      expect(row).toEqual([a.id, b.id, copy.id]);
+    });
+
+    // Fix round 1 (#3003): "places the copy immediately after its source"
+    // does not hold when the source is a non-last member of a bayed group.
+    // The copy is a standalone rack (never added to the group's rack_ids),
+    // so organizeRackRow still renders the whole bay block contiguously and
+    // the copy lands after the group, not between the source and its next
+    // bay member. This documents the actual behaviour rather than the
+    // aspirational adjacency claim (see the caveat on duplicateRack in
+    // stores/layout/rack-actions.ts).
+    it("places the copy after the whole bay group when the source is a non-last bayed member", () => {
+      const store = getLayoutStore();
+      const created = store.addBayedRackGroup("Bay Group", 3, 42)!;
+      const [bay1, bay2, bay3] = created.racks;
+
+      const result = store.duplicateRack(bay1!.id);
+      const copy = result.rack!;
+
+      const row = organizeRackRow(store.racks, store.rack_groups).map((item) =>
+        item.kind === "rack" ? item.rack.id : item.group.id,
+      );
+      expect(row).toEqual([created.group.id, copy.id]);
+      expect(store.getRackGroupForRack(copy.id)).toBeUndefined();
+
+      // Group membership and internal order are untouched by the duplicate.
+      expect(store.getRackGroupForRack(bay1!.id)?.rack_ids).toEqual([
+        bay1!.id,
+        bay2!.id,
+        bay3!.id,
+      ]);
+    });
+
+    it("undo of an adjacent-insert duplicate restores the original row order", () => {
+      const store = getLayoutStore();
+      const a = store.addRack("A", 42)!;
+      const b = store.addRack("B", 42)!;
+      const before = organizeRackRow(store.racks, store.rack_groups).map(
+        (item) => (item.kind === "rack" ? item.rack.id : item.group.id),
+      );
+
+      store.duplicateRack(a.id);
+      store.undo();
+
+      const after = organizeRackRow(store.racks, store.rack_groups).map(
+        (item) => (item.kind === "rack" ? item.rack.id : item.group.id),
+      );
+      expect(after).toEqual(before);
+      expect(store.racks.map((r) => r.id).sort()).toEqual([a.id, b.id].sort());
+    });
   });
 });
 
