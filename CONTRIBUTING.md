@@ -92,6 +92,7 @@ Key documentation for contributors:
 - **Architecture overview:** `docs/ARCHITECTURE.md` (start here for orientation)
 - **Technical overview:** `docs/reference/SPEC.md` (design principles)
 - **Testing guide:** `docs/guides/TESTING.md` (testing patterns)
+- **Brand packs:** `docs/guides/BRAND-PACKS.md` (adding a vendor to the device library)
 - **AI instructions:** `CLAUDE.md` (Claude Code workflow)
 
 ### Svelte 5 Runes
