@@ -13,6 +13,62 @@ const OIDC_DISCOVERY_PATH = "/.well-known/openid-configuration";
 interface OidcDiscoveryDocument {
   issuer: string;
   jwksUri: string;
+  /**
+   * The asymmetric ID-token signing algorithms the provider advertises. Used
+   * to pin `jwtVerify` so an attacker cannot substitute a weaker algorithm,
+   * while still working with any provider (not just RS256). See
+   * {@link resolveIdTokenSigningAlgs}.
+   */
+  idTokenSigningAlgs: string[];
+}
+
+// OIDC providers MUST support RS256 (OpenID Connect Core 1.0, section 15.1), so
+// it is the safe fallback when discovery omits
+// id_token_signing_alg_values_supported.
+const DEFAULT_ID_TOKEN_SIGNING_ALGS = ["RS256"];
+
+// Known asymmetric JWS signing algorithms accepted for ID tokens. The token is
+// verified with the provider's public JWKS, so only public-key algorithms are
+// valid here; symmetric (`HS*`) and `none` are excluded by their absence. An
+// exact allowlist (rather than "anything that is not none/HS*") is required so
+// that an unknown or non-JWS algorithm name in discovery cannot form a
+// non-empty pin set that suppresses the RS256 fallback and breaks login (#2942).
+const KNOWN_ASYMMETRIC_JWS_ALGS = new Set([
+  "RS256",
+  "RS384",
+  "RS512",
+  "ES256",
+  "ES384",
+  "ES512",
+  "PS256",
+  "PS384",
+  "PS512",
+]);
+
+/**
+ * Resolve the ID-token signing algorithms to pin `jwtVerify` to, from the
+ * discovery document's `id_token_signing_alg_values_supported`.
+ *
+ * Pinning prevents algorithm-substitution attacks (e.g. `alg: none`). Only
+ * known asymmetric JWS algorithms ({@link KNOWN_ASYMMETRIC_JWS_ALGS}) are
+ * honoured; symmetric (`HS*`), `none`, and unrecognised names are dropped. When
+ * the provider advertises no usable asymmetric algorithm (or omits the field),
+ * fall back to RS256, which OIDC requires every provider to support (#2942).
+ */
+function resolveIdTokenSigningAlgs(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [...DEFAULT_ID_TOKEN_SIGNING_ALGS];
+  }
+
+  const algs = [
+    ...new Set(
+      value
+        .filter((alg): alg is string => typeof alg === "string")
+        .map((alg) => alg.trim()),
+    ),
+  ].filter((alg) => KNOWN_ASYMMETRIC_JWS_ALGS.has(alg));
+
+  return algs.length > 0 ? algs : [...DEFAULT_ID_TOKEN_SIGNING_ALGS];
 }
 
 interface VerifiedOidcUserInfo {
@@ -201,6 +257,9 @@ async function fetchOidcDiscoveryDocument(
       jwksUriValue,
       "OIDC discovery jwks_uri",
     ).toString(),
+    idTokenSigningAlgs: resolveIdTokenSigningAlgs(
+      parsed.id_token_signing_alg_values_supported,
+    ),
   };
 }
 
@@ -285,6 +344,13 @@ function createOidcUserInfoResolver(options: {
       const { payload } = await jwtVerify(idToken, jwks, {
         issuer: discovery.issuer,
         audience: options.clientId,
+        // Pin the accepted signing algorithms to the asymmetric set the
+        // provider advertises in discovery (RS256 fallback). Without a pin,
+        // jose accepts any algorithm the JWKS key can verify (an RSA key
+        // validates RS256/RS384/RS512 alike) and, worse, `alg: none`; pinning
+        // closes that substitution gap while still supporting providers that
+        // sign with ES*/PS*/EdDSA rather than RS256 (#2942).
+        algorithms: discovery.idTokenSigningAlgs,
       });
 
       return mapVerifiedOidcPayload(payload);

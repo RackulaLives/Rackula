@@ -320,14 +320,9 @@ export async function createApp(
     securityConfig.localCredentials = localCreds;
     // Scrub plaintext password from environment after hashing
     delete env.RACKULA_LOCAL_PASSWORD;
-    if (
-      securityConfig.isProduction &&
-      !securityConfig.authSessionCookieSecure
-    ) {
-      logger.warn(
-        "⚠ Local auth mode in production without Secure cookies. Set RACKULA_AUTH_SESSION_COOKIE_SECURE=true.",
-      );
-    }
+    // Insecure cookies in production are refused at config resolution
+    // (resolveApiSecurityConfig), not just warned about, so no check is
+    // needed here (#2942).
   }
 
   if (securityConfig.isProduction && securityConfig.allowInsecureCors) {

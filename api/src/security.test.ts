@@ -215,6 +215,20 @@ describe("resolveApiSecurityConfig", () => {
     expect(config.csrfTrustedOrigins).toEqual(["https://rack.example.com"]);
   });
 
+  // #2942: an operator explicitly overriding RACKULA_AUTH_SESSION_COOKIE_SECURE=false
+  // in production previously only logged a warning (and only for local auth
+  // mode), letting the session cookie travel over plain HTTP. Refuse to start.
+  it("rejects an explicitly insecure auth session cookie in production", () => {
+    expect(() =>
+      resolveApiSecurityConfig(
+        buildAuthEnabledEnv({
+          NODE_ENV: "production",
+          RACKULA_AUTH_SESSION_COOKIE_SECURE: "false",
+        }),
+      ),
+    ).toThrow("insecure session cookie in production");
+  });
+
   it("derives auth log hash key from auth session secret by default", () => {
     const first = resolveApiSecurityConfig(buildAuthEnabledEnv());
     const second = resolveApiSecurityConfig(buildAuthEnabledEnv());
