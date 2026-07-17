@@ -1021,7 +1021,7 @@ export function removeRackFromBay(
   const assignments = planRowAfterRemoval(
     layout.racks,
     layout.rack_groups ?? [],
-    rackId,
+    [rackId],
   );
   if (assignments) {
     commands.push(...buildRowReindexCommands(ctx, assignments));
@@ -1092,6 +1092,20 @@ export function deleteBayedGroup(
   const commands: Command[] = [
     createDeleteRackGroupCommand(group, groupAdapter),
   ];
+
+  // Reindex the remaining racks so the row closes the gap left by every
+  // group member at once, mirroring removeRackFromBay's "handle the group
+  // first, then reindex" ordering. Without this, a group positioned before
+  // other racks left their persisted row positions unchanged on delete
+  // (#2994 CodeRabbit follow-up).
+  const assignments = planRowAfterRemoval(
+    layout.racks,
+    layout.rack_groups ?? [],
+    group.rack_ids,
+  );
+  if (assignments) {
+    commands.push(...buildRowReindexCommands(ctx, assignments));
+  }
 
   // Group membership is handled by the command above, so no affected groups
   // are passed to each rack's delete command: undo restores each rack alone,

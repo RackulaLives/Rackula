@@ -95,7 +95,7 @@ describe("EditPanelRack Delete Rack button (#2994 fold-in)", () => {
 
     const target = dialogStore.deleteTarget;
     expect(target?.type).toBe("rack");
-    expect(layoutStore.getRackById(target!.rackId)!.devices.length).toBe(1);
+    expect(target?.rackId).toBe(rack.id);
   });
 
   it("clears the selection once confirmed, matching the other guarded rack-delete paths", async () => {
@@ -185,14 +185,12 @@ describe("EditPanelRack Delete Bayed Rack button (#2994 fold-in)", () => {
       screen.getByRole("button", { name: "Delete bayed rack" }),
     );
 
+    // groupRackIds equal to group.rack_ids already proves every member was
+    // handed off intact; DialogOrchestrator's own tests cover summing their
+    // live device counts, so re-deriving and pinning that count here adds no
+    // production coverage.
     const target = dialogStore.deleteTarget;
     expect(target?.groupRackIds).toEqual(group.rack_ids);
-    const totalDevices = (target?.groupRackIds ?? []).reduce(
-      (sum, rackId) =>
-        sum + (layoutStore.getRackById(rackId)?.devices.length ?? 0),
-      0,
-    );
-    expect(totalDevices).toBe(2);
   });
 
   // The fold-in's whole-group branch used to loop layoutStore.deleteRack()

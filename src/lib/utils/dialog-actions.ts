@@ -99,26 +99,26 @@ export function handleConfirmDelete(): void {
   if (target) {
     if (target.groupRackIds) {
       // Whole-bayed-group delete (edit panel's "Delete Bayed Rack", #2994
-      // fold-in): resolve the live group from the snapshot's anchor rack
-      // (same #2918 pattern as the standalone branch below, which resolves
-      // its group from the snapshotted rackId rather than trusting a stale
-      // membership list) and delete it as one atomic batch. The previous
-      // per-member deleteRack() loop pushed one history command per rack, so
-      // a single undo only restored the last-deleted member and the loop
-      // itself passed through an invalid intermediate state (a
-      // layout_preset:"bayed" group left with exactly one rack_id,
-      // violating the >=2-bays invariant removeBayFromGroup enforces).
-      // deleteBayedGroup batches the group deletion and every member's
-      // deletion into a single BatchCommand instead (#2994 fix round 2).
-      // Selection only clears once the group actually resolved and
+      // fold-in): resolve the live group from target.rackId, the documented
+      // anchor rack (same #2918 pattern as the standalone branch below),
+      // rather than the first entry of the groupRackIds membership snapshot
+      // -- membership can change between dialog-open and confirm, so trusting
+      // that snapshot to name the anchor could resolve the wrong group, or
+      // none at all, while target.rackId is the one field every other branch
+      // already treats as authoritative. Delete the resolved group as one
+      // atomic batch. The previous per-member deleteRack() loop pushed one
+      // history command per rack, so a single undo only restored the
+      // last-deleted member and the loop itself passed through an invalid
+      // intermediate state (a layout_preset:"bayed" group left with exactly
+      // one rack_id, violating the >=2-bays invariant removeBayFromGroup
+      // enforces). deleteBayedGroup batches the group deletion and every
+      // member's deletion into a single BatchCommand instead (#2994 fix
+      // round 2). Selection only clears once the group actually resolved and
       // deleteBayedGroup reports success; either failure mode (no live
       // group left to resolve, or deleteBayedGroup itself erroring) must
       // leave the selection and dialog target alone instead of presenting a
       // silent success with nothing selected and the group still standing.
-      const anchorRackId = target.groupRackIds[0];
-      const group = anchorRackId
-        ? layoutStore.getRackGroupForRack(anchorRackId)
-        : undefined;
+      const group = layoutStore.getRackGroupForRack(target.rackId);
       if (group) {
         const { error } = layoutStore.deleteBayedGroup(group.id);
         if (error) {

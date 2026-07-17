@@ -25,7 +25,7 @@ import {
   resetSelectionStore,
 } from "$lib/stores/selection.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
-import { createTestDeviceType } from "./factories";
+import { createTestDeviceType, createTestRackDeleteTarget } from "./factories";
 
 function resetAll() {
   resetLayoutStore();
@@ -283,22 +283,22 @@ describe("handleConfirmDelete", () => {
   // failure. Both failure modes must retain the selection and leave the
   // group standing rather than presenting a silent success.
   describe("whole-group branch failure guard", () => {
-    it("keeps the selection and deletes nothing when the group snapshot's anchor rack no longer resolves to a live group", () => {
+    it("keeps the selection and deletes nothing when the snapshot's rackId no longer resolves to a live group", () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();
       const { group } = layoutStore.addBayedRackGroup("Bay", 2, 42, 19)!;
       const rackIds = [...group.rack_ids];
       selectionStore.selectGroup(group.id, rackIds[0]);
 
-      // Stale snapshot: the anchor rack id no longer resolves to any live
-      // group (e.g. it was already ungrouped or deleted while the dialog
-      // was open), so getRackGroupForRack(anchorRackId) resolves undefined.
-      dialogStore.deleteTarget = {
-        type: "rack",
+      // Stale snapshot: rackId (the documented anchor, #3606577249) no
+      // longer resolves to any live group, even though groupRackIds still
+      // lists real member racks -- proving resolution now keys off rackId,
+      // not the first entry of the membership snapshot.
+      dialogStore.deleteTarget = createTestRackDeleteTarget({
         name: "Bay",
-        rackId: rackIds[0]!,
-        groupRackIds: ["not-a-real-rack-id"],
-      };
+        rackId: "not-a-real-rack-id",
+        groupRackIds: rackIds,
+      });
 
       handleConfirmDelete();
 
@@ -327,12 +327,11 @@ describe("handleConfirmDelete", () => {
       );
       if (!group) throw new Error("createRackGroup returned no group");
       selectionStore.selectGroup(group.id, rackA.id);
-      dialogStore.deleteTarget = {
-        type: "rack",
+      dialogStore.deleteTarget = createTestRackDeleteTarget({
         name: "Row",
         rackId: rackA.id,
         groupRackIds: [rackA.id, rackB.id],
-      };
+      });
 
       handleConfirmDelete();
 
@@ -348,12 +347,11 @@ describe("handleConfirmDelete", () => {
       const { group } = layoutStore.addBayedRackGroup("Bay", 2, 42, 19)!;
       const rackIds = [...group.rack_ids];
       selectionStore.selectGroup(group.id, rackIds[0]);
-      dialogStore.deleteTarget = {
-        type: "rack",
+      dialogStore.deleteTarget = createTestRackDeleteTarget({
         name: "Bay",
         rackId: rackIds[0]!,
         groupRackIds: rackIds,
-      };
+      });
 
       handleConfirmDelete();
 

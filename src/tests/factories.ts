@@ -34,6 +34,7 @@ import type { LibraryEntry, BrowserLaunch } from "$lib/storage";
 import { toInternalUnits } from "$lib/utils/position";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
+import type { DeleteTarget } from "$lib/stores/dialogs.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { generateId } from "$lib/utils/device";
 
@@ -600,6 +601,28 @@ export function createTestRestoreBrowserLaunch(
       library: { "layout-1": createTestLibraryEntry() },
     },
     loadBody: vi.fn(),
+    ...overrides,
+  };
+}
+
+// =============================================================================
+// Dialog Delete-Target Factory
+// =============================================================================
+
+/**
+ * Creates a test DeleteTarget (dialogStore.deleteTarget) with sensible
+ * defaults for the standalone-rack case. Pass `groupRackIds` to simulate the
+ * whole-bayed-group delete snapshot, including malformed/stale snapshots
+ * (e.g. a rackId or groupRackIds member that no longer resolves to a live
+ * rack or group) used to exercise handleConfirmDelete's failure guards.
+ */
+export function createTestRackDeleteTarget(
+  overrides: Partial<DeleteTarget> = {},
+): DeleteTarget {
+  return {
+    type: "rack",
+    name: "Test Rack",
+    rackId: "rack-1",
     ...overrides,
   };
 }
