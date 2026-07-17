@@ -35,6 +35,7 @@ export type ActionId =
   | "new-layout-template-home-lab"
   | "new-layout-template-network-closet"
   | "new-layout-template-media-server"
+  | "create-rack"
   | "load"
   | "import-devices"
   | "import-netbox"
@@ -49,7 +50,6 @@ export type ActionId =
   | "fit-all"
   | "toggle-display-mode"
   | "toggle-annotations"
-  | "toggle-sidebar"
   | "move-device-up"
   | "move-device-down"
   | "move-device-slot"
@@ -229,14 +229,6 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     keywords: ["annotation", "notes", "column"],
   },
   {
-    id: "toggle-sidebar",
-    label: "Toggle device sidebar",
-    scope: "global",
-    bindings: [{ key: "d" }],
-    helpGroup: "General",
-    keywords: ["devices", "palette", "drawer"],
-  },
-  {
     id: "show-help",
     label: "About and shortcuts",
     scope: "global",
@@ -378,12 +370,16 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
   // --- File -----------------------------------------------------------------
   {
     id: "export-backup",
-    label: "Export layout (.zip)",
+    // Browser mode's equivalent of Ctrl+S: downloadYamlFile (archive.ts)
+    // writes a single .yaml file, never a .zip, so the label names that real
+    // output and leads with the same verb ("Save") the Ctrl+S toast and the
+    // onboarding copy use (#2995, R5).
+    label: "Save layout (.yaml)",
     scope: "global",
     bindings: [],
     appMenuGroup: "layout-data",
     storageMode: "browser",
-    keywords: ["download", "backup", "zip", "save", "export"],
+    keywords: ["download", "backup", "yaml", "save", "export"],
   },
   {
     id: "save-as",
@@ -422,10 +418,11 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     id: "share",
     label: "Share",
     scope: "global",
-    bindings: [
-      { key: "h", ctrl: true },
-      { key: "h", meta: true },
-    ],
+    // Ctrl+H only: Cmd+H is intercepted by macOS as "Hide" before the browser
+    // ever sees the keydown, so a meta binding here would be dead on Mac
+    // (#2995, R16c). Ctrl+H still works cross-platform, including the literal
+    // Control key on a Mac keyboard.
+    bindings: [{ key: "h", ctrl: true }],
     // Sharing needs a rack to encode in the link; disabled on an empty layout.
     enabledWhen: (ctx) => ctx.hasRacks,
     helpGroup: "File",
@@ -493,6 +490,24 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [],
     appMenuGroup: "layout",
     keywords: ["template", "starter", "media server", "new"],
+  },
+  // Adds a rack to the CURRENT layout (non-destructive), unlike New layout
+  // (replaces the working copy) or the starter templates (open in a new tab).
+  // Dispatches the same handleNewRack the "+" toolbar control and the mobile
+  // Racks sheet's "New rack" button already use, so the palette stops being
+  // the one surface with no way to add a rack (#2995, R13).
+  {
+    id: "create-rack",
+    label: "New rack",
+    scope: "global",
+    bindings: [],
+    // Mutating command: gated on !ctx.readOnly like move-rack-left,
+    // move-rack-right, and bay-rack. No hasRacks requirement - unlike
+    // share/view-yaml, create-rack must stay enabled with zero racks so it
+    // can create the first one (#2995).
+    enabledWhen: (ctx) => !ctx.readOnly,
+    appMenuGroup: "layout",
+    keywords: ["rack", "add rack", "new rack", "create"],
   },
   {
     id: "load",
@@ -665,13 +680,34 @@ export interface HelpGroupSection {
 }
 
 /**
- * Render a single binding with platform-correct modifier labels (e.g. "Ctrl+S"
- * or "Cmd+S"). Shared by the help overlay and the registry tooltip/shortcut
- * formatting so all surfaces format keys identically.
+ * Whether an action offers a genuine cross-platform Ctrl/Cmd pair (a meta
+ * binding registered somewhere alongside the ctrl one), so its shortcut can
+ * safely render via the platform-aware "mod" label. An action with only a
+ * ctrl binding and no meta alternative - Share's Ctrl+H after dropping the
+ * macOS-Hide-colliding Cmd+H (#2995, R16c) - must display its literal
+ * modifier instead: showing "Cmd" on a Mac would advertise a combo that
+ * cannot fire.
  */
-function formatBinding(binding: KeyBinding): string {
+function hasMetaVariant(action: ActionDefinition): boolean {
+  return action.bindings.some((b) => b.meta);
+}
+
+/**
+ * Render a single binding with platform-correct modifier labels (e.g. "Ctrl+S"
+ * or "Cmd+S") when a cross-platform pair exists, or the literal modifier
+ * ("Ctrl" or "Cmd") when it does not. Shared by the help overlay and the
+ * registry tooltip/shortcut formatting so all surfaces format keys
+ * identically.
+ */
+function formatBinding(binding: KeyBinding, crossPlatform: boolean): string {
   const parts: string[] = [];
-  if (binding.ctrl || binding.meta) parts.push("mod");
+  if (crossPlatform) {
+    parts.push("mod");
+  } else if (binding.ctrl) {
+    parts.push("Ctrl");
+  } else if (binding.meta) {
+    parts.push("Cmd");
+  }
   if (binding.shift) parts.push("shift");
   parts.push(formatBindingKey(binding.key));
   return formatShortcut(...parts);
@@ -738,10 +774,14 @@ export function getHelpGroups(): HelpGroupSection[] {
 /**
  * Format an action's primary keybinding as a menu shortcut (e.g. "Ctrl+S" or
  * "Cmd+S"). Returns undefined when the action has no keybinding, so a consumer
- * omits the shortcut chip rather than rendering an empty one.
+ * omits the shortcut chip rather than rendering an empty one. Exported so the
+ * command palette projection (palette-commands.ts) reuses this exact
+ * formatting instead of re-deriving it, so the two surfaces cannot drift.
  */
-function formatMenuShortcut(action: ActionDefinition): string | undefined {
+export function formatMenuShortcut(
+  action: ActionDefinition,
+): string | undefined {
   const binding = action.bindings[0];
   if (!binding) return undefined;
-  return formatBinding(binding);
+  return formatBinding(binding, hasMetaVariant(action));
 }

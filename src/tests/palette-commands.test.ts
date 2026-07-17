@@ -112,6 +112,7 @@ describe("getPaletteCommands unified grouping (#2775)", () => {
     const list = ids(baseCtx); // browser mode
     for (const id of [
       "new-layout",
+      "create-rack",
       "load",
       "import-devices",
       "import-netbox",
@@ -124,6 +125,15 @@ describe("getPaletteCommands unified grouping (#2775)", () => {
     ]) {
       expect(list).toContain(id);
     }
+  });
+
+  it("surfaces create-rack (New rack) reachable by typing 'rack' (#2995, R13)", () => {
+    // Mirrors the scorer bits-ui filters by, so it agrees with what the
+    // palette actually renders when the user types "rack".
+    const searchList = getPaletteSearchCommands(baseCtx);
+    const createRack = searchList.find((c) => c.id === "create-rack");
+    expect(createRack).toBeDefined();
+    expect(createRack?.disabledReason).toBeUndefined();
   });
 
   it("groups New custom device under Create, not Devices", () => {
