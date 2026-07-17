@@ -1,5 +1,5 @@
 import { test, expect } from "./helpers/base-test";
-import { gotoWithRack, locators } from "./helpers";
+import { gotoWithRack, locators, paletteItemByName } from "./helpers";
 
 test.describe("Responsive Layout", () => {
   test.describe("Desktop viewport (1200px)", () => {
@@ -64,9 +64,16 @@ test.describe("Responsive Layout", () => {
       // The placement banner is a full-width top overlay stacked above the
       // controls. The upper-left History group must drop below it so undo/redo
       // stays reachable while a device is armed.
-      const firstDevice = page.locator(locators.device.paletteItem).first();
-      await expect(firstDevice).toBeVisible();
-      await firstDevice.focus();
+      //
+      // Arm a named, full-width "Server" rather than the palette's positional
+      // first row: the alphabetized palette's first item is "Blade Server
+      // (Full-Height)", a chassis-child device that cannot rail-mount and only
+      // abandons placement with a screen-reader announcement, never arming the
+      // "Placing:" banner this test asserts on (#2851, matching the
+      // armServerForKeyboard convention in keyboard-placement.spec.ts).
+      const serverDevice = paletteItemByName(page, "Server").first();
+      await expect(serverDevice).toBeVisible();
+      await serverDevice.focus();
       await page.keyboard.press("Enter");
 
       const banner = page
