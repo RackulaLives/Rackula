@@ -36,7 +36,7 @@ import { generateId } from "./device";
 import { createDefaultRack } from "./serialization";
 import { toHumanUnits, toInternalUnits } from "./position";
 import {
-  INVALID_LAYOUT_FORMAT_MESSAGE,
+  describeValidationIssues,
   unreadableImportMessage,
 } from "./import-errors";
 
@@ -516,7 +516,10 @@ export function decodeLayout(encoded: string): DecodeResult {
       const result = MinimalLayoutV2Schema.safeParse(parsed);
       if (!result.success) {
         console.warn("Share link v2 validation failed:", result.error);
-        return { layout: null, error: INVALID_LAYOUT_FORMAT_MESSAGE };
+        return {
+          layout: null,
+          error: describeValidationIssues(result.error.issues),
+        };
       }
       return { layout: fromMinimalLayoutV2(result.data) };
     }
@@ -525,7 +528,10 @@ export function decodeLayout(encoded: string): DecodeResult {
     const result = MinimalLayoutSchema.safeParse(parsed);
     if (!result.success) {
       console.warn("Share link v1 validation failed:", result.error);
-      return { layout: null, error: INVALID_LAYOUT_FORMAT_MESSAGE };
+      return {
+        layout: null,
+        error: describeValidationIssues(result.error.issues),
+      };
     }
     return { layout: fromMinimalLayoutV1(result.data) };
   } catch (error) {

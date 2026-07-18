@@ -49,7 +49,13 @@ const PLAIN_TYPE_NAMES: Record<string, string> = {
   boolean: "true or false",
   array: "a list",
   object: "an object",
+  int: "a whole number",
 };
+
+/** Prefixes an unrecognized `expected` type name with "a"/"an" (e.g. "an int", "a bigint") for the {@link PLAIN_TYPE_NAMES} fallback. */
+function withIndefiniteArticle(word: string): string {
+  return /^[aeiou]/i.test(word) ? `an ${word}` : `a ${word}`;
+}
 
 function humanizeSegment(segment: PropertyKey): string {
   return String(segment).replace(/_/g, " ");
@@ -68,7 +74,7 @@ function singularize(word: string): string {
 function humanizeFieldPath(path: PropertyKey[]): string {
   const named = path.filter((segment) => typeof segment !== "number");
   if (named.length === 0) return "value";
-  const field = humanizeSegment(named[named.length - 1]!);
+  const field = singularize(humanizeSegment(named[named.length - 1]!));
   if (named.length === 1) return field;
   const parent = singularize(humanizeSegment(named[named.length - 2]!));
   return `${parent} ${field}`;
@@ -79,18 +85,67 @@ function capitalize(text: string): string {
 }
 
 /**
+ * Zod 4's built-in English error map (node_modules/zod/src/v4/locales/en.ts,
+ * verified against the installed zod@4.4.3) produces a fixed, recognizable
+ * message shape for a field with no custom message on the schema. A schema
+ * author's own message is free-form text and never happens to start with
+ * these machine-generated prefixes in this codebase (checked every bare
+ * `.min()`/`.max()`/`.url()` in src/lib/schemas/index.ts and share.ts).
+ *
+ * ImportValidationIssue deliberately does not carry the extra fields
+ * (`origin`, `minimum`, `maximum`, `inclusive`) the real error map needs to
+ * regenerate these messages exactly, so detection matches by prefix/shape
+ * instead of reconstructing and comparing the default text. Trade-off: a
+ * future custom message that happens to start with the same words (e.g.
+ * "Too big: this file cannot be shared") would be misdetected as
+ * machine-generated and replaced with the generic clause below.
+ */
+const ZOD_DEFAULT_MESSAGE_PATTERNS: Partial<Record<string, RegExp>> = {
+  too_small: /^Too small: /,
+  too_big: /^Too big: /,
+  invalid_format: /^Invalid /,
+};
+
+/** Plain-language clause appended after the humanized field name (e.g. "Name is invalid") for a field that has no custom schema message. */
+const PLAIN_CODE_CLAUSES: Partial<Record<string, string>> = {
+  too_small: "does not meet the minimum requirement",
+  too_big: "exceeds the maximum allowed",
+  invalid_format: "is not formatted correctly",
+};
+
+const DEFAULT_ISSUE_CLAUSE = "is invalid";
+
+function isZodDefaultMessage(issue: ImportValidationIssue): boolean {
+  const pattern = issue.code
+    ? ZOD_DEFAULT_MESSAGE_PATTERNS[issue.code]
+    : undefined;
+  return pattern ? pattern.test(issue.message) : false;
+}
+
+/**
  * Format a single Zod validation issue as plain language, with no dotted
  * path prefix. An existing custom schema message (e.g. "Height cannot
- * exceed 100U") is already human-authored text, so it is preserved as-is; a
- * generic type-mismatch issue has no such message, so a plain-language
- * sentence is built from the field name instead.
+ * exceed 100U") is already human-authored text, so it is preserved as-is.
+ * A generic type-mismatch issue has no such message, so a plain-language
+ * sentence is built from the field name instead. Other bare constraints
+ * (`.min()`, `.max()`, `.url()`, etc. with no message argument) ship Zod's
+ * own internal wording (e.g. "Too small: expected string to have >=1
+ * characters") - {@link isZodDefaultMessage} detects that case and swaps in
+ * plain copy instead of leaking it to the user.
  */
 function describeSingleIssue(issue: ImportValidationIssue): string {
   if (issue.code === "invalid_type") {
     const expected = issue.expected
-      ? (PLAIN_TYPE_NAMES[issue.expected] ?? `a ${issue.expected}`)
+      ? (PLAIN_TYPE_NAMES[issue.expected] ??
+        withIndefiniteArticle(issue.expected))
       : "a different value";
     return `${capitalize(humanizeFieldPath(issue.path))} must be ${expected}`;
+  }
+  if (isZodDefaultMessage(issue)) {
+    const clause = issue.code
+      ? (PLAIN_CODE_CLAUSES[issue.code] ?? DEFAULT_ISSUE_CLAUSE)
+      : DEFAULT_ISSUE_CLAUSE;
+    return `${capitalize(humanizeFieldPath(issue.path))} ${clause}`;
   }
   return issue.message;
 }

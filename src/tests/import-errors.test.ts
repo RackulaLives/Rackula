@@ -12,6 +12,7 @@ import {
 } from "$lib/utils/import-errors";
 import { parseLayoutYaml } from "$lib/utils/yaml";
 import { decodeLayout } from "$lib/utils/share";
+import { PowerPortSchema, SlotSchema, DeviceLinkSchema } from "$lib/schemas";
 
 describe("unreadableImportMessage", () => {
   it("names the file for a file-import parse failure", () => {
@@ -78,6 +79,61 @@ describe("describeValidationIssues", () => {
     expect(message).toBe("Device position must be a number");
     expect(message).not.toContain("racks.0.devices.0.position");
   });
+
+  it("replaces Zod's default too-small wording for a bare .min() field with no custom message", () => {
+    // PowerPortSchema.name is `z.string().min(1)` with no custom message
+    // (src/lib/schemas/index.ts ~319), so Zod 4 ships its own internal
+    // wording ("Too small: expected string to have >=1 characters") here.
+    const result = PowerPortSchema.safeParse({ name: "" });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: an otherwise-valid PowerPortSchema payload with only `name` invalid must fail with exactly one issue
+    expect(result.error.issues).toHaveLength(1);
+
+    const message = describeValidationIssues(result.error.issues);
+
+    expect(message).not.toContain("Too small");
+    expect(message).not.toContain(">=1");
+    expect(message.toLowerCase()).toContain("name");
+  });
+
+  it("replaces Zod's default too-big wording for a bare .max() field with no custom message", () => {
+    // SlotSchema.name is `z.string().max(100)` with no custom message
+    // (src/lib/schemas/index.ts ~251).
+    const result = SlotSchema.safeParse({
+      id: "slot-1",
+      name: "x".repeat(101),
+      position: { row: 0, col: 0 },
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: an otherwise-valid SlotSchema payload with only `name` invalid must fail with exactly one issue
+    expect(result.error.issues).toHaveLength(1);
+
+    const message = describeValidationIssues(result.error.issues);
+
+    expect(message).not.toContain("Too big");
+    expect(message).not.toContain("<=100");
+    expect(message.toLowerCase()).toContain("name");
+  });
+
+  it("replaces Zod's default invalid-URL wording for a bare .url() field with no custom message", () => {
+    // DeviceLinkSchema.url is `z.string().url()` with no custom message
+    // (src/lib/schemas/index.ts ~367).
+    const result = DeviceLinkSchema.safeParse({
+      label: "docs",
+      url: "not-a-url",
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: an otherwise-valid DeviceLinkSchema payload with only `url` invalid must fail with exactly one issue
+    expect(result.error.issues).toHaveLength(1);
+
+    const message = describeValidationIssues(result.error.issues);
+
+    expect(message).not.toContain("Invalid URL");
+    expect(message.toLowerCase()).toContain("url");
+  });
 });
 
 describe("shared helper unifies file-import and share-link copy (#2989 AC4)", () => {
@@ -98,5 +154,28 @@ describe("shared helper unifies file-import and share-link copy (#2989 AC4)", ()
 
     expect(fileMessage).toBe(INVALID_LAYOUT_FORMAT_MESSAGE);
     expect(shareMessage).toBe(INVALID_LAYOUT_FORMAT_MESSAGE);
+  });
+
+  it("resolves the equivalent single-field failure to the same message on both doors", async () => {
+    // File-import: the parsed document is a list, not an object at all, so
+    // schema validation reports exactly one issue (root type mismatch).
+    let fileMessage = "";
+    try {
+      await parseLayoutYaml("- 1\n- 2\n");
+    } catch (error) {
+      fileMessage = error instanceof Error ? error.message : String(error);
+    }
+
+    // Share-link: same underlying failure shape - a JSON array at the root,
+    // which is not an object either MinimalLayoutSchema or
+    // MinimalLayoutV2Schema can validate.
+    const encoded = LZString.compressToEncodedURIComponent(
+      JSON.stringify([1, 2, 3]),
+    );
+    const { error: shareMessage } = decodeLayout(encoded);
+
+    expect(fileMessage).not.toBe(INVALID_LAYOUT_FORMAT_MESSAGE);
+    expect(shareMessage).not.toBe(INVALID_LAYOUT_FORMAT_MESSAGE);
+    expect(fileMessage).toBe(shareMessage);
   });
 });
