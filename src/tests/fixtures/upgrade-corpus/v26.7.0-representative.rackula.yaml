@@ -1,0 +1,86 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
+metadata:
+  id: 8f14e45f-ceea-467e-bbaf-6f5a02b6a123
+  name: Representative Lab
+  schema_version: "1.0"
+version: "1.0"
+name: Representative Lab
+racks:
+  - id: rack-a
+    name: Rack A
+    height: 12
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: dev-switch
+        device_type: switch-24p-1u
+        position: 60
+        face: front
+        ports:
+          - id: port-sw-eth0
+            template_name: eth0
+            template_index: 0
+            type: 1000base-t
+          - id: port-sw-eth1
+            template_name: eth1
+            template_index: 1
+            type: 1000base-t
+  - id: rack-b
+    name: Rack B
+    height: 12
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 1
+    devices:
+      - id: dev-router
+        device_type: router-1u
+        position: 6
+        face: front
+        ports:
+          - id: port-rt-wan0
+            template_name: wan0
+            template_index: 0
+            type: 1000base-t
+device_types:
+  - slug: switch-24p-1u
+    manufacturer: Acme
+    model: Switch 24P
+    u_height: 1
+    colour: "#336699"
+    category: network
+    interfaces:
+      - name: eth0
+        type: 1000base-t
+      - name: eth1
+        type: 1000base-t
+  - slug: router-1u
+    manufacturer: Acme
+    model: Router 1U
+    u_height: 1
+    colour: "#7B6BA8"
+    category: network
+    interfaces:
+      - name: wan0
+        type: 1000base-t
+settings:
+  display_mode: label
+  show_labels_on_images: false
+rack_groups:
+  - id: group-bayed
+    name: Bayed Pair
+    rack_ids:
+      - rack-a
+      - rack-b
+    layout_preset: bayed
+connections:
+  - id: conn-1
+    a_port_id: port-sw-eth0
+    b_port_id: port-rt-wan0
+    label: uplink
