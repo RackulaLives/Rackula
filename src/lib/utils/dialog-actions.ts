@@ -17,10 +17,38 @@ const NEW_RACK_DEFAULT_HEIGHT = 24;
 const NEW_RACK_DEFAULT_NAME = "Racky McRackface";
 
 /**
+ * Resolve the name for a newly-created default rack, appending the lowest
+ * free " N" suffix when baseName collides with an existing rack's name
+ * (#3002). Two default racks used to end up with the exact same name, which
+ * cascaded into ambiguity downstream: the delete confirm couldn't say which
+ * rack was about to die, the active-rack cycle toast was uninformative, and
+ * both mobile switch dots carried an identical aria-label. Only the
+ * collision case changes -- baseName itself is returned unmodified when it
+ * isn't already taken, so plain direct-create naming is untouched. Existing
+ * racks are read, never renamed: this only picks the new rack's own name.
+ * Numbers are searched from 2 upward and the first unused one wins, so a
+ * gap left by a deleted numbered rack is reused, and a name some other rack
+ * already holds (however it got that name) is skipped rather than
+ * collided with.
+ */
+function nextAvailableRackName(
+  existingNames: readonly string[],
+  baseName: string,
+): string {
+  if (!existingNames.includes(baseName)) return baseName;
+  let suffix = 2;
+  while (existingNames.includes(`${baseName} ${suffix}`)) {
+    suffix++;
+  }
+  return `${baseName} ${suffix}`;
+}
+
+/**
  * Create a 24U rack directly on the canvas and select it, skipping the wizard
  * (#2732). The rack uses stage-1 defaults: width 19, ascending U-numbering, and
  * the schema default form factor. It is appended to the end of the row. Warns
- * when the rack limit is reached.
+ * when the rack limit is reached. The default name is disambiguated against
+ * existing racks' names (#3002); see nextAvailableRackName.
  */
 export function handleNewRack(): void {
   const layoutStore = getLayoutStore();
@@ -30,10 +58,11 @@ export function handleNewRack(): void {
     toastStore.showToast("Maximum number of racks reached", "warning");
     return;
   }
-  const rack = layoutStore.addRack(
+  const name = nextAvailableRackName(
+    layoutStore.racks.map((rack) => rack.name),
     NEW_RACK_DEFAULT_NAME,
-    NEW_RACK_DEFAULT_HEIGHT,
   );
+  const rack = layoutStore.addRack(name, NEW_RACK_DEFAULT_HEIGHT);
   if (!rack) return;
   selectionStore.selectRack(rack.id);
   requestAnimationFrame(() => handleFitAll());
