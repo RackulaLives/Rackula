@@ -272,7 +272,7 @@ describe("planRowAfterRemoval", () => {
     const b = createTestRack({ id: "b", position: 1 });
     const c = createTestRack({ id: "c", position: 2 });
 
-    const assignments = planRowAfterRemoval([a, b, c], [], "b");
+    const assignments = planRowAfterRemoval([a, b, c], [], ["b"]);
 
     expect(assignments).toEqual([
       { id: "a", position: 0 },
@@ -291,7 +291,11 @@ describe("planRowAfterRemoval", () => {
       layout_preset: "bayed",
     };
 
-    const assignments = planRowAfterRemoval([m1, m2, m3, solo], [group], "m1")!;
+    const assignments = planRowAfterRemoval(
+      [m1, m2, m3, solo],
+      [group],
+      ["m1"],
+    )!;
 
     expect(assignments).toEqual([
       { id: "m2", position: 0 },
@@ -312,7 +316,7 @@ describe("planRowAfterRemoval", () => {
 
     // Removing m1 leaves the group with a single member; the survivor m2
     // reindexes ahead of solo exactly as if it were standalone.
-    const assignments = planRowAfterRemoval([m1, m2, solo], [group], "m1")!;
+    const assignments = planRowAfterRemoval([m1, m2, solo], [group], ["m1"])!;
 
     expect(assignments).toEqual([
       { id: "m2", position: 0 },
@@ -322,7 +326,33 @@ describe("planRowAfterRemoval", () => {
 
   it("returns null when the removed rack is not in the row", () => {
     const a = createTestRack({ id: "a", position: 0 });
-    expect(planRowAfterRemoval([a], [], "missing")).toBeNull();
+    expect(planRowAfterRemoval([a], [], ["missing"])).toBeNull();
+  });
+
+  it("compacts the row in one step when every member of a group is removed at once", () => {
+    const m1 = createTestRack({ id: "m1", position: 0 });
+    const m2 = createTestRack({ id: "m2", position: 1 });
+    const c = createTestRack({ id: "c", position: 2 });
+    const d = createTestRack({ id: "d", position: 3 });
+    const group: RackGroup = {
+      id: "g1",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "bayed",
+    };
+
+    // A whole-group delete removes every member in one batch, so the racks
+    // trailing it must compact in a single step rather than needing one
+    // planRowAfterRemoval call per member.
+    const assignments = planRowAfterRemoval(
+      [m1, m2, c, d],
+      [group],
+      ["m1", "m2"],
+    )!;
+
+    expect(assignments).toEqual([
+      { id: "c", position: 0 },
+      { id: "d", position: 1 },
+    ]);
   });
 });
 

@@ -108,7 +108,10 @@ describe("VerbBarOverlay", () => {
       await clickVerb("Export");
       expect(onrackexport).toHaveBeenCalledWith([rackId]);
 
-      await clickVerb("Remove selected");
+      // #2994: the trash verb reads "Delete rack" for a rack selection, not
+      // the device-oriented "Remove selected" the shared delete-selection
+      // action defaults to.
+      await clickVerb("Delete rack");
       expect(ondelete).toHaveBeenCalledTimes(1);
     });
   });

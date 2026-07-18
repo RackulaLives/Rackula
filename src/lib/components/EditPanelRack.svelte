@@ -14,9 +14,9 @@
   import MarkdownPreview from "./MarkdownPreview.svelte";
   import SavedIndicator from "./ui/SavedIndicator.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
-  import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { dialogStore } from "$lib/stores/dialogs.svelte";
   import {
     canResizeRackTo,
     getConflictDetails,
@@ -43,7 +43,6 @@
   let { selectedRack, selectedGroup }: Props = $props();
 
   const layoutStore = getLayoutStore();
-  const selectionStore = getSelectionStore();
   const uiStore = getUIStore();
   const canvasStore = getCanvasStore();
 
@@ -258,23 +257,35 @@
     }
   }
 
-  // Delete selected rack or bayed rack group
+  // Open the shared confirm-delete dialog, the same dialogStore.deleteTarget
+  // + confirmDelete flow the context menu, delete key, and verb bar all
+  // route through (rack-actions.ts handleRackContextDelete, dialog-actions.ts
+  // handleDelete). This button used to call layoutStore.deleteRack()
+  // directly with no confirm step at all, regardless of device count or bay
+  // membership, for both a single rack and a whole bayed group -- the one
+  // rack-deletion affordance that stayed unguarded after #2994 closed the
+  // same gap everywhere else (#2994 fold-in). handleConfirmDelete resolves
+  // the single-rack (bayed-vs-standalone) and whole-group branches once the
+  // user confirms, and DialogOrchestrator's deleteConfirmMessage reads the
+  // target rack(s)' live device count for the same device-aware warning
+  // formatRackDeleteMessage() produces elsewhere, so no separate wiring is
+  // needed here.
   function handleDeleteRack() {
     if (selectedGroup) {
-      // Delete entire bayed rack group - must delete racks first, then the group
-      const rackIds = [...selectedGroup.rack_ids];
-      selectionStore.clearSelection();
-      // Delete each rack in the group
-      for (const rackId of rackIds) {
-        layoutStore.deleteRack(rackId);
-      }
-      // The group will be auto-deleted when all racks are removed
+      dialogStore.deleteTarget = {
+        type: "rack",
+        name: selectedGroup.name ?? "Bayed Rack",
+        rackId: selectedRack.id,
+        groupRackIds: [...selectedGroup.rack_ids],
+      };
     } else {
-      // Delete individual rack (clear selection first, matching the group path)
-      const rackId = selectedRack.id;
-      selectionStore.clearSelection();
-      layoutStore.deleteRack(rackId);
+      dialogStore.deleteTarget = {
+        type: "rack",
+        name: selectedRack.name,
+        rackId: selectedRack.id,
+      };
     }
+    dialogStore.open("confirmDelete");
   }
 </script>
 

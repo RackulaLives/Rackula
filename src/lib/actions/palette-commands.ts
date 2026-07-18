@@ -12,6 +12,7 @@ import {
   ACTION_REGISTRY,
   getActionById,
   formatMenuShortcut,
+  resolveActionLabel,
   type ActionDefinition,
   type ActionEnabledContext,
   type ActionId,
@@ -186,10 +187,13 @@ function unavailableReason(
   return "needs a rack";
 }
 
-function toPaletteCommand(action: ActionDefinition): PaletteCommand {
+function toPaletteCommand(
+  action: ActionDefinition,
+  ctx: ActionEnabledContext,
+): PaletteCommand {
   return {
     id: action.id,
-    label: action.label,
+    label: resolveActionLabel(action, ctx),
     shortcut: formatMenuShortcut(action),
     keywords: action.keywords ?? [],
   };
@@ -203,7 +207,7 @@ export function getPaletteCommands(
   for (const action of ACTION_REGISTRY) {
     if (!isIncluded(action, ctx)) continue;
     const group = paletteGroupOf(action);
-    const command = toPaletteCommand(action);
+    const command = toPaletteCommand(action, ctx);
     const existing = buckets.get(group);
     if (existing) existing.push(command);
     else buckets.set(group, [command]);
@@ -240,7 +244,7 @@ export function getPaletteSearchCommands(
   const out: PaletteSearchCommand[] = [];
   for (const action of ACTION_REGISTRY) {
     if (!isProjectable(action, ctx)) continue;
-    const command = toPaletteCommand(action);
+    const command = toPaletteCommand(action, ctx);
     if (isRunnable(action, ctx)) {
       out.push(command);
     } else {
@@ -316,14 +320,14 @@ export function getPaletteEmptyState(
   for (const id of recentIds) {
     const action = getActionById(id);
     if (!action || !isIncluded(action, ctx)) continue;
-    recent.push(toPaletteCommand(action));
+    recent.push(toPaletteCommand(action, ctx));
   }
 
   const selection: PaletteCommand[] = [];
   for (const action of ACTION_REGISTRY) {
     if (action.scope !== "selection") continue;
     if (!isIncluded(action, ctx)) continue;
-    selection.push(toPaletteCommand(action));
+    selection.push(toPaletteCommand(action, ctx));
   }
 
   const shown = new Set<ActionId>([

@@ -14,6 +14,7 @@
 
 import {
   getActionById,
+  resolveActionLabel,
   type ActionDefinition,
   type ActionEnabledContext,
   type ActionId,
@@ -99,7 +100,7 @@ export function getSelectionVerbsWithState(
     if (!action) continue;
     result.push({
       id: action.id,
-      label: action.label,
+      label: resolveActionLabel(action, ctx),
       disabled: action.enabledWhen ? !action.enabledWhen(ctx) : false,
     });
   }

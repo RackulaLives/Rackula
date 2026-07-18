@@ -86,10 +86,10 @@ export function handleDelete(): void {
 /**
  * Apply the delete confirmed by the confirm-delete dialog. Racks are the only
  * target this dialog gates now: device removal is immediate (see
- * handleDelete). Acts on the rackId snapshot captured in deleteTarget at open
- * time, not the live selectionStore, so a selection change between opening
- * the dialog and confirming it can't delete a different rack than the one
- * named in the dialog (#2918).
+ * handleDelete). Acts on the rackId (or groupRackIds) snapshot captured in
+ * deleteTarget at open time, not the live selectionStore, so a selection
+ * change between opening the dialog and confirming it can't delete a
+ * different rack than the one named in the dialog (#2918).
  */
 export function handleConfirmDelete(): void {
   const layoutStore = getLayoutStore();
@@ -97,24 +97,85 @@ export function handleConfirmDelete(): void {
   const target = dialogStore.deleteTarget;
 
   if (target) {
-    const rackId = target.rackId;
-    // A bay member removal closes the row and dissolves a 1-member bay; a
-    // standalone rack deletes plainly (#2741).
-    const group = layoutStore.getRackGroupForRack(rackId);
-    if (group?.layout_preset === "bayed") {
-      const { error } = layoutStore.removeRackFromBay(rackId);
-      if (error) {
-        layoutDebug.group("removeRackFromBay failed for %s: %s", rackId, error);
-      } else {
-        selectionStore.clearSelection();
+    if (target.groupRackIds) {
+      // Whole-bayed-group delete (edit panel's "Delete Bayed Rack", #2994
+      // fold-in): resolve the live group from target.rackId, the documented
+      // anchor rack (same #2918 pattern as the standalone branch below),
+      // rather than the first entry of the groupRackIds membership snapshot
+      // -- membership can change between dialog-open and confirm, so trusting
+      // that snapshot to name the anchor could resolve the wrong group, or
+      // none at all, while target.rackId is the one field every other branch
+      // already treats as authoritative. Delete the resolved group as one
+      // atomic batch. The previous per-member deleteRack() loop pushed one
+      // history command per rack, so a single undo only restored the
+      // last-deleted member and the loop itself passed through an invalid
+      // intermediate state (a layout_preset:"bayed" group left with exactly
+      // one rack_id, violating the >=2-bays invariant removeBayFromGroup
+      // enforces). deleteBayedGroup batches the group deletion and every
+      // member's deletion into a single BatchCommand instead (#2994 fix
+      // round 2). Selection only clears once the group actually resolved and
+      // deleteBayedGroup reports success; either failure mode (no live
+      // group left to resolve, or deleteBayedGroup itself erroring) must
+      // leave the selection and dialog target alone instead of presenting a
+      // silent success with nothing selected and the group still standing.
+      const group = layoutStore.getRackGroupForRack(target.rackId);
+      if (group) {
+        const { error } = layoutStore.deleteBayedGroup(group.id);
+        if (error) {
+          layoutDebug.group(
+            "deleteBayedGroup failed for %s: %s",
+            group.id,
+            error,
+          );
+        } else {
+          selectionStore.clearSelection();
+        }
       }
     } else {
-      layoutStore.deleteRack(rackId);
-      selectionStore.clearSelection();
+      const rackId = target.rackId;
+      // A bay member removal closes the row and dissolves a 1-member bay; a
+      // standalone rack deletes plainly (#2741). Same guard shape as the
+      // group branch above: only clear selection once the delete actually
+      // happened.
+      const group = layoutStore.getRackGroupForRack(rackId);
+      if (group?.layout_preset === "bayed") {
+        const { error } = layoutStore.removeRackFromBay(rackId);
+        if (error) {
+          layoutDebug.group(
+            "removeRackFromBay failed for %s: %s",
+            rackId,
+            error,
+          );
+        } else {
+          selectionStore.clearSelection();
+        }
+      } else if (layoutStore.getRackById(rackId)) {
+        layoutStore.deleteRack(rackId);
+        selectionStore.clearSelection();
+      }
     }
   }
 
   dialogStore.close();
+}
+
+/**
+ * Compose the rack-delete confirm dialog's warning line. The copy used to be
+ * static ("All devices in this rack will be removed") regardless of the
+ * rack's actual contents, so an empty rack got the same devices-lost warning
+ * as a full one. This varies the count and singular/plural wording with the
+ * rack's live device count, and omits the devices clause entirely for an
+ * empty rack rather than showing a false warning (#2994).
+ */
+export function formatRackDeleteMessage(
+  name: string,
+  deviceCount: number,
+): string {
+  const devicesClause =
+    deviceCount > 0
+      ? ` ${deviceCount} device${deviceCount === 1 ? "" : "s"} will be removed.`
+      : "";
+  return `Are you sure you want to delete "${name}"?${devicesClause}`;
 }
 
 /** Open the keyboard-shortcuts help dialog. */

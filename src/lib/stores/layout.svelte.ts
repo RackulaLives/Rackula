@@ -73,6 +73,7 @@ import {
   createBayedRack as createBayedRackImpl,
   resizeBayedGroupHeight as resizeBayedGroupHeightImpl,
   removeRackFromBay as removeRackFromBayImpl,
+  deleteBayedGroup as deleteBayedGroupImpl,
 } from "./layout/rack-groups";
 import {
   addDeviceTypeRaw as addDeviceTypeRawImpl,
@@ -314,6 +315,7 @@ export function createLayoutStore(
     createBayedRack,
     removeRackFromBay,
     resizeBayedGroupHeight,
+    deleteBayedGroup,
 
     // Rack group raw actions (for undo/redo)
     createRackGroupRaw,
@@ -585,6 +587,10 @@ export function createLayoutStore(
 
   function removeRackFromBay(rackId: string) {
     return removeRackFromBayImpl(stateAccess, rackId);
+  }
+
+  function deleteBayedGroup(groupId: string) {
+    return deleteBayedGroupImpl(stateAccess, groupId);
   }
 
   function resizeBayedGroupHeight(groupId: string, newHeight: number) {

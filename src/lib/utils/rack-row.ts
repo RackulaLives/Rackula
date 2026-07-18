@@ -207,26 +207,31 @@ export function planBayedInsert(
 
 /**
  * Compute the Rack.position values that close the canvas row after
- * `removedRackId` is taken out of it. The removed rack is dropped from the row
- * and from any group, and the remaining racks are reindexed to sequential
- * positions so no empty slot is left where the rack was. A group that loses its
- * only resolvable member contributes nothing, so its lone survivor (if any)
- * simply reindexes as a standalone slot.
+ * `removedRackIds` are taken out of it. A single rack removal (bay-member
+ * removal, standalone delete) passes a one-element array; a whole-group
+ * delete passes every member at once so the row compacts in one step instead
+ * of leaving a gap that a sequence of single removals would have closed. The
+ * removed racks are dropped from the row and from any group, and the
+ * remaining racks are reindexed to sequential positions so no empty slot is
+ * left where they were. A group that loses every resolvable member
+ * contributes nothing, so a lone survivor (if any) simply reindexes as a
+ * standalone slot.
  *
- * Returns one assignment per remaining rack in row order, or null when
- * `removedRackId` is not in `racks`.
+ * Returns one assignment per remaining rack in row order, or null when none
+ * of `removedRackIds` are in `racks`.
  */
 export function planRowAfterRemoval(
   racks: Rack[],
   groups: RackGroup[],
-  removedRackId: string,
+  removedRackIds: string[],
 ): RackPositionAssignment[] | null {
-  if (!racks.some((rack) => rack.id === removedRackId)) return null;
+  const removedSet = new Set(removedRackIds);
+  if (!racks.some((rack) => removedSet.has(rack.id))) return null;
 
-  const remainingRacks = racks.filter((rack) => rack.id !== removedRackId);
+  const remainingRacks = racks.filter((rack) => !removedSet.has(rack.id));
   const remainingGroups = groups.map((group) => ({
     ...group,
-    rack_ids: group.rack_ids.filter((id) => id !== removedRackId),
+    rack_ids: group.rack_ids.filter((id) => !removedSet.has(id)),
   }));
 
   return organizeRackRow(remainingRacks, remainingGroups)

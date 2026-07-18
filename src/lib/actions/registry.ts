@@ -117,6 +117,15 @@ export interface ActionDefinition {
    * define it; global commands typically do not.
    */
   enabledWhen?: (ctx: ActionEnabledContext) => boolean;
+  /**
+   * Optional override for `label`, used when one action id serves more than
+   * one selection kind and the static label reads wrong for one of them (for
+   * example "Remove selected" reads as device-only when a rack is selected;
+   * #2994). Returns undefined to fall through to `label`. Consumers should
+   * resolve through `resolveActionLabel` rather than reading `label` directly
+   * so this override can't be missed at a new call site.
+   */
+  labelForContext?: (ctx: ActionEnabledContext) => string | undefined;
   /** The help overlay group this command appears under, if any. */
   helpGroup?: HelpGroup;
   /**
@@ -270,8 +279,13 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     id: "delete-selection",
     // "Remove" for placement removal, reserving "Delete" for library-type
     // deletion (#2993); "delete" stays a keyword so search-by-that-term still
-    // finds this action.
+    // finds this action. A rack is the library-type case even though it
+    // shares this action id with device removal, so labelForContext swaps in
+    // "Delete rack" when the live selection is a rack: the trigger the user
+    // clicks (verb bar, palette) must read the same verb as the confirm
+    // dialog it opens, not the device-oriented default (#2994).
     label: "Remove selected",
+    labelForContext: (ctx) => (ctx.isRackSelected ? "Delete rack" : undefined),
     scope: "selection",
     bindings: [{ key: "Delete" }, { key: "Backspace" }],
     enabledWhen: (ctx) => !ctx.readOnly && ctx.hasSelection,
@@ -611,6 +625,21 @@ const HELP_GESTURE_ROWS: { key: string; action: string }[] = [
 /** Look up an action definition by its id. */
 export function getActionById(id: ActionId): ActionDefinition | undefined {
   return ACTION_REGISTRY.find((action) => action.id === id);
+}
+
+/**
+ * Resolve an action's display label for the given context, applying its
+ * labelForContext override (if any and if it returns a value) before falling
+ * back to the static label. Every projection that renders a command's label
+ * (verb bars, palette, mobile inspector) should call this instead of reading
+ * `action.label` directly, so a future context-sensitive label can't be added
+ * to the registry without also reaching every surface (#2994).
+ */
+export function resolveActionLabel(
+  action: ActionDefinition,
+  ctx: ActionEnabledContext,
+): string {
+  return action.labelForContext?.(ctx) ?? action.label;
 }
 
 /** Tooltip content for a control bound to a registry action (#117). */

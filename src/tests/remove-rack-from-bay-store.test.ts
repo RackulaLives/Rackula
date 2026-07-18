@@ -4,16 +4,23 @@
  * Covers removing a rack from a bayed group: the rack is deleted, dropped from
  * the group, the row closes the gap (positions reindex), a bay that drops to a
  * single member dissolves to a standalone rack, and the whole step undoes as
- * one. Also covers the confirm-gating seam in handleRackContextDelete, where an
- * empty member removes immediately and a member holding gear confirms first.
- * Behaviour-only: no DOM queries.
+ * one. Also covers the confirm-gating seam in handleRackContextDelete: every
+ * context-menu rack deletion opens the same confirmDelete dialog, regardless
+ * of device count or bay membership (#2994). An empty bay member used to
+ * bypass the confirm entirely (count-independent unguarded path); it now
+ * routes through the same guard as a member holding gear or a standalone
+ * rack. Behaviour-only: no DOM queries.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
-import { resetSelectionStore } from "$lib/stores/selection.svelte";
+import {
+  getSelectionStore,
+  resetSelectionStore,
+} from "$lib/stores/selection.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { handleRackContextDelete } from "$lib/utils/rack-actions";
+import { handleConfirmDelete } from "$lib/utils/dialog-actions";
 import { organizeRackRow } from "$lib/utils/rack-row";
 import { createTestDeviceType } from "./factories";
 
@@ -169,15 +176,51 @@ describe("handleRackContextDelete bay-member gating", () => {
     dialogStore.closeSheet();
   });
 
-  it("removes an empty bay member immediately without a confirm dialog", () => {
+  // #2994: this was the unguarded path -- an empty bay member deleted with no
+  // confirm at all, count-independent (unlike a gear-holding member, which
+  // already confirmed). It now opens the same confirmDelete dialog as every
+  // other rack deletion instead of deleting on the spot.
+  it("guards an empty bay member with the same confirm dialog as other rack deletions", () => {
     const store = getLayoutStore();
     const { group } = store.addBayedRackGroup("Bay", 3, 42, 19)!;
     const [, b2] = group.rack_ids;
 
     handleRackContextDelete(b2!);
 
+    expect(dialogStore.isOpen("confirmDelete")).toBe(true);
+    expect(store.getRackById(b2!)).toBeDefined();
+  });
+
+  it("confirming the guarded empty-bay-member delete removes it and closes the dialog", () => {
+    const store = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const { group } = store.addBayedRackGroup("Bay", 3, 42, 19)!;
+    const [b1, b2, b3] = group.rack_ids;
+
+    handleRackContextDelete(b2!);
+    expect(dialogStore.isOpen("confirmDelete")).toBe(true);
+
+    handleConfirmDelete();
+
     expect(dialogStore.isOpen("confirmDelete")).toBe(false);
     expect(store.getRackById(b2!)).toBeUndefined();
+    expect(store.getRackGroupById(group.id)!.rack_ids).toEqual([b1, b3]);
+    expect(selectionStore.hasSelection).toBe(false);
+  });
+
+  it("undo restores an empty bay member deleted via the guarded context-menu path", () => {
+    const store = getLayoutStore();
+    const { group } = store.addBayedRackGroup("Bay", 3, 42, 19)!;
+    const [b1, b2, b3] = group.rack_ids;
+
+    handleRackContextDelete(b2!);
+    handleConfirmDelete();
+    expect(store.getRackById(b2!)).toBeUndefined();
+
+    store.undo();
+
+    expect(store.getRackById(b2!)).toBeDefined();
+    expect(store.getRackGroupById(group.id)!.rack_ids).toEqual([b1, b2, b3]);
   });
 
   it("confirms before removing a bay member that holds gear", () => {
