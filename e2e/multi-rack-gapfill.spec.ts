@@ -107,9 +107,13 @@ test.describe("Delete rack (#2858)", () => {
     // Delete "Rack Dos" via the verb bar, which opens the confirm dialog. The
     // trash verb reads "Delete rack" for a rack selection, not the
     // device-oriented "Remove selected" the shared delete-selection action
-    // defaults to (#2994).
+    // defaults to (#2994). Scoped to the canvas: the edit panel's own delete
+    // button shares this accessible name since #3036 unified the two labels.
     await selectRack(page, "Rack Dos");
-    await page.getByRole("button", { name: "Delete rack" }).click();
+    await page
+      .locator(locators.canvas.root)
+      .getByRole("button", { name: "Delete rack" })
+      .click();
 
     const confirm = page.getByRole("dialog", { name: "Delete Rack" });
     await expect(confirm).toBeVisible();
