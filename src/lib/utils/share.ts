@@ -39,6 +39,8 @@ import { importDebug } from "$lib/utils/debug";
 import {
   describeValidationIssues,
   unreadableImportMessage,
+  INVALID_LAYOUT_FORMAT_MESSAGE,
+  type ImportValidationIssue,
 } from "./import-errors";
 
 // =============================================================================
@@ -366,6 +368,27 @@ function fromMinimalLayoutV2(minimal: MinimalLayoutV2): Layout {
   };
 }
 
+/**
+ * Share-link validation issues carry Zod paths built from the minimal
+ * format's abbreviated transport keys (`rs`, `dt`, `f`, ... - see the
+ * key-mapping comment at the top of this file), not the user-facing field
+ * names {@link describeValidationIssues}'s field-humanizer expects. Passing
+ * a nested issue straight through would surface wire-format internals like
+ * "R n must be text" instead of plain language (#2989 follow-up). A
+ * root-level type mismatch (empty path - the whole decoded payload isn't an
+ * object) has no transport key to leak, so it still gets the shared
+ * helper's specific message; any issue nested under a transport key falls
+ * back to the generic invalid-layout copy instead.
+ */
+function describeShareValidationIssues(
+  issues: ImportValidationIssue[],
+): string {
+  if (issues.length === 1 && issues[0]!.path.length > 0) {
+    return INVALID_LAYOUT_FORMAT_MESSAGE;
+  }
+  return describeValidationIssues(issues);
+}
+
 // =============================================================================
 // Encoding/Decoding Functions
 // =============================================================================
@@ -526,7 +549,7 @@ export function decodeLayout(encoded: string): DecodeResult {
         );
         return {
           layout: null,
-          error: describeValidationIssues(result.error.issues),
+          error: describeShareValidationIssues(result.error.issues),
         };
       }
       return { layout: fromMinimalLayoutV2(result.data) };
@@ -541,7 +564,7 @@ export function decodeLayout(encoded: string): DecodeResult {
       );
       return {
         layout: null,
-        error: describeValidationIssues(result.error.issues),
+        error: describeShareValidationIssues(result.error.issues),
       };
     }
     return { layout: fromMinimalLayoutV1(result.data) };

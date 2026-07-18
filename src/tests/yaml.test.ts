@@ -78,7 +78,10 @@ describe("plain-language import errors (#2989)", () => {
 
     await expect(parseLayoutYaml(notYaml)).rejects.toThrow();
 
-    expect(debugSpy).toHaveBeenCalled();
+    expect(debugSpy).toHaveBeenCalledWith(
+      "Layout file parse failed: %O",
+      expect.anything(),
+    );
   });
 
   it("rejects YAML that parses but is not a layout with the shared invalid-format message, no raw Zod issue list", async () => {
@@ -99,7 +102,10 @@ describe("plain-language import errors (#2989)", () => {
 
     await expect(parseLayoutYaml(notALayout)).rejects.toThrow();
 
-    expect(debugSpy).toHaveBeenCalled();
+    expect(debugSpy).toHaveBeenCalledWith(
+      "Layout validation failed: %O",
+      expect.anything(),
+    );
   });
 
   it("names the field in plain language for a single invalid field", async () => {

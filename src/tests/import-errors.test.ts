@@ -12,7 +12,14 @@ import {
 } from "$lib/utils/import-errors";
 import { parseLayoutYaml } from "$lib/utils/yaml";
 import { decodeLayout } from "$lib/utils/share";
-import { PowerPortSchema, SlotSchema, DeviceLinkSchema } from "$lib/schemas";
+import {
+  PowerPortSchema,
+  SlotSchema,
+  DeviceLinkSchema,
+  DeviceFaceSchema,
+  RackWidthSchema,
+} from "$lib/schemas";
+import { z } from "$lib/zod";
 
 describe("unreadableImportMessage", () => {
   it("names the file for a file-import parse failure", () => {
@@ -153,6 +160,39 @@ describe("describeValidationIssues", () => {
 
     expect(message).not.toContain("Invalid URL");
     expect(message.toLowerCase()).toContain("url");
+  });
+
+  it("replaces Zod's default invalid-option wording for a real schema enum field", () => {
+    // DeviceFaceSchema is `z.enum(["front", "rear", "both"])`
+    // (src/lib/schemas/index.ts ~87), used unmodified (no custom message) at
+    // PlacedDeviceSchema.face.
+    const result = z
+      .object({ face: DeviceFaceSchema })
+      .safeParse({ face: "side" });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+
+    const message = describeValidationIssues(result.error.issues);
+
+    expect(message).not.toContain("Invalid option");
+    expect(message).not.toContain('"front"');
+    expect(message.toLowerCase()).toContain("face");
+  });
+
+  it("replaces Zod's default invalid-input wording for a real schema literal union field", () => {
+    // RackWidthSchema is `z.union([z.literal(10), z.literal(19), ...])`
+    // (src/lib/schemas/index.ts ~126), used unmodified (no custom message)
+    // at RackSchema.width.
+    const result = z
+      .object({ width: RackWidthSchema })
+      .safeParse({ width: 15 });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+
+    const message = describeValidationIssues(result.error.issues);
+
+    expect(message).not.toBe("Invalid input");
+    expect(message.toLowerCase()).toContain("width");
   });
 });
 

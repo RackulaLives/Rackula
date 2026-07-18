@@ -23,7 +23,10 @@ import {
   createTestDevice,
 } from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
-import { unreadableImportMessage } from "$lib/utils/import-errors";
+import {
+  unreadableImportMessage,
+  INVALID_LAYOUT_FORMAT_MESSAGE,
+} from "$lib/utils/import-errors";
 import type { Layout } from "$lib/types";
 
 // pako 3.x exports a frozen, read-only ESM namespace, so vi.spyOn cannot
@@ -306,6 +309,28 @@ describe("decodeLayout", () => {
     expect(layout).toBeNull();
     expect(error).toBeDefined();
     expect(error).not.toBe(unreadableImportMessage("share-link"));
+  });
+
+  it("does not surface a raw share-format transport key in a v2 single-field failure", () => {
+    // Otherwise-valid MinimalLayoutV2 payload with one broken field (rack
+    // height, the `h` transport key) nested under `rs`. The Zod issue path
+    // is ["rs", 0, "h"] - if passed straight through the field-humanizer
+    // this would leak abbreviated wire-format keys (e.g. "R h must be...").
+    const payload = {
+      v: "1.0",
+      n: "Test Layout",
+      rs: [{ i: "0", n: "Rack 1", h: "not-a-number", w: 19, d: [] }],
+      dt: [],
+    };
+    const encoded = LZString.compressToEncodedURIComponent(
+      JSON.stringify(payload),
+    );
+    const { layout, error } = decodeLayout(encoded);
+
+    expect(layout).toBeNull();
+    expect(error).toBe(INVALID_LAYOUT_FORMAT_MESSAGE);
+    expect(error).not.toMatch(/\brs\b/i);
+    expect(error).not.toMatch(/\bh\b/i);
   });
 
   it("round-trips layout through encode/decode", () => {

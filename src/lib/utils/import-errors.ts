@@ -129,6 +129,14 @@ const INVALID_FORMAT_DEFAULT_LABELS = [
 ];
 
 /**
+ * A single Zod-generated `values` token: a double-quoted string (from
+ * `z.enum(...)`) or a bare number (from `z.literal(<number>)`). Used to
+ * match `invalid_value`'s default message, which lists one or more of these
+ * joined by `|`.
+ */
+const INVALID_VALUE_TOKEN = String.raw`(?:"[^"]*"|-?\d+(?:\.\d+)?)`;
+
+/**
  * Zod 4's built-in English error map (node_modules/zod/src/v4/locales/en.ts,
  * verified against the installed zod@4.4.3) produces a fixed, recognizable
  * message shape for a field with no custom message on the schema. Each
@@ -136,20 +144,29 @@ const INVALID_FORMAT_DEFAULT_LABELS = [
  * template for that issue code, not just its leading words, so a custom
  * message that merely starts with "Invalid " or "Too big: " is not
  * misdetected as machine-generated (verified against every bare
- * `.min()`/`.max()`/`.url()`/etc. in src/lib/schemas/index.ts and share.ts,
- * and against a set of custom messages that share those prefixes).
+ * `.min()`/`.max()`/`.url()`/`.enum()`/`.union()`/`.literal()`/etc. in
+ * src/lib/schemas/index.ts and share.ts, and against a set of custom
+ * messages that share those prefixes).
+ *
+ * `invalid_value` covers both `z.enum(...)` failures ("Invalid option:
+ * expected one of ...") and a standalone `z.literal(...)` failure ("Invalid
+ * input: expected ..."). `invalid_union` covers `z.union([z.literal(...),
+ * ...])` failures (e.g. `RackWidthSchema`, `SlotWidthSchema`, the share
+ * format's `w`): Zod reports these as a single top-level issue whose message
+ * is the fixed string "Invalid input" (no discriminator info, since none of
+ * this codebase's unions are `z.discriminatedUnion`).
  *
  * ImportValidationIssue deliberately does not carry the extra fields
- * (`origin`, `minimum`, `maximum`, `inclusive`, `received`) the real error
- * map needs to regenerate these messages exactly, so detection matches the
- * template's fixed structure (words, punctuation, comparison operators)
- * around a `\S+`/`\d+` placeholder for the variable parts, instead of
- * reconstructing and comparing the default text field-by-field. Trade-off: a
- * future custom message that happens to fully match one of these templates
- * (e.g. a custom `too_big` message literally shaped like "Too big: expected
- * string to have <=5 characters") would be misdetected as machine-generated.
- * That shape is specific enough that no current schema message collides
- * with it.
+ * (`origin`, `minimum`, `maximum`, `inclusive`, `received`, `values`) the
+ * real error map needs to regenerate these messages exactly, so detection
+ * matches the template's fixed structure (words, punctuation, comparison
+ * operators) around a `\S+`/`\d+` placeholder for the variable parts,
+ * instead of reconstructing and comparing the default text field-by-field.
+ * Trade-off: a future custom message that happens to fully match one of
+ * these templates (e.g. a custom `too_big` message literally shaped like
+ * "Too big: expected string to have <=5 characters") would be misdetected
+ * as machine-generated. That shape is specific enough that no current
+ * schema message collides with it.
  */
 const ZOD_DEFAULT_MESSAGE_PATTERNS: Partial<Record<string, RegExp>> = {
   invalid_type: /^Invalid input: expected \S+, received \S+$/,
@@ -160,6 +177,10 @@ const ZOD_DEFAULT_MESSAGE_PATTERNS: Partial<Record<string, RegExp>> = {
   invalid_format: new RegExp(
     `^Invalid (?:${INVALID_FORMAT_DEFAULT_LABELS.map(escapeRegExp).join("|")}|string: must (?:start with|end with|include) ".*"|string: must match pattern .+)$`,
   ),
+  invalid_value: new RegExp(
+    String.raw`^Invalid (?:option: expected one of ${INVALID_VALUE_TOKEN}(?:\|${INVALID_VALUE_TOKEN})+|input: expected ${INVALID_VALUE_TOKEN})$`,
+  ),
+  invalid_union: /^Invalid input$/,
 };
 
 /** Plain-language clause appended after the humanized field name (e.g. "Name is invalid") for a field that has no custom schema message. */
@@ -167,6 +188,8 @@ const PLAIN_CODE_CLAUSES: Partial<Record<string, string>> = {
   too_small: "does not meet the minimum requirement",
   too_big: "exceeds the maximum allowed",
   invalid_format: "is not formatted correctly",
+  invalid_value: "must be one of the supported options",
+  invalid_union: "must be one of the supported options",
 };
 
 const DEFAULT_ISSUE_CLAUSE = "is invalid";
