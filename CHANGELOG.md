@@ -4,6 +4,66 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [26.7.0] - 2026-07-18
+
+Rackula now warns you before anything destructive, shows clear feedback while you place devices, and lets you save straight from the command palette. Behind the scenes, sign-in and file handling are more secure and the app is more stable overall.
+
+### Added
+
+- Command palette gains rack-save and browser-save commands, and the backup verb is fixed, extending the palette as the app's single command surface (PR #3037)
+- Starter devices with ports now expose interfaces for cabling (#3009, PR #3014)
+- New-rack entry gets a starter template menu, with a mobile "New from template" row (#2829, PR #2834; #2830, PR #2837)
+- Interaction feedback cluster: selection keydown fix, motion polish, and screen-reader announcements added across the canvas (PR #2882)
+- NetBox import maps inventory_items and warns when it hits an unsupported console port (#2941, PR #2962)
+
+### Changed
+
+- Dialog buttons and confirm dialogs unified on CTA design tokens; edit-panel confirmation model and colour contrast unified to match (#3008, PR #3060; PR #3021)
+- Rack controls consolidated into the verb bar; the WelcomeScreen picker is gone, replaced by guarded first-run and zero-rack states (#2822, PR #2832; #2831, PR #2836)
+- Bay affordances gated to empty standalone racks and bay groups; resize handles restyled as edge-midpoint squares (#2823, PR #2835; #2824, PR #2839)
+- Published JSON Schema renamed to the evergreen rackula-layout.schema.json (PR #2863)
+
+### Fixed
+
+- Rack delete now warns when devices are present and every delete path is guarded consistently; a single removal policy applies across all device-removal affordances (PR #3036, PR #3029)
+- Rack duplicate keeps selection and the active rack in sync and fits the copy into view (PR #3035)
+- Focus returns to a stable anchor after palette actions; collapsed accordion content no longer sits in the palette's tab order (#2997, PR #3056; PR #3017)
+- Default rack names auto-number to remove ambiguity; undo of add, duplicate, or delete rack restores the previously active rack, and rack undo no longer restores it unless the action being undone actually activated it (#3002, PR #3058; PR #2961; #2976, PR #2979)
+- Delete confirmation acts on the object it names, not live selection; ConfirmDialog's Enter key only fires on native button activation, so it no longer confirms a destructive action when Cancel is focused, and its guard now covers the close/X button too (#2918, PR #2947; #2919, PR #2949; #2975, PR #2978)
+- Terminology and empty-state copy sweep; first-run notices consolidated and toast stacking fixed; parser and schema errors show plain-language messages instead of raw output (#3007, PR #3059; PR #3031; #2989, PR #3057)
+- Keyboard placement is reliable again; placement preview tracks the pointer with visible confirmation; clicks on device bodies route to placement feedback; occupied and full-slot placement give visible feedback (PR #3034; #2992, PR #3024; PR #3023; PR #3013)
+- Honest placement for half-width oversize devices, with height-matched carriers (#2854, PR #2873)
+- Full-depth placement preview and keyboard input validate the effective face rather than the raw view face (#2925, PR #2953)
+- Mobile touch targets expand to the documented 44px minimum; mobile placement's Cancel button stays reachable at 390px width (#3001, PR #3022; #2991, PR #3012)
+- Dialog autofocus standardised and generated keyboard shortcuts corrected in the help overlay; screen readers announce position and device names; roving-key bubbling and starting_unit display positions fixed (PR #3020; PR #3018; PR #3025)
+- Clicking empty canvas clears selection; share-link entry is guarded when unexported changes exist; opening a file no longer silently replaces the current layout (#3006, PR #3027; PR #3026; PR #3019)
+- Deleting a carrier no longer orphans its children; deleting a placed device no longer leaves dangling cables; legacy 2U carrier adapter fixed (#2911, PR #2916; #2924, PR #2950; PR #2887)
+- Cable endpoints resolve against all racks and survive device-id regeneration on load; migrateLayout and schema position-migration no longer diverge on version-less bodies; unknown and legacy fields survive nested YAML serialization; slugify truncation aligned between frontend and API (#2939, PR #2966; #2923, PR #2965; #2931, PR #2967; #2927, PR #2963; #2932, PR #2969)
+- Stale autosave rollback and uncleared dirty state fixed on availability flip; browser workspace-index writes now serialize under a well-known lock (#2926, #2936, PR #2964; #2930, PR #2954)
+- YAML save no longer sends a charset parameter in its MIME type, fixing the download in Chromium; the object URL used for YAML downloads is revoked only after the click completes; export inlines bundled images and fixes QR/legend overlap while honouring hidden rear (#2986, PR #3011; #2934, PR #2971; #2928, #2929, #2938, PR #2952)
+- Pointer drags can be cancelled with Escape while in progress (#2935, PR #2970)
+- Command palette's device bridge stays visible on a no-match query (#2853, PR #2867)
+- Camera ensures resize and bay targets stay visible after the commit; directional hysteresis added to snapResizeHeight (#2825, PR #2828; #2821, PR #2827)
+
+### Security
+
+- OIDC algorithm now pins to the value returned by provider discovery instead of a hardcoded default; login and import paths cap input size, and cookies are enforced consistently across storage modes (#2942, PR #2982)
+- Fallback CSP added to index.html and login.html; open redirect via a backslash bypass in the login next param closed; global argon2 concurrency cap added against login-flood attacks (#2937, PR #2981; #2917, PR #2946; #2921, PR #2948)
+- YAML complexity guard made bounded and cycle-safe against alias-expansion denial of service, and extended to the snapshot endpoint parse; inflateBounded enforces its size ceiling in decompressed bytes (#2912, PR #2914; #2944, PR #2951; PR #2846)
+- ZIP-extracted images validated by magic bytes and size cap, with writer parity, pre-allocation cap, and extension parity hardened further (#2933, PR #2968; PR #2973)
+- Cloudflare Access misconfiguration no longer fails open on Workers deployment; expression-injection sink closed in the import-netbox workflow inputs (#2913, PR #2915; #2920, PR #2945)
+- Bun release checksum verified before install on LXC; c-ares pinned to >=1.34.8-r0 to resolve CVE-2026-33630 (#2943, PR #2980; #91, PR #3038)
+
+### Technical
+
+- Svelte 5 hot-path audit: Rack.svelte memoized with a dropPreview equality guard, VerbBarOverlay's per-frame poll stopped while a selection is idle, camera animation coordinated into a single tween, drag tooltip mutated in place instead of spread per frame (#2877, #2878, PR #2888; PR #2889; PR #2881; PR #2880)
+- E2E suite recovery: stale and disabled specs triaged and retired, positional-selector and multi-rack gap-fill coverage added, the validate merge gate widened with svelte-check and high-value smoke specs, advisory e2e failure notification and a nightly full-suite run added, E2E and LXC gates moved to pve-prod self-hosted runners (#2851, PR #2862; PR #2865; #2855, PR #2868; #2858, PR #2870; #2857, PR #2869; #2856, PR #2872; #2721, PR #2842; #2697, PR #3055; #2858, PR #3064)
+- Migrated to pako 3.0, a breaking ESM and Inflate API change (#2750, PR #2843)
+- TypeScript 7 adopted in the API; root TypeScript pinned below 7 until typescript-eslint adds support (PR #2902; PR #2955)
+- Brand pack contribution guide added, simplifying pack registration (PR #3044)
+- Design docs written ahead of implementation: UI friction and consistency review (PR #2985), resize and bay corrections spec (#2820, PR #2826), interaction feedback cluster plan (PR #2866), e2e suite recovery plan (PR #2860)
+- Dependency updates across svelte, hono, wrangler, @cloudflare/vitest-pool-workers, eslint and vitest tooling, GitHub Actions, and the production/development-dependency groups, including nanoid 6.0.0 and fuse.js 7.5.0 (PR #3053), spanning PR #2817 through PR #3054 (~35 PRs)
+
 ## [Unreleased]
 
 ## [26.6.6] - 2026-06-30

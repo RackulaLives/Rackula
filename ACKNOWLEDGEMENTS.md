@@ -96,6 +96,9 @@ To add yourself to this list, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Contributors who made merged pull requests in each release. For the full contributors table, see above.
 
+### v26.7.0
+- No external contributors in this release
+
 ### v26.6.6
 
 - No external contributors in this release
