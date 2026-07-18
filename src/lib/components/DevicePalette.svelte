@@ -164,8 +164,12 @@
   }, 150);
 
   /** Clear the search field immediately (bypasses the debounce so the empty
-   * state's "Clear search" action reads as instant, #3007/R28a). */
+   * state's "Clear search" action reads as instant, #3007/R28a). Cancels any
+   * already-scheduled debounced update first: without this, a pending
+   * update from typing just before the click fires 150ms later and
+   * silently restores the stale query (#3007, CodeAnt). */
   function clearSearch(): void {
+    updateSearchQuery.cancel();
     searchQueryRaw = "";
     searchQuery = "";
   }
