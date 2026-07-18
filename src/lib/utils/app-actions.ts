@@ -85,10 +85,20 @@ export function maybeSaveAs(): void {
   handleSaveAsArchive();
 }
 
-/** Open the export dialog, after the cleanup prompt check. */
-export function maybeExport(): void {
+/**
+ * Open the export dialog, after the cleanup prompt check.
+ *
+ * Returns handleExport()'s promise (rather than firing it and forgetting)
+ * so a caller that needs to know when the dialog has actually opened -
+ * CommandPalette's close-focus back-off guard (#2997 fix round 1) - can
+ * await it instead of guessing with a fixed timeout. ActionDispatch's call
+ * signature is `() => void | Promise<void>` to keep this promise available
+ * to callers that need it, while every other caller (the toolbar/menu,
+ * KeyboardHandler) still simply discards the return value.
+ */
+export function maybeExport(): Promise<void> | void {
   if (shouldShowCleanupPrompt("export")) return;
-  handleExport();
+  return handleExport();
 }
 
 /**

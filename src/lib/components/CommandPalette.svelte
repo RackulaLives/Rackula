@@ -193,6 +193,106 @@
     }
   }
 
+  // Anchor to return focus to on close, regardless of how the palette was
+  // opened (the pill's own mouse click, or the global Ctrl/Cmd+K shortcut) or
+  // how it closed (Escape, click-out, the Ctrl+K toggle, or a command
+  // finishing). bits-ui's default close-auto-focus restores whatever was
+  // focused when the dialog opened; the pill's click handler focuses itself
+  // first specifically so that default lands back on the pill (see
+  // Toolbar.svelte), but the global shortcut opens with nothing focused, so
+  // the captured pre-open element is document.body and the default restore
+  // is a no-op - the removed input's focus then falls through to body
+  // (#2997, J7-F5). Overriding the default here, unconditionally, gives every
+  // open/close combination the same predictable landing spot instead of only
+  // the mouse path working.
+  //
+  // Skipped when a command has already opened a different dialog or sheet
+  // (Share, Export, the YAML editor, the rack-delete confirm, ...): that
+  // surface owns focus via its own auto-focus, and stealing it back to the
+  // pill would fight its own focus trap. This mirrors handleOpenChange only
+  // closing the store when the palette is still the current dialog.
+  //
+  // The synchronous check above only catches a dialog/sheet that is *already*
+  // open at the exact instant this fires. A command whose dispatch is async
+  // (run() closes the palette, then calls dispatch[id]() - e.g. "export" ->
+  // maybeExport -> handleExport, which awaits QR-code generation BEFORE
+  // calling dialogStore.open("export")) has not opened its dialog yet at
+  // that instant, so the check above sees nothing open and falls through
+  // here even though a dialog is on its way. Grabbing pill focus immediately
+  // in that case does not honour the "back off" intent: the pill would end
+  // up focused for a moment and then have it torn away when the dialog
+  // mounts and runs its own auto-focus (#2997 fix round 1, Finding 1).
+  //
+  // A fixed deferral (a microtask or animation frame) cannot fix this
+  // reliably: it would either be too short to survive a genuinely async open
+  // (QR-code generation can outlast a single frame) or, made long enough to
+  // be safe, would delay the common synchronous paths by the same amount
+  // every time. Instead, lastDispatchOutcome captures whatever run() dispatched -
+  // undefined for a synchronous command, or the real in-flight promise for
+  // an async one (maybeExport now returns handleExport()'s promise instead
+  // of firing it and forgetting) - and the guard waits on exactly that value.
+  // Promise.resolve(undefined) settles on the very next microtask, so
+  // synchronous commands (and plain Escape/toggle closes, where no command
+  // ran at all) still land on the pill with no perceptible delay; an async
+  // command's promise settles only once dialogStore.open() has already run
+  // as the last step inside it, so the re-check below is never racing it.
+  let lastDispatchOutcome: unknown;
+  let pendingPillFocus = $state(false);
+
+  // Scope lastDispatchOutcome to the current session: without this, a close
+  // shortly after reopening the palette (no new command dispatched yet)
+  // could otherwise wait on a stale promise left over from a previous
+  // command.
+  $effect(() => {
+    if (open) lastDispatchOutcome = undefined;
+  });
+
+  function handleCloseAutoFocus(event: Event) {
+    event.preventDefault();
+    if (dialogStore.openDialog !== null || dialogStore.currentSheet !== null) {
+      return;
+    }
+    pendingPillFocus = true;
+  }
+
+  $effect(() => {
+    if (!pendingPillFocus) return;
+    if (dialogStore.openDialog !== null || dialogStore.currentSheet !== null) {
+      // A dialog/sheet claimed the surface after all (an async command's
+      // dispatch caught up) - back off unconditionally, exactly as the
+      // synchronous check above does, and never touch focus.
+      pendingPillFocus = false;
+      return;
+    }
+    let cancelled = false;
+    // The two no-op handlers absorb either a fulfilled or a rejected
+    // outcome so a failed async command still lets the guard make its
+    // decision, without letting a real rejection escape as an unhandled
+    // promise rejection.
+    Promise.resolve(lastDispatchOutcome)
+      .then(
+        () => {},
+        () => {},
+      )
+      .then(() => {
+        if (cancelled || !pendingPillFocus) return;
+        if (
+          dialogStore.openDialog !== null ||
+          dialogStore.currentSheet !== null
+        ) {
+          pendingPillFocus = false;
+          return;
+        }
+        pendingPillFocus = false;
+        document
+          .querySelector<HTMLElement>('[data-testid="btn-command-palette"]')
+          ?.focus();
+      });
+    return () => {
+      cancelled = true;
+    };
+  });
+
   // Backspace on an empty device query returns to the command list (mirrors the
   // VS Code Quick Open back gesture). Guarded on empty so it never also deletes
   // a character mid-query.
@@ -265,7 +365,11 @@
     // new-layout, ...) would be clobbered if we closed AFTER dispatch.
     dialogStore.close();
     resetState();
-    dispatch[id]?.();
+    // Captured (not just fired) so the close-focus guard above can wait on
+    // whatever this command actually does - undefined for a synchronous
+    // command, or a real promise for an async one like "export" (#2997 fix
+    // round 1, Finding 1).
+    lastDispatchOutcome = dispatch[id]?.();
   }
 </script>
 
@@ -278,6 +382,7 @@
         : 'command-palette--centred'}"
       data-testid="command-palette"
       onEscapeKeydown={handleContentEscapeKeydown}
+      onCloseAutoFocus={handleCloseAutoFocus}
     >
       <!-- Visually-hidden accessible name for the dialog. -->
       <Dialog.Title class="sr-only">Command palette</Dialog.Title>

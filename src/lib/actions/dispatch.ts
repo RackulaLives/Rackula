@@ -55,7 +55,7 @@ import { runImportDevices } from "$lib/actions/import-devices-trigger";
 import { runRestoreFromFile } from "$lib/actions/restore-file-trigger";
 import { openStarterById } from "$lib/stores/starter-templates.svelte";
 
-export type ActionDispatch = Record<ActionId, () => void>;
+export type ActionDispatch = Record<ActionId, () => void | Promise<void>>;
 
 /** True when the event matches any command-palette binding (Ctrl/Cmd+K). */
 export function isCommandPaletteShortcut(event: KeyboardEvent): boolean {
