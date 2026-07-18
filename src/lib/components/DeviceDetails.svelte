@@ -345,7 +345,7 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    font-size: 0.875rem;
+    font-size: var(--font-size-base);
   }
 
   /* ---------- Mobile inspector ---------- */
@@ -529,8 +529,8 @@
   }
 
   .device-name {
-    font-size: 1.25rem;
-    font-weight: 600;
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
     margin: 0;
     color: var(--colour-text);
   }
@@ -550,7 +550,7 @@
   }
 
   .info-label {
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     color: var(--colour-text-muted);
     flex-shrink: 0;
   }
