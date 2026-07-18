@@ -52,13 +52,13 @@ describe("computeLayoutStatus — browser mode", () => {
     const result = status("idle", 0, BROWSER, null, 0, false);
     expect(result.status).toBe("pending");
     expect(result.icon).toBe("pending");
-    expect(result.label).toBe("Unsaved changes");
+    expect(result.label).toBe("Not exported");
   });
 
   it("is pending when there are changes since the last export", () => {
     const result = status("idle", 0, BROWSER, null, 3, true);
     expect(result.status).toBe("pending");
-    expect(result.label).toBe("Unsaved changes");
+    expect(result.label).toBe("Not exported");
   });
 
   it("ignores saveStatus and apiAvailable for the status in browser mode", () => {

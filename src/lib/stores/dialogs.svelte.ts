@@ -74,6 +74,11 @@ let deleteTarget = $state<DeleteTarget | null>(null);
 let exportQrCodeDataUrl = $state<string | undefined>(undefined);
 /** Pre-selected rack IDs for export dialog (from context menu) */
 let exportSelectedRackIds = $state<string[] | undefined>(undefined);
+/**
+ * Pre-fills the add-device dialog's name field (set by the device palette's
+ * empty search state "Create custom device named <query>" action, #3007/R28a).
+ */
+let pendingDeviceName = $state<string | null>(null);
 /** Pending operation that triggered cleanup prompt (save or export) */
 let pendingCleanupOperation = $state<"save" | "saveAs" | "export" | null>(null);
 
@@ -110,6 +115,7 @@ function close() {
   exportQrCodeDataUrl = undefined;
   exportSelectedRackIds = undefined;
   pendingCleanupOperation = null;
+  pendingDeviceName = null;
 }
 
 /**
@@ -167,6 +173,12 @@ export const dialogStore = {
   },
   set exportSelectedRackIds(value: string[] | undefined) {
     exportSelectedRackIds = value;
+  },
+  get pendingDeviceName() {
+    return pendingDeviceName;
+  },
+  set pendingDeviceName(value: string | null) {
+    pendingDeviceName = value;
   },
   get pendingCleanupOperation() {
     return pendingCleanupOperation;

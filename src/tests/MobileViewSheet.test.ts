@@ -88,12 +88,10 @@ describe("MobileViewSheet", () => {
     expect(uiStore.readOnly).toBe(false);
   });
 
-  it("runs Fit to screen and closes the sheet", async () => {
+  it("runs Fit all and closes the sheet", async () => {
     const props = renderSheet();
 
-    await fireEvent.click(
-      screen.getByRole("button", { name: "Fit to screen" }),
-    );
+    await fireEvent.click(screen.getByRole("button", { name: "Fit all" }));
 
     expect(props.onfitall).toHaveBeenCalledTimes(1);
     expect(props.onclose).toHaveBeenCalledTimes(1);

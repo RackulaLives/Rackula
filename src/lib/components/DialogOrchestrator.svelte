@@ -367,7 +367,8 @@
 
   // --- Add device handlers ---
 
-  function handleAddDevice() {
+  function handleAddDevice(initialName?: string) {
+    dialogStore.pendingDeviceName = initialName ?? null;
     dialogStore.open("addDevice");
   }
 
@@ -784,6 +785,7 @@
 <AddDeviceForm
   open={addDeviceFormOpen}
   activeRackWidth={layoutStore.activeRack?.width}
+  initialName={dialogStore.pendingDeviceName ?? undefined}
   onadd={handleAddDeviceCreate}
   oncancel={handleAddDeviceCancel}
 />
@@ -957,7 +959,7 @@
 {#if viewportStore.isMobile && deviceLibrarySheetOpen}
   <Dialog
     open={deviceLibrarySheetOpen}
-    title="Device Library"
+    title="Devices"
     size="M"
     onclose={handleDeviceLibrarySheetClose}
   >

@@ -60,6 +60,7 @@
     handleNewRack,
     handleDelete,
     handleAddDevice,
+    seedStarterRack,
   } from "$lib/utils/dialog-actions";
   import {
     handleRackContextDuplicate,
@@ -309,11 +310,13 @@
             // first tab (its active layout has zero racks), so first run lands in
             // a layout with one rack and never a bare zero-rack void (#2831). Use
             // handleNewRack rather than handleNewLayout here: the latter opens a
-            // second tab on top of the seed, leaving a phantom empty tab. Seeding
-            // the rack marks the layout dirty, so backup-nudge's cold-start
-            // checkpoint fires the app's one browser-storage notice on its own
-            // (#3004).
-            handleNewRack();
+            // second tab on top of the seed, leaving a phantom empty tab.
+            // seedStarterRack (not handleNewRack) so the automated seed does
+            // not count as a user edit: the storage chip stays at a clean
+            // "Not exported" baseline and the backup-nudge cold-start notice
+            // waits for the user's first real edit instead of firing on load
+            // (#3007/R6a, was #3004).
+            seedStarterRack();
           } else {
             // Returning user whose workspace is empty (data lost or wiped). The
             // zero-rack canvas shows the inline "Add a rack" affordance, so this

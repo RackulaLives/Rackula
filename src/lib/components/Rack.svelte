@@ -600,7 +600,7 @@
         text-anchor="middle"
         role="note"
       >
-        No {faceFilter}-facing or full-depth devices
+        No {faceFilter}-facing or full-depth devices yet. Drag one in.
       </text>
     {/if}
 

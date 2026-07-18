@@ -3,10 +3,12 @@
   Read-only facts for the storage chip popover. Prop-driven so it renders the
   same way from the chip and from a unit test. Facts only: no actions (those
   live in the app menu, #2446). Browser mode shows the autosave time and the
-  last-export time, labelled, so a recent autosave never reads as a durable
-  backup. Server mode shows the last server save, reframed as "last reached"
-  when the connection is degraded. Server-not-found shows an honest note that
-  the layout has not been saved to the server.
+  last file-save time, labelled "Last saved" (not "Last exported":
+  #3007/R6a's Save/Export axis reserves "Export" for derived artifacts like
+  PNG and QR, while a file save is "Save"), so a recent autosave never reads
+  as a durable backup. Server mode shows the last server save, reframed as
+  "last reached" when the connection is degraded. Server-not-found shows an
+  honest note that the layout has not been saved to the server.
 -->
 <script lang="ts">
   import { IconCheck, IconClock, IconWarningTriangle } from "./icons";
@@ -67,18 +69,18 @@
       </div>
     {/if}
     <div class="storage-details-row">
-      <span class="storage-details-label">Last exported</span>
+      <span class="storage-details-label">Last saved</span>
       <span
         class="storage-details-value"
         class:storage-details-warn={changesSinceExport > 0}
       >
-        {exportRel ?? "Never exported"}
+        {exportRel ?? "Never saved"}
       </span>
     </div>
     {#if changesSinceExport > 0}
       <p class="storage-details-note storage-details-warn">
         {changesSinceExport}
-        {changesSinceExport === 1 ? "change" : "changes"} since last export
+        {changesSinceExport === 1 ? "change" : "changes"} since last save
       </p>
     {/if}
     <p class="storage-details-foot">Stored in this browser only</p>

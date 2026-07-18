@@ -207,11 +207,21 @@
   // Computed: Can export (has racks selected)
   const canExport = $derived(selectedRacksArray.length > 0);
 
+  // Filename source: the first selected rack's live name when one is
+  // available, so a rack rename is reflected immediately; layoutName is only
+  // the fallback for the (practically unreachable, canExport gates on it)
+  // case of no racks selected (#3007/R6c).
+  const filenameSource = $derived(selectedRacksArray[0]?.name ?? layoutName);
+
   // Computed: Preview filename
   const previewFilename = $derived(
     isMultiFileExport && format !== "pdf"
-      ? generateExportFilename(layoutName, null, "zip")
-      : generateExportFilename(layoutName, isCSV ? null : exportView, format),
+      ? generateExportFilename(filenameSource, null, "zip")
+      : generateExportFilename(
+          filenameSource,
+          isCSV ? null : exportView,
+          format,
+        ),
   );
 
   // Computed: Info message for multi-file export

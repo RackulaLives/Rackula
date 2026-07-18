@@ -5,11 +5,11 @@ import StorageDetailsPopover from "$lib/components/StorageDetailsPopover.svelte"
 const NOW = Date.parse("2026-06-26T12:00:00.000Z");
 
 describe("StorageDetailsPopover", () => {
-  it("browser mode shows both timestamps and 'Never exported' when null", () => {
+  it("browser mode shows both timestamps and 'Never saved' when null", () => {
     render(StorageDetailsPopover, {
       mode: "browser",
       kind: "pending",
-      headline: "Unsaved changes",
+      headline: "Not exported",
       icon: "pending",
       changesSinceExport: 3,
       lastExportedAt: null,
@@ -18,16 +18,14 @@ describe("StorageDetailsPopover", () => {
       nowMs: NOW,
     });
     expect(screen.getByText(/auto-saved/i)).toBeInTheDocument();
-    expect(screen.getByText(/never exported/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/3 changes since last export/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/never saved/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 changes since last save/i)).toBeInTheDocument();
     expect(
       screen.getByText(/stored in this browser only/i),
     ).toBeInTheDocument();
   });
 
-  it("browser mode formats a real export time", () => {
+  it("browser mode formats a real save time", () => {
     render(StorageDetailsPopover, {
       mode: "browser",
       kind: "saved",
@@ -39,7 +37,7 @@ describe("StorageDetailsPopover", () => {
       serverSavedAt: null,
       nowMs: NOW,
     });
-    expect(screen.getByText(/last exported/i)).toBeInTheDocument();
+    expect(screen.getByText(/last saved/i)).toBeInTheDocument();
     expect(screen.getByText(/3 days ago/i)).toBeInTheDocument();
   });
 

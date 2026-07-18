@@ -48,7 +48,9 @@
 
   interface Props {
     ondeviceselect?: (event: CustomEvent<{ device: DeviceType }>) => void;
-    oncreatedevice?: () => void;
+    /** Opens the create-custom-device flow. A name pre-fills the form when the
+     * empty search state's "Create custom device" action supplies one. */
+    oncreatedevice?: (name?: string) => void;
   }
 
   let { ondeviceselect, oncreatedevice }: Props = $props();
@@ -160,6 +162,19 @@
   const updateSearchQuery = debounce((value: string) => {
     searchQuery = value;
   }, 150);
+
+  /** Clear the search field immediately (bypasses the debounce so the empty
+   * state's "Clear search" action reads as instant, #3007/R28a). */
+  function clearSearch(): void {
+    searchQueryRaw = "";
+    searchQuery = "";
+  }
+
+  /** Open the create-custom-device flow pre-filled with the search query
+   * that returned no matches (#3007/R28a). */
+  function handleCreateCustomDeviceFromSearch(): void {
+    oncreatedevice?.(searchQueryRaw.trim());
+  }
 
   /**
    * Device section definition for collapsible groups
@@ -662,6 +677,28 @@
             No devices match your search
           {/if}
         </p>
+        {#if isSearchActive}
+          <div class="empty-state-actions">
+            <button
+              type="button"
+              class="empty-state-action"
+              onclick={clearSearch}
+              data-testid="btn-clear-search"
+            >
+              Clear search
+            </button>
+            {#if oncreatedevice}
+              <button
+                type="button"
+                class="empty-state-action"
+                onclick={handleCreateCustomDeviceFromSearch}
+                data-testid="btn-create-custom-device-from-search"
+              >
+                Create custom device named "{searchQueryRaw.trim()}"
+              </button>
+            {/if}
+          </div>
+        {/if}
       </div>
     {:else}
       {#if pinnedDevices.length > 0}
@@ -767,7 +804,7 @@
       <button
         type="button"
         class="add-device-btn"
-        onclick={oncreatedevice}
+        onclick={() => oncreatedevice?.()}
         data-testid="btn-create-custom-device"
       >
         <span class="add-device-glyph" aria-hidden="true">+</span>
@@ -1159,5 +1196,38 @@
     margin: var(--space-1) 0 0;
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
+  }
+
+  .empty-state-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    width: 100%;
+  }
+
+  .empty-state-action {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--colour-text-muted);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) ease,
+      color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease;
+  }
+
+  .empty-state-action:hover {
+    color: var(--colour-text);
+    border-color: var(--colour-selection);
+  }
+
+  .empty-state-action:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
   }
 </style>
