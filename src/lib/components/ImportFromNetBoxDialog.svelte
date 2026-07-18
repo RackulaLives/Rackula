@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
+  import Button from "$lib/components/ui/Button.svelte";
   import { Tabs } from "$lib/components/ui/Tabs";
   import { IconUpload } from "./icons";
   import type { DeviceCategory, RackWidth } from "$lib/types";
@@ -268,14 +269,14 @@ is_full_depth: false"
 
     <!-- Parse Button -->
     {#if !parsedData}
-      <button
-        type="button"
-        class="btn btn-primary parse-btn"
+      <Button
+        variant="primary"
+        class="parse-btn"
         onclick={handleParse}
         disabled={isParsing || !yamlInput.trim()}
       >
         {isParsing ? "Parsing..." : "Parse YAML"}
-      </button>
+      </Button>
     {/if}
 
     <!-- Error Message -->
@@ -380,32 +381,25 @@ is_full_depth: false"
         </div>
 
         <!-- Reset to Parse New -->
-        <button
-          type="button"
-          class="btn btn-secondary reset-btn"
+        <Button
+          variant="secondary"
+          class="reset-btn"
           onclick={() => {
             parsedData = null;
             parseError = "";
           }}
         >
           Parse Different YAML
-        </button>
+        </Button>
       </div>
     {/if}
 
     <!-- Action Buttons -->
     <div class="form-actions">
-      <button type="button" class="btn btn-secondary" onclick={handleCancel}>
-        Cancel
-      </button>
-      <button
-        type="button"
-        class="btn btn-primary"
-        onclick={handleImport}
-        disabled={!parsedData}
-      >
+      <Button variant="secondary" onclick={handleCancel}>Cancel</Button>
+      <Button variant="primary" onclick={handleImport} disabled={!parsedData}>
         Import
-      </button>
+      </Button>
     </div>
   </div>
 </Dialog>
@@ -526,7 +520,7 @@ is_full_depth: false"
     margin: 0;
   }
 
-  .parse-btn {
+  :global(.parse-btn) {
     align-self: flex-start;
   }
 
@@ -709,7 +703,7 @@ is_full_depth: false"
     outline-offset: 2px;
   }
 
-  .reset-btn {
+  :global(.reset-btn) {
     align-self: flex-start;
   }
 
@@ -719,38 +713,5 @@ is_full_depth: false"
     gap: var(--space-3);
     padding-top: var(--space-3);
     border-top: 1px solid var(--colour-border);
-  }
-
-  .btn {
-    padding: var(--space-2) var(--space-5);
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  .btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .btn-secondary {
-    background: var(--colour-button-bg);
-    color: var(--colour-text);
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: var(--colour-button-hover);
-  }
-
-  .btn-primary {
-    background: var(--colour-selection);
-    color: var(--colour-text-on-primary);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background: var(--colour-selection-hover);
   }
 </style>

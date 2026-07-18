@@ -36,6 +36,7 @@
   import NewLayoutMenu from "./NewLayoutMenu.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import Dialog from "./Dialog.svelte";
+  import Button from "./ui/Button.svelte";
   import Tooltip from "./Tooltip.svelte";
 
   interface Props {
@@ -482,17 +483,14 @@
       data-testid="layout-rename-input"
     />
     <div class="rename-actions">
-      <button type="button" class="btn btn-secondary" onclick={closeRename}>
-        Cancel
-      </button>
-      <button
-        type="button"
-        class="btn btn-primary"
+      <Button variant="secondary" onclick={closeRename}>Cancel</Button>
+      <Button
+        variant="primary"
         onclick={confirmRename}
         data-testid="btn-confirm-rename"
       >
         Rename
-      </button>
+      </Button>
     </div>
   </div>
 </Dialog>
@@ -785,38 +783,5 @@
     justify-content: flex-end;
     gap: var(--space-3);
     margin-top: var(--space-2);
-  }
-
-  .btn {
-    padding: var(--space-2) var(--space-5);
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  .btn-secondary {
-    background: var(--colour-button-bg);
-    color: var(--colour-text);
-  }
-
-  .btn-secondary:hover {
-    background: var(--colour-button-hover);
-  }
-
-  .btn-primary {
-    background: var(--colour-selection);
-    color: white;
-  }
-
-  .btn-primary:hover {
-    background: var(--colour-selection-hover);
-  }
-
-  .btn:focus-visible {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
   }
 </style>

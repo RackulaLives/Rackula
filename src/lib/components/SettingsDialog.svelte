@@ -7,6 +7,7 @@
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
   import Switch from "./Switch.svelte";
+  import Button from "./ui/Button.svelte";
   import { IconTrash, IconUndo } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -102,15 +103,14 @@
               : `${unusedCount} unused custom device ${unusedCount === 1 ? "type" : "types"} can be removed.`}
           </span>
         </div>
-        <button
-          type="button"
-          class="btn btn-secondary"
+        <Button
+          variant="secondary"
           onclick={handleCleanup}
           disabled={unusedCount === 0}
         >
           <IconTrash size={ICON_SIZE.sm} />
           <span>Review</span>
-        </button>
+        </Button>
       </div>
       <div class="settings-action-row">
         <div class="settings-action-text">
@@ -121,15 +121,14 @@
               : "No prompts are dismissed."}
           </span>
         </div>
-        <button
-          type="button"
-          class="btn btn-secondary"
+        <Button
+          variant="secondary"
           onclick={handleResetPrompts}
           disabled={!promptDismissed}
         >
           <IconUndo size={ICON_SIZE.sm} />
           <span>Reset</span>
-        </button>
+        </Button>
       </div>
     </section>
   </div>
@@ -186,39 +185,5 @@
   .settings-action-help {
     font-size: var(--font-size-sm);
     color: var(--colour-text-muted);
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    flex-shrink: 0;
-    min-height: 44px;
-    padding: var(--space-2) var(--space-4);
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition: background var(--duration-fast) var(--ease-out);
-  }
-
-  .btn-secondary {
-    background: var(--colour-button-bg);
-    color: var(--colour-text);
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: var(--colour-button-hover);
-  }
-
-  .btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .btn:focus-visible {
-    outline: 2px solid var(--colour-focus-ring);
-    outline-offset: 2px;
   }
 </style>

@@ -6,6 +6,7 @@
 <script lang="ts">
   import { SvelteSet } from "svelte/reactivity";
   import Dialog from "./Dialog.svelte";
+  import Button from "./ui/Button.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getCategoryDisplayName } from "$lib/utils/deviceFilters";
   import type { DeviceType } from "$lib/types";
@@ -104,7 +105,7 @@
       <div class="select-buttons">
         <button
           type="button"
-          class="btn btn-text"
+          class="btn-text"
           onclick={selectAll}
           disabled={allSelected}
         >
@@ -112,7 +113,7 @@
         </button>
         <button
           type="button"
-          class="btn btn-text"
+          class="btn-text"
           onclick={deselectAll}
           disabled={selectedCount === 0}
         >
@@ -136,32 +137,23 @@
       </div>
 
       <div class="actions">
-        <button
-          type="button"
-          class="btn btn-destructive"
-          onclick={handleDelete}
+        <Button
+          variant="destructive"
           disabled={selectedCount === 0}
+          onclick={handleDelete}
         >
           Delete Selected ({selectedCount})
-        </button>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          onclick={() => handleClose("cancel")}
-        >
+        </Button>
+        <Button variant="secondary" onclick={() => handleClose("cancel")}>
           Cancel
-        </button>
+        </Button>
       </div>
     {:else}
       <p class="empty-state">No unused device types found.</p>
       <div class="actions actions-centered">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          onclick={() => handleClose("cancel")}
-        >
+        <Button variant="secondary" onclick={() => handleClose("cancel")}>
           Close
-        </button>
+        </Button>
       </div>
     {/if}
   </div>
@@ -267,43 +259,5 @@
     color: var(--colour-text-secondary);
     font-size: var(--font-size-base);
     padding: var(--space-6) 0;
-  }
-
-  .btn {
-    padding: var(--space-2) var(--space-5);
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  .btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .btn-secondary {
-    background: var(--colour-button-bg);
-    color: var(--colour-text);
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: var(--colour-button-hover);
-  }
-
-  .btn-destructive {
-    background: var(--colour-error);
-    color: var(--colour-text-inverse);
-  }
-
-  .btn-destructive:hover:not(:disabled) {
-    background: var(--colour-error-hover);
-  }
-
-  .btn:focus-visible {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
   }
 </style>

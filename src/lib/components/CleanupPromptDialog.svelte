@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
+  import Button from "./ui/Button.svelte";
 
   interface Props {
     open: boolean;
@@ -98,20 +99,17 @@
     </div>
 
     <div class="actions">
-      <button type="button" class="btn btn-secondary" onclick={handleCancel}>
-        Cancel
-      </button>
-      <button
-        bind:this={keepAllButton}
-        type="button"
-        class="btn btn-secondary"
+      <Button variant="secondary" onclick={handleCancel}>Cancel</Button>
+      <Button
+        variant="secondary"
+        bind:ref={keepAllButton}
         onclick={handleKeepAll}
       >
         Keep All
-      </button>
-      <button type="button" class="btn btn-primary" onclick={handleReview}>
+      </Button>
+      <Button variant="primary" onclick={handleReview}>
         Review & Clean Up
-      </button>
+      </Button>
     </div>
   </div>
 </Dialog>
@@ -159,38 +157,5 @@
     display: flex;
     justify-content: flex-end;
     gap: var(--space-3);
-  }
-
-  .btn {
-    padding: var(--space-2) var(--space-5);
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  .btn-secondary {
-    background: var(--colour-button-bg);
-    color: var(--colour-text);
-  }
-
-  .btn-secondary:hover {
-    background: var(--colour-button-hover);
-  }
-
-  .btn-primary {
-    background: var(--colour-selection);
-    color: var(--colour-text-on-primary);
-  }
-
-  .btn-primary:hover {
-    background: var(--colour-selection-hover);
-  }
-
-  .btn:focus-visible {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
   }
 </style>
