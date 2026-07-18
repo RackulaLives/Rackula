@@ -20,6 +20,8 @@
     open: boolean;
     /** Active rack width for smart defaulting (10, 19, 21, or 23) */
     activeRackWidth?: number;
+    /** Pre-fills the name field when the dialog opens (#3007/R28a). */
+    initialName?: string;
     onadd?: (data: {
       name: string;
       height: number;
@@ -35,7 +37,7 @@
     oncancel?: () => void;
   }
 
-  let { open, activeRackWidth, onadd, oncancel }: Props = $props();
+  let { open, activeRackWidth, initialName, onadd, oncancel }: Props = $props();
 
   // Rack width options for selector
   type RackWidthOption = "10" | "19" | "both";
@@ -85,7 +87,7 @@
   // Reset form when dialog opens
   $effect(() => {
     if (open) {
-      name = "";
+      name = initialName ?? "";
       height = 1;
       category = "server";
       colour = getDefaultColour("server");

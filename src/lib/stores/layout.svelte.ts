@@ -354,6 +354,7 @@ export function createLayoutStore(
     markClean,
     markExported,
     restoreBackupState,
+    resetBackupTracking: stateAccess.resetBackupTracking,
 
     // Start tracking (whether the user has begun a layout)
     markStarted,

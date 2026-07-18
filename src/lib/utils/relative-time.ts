@@ -1,7 +1,7 @@
 /**
  * Format an ISO timestamp as elapsed time relative to now, for the storage chip
  * popover. Returns null for null or unparseable input so the caller can choose
- * its own copy (for example "Never exported"). Under 45 seconds (including small
+ * its own copy (for example "Never saved"). Under 45 seconds (including small
  * future skew) it returns "just now". `nowMs` is injectable for deterministic
  * tests.
  */

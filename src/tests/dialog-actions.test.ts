@@ -16,6 +16,7 @@ import {
   handleDelete,
   handleConfirmDelete,
   handleNewRack,
+  seedStarterRack,
   formatRackDeleteMessage,
 } from "$lib/utils/dialog-actions";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
@@ -408,6 +409,49 @@ describe("handleNewRack", () => {
     expect(layoutStore.racks.some((rack) => rack.id === created?.id)).toBe(
       false,
     );
+  });
+});
+
+describe("seedStarterRack (#3007/R6a)", () => {
+  beforeEach(resetAll);
+
+  it("creates a rack without flagging changesSinceExport before any user action", () => {
+    const layoutStore = getLayoutStore();
+    expect(layoutStore.changesSinceExport).toBe(0);
+
+    seedStarterRack();
+
+    expect(layoutStore.racks.length).toBe(1);
+    expect(layoutStore.changesSinceExport).toBe(0);
+    expect(layoutStore.hasEverExported).toBe(false);
+  });
+
+  it("leaves changesSinceExport at 0 even though the underlying seed (handleNewRack) would otherwise dirty it", () => {
+    // Confirms the contrast the fix relies on: handleNewRack alone dirties
+    // the counter (this is correct for every other add-rack affordance), so
+    // seedStarterRack must be the one call site that resets it back.
+    handleNewRack();
+    expect(getLayoutStore().changesSinceExport).toBeGreaterThan(0);
+
+    resetAll();
+    seedStarterRack();
+
+    expect(getLayoutStore().changesSinceExport).toBe(0);
+  });
+
+  // #3002 composition: seedStarterRack runs handleNewRack against an empty
+  // layout, so the name-collision numbering below never has anything to
+  // collide with. This just confirms the seeded rack still gets the plain
+  // (unnumbered) default name, not a "Racky McRackface 2".
+  it("does not number the seeded rack's name (no collision in an empty layout)", () => {
+    resetAll();
+    handleNewRack();
+    const baseline = getLayoutStore().racks[0]!.name;
+    resetAll();
+
+    seedStarterRack();
+
+    expect(getLayoutStore().racks[0]!.name).toBe(baseline);
   });
 });
 

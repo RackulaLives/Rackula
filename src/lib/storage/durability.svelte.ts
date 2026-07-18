@@ -100,11 +100,18 @@ export function computeLayoutStatus(
         icon: "saved",
       };
     }
+    // "Not exported" (not "Unsaved changes"): the working copy is always
+    // autosaved to the browser (the popover's own "Auto-saved just now" line
+    // says so), so "Unsaved" here was never literally true and either alarmed
+    // careful users or trained everyone to ignore the signal (#3007/R6a).
+    // This label covers both a genuine cold start (0 changes, never
+    // exported) and real edits since the last export: in both cases nothing
+    // has been exported yet, so the wording is accurate either way.
     return {
       status: "pending",
       kind: "pending",
-      label: "Unsaved changes",
-      shortLabel: "Unsaved",
+      label: "Not exported",
+      shortLabel: "Not exported",
       showLocation: true,
       detail: "Stored in this browser",
       icon: "pending",

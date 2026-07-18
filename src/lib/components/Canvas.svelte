@@ -449,7 +449,7 @@
           >
         {:else}
           <span
-            >Open the Devices tab on the left and drag items into your rack.</span
+            >Open the Devices tab on the left and drag devices into your rack.</span
           >
         {/if}
         <button

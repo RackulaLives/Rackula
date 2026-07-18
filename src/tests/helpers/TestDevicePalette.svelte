@@ -3,7 +3,7 @@
   import DevicePalette from "$lib/components/DevicePalette.svelte";
 
   interface Props {
-    oncreatedevice?: () => void;
+    oncreatedevice?: (name?: string) => void;
   }
 
   let { oncreatedevice }: Props = $props();

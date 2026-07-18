@@ -298,7 +298,7 @@ export function saveLayoutBody(
     // Distinguish an explicit null (clear, e.g. after a layout reset/load) from
     // an omitted value (undefined, preserve the prior timestamp). Nullish
     // coalescing alone would treat the intentional null as "keep previous" and
-    // leave a stale "Last exported" time in the entry.
+    // leave a stale "Last saved" time in the entry.
     lastExportedAt:
       durability.lastExportedAt !== undefined
         ? durability.lastExportedAt

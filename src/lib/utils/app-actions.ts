@@ -235,18 +235,19 @@ export async function handleExportSubmit(
       // rasterizing or serializing so they survive outside the app's origin
       // and inside a serialized-SVG-as-image rasterization (#2928).
       await inlineImageHrefs(svg);
-      await handler(svg, layoutStore.layout.name, exportViewOrDefault);
+      // Filename derives from the first (or first selected) rack being
+      // exported, not layout.name: layout.name only syncs to a rack name at
+      // rack-creation time (#1482), so renaming a rack afterward previously
+      // left the exported filename silently stuck on the old name (#3007/R6c).
+      const filenameSource = racksToExport[0]?.name ?? layoutStore.layout.name;
+      await handler(svg, filenameSource, exportViewOrDefault);
     } else if (options.format === "csv") {
-      const firstRack = racksToExport[0];
-      if (!firstRack) {
-        throw new Error("No rack available for CSV export");
-      }
+      // racksToExport is guaranteed non-empty by the early return above, so
+      // racksToExport[0] always exists here (#3007, CodeRabbit).
+      const firstRack = racksToExport[0]!;
       const csvContent = exportToCSV(firstRack, layoutStore.device_types);
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
-      downloadBlob(
-        blob,
-        generateExportFilename(layoutStore.layout.name, null, "csv"),
-      );
+      downloadBlob(blob, generateExportFilename(firstRack.name, null, "csv"));
       const successMsg =
         racksToExport.length > 1
           ? `CSV exported (first rack only - "${firstRack.name}")`

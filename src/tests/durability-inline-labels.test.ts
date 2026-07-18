@@ -8,9 +8,9 @@ describe("computeLayoutStatus inline fields", () => {
     expect(r.showLocation).toBe(true);
   });
 
-  it("browser dirty: short 'Unsaved', location shown", () => {
+  it("browser dirty: short 'Not exported', location shown", () => {
     const r = computeLayoutStatus("idle", 0, "browser", null, 3, false, false);
-    expect(r.shortLabel).toBe("Unsaved");
+    expect(r.shortLabel).toBe("Not exported");
     expect(r.showLocation).toBe(true);
   });
 

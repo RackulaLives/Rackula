@@ -36,6 +36,7 @@
   import { nextDuplicateName } from "./layouts-library";
   import LayoutContextMenu from "./LayoutContextMenu.svelte";
   import NewLayoutMenu from "./NewLayoutMenu.svelte";
+  import Tooltip from "./Tooltip.svelte";
   import "$lib/styles/menu.css";
   import "$lib/styles/tabs.css";
 
@@ -375,19 +376,24 @@
     {/each}
   </div>
 
-  <button
-    type="button"
-    class="layout-tab-add"
-    aria-label="New layout"
-    data-testid="btn-new-layout-tab"
-    onclick={handleNewLayout}
-    oncontextmenu={(e) => {
-      e.preventDefault();
-      newMenuOpen = true;
-    }}
-  >
-    <IconPlus size={ICON_SIZE.sm} />
-  </button>
+  <Tooltip text="New layout (new tab)" position="bottom">
+    {#snippet triggerChild({ props })}
+      <button
+        {...props}
+        type="button"
+        class="layout-tab-add"
+        aria-label="New layout (new tab)"
+        data-testid="btn-new-layout-tab"
+        onclick={handleNewLayout}
+        oncontextmenu={(e) => {
+          e.preventDefault();
+          newMenuOpen = true;
+        }}
+      >
+        <IconPlus size={ICON_SIZE.sm} />
+      </button>
+    {/snippet}
+  </Tooltip>
 
   <NewLayoutMenu
     bind:open={newMenuOpen}

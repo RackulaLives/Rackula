@@ -9,15 +9,13 @@ import StorageStatusChip from "$lib/components/StorageStatusChip.svelte";
  * non-sighted users get the state, not just a colour (#2064).
  *
  * A fresh layout store in browser mode has never been exported, so the chip's
- * accessible name reflects the pending "Unsaved changes" state.
+ * accessible name reflects the pending "Not exported" state (#3007/R6a).
  */
 describe("StorageStatusChip", () => {
   it("exposes the current storage state and location in its accessible name", () => {
     render(StorageStatusChip);
     const chip = screen.getByTestId("storage-status-chip");
-    expect(chip).toHaveAccessibleName(
-      /storage status: unsaved changes, browser/i,
-    );
+    expect(chip).toHaveAccessibleName(/storage status: not exported, browser/i);
   });
 
   it("trigger exposes aria-haspopup and aria-expanded for the popover", () => {

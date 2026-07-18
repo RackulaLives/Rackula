@@ -138,7 +138,7 @@
       onclick={handleFitAll}
     >
       <IconFitAllBold size={ICON_SIZE.sm} />
-      Fit to screen
+      Fit all
     </button>
   </section>
 

@@ -122,9 +122,12 @@
       border-color var(--duration-fast) var(--ease-out);
   }
 
+  /* Matches the desktop active-rack accent (--colour-selection, pink) rather
+     than --colour-primary (cyan) so the active-rack indicator reads as one
+     consistent accent across desktop and mobile (#3007/R20e). */
   .dot.active .dot-indicator {
-    background: var(--colour-primary);
-    border-color: var(--colour-primary);
+    background: var(--colour-selection);
+    border-color: var(--colour-selection);
   }
 
   .rack-counter {

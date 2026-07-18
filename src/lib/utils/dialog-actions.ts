@@ -69,6 +69,19 @@ export function handleNewRack(): void {
 }
 
 /**
+ * Seed the first rack for a genuine fresh install (#2831): same as
+ * handleNewRack, but keeps the layout at a clean baseline afterward. The
+ * seed is an automated action, not a user edit, so it must not count toward
+ * changesSinceExport: without this, the storage chip reads "Not exported"
+ * (nee "Unsaved changes") and the backup-nudge cold-start notice fires on
+ * load instead of the user's first real edit (#3007/R6a).
+ */
+export function seedStarterRack(): void {
+  handleNewRack();
+  getLayoutStore().resetBackupTracking();
+}
+
+/**
  * Remove the selected device or rack. A device placement is trivially
  * undoable, so it is removed immediately with an undo toast rather than
  * gated behind a confirm dialog; a rack carries a much larger blast radius
@@ -212,8 +225,13 @@ export function handleHelp(): void {
   dialogStore.open("help");
 }
 
-/** Close any open sheet, then open the Add Device dialog. */
-export function handleAddDevice(): void {
+/**
+ * Close any open sheet, then open the Add Device dialog. An optional name
+ * pre-fills the form (the device palette's empty search state "Create custom
+ * device named <query>" action, #3007/R28a).
+ */
+export function handleAddDevice(initialName?: string): void {
+  dialogStore.pendingDeviceName = initialName ?? null;
   dialogStore.open("addDevice");
 }
 

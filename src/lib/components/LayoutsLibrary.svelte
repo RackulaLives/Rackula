@@ -333,7 +333,7 @@
     </span>
     {#if onnewlayout}
       <div class="new-layout-controls">
-        <Tooltip text="New Layout" position="bottom">
+        <Tooltip text="New layout" position="bottom">
           {#snippet triggerChild({ props })}
             <button
               {...props}
@@ -344,7 +344,7 @@
                 e.preventDefault();
                 newMenuOpen = true;
               }}
-              aria-label="New Layout"
+              aria-label="New layout"
               data-testid="btn-new-layout"
             >
               +
