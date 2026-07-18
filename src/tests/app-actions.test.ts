@@ -8,8 +8,12 @@
  * new one.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { resetAndCreateNewRack } from "$lib/utils/app-actions";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import {
+  resetAndCreateNewRack,
+  handleExportSubmit,
+} from "$lib/utils/app-actions";
+import { downloadBlob } from "$lib/utils/export";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import {
@@ -17,6 +21,14 @@ import {
   resetSelectionStore,
 } from "$lib/stores/selection.svelte";
 import { resetImageStore } from "$lib/stores/images.svelte";
+import type { ExportOptions } from "$lib/types";
+
+vi.mock("$lib/utils/export", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("$lib/utils/export")>();
+  return { ...actual, downloadBlob: vi.fn() };
+});
+
+const mockedDownloadBlob = vi.mocked(downloadBlob);
 
 function resetAll() {
   resetLayoutStore();
@@ -24,6 +36,7 @@ function resetAll() {
   resetImageStore();
   dialogStore.close();
   dialogStore.closeSheet();
+  mockedDownloadBlob.mockClear();
 }
 
 describe("resetAndCreateNewRack", () => {
@@ -58,5 +71,47 @@ describe("resetAndCreateNewRack", () => {
     expect(selectionStore.selectedRackId).toBe(created?.id);
     // The wizard was removed in #2747, so this path never opens a dialog.
     expect(dialogStore.openDialog).toBeNull();
+  });
+});
+
+describe("handleExportSubmit filename source (#3007/R6c)", () => {
+  beforeEach(resetAll);
+
+  const csvOptions: ExportOptions = {
+    format: "csv",
+    scope: "all",
+    includeNames: true,
+    includeLegend: false,
+    background: "solid",
+  };
+
+  it("the downloaded filename follows a rack rename, not the stale layout name", async () => {
+    const layoutStore = getLayoutStore();
+    const rack = layoutStore.addRack("Original Rack Name", 12);
+    expect(rack).not.toBeNull();
+
+    // Rename after creation: layout.name only syncs to a rack's name at
+    // creation time (#1482), so this is the exact case that used to leave
+    // the exported filename silently stuck on the old name.
+    layoutStore.updateRack(rack!.id, { name: "Renamed Rack" });
+
+    await handleExportSubmit(csvOptions);
+
+    expect(mockedDownloadBlob).toHaveBeenCalledTimes(1);
+    const [, filename] = mockedDownloadBlob.mock.calls[0]!;
+    expect(filename).toMatch(/renamed-rack/i);
+    expect(filename).not.toMatch(/original-rack-name/i);
+  });
+
+  it("falls back to the layout name when there is no rack to export", async () => {
+    const layoutStore = getLayoutStore();
+    layoutStore.setLayoutName("Fallback Layout Name");
+
+    await handleExportSubmit(csvOptions);
+
+    // No rack exists, so this hits the "No rack to export" guard: nothing
+    // downloads. Confirms the rack-name source is additive, not a
+    // replacement that breaks the zero-rack case.
+    expect(mockedDownloadBlob).not.toHaveBeenCalled();
   });
 });
