@@ -69,6 +69,11 @@ export const sessionDebug = {
   storage: Debug("rackula:session:storage"),
 };
 
+/** Debug logger for the shared plain-language import/decode failure path (#2989): file-import (yaml.ts) and share-link decode (share.ts) route their raw parse/validation detail here instead of console.warn. */
+export const importDebug = {
+  validation: Debug("rackula:import:validation"),
+};
+
 // Create shared instances for reuse
 const generalLog = Debug("rackula:general");
 const infoLog = Debug("rackula:info");

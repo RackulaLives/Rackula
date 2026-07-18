@@ -35,6 +35,7 @@ import {
 import { generateId } from "./device";
 import { createDefaultRack } from "./serialization";
 import { toHumanUnits, toInternalUnits } from "./position";
+import { importDebug } from "$lib/utils/debug";
 import {
   describeValidationIssues,
   unreadableImportMessage,
@@ -511,11 +512,18 @@ export function decodeLayout(encoded: string): DecodeResult {
     }
     const parsed = JSON.parse(json);
 
-    // Detect v1 vs v2 by field presence
-    if ("rs" in parsed) {
+    // Detect v1 vs v2 by field presence. Guard against JSON primitives
+    // (null, a string, a number, a boolean): `"rs" in parsed` throws for
+    // those, but they decoded successfully and are simply the wrong shape,
+    // so route them to the v1 schema's invalid-layout message instead of
+    // misreporting them as an unreadable/undecodable payload.
+    if (parsed !== null && typeof parsed === "object" && "rs" in parsed) {
       const result = MinimalLayoutV2Schema.safeParse(parsed);
       if (!result.success) {
-        console.warn("Share link v2 validation failed:", result.error);
+        importDebug.validation(
+          "Share link v2 validation failed: %O",
+          result.error,
+        );
         return {
           layout: null,
           error: describeValidationIssues(result.error.issues),
@@ -527,7 +535,10 @@ export function decodeLayout(encoded: string): DecodeResult {
     // v1 fallback
     const result = MinimalLayoutSchema.safeParse(parsed);
     if (!result.success) {
-      console.warn("Share link v1 validation failed:", result.error);
+      importDebug.validation(
+        "Share link v1 validation failed: %O",
+        result.error,
+      );
       return {
         layout: null,
         error: describeValidationIssues(result.error.issues),
@@ -535,7 +546,7 @@ export function decodeLayout(encoded: string): DecodeResult {
     }
     return { layout: fromMinimalLayoutV1(result.data) };
   } catch (error) {
-    console.warn("Share link decode failed:", error);
+    importDebug.validation("Share link decode failed: %O", error);
     return { layout: null, error: unreadableImportMessage("share-link") };
   }
 }

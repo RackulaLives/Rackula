@@ -23,6 +23,7 @@ import {
   createTestDevice,
 } from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
+import { unreadableImportMessage } from "$lib/utils/import-errors";
 import type { Layout } from "$lib/types";
 
 // pako 3.x exports a frozen, read-only ESM namespace, so vi.spyOn cannot
@@ -282,6 +283,29 @@ describe("decodeLayout", () => {
     expect(decodeLayout("invalid").error).toBeDefined();
     expect(decodeLayout("").layout).toBeNull();
     expect(decodeLayout("!!!").layout).toBeNull();
+  });
+
+  it("routes a decoded JSON null payload to the invalid-layout message, not the unreadable-payload message", () => {
+    // `"rs" in parsed` throws for a JSON primitive; a null payload decoded
+    // successfully but is the wrong shape, so it must not be misreported as
+    // an undecodable share link.
+    const encoded = LZString.compressToEncodedURIComponent("null");
+    const { layout, error } = decodeLayout(encoded);
+
+    expect(layout).toBeNull();
+    expect(error).toBeDefined();
+    expect(error).not.toBe(unreadableImportMessage("share-link"));
+  });
+
+  it("routes a decoded JSON string payload to the invalid-layout message, not the unreadable-payload message", () => {
+    const encoded = LZString.compressToEncodedURIComponent(
+      JSON.stringify("just a string"),
+    );
+    const { layout, error } = decodeLayout(encoded);
+
+    expect(layout).toBeNull();
+    expect(error).toBeDefined();
+    expect(error).not.toBe(unreadableImportMessage("share-link"));
   });
 
   it("round-trips layout through encode/decode", () => {

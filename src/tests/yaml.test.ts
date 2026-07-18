@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   parseYaml,
   parseLayoutYaml,
@@ -9,6 +9,7 @@ import {
   unreadableImportMessage,
   INVALID_LAYOUT_FORMAT_MESSAGE,
 } from "$lib/utils/import-errors";
+import { importDebug } from "$lib/utils/debug";
 import {
   createTestLayout,
   createTestRack,
@@ -47,6 +48,14 @@ async function rejectionMessage(promise: Promise<unknown>): Promise<string> {
 }
 
 describe("plain-language import errors (#2989)", () => {
+  // Guarantees the debug spy below is restored even if an assertion in the
+  // test body throws first, so a failure here cannot leak a mock into
+  // later, unrelated tests (mirrors the console.warn -> debug logger move
+  // in yaml.ts/share.ts, #2989 fix round 3).
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("rejects a file that is not valid YAML at all with a plain message, no code frame, no raw bytes", async () => {
     // Mirrors "binary junk renamed .yaml": malformed syntax breaks js-yaml's
     // parser the same way corrupt file bytes do, producing a code-frame
@@ -61,14 +70,15 @@ describe("plain-language import errors (#2989)", () => {
     expect(message).not.toContain("nested");
   });
 
-  it("logs the raw parse failure to the console instead of showing it to the user", async () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("logs the raw parse failure via the debug logger instead of showing it to the user", async () => {
+    const debugSpy = vi
+      .spyOn(importDebug, "validation")
+      .mockImplementation(() => {});
     const notYaml = "name: Broken:\n  nested: value";
 
     await expect(parseLayoutYaml(notYaml)).rejects.toThrow();
 
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
+    expect(debugSpy).toHaveBeenCalled();
   });
 
   it("rejects YAML that parses but is not a layout with the shared invalid-format message, no raw Zod issue list", async () => {
@@ -81,14 +91,15 @@ describe("plain-language import errors (#2989)", () => {
     expect(message).not.toContain(":");
   });
 
-  it("logs the raw validation failure to the console instead of showing it to the user", async () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("logs the raw validation failure via the debug logger instead of showing it to the user", async () => {
+    const debugSpy = vi
+      .spyOn(importDebug, "validation")
+      .mockImplementation(() => {});
     const notALayout = "foo: bar\nbaz: 123\n";
 
     await expect(parseLayoutYaml(notALayout)).rejects.toThrow();
 
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
+    expect(debugSpy).toHaveBeenCalled();
   });
 
   it("names the field in plain language for a single invalid field", async () => {

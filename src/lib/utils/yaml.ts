@@ -15,7 +15,7 @@ import {
   type LayoutZod,
 } from "$lib/schemas";
 import { adaptLegacyLayout } from "$lib/storage";
-import { layoutDebug } from "$lib/utils/debug";
+import { layoutDebug, importDebug } from "$lib/utils/debug";
 import {
   decodeYamlImages,
   type SerializedImages,
@@ -92,14 +92,14 @@ export async function parseYaml<T = unknown>(yamlString: string): Promise<T> {
  * Parse YAML for the file-import path, replacing a js-yaml parse failure
  * (a code-frame exception painting raw file bytes into its message, e.g. for
  * binary content renamed .yaml) with the shared plain-language copy (#2989).
- * The raw exception is logged to the console, matching the share-link
- * decode path's existing console.warn convention.
+ * The raw exception is logged via the namespace-filtered debug logger,
+ * matching the share-link decode path's equivalent logging.
  */
 async function parseYamlForImport(yamlString: string): Promise<unknown> {
   try {
     return await parseYaml(yamlString);
   } catch (error) {
-    console.warn("Layout file parse failed:", error);
+    importDebug.validation("Layout file parse failed: %O", error);
     throw new Error(unreadableImportMessage("file"), { cause: error });
   }
 }
@@ -355,7 +355,7 @@ function validateParsedLayout(parsed: unknown): {
   // idempotent, so loadLayout re-running it after this parse is a no-op.
   const baseResult = LayoutSchemaBase.safeParse(parsed);
   if (!baseResult.success) {
-    console.warn("Layout validation failed:", baseResult.error);
+    importDebug.validation("Layout validation failed: %O", baseResult.error);
     throw new Error(describeValidationIssues(baseResult.error.issues), {
       cause: baseResult.error,
     });
@@ -366,7 +366,7 @@ function validateParsedLayout(parsed: unknown): {
   const result = LayoutSchema.safeParse(adapted);
 
   if (!result.success) {
-    console.warn("Layout validation failed:", result.error);
+    importDebug.validation("Layout validation failed: %O", result.error);
     throw new Error(describeValidationIssues(result.error.issues), {
       cause: result.error,
     });

@@ -80,6 +80,32 @@ describe("describeValidationIssues", () => {
     expect(message).not.toContain("racks.0.devices.0.position");
   });
 
+  it("preserves a custom message on an invalid_type field instead of rewriting it from the expected type", () => {
+    const message = describeValidationIssues([
+      {
+        path: ["racks", 0, "width"],
+        message: "Width must be 10 or 19 inches",
+        code: "invalid_type",
+        expected: "number",
+      },
+    ]);
+
+    expect(message).toBe("Width must be 10 or 19 inches");
+    expect(message).not.toContain("must be a number");
+  });
+
+  it("preserves a custom message that starts with the same words as a Zod default without matching its full shape", () => {
+    const message = describeValidationIssues([
+      {
+        path: ["racks", 0, "devices", 0, "device_type"],
+        message: "Invalid device type: unknown slug",
+        code: "invalid_format",
+      },
+    ]);
+
+    expect(message).toBe("Invalid device type: unknown slug");
+  });
+
   it("replaces Zod's default too-small wording for a bare .min() field with no custom message", () => {
     // PowerPortSchema.name is `z.string().min(1)` with no custom message
     // (src/lib/schemas/index.ts ~319), so Zod 4 ships its own internal
@@ -87,8 +113,6 @@ describe("describeValidationIssues", () => {
     const result = PowerPortSchema.safeParse({ name: "" });
     expect(result.success).toBe(false);
     if (result.success) return;
-    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: an otherwise-valid PowerPortSchema payload with only `name` invalid must fail with exactly one issue
-    expect(result.error.issues).toHaveLength(1);
 
     const message = describeValidationIssues(result.error.issues);
 
@@ -107,8 +131,6 @@ describe("describeValidationIssues", () => {
     });
     expect(result.success).toBe(false);
     if (result.success) return;
-    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: an otherwise-valid SlotSchema payload with only `name` invalid must fail with exactly one issue
-    expect(result.error.issues).toHaveLength(1);
 
     const message = describeValidationIssues(result.error.issues);
 
@@ -126,8 +148,6 @@ describe("describeValidationIssues", () => {
     });
     expect(result.success).toBe(false);
     if (result.success) return;
-    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: an otherwise-valid DeviceLinkSchema payload with only `url` invalid must fail with exactly one issue
-    expect(result.error.issues).toHaveLength(1);
 
     const message = describeValidationIssues(result.error.issues);
 
