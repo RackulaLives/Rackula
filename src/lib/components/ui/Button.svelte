@@ -13,18 +13,23 @@
   interface Props {
     /** Visual style. "primary" and "destructive" use the muted CTA tokens; "secondary" is the neutral/cancel style. */
     variant?: "primary" | "secondary" | "destructive";
+    /** HTML button type. "submit" for a form's primary action, "button" (default) otherwise. */
     type?: "button" | "submit";
+    /** Disables the button and applies the standard disabled visual/cursor treatment. */
     disabled?: boolean;
+    /** Click handler; not called while disabled. */
     onclick?: (event: MouseEvent) => void;
     /** Test ID for end-to-end/unit test selectors. */
     "data-testid"?: string;
     /** Marks the dialog's safe/cancel action so Dialog's type="confirm" autofocus rule can find it. */
     "data-dialog-safe-action"?: boolean;
+    /** Native title/tooltip attribute. */
     title?: string;
     /** Underlying button element, for callers that need to focus() it programmatically. */
     ref?: HTMLButtonElement | null;
     /** Extra caller-supplied class(es), e.g. for one-off layout tweaks (align-self, etc). */
     class?: string;
+    /** Button label content; can be plain text or an icon+text combination. */
     children?: Snippet;
   }
 
