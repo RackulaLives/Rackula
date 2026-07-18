@@ -442,6 +442,8 @@ describe("handleNewRack name collision (#3002)", () => {
     handleNewRack();
 
     const names = layoutStore.racks.map((r) => r.name);
+    // Justification: verifies the behavioral invariant that all generated
+    // names are distinct without asserting an exact count.
     expect(new Set(names).size).toBe(names.length);
   });
 
@@ -482,15 +484,13 @@ describe("handleNewRack name collision (#3002)", () => {
     handleNewRack();
     const second = layoutStore.racks.find((r) => r.id !== first.id)!;
     handleNewRack();
-    const third = layoutStore.racks.find(
-      (r) => r.id !== first.id && r.id !== second.id,
-    )!;
 
     layoutStore.deleteRack(second.id);
+    expect(layoutStore.getRackById(second.id)).toBeUndefined();
+
+    const idsBeforeFourth = new Set(layoutStore.racks.map((r) => r.id));
     handleNewRack();
-    const fourth = layoutStore.racks.find(
-      (r) => r.id !== first.id && r.id !== third.id,
-    )!;
+    const fourth = layoutStore.racks.find((r) => !idsBeforeFourth.has(r.id))!;
 
     expect(fourth.name).toBe(second.name);
   });
