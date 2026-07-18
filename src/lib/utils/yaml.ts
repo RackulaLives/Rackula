@@ -15,13 +15,17 @@ import {
   type LayoutZod,
 } from "$lib/schemas";
 import { adaptLegacyLayout } from "$lib/storage";
-import { layoutDebug } from "$lib/utils/debug";
+import { layoutDebug, importDebug } from "$lib/utils/debug";
 import {
   decodeYamlImages,
   type SerializedImages,
 } from "$lib/utils/image-encoding";
 import { orderLayoutFields } from "$lib/utils/yaml-field-order";
 import type { ImageStoreMap } from "$lib/types/images";
+import {
+  describeValidationIssues,
+  unreadableImportMessage,
+} from "$lib/utils/import-errors";
 
 /**
  * Warn if any rack contains duplicate device IDs before serialization (#1363)
@@ -82,6 +86,22 @@ export async function serializeToYaml(data: unknown): Promise<string> {
 export async function parseYaml<T = unknown>(yamlString: string): Promise<T> {
   const yaml = await getYaml();
   return yaml.load(yamlString, { schema: yaml.JSON_SCHEMA }) as T;
+}
+
+/**
+ * Parse YAML for the file-import path, replacing a js-yaml parse failure
+ * (a code-frame exception painting raw file bytes into its message, e.g. for
+ * binary content renamed .yaml) with the shared plain-language copy (#2989).
+ * The raw exception is logged via the namespace-filtered debug logger,
+ * matching the share-link decode path's equivalent logging.
+ */
+async function parseYamlForImport(yamlString: string): Promise<unknown> {
+  try {
+    return await parseYaml(yamlString);
+  } catch (error) {
+    importDebug.validation("Layout file parse failed: %O", error);
+    throw new Error(unreadableImportMessage("file"), { cause: error });
+  }
 }
 
 /**
@@ -335,10 +355,10 @@ function validateParsedLayout(parsed: unknown): {
   // idempotent, so loadLayout re-running it after this parse is a no-op.
   const baseResult = LayoutSchemaBase.safeParse(parsed);
   if (!baseResult.success) {
-    const errors = baseResult.error.issues
-      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-      .join(", ");
-    throw new Error(`Invalid layout: ${errors}`);
+    importDebug.validation("Layout validation failed: %O", baseResult.error);
+    throw new Error(describeValidationIssues(baseResult.error.issues), {
+      cause: baseResult.error,
+    });
   }
 
   const adapted = adaptLegacyLayout(baseResult.data as unknown as Layout);
@@ -346,14 +366,10 @@ function validateParsedLayout(parsed: unknown): {
   const result = LayoutSchema.safeParse(adapted);
 
   if (!result.success) {
-    const errors = result.error.issues
-      .map((issue) => {
-        const path = issue.path.join(".");
-        return `${path}: ${issue.message}`;
-      })
-      .join(", ");
-
-    throw new Error(`Invalid layout: ${errors}`);
+    importDebug.validation("Layout validation failed: %O", result.error);
+    throw new Error(describeValidationIssues(result.error.issues), {
+      cause: result.error,
+    });
   }
 
   return { layout: toRuntimeLayout(result.data), rawImages };
@@ -366,7 +382,7 @@ function validateParsedLayout(parsed: unknown): {
  * parseLayoutYamlWithImages to recover them).
  */
 export async function parseLayoutYaml(yamlString: string): Promise<Layout> {
-  const parsed = await parseYaml(yamlString);
+  const parsed = await parseYamlForImport(yamlString);
   return validateParsedLayout(parsed).layout;
 }
 
@@ -384,7 +400,7 @@ export async function parseLayoutYamlWithImages(yamlString: string): Promise<{
   failedImagesCount: number;
   failedKeys: string[];
 }> {
-  const parsed = await parseYaml(yamlString);
+  const parsed = await parseYamlForImport(yamlString);
   const { layout, rawImages } = validateParsedLayout(parsed);
   const { images, failedImagesCount, failedKeys } = decodeYamlImages(rawImages);
 

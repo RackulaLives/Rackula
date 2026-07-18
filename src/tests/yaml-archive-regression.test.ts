@@ -21,6 +21,7 @@ import {
   serializeLayoutToYamlWithMetadata,
 } from "$lib/utils/yaml";
 import { toInternalUnits } from "$lib/utils/position";
+import { INVALID_LAYOUT_FORMAT_MESSAGE } from "$lib/utils/import-errors";
 import type { Cable, Layout, RackGroup } from "$lib/types";
 import {
   createTestDevice,
@@ -279,7 +280,8 @@ describe("legacy ZIP load compatibility (#1114)", () => {
 describe("invalid YAML load error paths (#1114)", () => {
   it("rejects a ZIP whose YAML fails schema validation", async () => {
     // A corrupt or hand-edited file with a missing required rack field must be
-    // rejected loudly, not silently loaded as a broken layout.
+    // rejected loudly, not silently loaded as a broken layout. The rejection is
+    // plain language (#2989): no raw Zod path/issue list reaches the user.
     const zip = new JSZip();
     const folder = zip.folder(`Broken-${UUID}`);
     folder?.file(
@@ -288,6 +290,8 @@ describe("invalid YAML load error paths (#1114)", () => {
     );
     const blob = await zip.generateAsync({ type: "blob" });
 
-    await expect(extractFolderArchive(blob)).rejects.toThrow(/Invalid layout/);
+    await expect(extractFolderArchive(blob)).rejects.toThrow(
+      INVALID_LAYOUT_FORMAT_MESSAGE,
+    );
   });
 });
