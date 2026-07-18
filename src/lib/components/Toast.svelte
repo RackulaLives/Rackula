@@ -164,8 +164,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.875rem;
-    font-weight: bold;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
   }
 
   .toast--success .toast__icon {
@@ -186,7 +186,7 @@
 
   .toast__message {
     flex: 1;
-    font-size: 0.875rem;
+    font-size: var(--font-size-base);
     color: var(--colour-text);
     word-break: break-word;
   }
@@ -195,8 +195,8 @@
     position: relative;
     flex-shrink: 0;
     padding: 0.25rem 0.75rem;
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
     color: var(--colour-selection);
     background: transparent;
     border: 1px solid var(--colour-selection);
@@ -242,7 +242,7 @@
     border-radius: var(--radius-sm);
     cursor: pointer;
     color: var(--colour-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--font-size-xs);
     transition: all 0.15s ease;
   }
 

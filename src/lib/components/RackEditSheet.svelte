@@ -545,10 +545,10 @@
     width: 100%;
     padding: var(--space-3) var(--space-4);
     font-size: var(--font-size-base);
-    font-weight: 500;
-    color: var(--colour-error);
+    font-weight: var(--font-weight-medium);
+    color: var(--colour-button-destructive);
     background: transparent;
-    border: 1px solid var(--colour-error);
+    border: 1px solid var(--colour-button-destructive);
     border-radius: var(--radius-md);
     cursor: pointer;
     transition:
@@ -560,7 +560,7 @@
 
   .btn-danger:hover:not(:disabled),
   .btn-danger:focus-visible:not(:disabled) {
-    background: var(--colour-error);
+    background: var(--colour-button-destructive-hover);
     color: var(--colour-text-on-primary);
   }
 

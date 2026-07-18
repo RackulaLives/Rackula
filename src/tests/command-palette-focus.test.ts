@@ -204,11 +204,11 @@ describe("Command palette focus restoration (#2997)", () => {
     // The destination dialog owning focus is the user-visible proof the
     // guard backed off instead of grabbing the pill while waiting on the
     // async dialog to open: if it had focused the pill, this element would
-    // never receive focus.
+    // never receive focus. ExportDialog is now a type="form" dialog (#3008,
+    // matching ShareDialog's spec), so its first field - not the header
+    // close button - is where initial focus lands.
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Close dialog" }),
-      ).toHaveFocus();
+      expect(screen.getByTestId("select-export-format")).toHaveFocus();
     });
   }, 60000);
 

@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
+  import Button from "./ui/Button.svelte";
   import ImageUpload from "./ImageUpload.svelte";
   import Switch from "./Switch.svelte";
   import type { DeviceCategory, RackWidth } from "$lib/types";
@@ -351,17 +352,15 @@
     </div>
 
     <div class="form-actions">
-      <button type="button" class="btn btn-secondary" onclick={handleCancel}>
-        Cancel
-      </button>
-      <button
+      <Button variant="secondary" onclick={handleCancel}>Cancel</Button>
+      <Button
         type="submit"
-        class="btn btn-primary"
+        variant="primary"
         data-testid="btn-add-device"
         onclick={handleSubmit}
       >
         Add
-      </button>
+      </Button>
     </div>
   </form>
 </Dialog>
@@ -488,33 +487,5 @@
     justify-content: flex-end;
     gap: var(--space-3);
     margin-top: var(--space-2);
-  }
-
-  .btn {
-    padding: var(--space-2) var(--space-5);
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  .btn-secondary {
-    background: var(--colour-button-bg);
-    color: var(--colour-text);
-  }
-
-  .btn-secondary:hover {
-    background: var(--colour-button-hover);
-  }
-
-  .btn-primary {
-    background: var(--colour-selection);
-    color: white;
-  }
-
-  .btn-primary:hover {
-    background: var(--colour-selection-hover);
   }
 </style>

@@ -6,9 +6,16 @@
   The default copy describes replacing the current rack on a new-rack action.
   Callers that replace something else (e.g. restore-from-file) override title,
   message, and the save-first label.
+
+  Shares its spec with ConfirmDialog (#3008): both route CTAs through the
+  shared Button component and its dedicated colour tokens, both show the
+  header close affordance, and both confirm on Enter (guarded so a focused
+  button's own native activation wins) rather than diverging on these details
+  case by case.
 -->
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
+  import Button from "./ui/Button.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
 
   interface Props {
@@ -40,45 +47,60 @@
     `"${rackName}" has ${deviceCount} ${deviceWord} placed. Save your layout first?`,
   );
   const resolvedMessage = $derived(message ?? defaultMessage);
+
+  // Enter confirms the destructive action (Replace), mirroring ConfirmDialog,
+  // but only when focus isn't already on a button within the dialog (Cancel,
+  // Save First, Replace, or the Dialog's own close/X control). When a button
+  // is focused, native button activation (Enter -> click) decides which
+  // action fires (#2919, #2975 pattern, shared spec per #3008).
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key !== "Enter") return;
+    const active = document.activeElement;
+    if (active instanceof HTMLButtonElement) return;
+
+    event.preventDefault();
+    onReplace();
+  }
+
+  // Listen only while open, mirroring ConfirmDialog's lifecycle-scoped
+  // listener.
+  $effect(() => {
+    if (open) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  });
 </script>
 
-<Dialog
-  {open}
-  {title}
-  size="S"
-  type="confirm"
-  showClose={false}
-  onclose={onCancel}
->
+<Dialog {open} {title} size="S" type="confirm" onclose={onCancel}>
   <div class="confirm-replace-dialog">
     <p class="message">{resolvedMessage}</p>
 
     <div class="actions">
-      <button
-        type="button"
-        class="btn btn-secondary"
+      <Button
+        variant="secondary"
         data-testid="btn-cancel-replace"
         data-dialog-safe-action
         onclick={onCancel}
       >
         Cancel
-      </button>
-      <button
-        type="button"
-        class="btn btn-primary"
+      </Button>
+      <Button
+        variant="primary"
         data-testid="btn-save-first"
         onclick={onSaveFirst}
       >
         {saveFirstLabel}
-      </button>
-      <button
-        type="button"
-        class="btn btn-destructive"
+      </Button>
+      <Button
+        variant="destructive"
         data-testid="btn-replace-rack"
         onclick={onReplace}
       >
         Replace
-      </button>
+      </Button>
     </div>
   </div>
 </Dialog>
@@ -100,52 +122,5 @@
     display: flex;
     gap: var(--space-3);
     justify-content: flex-end;
-  }
-
-  .btn {
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-md);
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: opacity 0.15s;
-  }
-
-  .btn:hover {
-    opacity: 0.9;
-  }
-
-  .btn:focus-visible {
-    outline: 2px solid var(--colour-selection);
-    outline-offset: 2px;
-  }
-
-  .btn-primary {
-    background: var(--colour-button-primary);
-    color: var(--colour-text-on-primary);
-  }
-
-  .btn-primary:hover {
-    background: var(--colour-button-primary-hover);
-  }
-
-  .btn-destructive {
-    background: var(--colour-button-destructive);
-    color: var(--colour-text-on-primary);
-  }
-
-  .btn-destructive:hover {
-    background: var(--colour-button-destructive-hover);
-  }
-
-  .btn-secondary {
-    background: transparent;
-    border: 1px solid var(--colour-border);
-    color: var(--colour-text);
-  }
-
-  .btn-secondary:hover {
-    background: var(--colour-surface-hover);
   }
 </style>

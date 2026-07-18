@@ -12,6 +12,7 @@
   import { layoutDebug } from "$lib/utils/debug";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { IconCopy, IconDownload } from "./icons";
+  import Button from "./ui/Button.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
 
   interface Props {
@@ -315,13 +316,9 @@
       >
         <IconDownload size={ICON_SIZE.sm} />
       </button>
-      <button
-        type="button"
-        class="btn btn-secondary"
-        onclick={handleEditModeToggle}
-      >
+      <Button variant="secondary" onclick={handleEditModeToggle}>
         {isEditing ? "Cancel edits" : "Edit YAML"}
-      </button>
+      </Button>
     </div>
   </div>
 
@@ -333,20 +330,12 @@
         mistake.
       </p>
       <div class="conflict-actions">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          onclick={handleReloadLatest}
-        >
+        <Button variant="secondary" onclick={handleReloadLatest}>
           Reload latest
-        </button>
-        <button
-          type="button"
-          class="btn btn-danger"
-          onclick={handleApplyAnyway}
-        >
+        </Button>
+        <Button variant="destructive" onclick={handleApplyAnyway}>
           Apply anyway
-        </button>
+        </Button>
       </div>
     </div>
   {/if}
@@ -371,14 +360,9 @@
 
   {#if isEditing}
     <div class="footer-actions">
-      <button
-        type="button"
-        class="btn btn-primary"
-        disabled={applyDisabled}
-        onclick={handleApply}
-      >
+      <Button variant="primary" disabled={applyDisabled} onclick={handleApply}>
         {isApplying ? "Applying..." : "Apply YAML"}
-      </button>
+      </Button>
     </div>
   {/if}
 </div>
@@ -533,58 +517,6 @@
     display: flex;
     justify-content: flex-end;
     gap: var(--space-2);
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-1);
-    min-height: var(--touch-target-min);
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-sm);
-    border: 1px solid transparent;
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-  }
-
-  .btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .btn-secondary {
-    background: transparent;
-    border-color: var(--colour-border);
-    color: var(--colour-text);
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: var(--colour-surface-hover);
-  }
-
-  .btn-primary {
-    background: var(--colour-button-primary);
-    color: var(--colour-text-on-primary);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background: var(--colour-button-primary-hover);
-  }
-
-  .btn-danger {
-    background: transparent;
-    border-color: var(--colour-error-border, #ef4444);
-    color: var(--colour-error-text, #ef4444);
-  }
-
-  .btn-danger:hover:not(:disabled) {
-    background: color-mix(
-      in oklab,
-      var(--colour-error-bg, #ef4444) 12%,
-      var(--colour-bg)
-    );
   }
 
   @media (max-width: 680px) {
