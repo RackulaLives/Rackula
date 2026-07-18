@@ -7,9 +7,11 @@
  *
  * #2213 extends this seam with recents and a selection-aware empty state.
  */
+import { computeCommandScore } from "bits-ui";
 import {
   ACTION_REGISTRY,
   getActionById,
+  formatMenuShortcut,
   resolveActionLabel,
   type ActionDefinition,
   type ActionEnabledContext,
@@ -17,7 +19,6 @@ import {
   type AppMenuGroup,
   type HelpGroup,
 } from "$lib/actions/registry";
-import { formatShortcut } from "$lib/utils/platform";
 
 export interface PaletteCommand {
   id: ActionId;
@@ -77,7 +78,6 @@ const GROUP_OVERRIDES: Partial<Record<ActionId, PaletteGroup>> = {
   "new-custom-device": "Create / Add device",
   // View toggles carry no help or menu group; they are view controls.
   "toggle-annotations": "Navigation / View",
-  "toggle-sidebar": "Navigation / View",
 };
 
 /** Fold an action's app-menu intent group onto the unified scheme. */
@@ -112,18 +112,6 @@ function paletteGroupOf(action: ActionDefinition): PaletteGroup {
     return APP_MENU_GROUP_TO_PALETTE[action.appMenuGroup];
   if (action.helpGroup) return HELP_GROUP_TO_PALETTE[action.helpGroup];
   return "Navigation / View";
-}
-
-function shortcutOf(action: ActionDefinition): string | undefined {
-  const binding = action.bindings[0];
-  if (!binding) return undefined;
-  const parts: string[] = [];
-  if (binding.ctrl || binding.meta) parts.push("mod");
-  if (binding.shift) parts.push("shift");
-  parts.push(
-    binding.key.length === 1 ? binding.key.toUpperCase() : binding.key,
-  );
-  return formatShortcut(...parts);
 }
 
 /**
@@ -206,7 +194,7 @@ function toPaletteCommand(
   return {
     id: action.id,
     label: resolveActionLabel(action, ctx),
-    shortcut: shortcutOf(action),
+    shortcut: formatMenuShortcut(action),
     keywords: action.keywords ?? [],
   };
 }
@@ -264,6 +252,45 @@ export function getPaletteSearchCommands(
     }
   }
   return out;
+}
+
+/**
+ * The threshold above which a bits-ui fuzzy-match score counts as "confident"
+ * (#2996). computeCommandScore returns 0..1. A query that starts matching a
+ * command's own label from its first character (the "this IS the command"
+ * case) lands at ~0.99 even after the keyword-string-length penalty; a query
+ * that only hits an interior word or a keyword ("device" inside "Toggle
+ * device sidebar", "server" inside "...Media Server") lands at ~0.89; a stray
+ * character-jump coincidence ("xserve" against "Export all layouts") lands
+ * near 0. 0.95 sits cleanly between the first two bands, so only a genuine,
+ * intentional command-name match counts as "confident" here. Exported so
+ * CommandPalette.svelte and its test can share one source of truth instead of
+ * two constants silently drifting apart.
+ */
+export const CONFIDENT_COMMAND_MATCH = 0.95;
+
+/**
+ * True when no command in `commands` is a *confident* match for `query` -
+ * covers both a true zero-match and a query that only coincidentally brushes
+ * a command via a loose interior-word or character-jump hit (#2996, a scope
+ * gap in #106/#2779's original no-command-match bridge). Computed with the
+ * same scorer bits-ui filters by, so it agrees with what bits-ui renders.
+ * Gates the device bridge in CommandPalette.svelte (and, via
+ * handleInputKeydown, Enter itself) so a device-like query never silently
+ * hijacks Enter into an unrelated command nor a greyed row. Empty/whitespace
+ * query is never a no-match (that is browse). Pure and unit-testable against
+ * the real registry (#2996).
+ */
+export function noConfidentCommandMatch(
+  query: string,
+  commands: PaletteCommand[],
+): boolean {
+  if (query.trim() === "") return false;
+  return !commands.some(
+    (c) =>
+      computeCommandScore(c.label, query, c.keywords) >=
+      CONFIDENT_COMMAND_MATCH,
+  );
 }
 
 /**

@@ -263,17 +263,6 @@ describe("KeyboardHandler Component", () => {
   });
 
   describe("UI Shortcuts", () => {
-    it("D key toggles device palette", async () => {
-      const uiStore = getUIStore();
-      const initialState = uiStore.leftDrawerOpen;
-
-      render(KeyboardHandler);
-
-      await fireEvent.keyDown(window, { key: "d" });
-
-      expect(uiStore.leftDrawerOpen).toBe(!initialState);
-    });
-
     it("F key triggers fit all", async () => {
       const spy = vi
         .spyOn(appActions, "handleFitAll")
@@ -364,8 +353,9 @@ describe("KeyboardHandler Component", () => {
 
   describe("Ignore in Input Fields", () => {
     it("does not handle shortcuts when typing in input", async () => {
-      const uiStore = getUIStore();
-      const initialState = uiStore.leftDrawerOpen;
+      const spy = vi
+        .spyOn(appActions, "handleFitAll")
+        .mockReturnValue(undefined);
 
       render(KeyboardHandler);
 
@@ -376,14 +366,14 @@ describe("KeyboardHandler Component", () => {
 
       // Simulate keydown with input as target
       const event = new KeyboardEvent("keydown", {
-        key: "d",
+        key: "f",
         bubbles: true,
       });
       Object.defineProperty(event, "target", { value: input });
       window.dispatchEvent(event);
 
-      // Drawer should not toggle
-      expect(uiStore.leftDrawerOpen).toBe(initialState);
+      // Fit-all should not fire while typing in an input
+      expect(spy).not.toHaveBeenCalled();
 
       document.body.removeChild(input);
     });

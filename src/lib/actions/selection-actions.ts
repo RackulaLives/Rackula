@@ -12,6 +12,7 @@ import { getCanvasStore } from "$lib/stores/canvas.svelte";
 import { getUIStore } from "$lib/stores/ui.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
 import { getPlacementStore } from "$lib/stores/placement.svelte";
+import { handleFitAll } from "$lib/utils/app-actions";
 import { hapticSuccess, hapticError } from "$lib/utils/haptics";
 import { getRackSlotControls } from "$lib/utils/rack-row";
 import { findNextValidPosition } from "$lib/utils/device-movement";
@@ -253,6 +254,14 @@ export function baySelectedRack(): void {
 /**
  * Duplicate the currently selected item (device takes priority over rack).
  * No-op if nothing is selected.
+ *
+ * For a rack duplicate, this is the public contract callers rely on:
+ * - Selection restoration: passes a selection-sync bridge into
+ *   layoutStore.duplicateRack so the selected rack follows the copy and
+ *   stays coherent with activeRackId through undo/redo.
+ * - Deferred viewport fitting: schedules handleFitAll on the next animation
+ *   frame (mirroring handleNewRack) so the copy is visible even when it
+ *   lands beyond the current viewport edge.
  */
 export function duplicateSelection(): void {
   const selectionStore = getSelectionStore();
@@ -290,11 +299,30 @@ export function duplicateSelection(): void {
   }
 
   if (selectionStore.isRackSelected && selectionStore.selectedRackId) {
-    const result = layoutStore.duplicateRack(selectionStore.selectedRackId);
+    // Keep active (sidebar) and selected (canvas outline, edit panel,
+    // delete target) in sync on the copy, matching user intent (#3003). The
+    // sync object routes through duplicateRack's command so undo/redo keep
+    // selection transactionally coherent with activeRackId (#3003 fix round
+    // 1): a bare selectionStore.selectRack() call after the fact would leave
+    // selection dangling on the copy's id once undo deletes it.
+    const result = layoutStore.duplicateRack(selectionStore.selectedRackId, {
+      getSelectedRackId: () => selectionStore.selectedRackId,
+      setSelectedRackId: (rackId) => {
+        if (rackId) {
+          selectionStore.selectRack(rackId);
+        } else {
+          selectionStore.clearSelection();
+        }
+      },
+    });
     if (result.error) {
       toastStore.showToast(result.error, "error");
     } else if (result.rack) {
       toastStore.showToast("Rack duplicated", "success");
+      // Fit the copy into view, mirroring handleNewRack's fit-after-paint
+      // pattern (#3003): the copy could otherwise land beyond the viewport
+      // edge while silently becoming active.
+      requestAnimationFrame(() => handleFitAll());
     }
   }
 }

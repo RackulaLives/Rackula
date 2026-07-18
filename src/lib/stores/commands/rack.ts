@@ -66,6 +66,15 @@ export interface RackLifecycleCommandStore {
    *   untouched (e.g., layouts without metadata).
    */
   setLayoutNamesRaw(name: string, metadataName: string | undefined): void;
+  /**
+   * Optional bridge to the UI selection store (#3003 fix round 1). Only
+   * wired in by duplicateRack: lets createAddRackCommand read/write the
+   * selected rack ID so it can keep selection transactionally coherent with
+   * activeRackId across undo/redo, without coupling the layout/command
+   * layer to the selection store for every other caller.
+   */
+  getSelectedRackId?(): string | null;
+  setSelectedRackId?(id: string | null): void;
 }
 
 /**
@@ -84,12 +93,26 @@ export function createAddRackCommand(
   setActive = false,
   /** Optional sync of layout-level names (#1482). */
   layoutNameSync?: AddRackLayoutNameSync,
+  /**
+   * When true (and `store` implements the selection bridge), execute() also
+   * selects this rack and undo() restores whichever rack was selected
+   * immediately before, in the same step as the activeRackId restore. This
+   * keeps selection and active transactionally coherent for callers that
+   * select the rack this command creates, e.g. duplicateRack (#3003 fix
+   * round 1): without this, undoing a duplicate restored activeRackId but
+   * left the selection store dangling on the deleted copy's id.
+   */
+  syncSelection = false,
 ): Command {
   // Deep copy to avoid mutation issues
   const rackCopy = JSON.parse(JSON.stringify(rack)) as Rack;
   // Captured on each execute() so undo (and a subsequent redo) restores
   // whichever rack was active immediately before this command ran (#2940).
   let previousActiveRackId: string | null = null;
+  // Captured on each execute() so undo restores whichever rack was selected
+  // immediately before this command ran, transactionally with
+  // previousActiveRackId above (#3003 fix round 1).
+  let previousSelectedRackId: string | null = null;
 
   return {
     type: "ADD_RACK",
@@ -97,9 +120,15 @@ export function createAddRackCommand(
     timestamp: Date.now(),
     execute() {
       previousActiveRackId = store.getActiveRackId();
+      if (syncSelection) {
+        previousSelectedRackId = store.getSelectedRackId?.() ?? null;
+      }
       store.addRackRaw(rackCopy);
       if (setActive) {
         store.setActiveRackId(rackCopy.id);
+      }
+      if (syncSelection) {
+        store.setSelectedRackId?.(rackCopy.id);
       }
       if (layoutNameSync) {
         const newName = rackCopy.name;
@@ -114,6 +143,12 @@ export function createAddRackCommand(
       // clobber whatever is active now (#2976).
       if (setActive) {
         store.setActiveRackId(previousActiveRackId);
+      }
+      // Mirror the same guard for selection: only restore if execute()
+      // actually changed it, and only when this command owns that sync
+      // (#3003 fix round 1).
+      if (syncSelection) {
+        store.setSelectedRackId?.(previousSelectedRackId);
       }
       if (layoutNameSync) {
         const { previousLayoutName, previousMetadataName } =

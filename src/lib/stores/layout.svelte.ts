@@ -53,6 +53,7 @@ import {
   getRackById as getRackByIdImpl,
   setActiveRack as setActiveRackImpl,
   getTargetRack as getTargetRackImpl,
+  type RackDuplicateSelectionSync,
 } from "./layout/rack-actions";
 import {
   createRackGroup as createRackGroupImpl,
@@ -509,8 +510,23 @@ export function createLayoutStore(
     );
   }
 
-  function duplicateRack(id: string) {
-    return duplicateRackImpl(stateAccess, id);
+  /**
+   * Duplicate a rack with all its devices. Always participates in
+   * undo/redo: a single history entry restores both the rack and the
+   * active rack selection on undo.
+   * @param id - Rack ID to duplicate
+   * @param selectionSync - Optional bridge to the UI selection store. Pass
+   * it when the caller tracks a separate "selected" rack (distinct from
+   * "active") that should follow the copy and stay coherent with
+   * activeRackId through undo/redo; without it, the caller must sync
+   * selection itself after the call returns.
+   * @returns The duplicated rack, or an error message if duplication failed
+   */
+  function duplicateRack(
+    id: string,
+    selectionSync?: RackDuplicateSelectionSync,
+  ) {
+    return duplicateRackImpl(stateAccess, id, selectionSync);
   }
 
   // =============================================================================

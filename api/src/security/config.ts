@@ -395,6 +395,17 @@ export function resolveApiSecurityConfig(
     );
   }
 
+  // Refuse to start rather than merely warn: an insecure session cookie in
+  // production would travel over plain HTTP, exposing the session to network
+  // interception. Applies to every auth mode (local and OIDC both set the
+  // session cookie via this config), not just local auth (#2942).
+  if (authEnabled && isProduction && !authSessionCookieSecure) {
+    throw new Error(
+      "Refusing to run with an insecure session cookie in production. " +
+        "Set RACKULA_AUTH_SESSION_COOKIE_SECURE=true (or unset it to use the secure-by-default value).",
+    );
+  }
+
   const csrfProtectionEnabled = parseOptionalBoolean(
     "RACKULA_AUTH_CSRF_PROTECTION",
     env.RACKULA_AUTH_CSRF_PROTECTION,
