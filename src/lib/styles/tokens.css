@@ -220,6 +220,7 @@
   --colour-focus-ring: var(
     --dracula-pink
   ); /* BRAND.md v0.6.0: pink for focus */
+  --colour-brand-on-light: #644ac9; /* Purple for brand text on a fixed white surface (e.g. the share QR panel). Darker than --dracula-purple so it clears WCAG AA 4.5:1 on white; --dracula-purple only reaches 2.41:1 there. */
 
   /* Buttons */
   --colour-button-bg: var(--dracula-bg-light);

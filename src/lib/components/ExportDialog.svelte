@@ -16,6 +16,7 @@
   } from "$lib/types";
   import type { ImageStoreMap } from "$lib/types/images";
   import Dialog from "./Dialog.svelte";
+  import Button from "./ui/Button.svelte";
   import LogoLoader from "./LogoLoader.svelte";
   import Shimmer from "./Shimmer.svelte";
   import Checkbox from "./Checkbox.svelte";
@@ -343,12 +344,6 @@
     oncancel?.();
   }
 
-  function handleKeyDown(event: KeyboardEvent) {
-    if (event.key === "Escape") {
-      handleCancel();
-    }
-  }
-
   // Selectable item toggle - toggles all racks in the item
   function toggleItem(item: SelectableItem) {
     if (isItemSelected(item)) {
@@ -383,19 +378,9 @@
   function nextPreview() {
     previewIndex = Math.min(selectedRacksArray.length - 1, previewIndex + 1);
   }
-
-  // Add/remove event listener based on open state
-  $effect(() => {
-    if (open) {
-      window.addEventListener("keydown", handleKeyDown);
-      return () => {
-        window.removeEventListener("keydown", handleKeyDown);
-      };
-    }
-  });
 </script>
 
-<Dialog {open} title="Export" size="M" onclose={handleCancel}>
+<Dialog {open} title="Export" size="M" type="form" onclose={handleCancel}>
   <div class="export-form">
     <div class="form-group">
       <label for="export-format">Format</label>
@@ -602,24 +587,22 @@
   </div>
 
   <div class="dialog-actions">
-    <button
-      type="button"
-      class="btn-secondary"
+    <Button
+      variant="secondary"
       data-testid="btn-export-cancel"
       onclick={handleCancel}
       disabled={isExporting}
     >
       Cancel
-    </button>
-    <button
-      type="button"
-      class="btn-primary"
+    </Button>
+    <Button
+      variant="primary"
       data-testid="btn-export-confirm"
       onclick={handleExport}
       disabled={!canExport || isExporting}
     >
       {isExporting ? "Exporting..." : "Export"}
-    </button>
+    </Button>
   </div>
 </Dialog>
 
@@ -975,48 +958,6 @@
     border-top: 1px solid var(--colour-border);
   }
 
-  .btn-secondary,
-  .btn-primary {
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition:
-      background-color var(--duration-fast) ease,
-      opacity var(--duration-fast) ease;
-  }
-
-  .btn-secondary {
-    background: transparent;
-    border: 1px solid var(--colour-border);
-    color: var(--colour-text);
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: var(--colour-surface-hover);
-  }
-
-  .btn-secondary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .btn-primary {
-    background: var(--colour-selection);
-    border: none;
-    color: var(--neutral-50);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background: var(--colour-selection-hover);
-  }
-
-  .btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
   /* Preview error state */
   .preview-error {
     width: 100%;
@@ -1049,12 +990,5 @@
     font-size: var(--font-size-xs);
     color: var(--colour-text-muted);
     text-align: center;
-  }
-
-  @media (max-width: 480px) {
-    .btn-secondary,
-    .btn-primary {
-      flex: 1 1 100%;
-    }
   }
 </style>

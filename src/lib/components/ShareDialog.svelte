@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
+  import Button from "./ui/Button.svelte";
   import { IconCopy, IconDownload } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { generateShareUrl } from "$lib/utils/share";
@@ -122,14 +123,7 @@
   }
 </script>
 
-<Dialog
-  {open}
-  title="Share Layout"
-  size="S"
-  showClose={false}
-  type="form"
-  onclose={handleClose}
->
+<Dialog {open} title="Share Layout" size="S" type="form" onclose={handleClose}>
   <div class="share-dialog">
     <!-- URL Section -->
     <div class="share-section">
@@ -199,30 +193,26 @@
 
     <!-- Action Buttons -->
     <div class="actions">
-      <button type="button" class="btn btn-secondary" onclick={onclose}>
-        Cancel
-      </button>
+      <Button variant="secondary" onclick={onclose}>Close</Button>
       {#if isTooLong}
-        <button
-          type="button"
-          class="btn btn-primary"
+        <Button
+          variant="primary"
           onclick={downloadLayoutFile}
           data-testid="layout-download-btn"
         >
           <IconDownload size={ICON_SIZE.sm} />
           Download Layout File
-        </button>
+        </Button>
       {:else if qrDataUrl}
-        <button
-          type="button"
-          class="btn btn-primary"
+        <Button
+          variant="primary"
           onclick={downloadQR}
           title="Recommended print size: {QR_MIN_PRINT_CM}cm minimum"
           data-testid="qr-download-btn"
         >
           <IconDownload size={ICON_SIZE.sm} />
           Download QR
-        </button>
+        </Button>
       {/if}
     </div>
   </div>
@@ -334,7 +324,7 @@
        clears WCAG AA on white. The Dracula dark-mode purple (#bd93f9) only reaches
        2.41:1 there; this darker on-brand purple clears 4.5:1 at 6.24:1. Hardcoded
        because it is a fixed white-backed label, not themed app chrome. */
-    color: #644ac9;
+    color: var(--colour-brand-on-light);
     font-weight: var(--font-weight-semibold);
   }
 
@@ -373,44 +363,5 @@
     gap: var(--space-3);
     justify-content: flex-end;
     margin-top: var(--space-2);
-  }
-
-  .btn {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1-5);
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: background-color var(--duration-fast);
-  }
-
-  .btn-primary {
-    background: var(--colour-button-primary);
-    color: var(--colour-text-on-primary);
-  }
-
-  .btn-primary:hover {
-    background: var(--colour-button-primary-hover);
-  }
-
-  .btn-secondary {
-    background: transparent;
-    border: 1px solid var(--colour-border);
-    color: var(--colour-text);
-  }
-
-  .btn-secondary:hover {
-    background: var(--colour-surface-hover);
-  }
-
-  @media (max-width: 480px) {
-    .btn {
-      flex: 1 1 140px;
-      justify-content: center;
-    }
   }
 </style>
