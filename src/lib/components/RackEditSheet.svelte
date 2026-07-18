@@ -560,7 +560,7 @@
 
   .btn-danger:hover:not(:disabled),
   .btn-danger:focus-visible:not(:disabled) {
-    background: var(--colour-button-destructive);
+    background: var(--colour-button-destructive-hover);
     color: var(--colour-text-on-primary);
   }
 

@@ -322,8 +322,9 @@
   .qr-scan-label .brand {
     /* The QR container is always white, so this brand text needs a purple that
        clears WCAG AA on white. The Dracula dark-mode purple (#bd93f9) only reaches
-       2.41:1 there; this darker on-brand purple clears 4.5:1 at 6.24:1. Hardcoded
-       because it is a fixed white-backed label, not themed app chrome. */
+       2.41:1 there; --colour-brand-on-light is a darker on-brand purple that clears
+       4.5:1 at 6.24:1. It is a fixed token, not theme-switched, because the QR
+       panel is always a white-backed surface, not themed app chrome. */
     color: var(--colour-brand-on-light);
     font-weight: var(--font-weight-semibold);
   }
