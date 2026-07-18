@@ -98,3 +98,7 @@ docs/planning/
 
 # Claude spike checkpoints (session artifacts, not source)
 .claude/spike-*-checkpoint.yaml
+
+# Codex
+.codex/
+.agents/
