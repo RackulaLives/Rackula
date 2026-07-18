@@ -59,7 +59,7 @@ async function mobileDragDeviceToRack(page: Page) {
 // Devices Tab Tests
 // ============================================================================
 
-test.describe("Devices Tab (Device Library)", () => {
+test.describe("Devices Tab", () => {
   for (const device of mobileDevices.slice(0, 2)) {
     test.describe(device.name, () => {
       test.beforeEach(async ({ page }) => {

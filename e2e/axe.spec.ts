@@ -155,9 +155,7 @@ test.describe("axe accessibility scans - mobile viewport", () => {
     page,
   }) => {
     await page.getByRole("button", { name: "Devices" }).click();
-    await expect(
-      page.getByRole("dialog", { name: "Device Library" }),
-    ).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Devices" })).toBeVisible();
     await expectNoA11yViolations(page, locators.mobile.bottomSheet);
   });
 
