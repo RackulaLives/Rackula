@@ -438,6 +438,135 @@ describe("seedStarterRack (#3007/R6a)", () => {
 
     expect(getLayoutStore().changesSinceExport).toBe(0);
   });
+
+  // #3002 composition: seedStarterRack runs handleNewRack against an empty
+  // layout, so the name-collision numbering below never has anything to
+  // collide with. This just confirms the seeded rack still gets the plain
+  // (unnumbered) default name, not a "Racky McRackface 2".
+  it("does not number the seeded rack's name (no collision in an empty layout)", () => {
+    resetAll();
+    handleNewRack();
+    const baseline = getLayoutStore().racks[0]!.name;
+    resetAll();
+
+    seedStarterRack();
+
+    expect(getLayoutStore().racks[0]!.name).toBe(baseline);
+  });
+});
+
+// #3002: every new rack used to be named "Racky McRackface" with no
+// numbering, so once two or more existed the delete confirm couldn't say
+// which rack was about to die, the active-rack cycle toast was
+// uninformative, and both mobile switch dots carried the identical
+// aria-label. Only the name-collision case changes here: direct-create
+// naming is untouched when there's no collision (see the "no collision"
+// test below), and existing racks are never renamed to make room for a new
+// one. Assertions stick to distinctness/collision-avoidance rather than the
+// exact numbering wording, per the issue's test requirements.
+describe("handleNewRack name collision (#3002)", () => {
+  beforeEach(resetAll);
+
+  it("gives a second default-named rack a name distinct from the first", () => {
+    const layoutStore = getLayoutStore();
+
+    handleNewRack();
+    const first = layoutStore.racks[0]!;
+    handleNewRack();
+    const second = layoutStore.racks.find((r) => r.id !== first.id)!;
+
+    expect(second.name).not.toBe(first.name);
+  });
+
+  it("gives a third default-named rack a name distinct from the first two", () => {
+    const layoutStore = getLayoutStore();
+
+    handleNewRack();
+    handleNewRack();
+    handleNewRack();
+
+    const names = layoutStore.racks.map((r) => r.name);
+    // Justification: verifies the behavioral invariant that all generated
+    // names are distinct without asserting an exact count.
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  // AC 3: the collision path must not change plain direct-create naming.
+  // Compares against a pristine-store baseline rather than hardcoding the
+  // default name, so this doesn't pin the exact copy either.
+  it("does not number the default rack when no name collision exists, even with other racks present", () => {
+    handleNewRack();
+    const baseline = getLayoutStore().racks[0]!.name;
+    resetAll();
+
+    getLayoutStore().addRack("My Custom Rack", 12);
+    handleNewRack();
+    const created = getLayoutStore().racks.find(
+      (r) => r.name !== "My Custom Rack",
+    );
+
+    expect(created?.name).toBe(baseline);
+  });
+
+  it("never renames an existing user-named rack when a default rack is added", () => {
+    const layoutStore = getLayoutStore();
+    const custom = layoutStore.addRack("My Custom Rack", 12);
+    if (!custom) throw new Error("addRack returned null");
+
+    handleNewRack();
+
+    expect(layoutStore.getRackById(custom.id)?.name).toBe("My Custom Rack");
+  });
+
+  // Deleting a numbered rack frees its name for reuse rather than the next
+  // default rack always incrementing past it.
+  it("reuses a freed number when a numbered rack is deleted, instead of always incrementing", () => {
+    const layoutStore = getLayoutStore();
+
+    handleNewRack();
+    const first = layoutStore.racks[0]!;
+    handleNewRack();
+    const second = layoutStore.racks.find((r) => r.id !== first.id)!;
+    handleNewRack();
+
+    layoutStore.deleteRack(second.id);
+    expect(layoutStore.getRackById(second.id)).toBeUndefined();
+
+    const idsBeforeFourth = new Set(layoutStore.racks.map((r) => r.id));
+    handleNewRack();
+    const fourth = layoutStore.racks.find((r) => !idsBeforeFourth.has(r.id))!;
+
+    expect(fourth.name).toBe(second.name);
+  });
+
+  // A rack manually renamed to look like a numbered variant (not created via
+  // the collision path itself) must still block that number from being
+  // reused, and must be left untouched.
+  it("skips a number already taken by a manually-named rack", () => {
+    const layoutStore = getLayoutStore();
+
+    handleNewRack();
+    const first = layoutStore.racks[0]!;
+    handleNewRack();
+    const second = layoutStore.racks.find((r) => r.id !== first.id)!;
+    // Undo removes exactly the rack handleNewRack just created (see the
+    // "undo removes the rack it created" test above), freeing the numbered
+    // name `second` used without needing to pin the exact numbering scheme.
+    layoutStore.undo();
+    expect(layoutStore.getRackById(second.id)).toBeUndefined();
+
+    const manual = layoutStore.addRack(second.name, 12);
+    if (!manual) throw new Error("addRack returned null");
+
+    handleNewRack();
+    const third = layoutStore.racks.find(
+      (r) => r.id !== first.id && r.id !== manual.id,
+    )!;
+
+    expect(third.name).not.toBe(first.name);
+    expect(third.name).not.toBe(manual.name);
+    expect(layoutStore.getRackById(manual.id)?.name).toBe(manual.name);
+  });
 });
 
 describe("zero-rack add-rack affordance", () => {
