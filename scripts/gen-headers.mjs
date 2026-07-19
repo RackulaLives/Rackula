@@ -111,7 +111,9 @@ function runCheck() {
   let failures = 0;
   for (const surfaceName of Object.keys(SURFACES)) {
     const surface = SURFACES[surfaceName];
-    const extraHeaderNames = new Set(surface.extraHeaders.map(([name]) => name));
+    const extraHeaderNames = new Set(
+      surface.extraHeaders.map(([name]) => name),
+    );
     const generated = new Map(buildHeaders(surfaceName));
 
     console.log(`-- ${surfaceName} (${surface.host}) --`);
