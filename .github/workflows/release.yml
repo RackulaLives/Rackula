@@ -158,10 +158,22 @@ jobs:
           TAG: ${{ needs.validate.outputs.tag }}
           NOTES: ${{ steps.changelog.outputs.notes }}
         run: |
-          gh release create "$TAG" \
-            --title "$TAG" \
-            --notes "$NOTES" \
-            --prerelease
+          # Idempotent on re-run: a prior partial attempt may have already staged
+          # this release (see #2709, the v26.6.5 incident, where a bare `gh release
+          # create` 422'd on re-run because the release already existed). Converge
+          # on the same end state either way instead of hard-failing.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; updating in place"
+            gh release edit "$TAG" \
+              --title "$TAG" \
+              --notes "$NOTES" \
+              --prerelease
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --notes "$NOTES" \
+              --prerelease
+          fi
 
   # STAGE: build and push ONLY immutable Docker tags (:vX.Y.Z / :vX.Y.Z-persist /
   # api :vX.Y.Z). No :latest, no :year_month. Promote retags these by digest.
