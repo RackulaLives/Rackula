@@ -342,7 +342,11 @@ describe("getPaletteSearchCommands (#2778)", () => {
       "import-devices",
       "import-netbox",
     ] as const) {
-      expect(find(locked, id)?.disabledReason).toBeUndefined();
+      const command = find(locked, id);
+      // Assert the command is present first, so a regression that drops it
+      // from the search list entirely can't hide behind an undefined match.
+      expect(command).toBeDefined();
+      expect(command?.disabledReason).toBeUndefined();
     }
   });
 

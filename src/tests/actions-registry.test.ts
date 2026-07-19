@@ -418,9 +418,14 @@ describe("actions registry", () => {
         "import-netbox",
       ] as const) {
         const action = getActionById(id);
-        expect(action?.enabledWhen?.({ ...base, readOnly: true }) ?? true).toBe(
-          true,
-        );
+        expect(action).toBeDefined();
+        // Mirrors isRunnable in palette-commands.ts: no enabledWhen means the
+        // command is always runnable. Asserting the action exists first (above)
+        // stops this from trivially passing if the action were removed.
+        const enabled = action?.enabledWhen
+          ? action.enabledWhen({ ...base, readOnly: true })
+          : true;
+        expect(enabled).toBe(true);
       }
     });
   });
