@@ -18,7 +18,7 @@
 import sharp from "sharp";
 import { readdir, mkdir, stat } from "fs/promises";
 import { join, parse, relative } from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import { dirname } from "path";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -202,10 +202,13 @@ async function main(): Promise<void> {
 }
 
 // Only run when invoked directly (e.g. `npx tsx scripts/process-images.ts`), not
-// when imported as a module (e.g. by scripts/import-netbox-devices.ts).
+// when imported as a module (e.g. by scripts/import-netbox-devices.ts). Compares
+// via pathToFileURL rather than a raw `file://` template, since a plain
+// concatenation doesn't URL-encode spaces/non-ASCII characters or normalise
+// Windows path separators, so it can silently mismatch and never run.
 const isMainModule =
   process.argv[1] !== undefined &&
-  import.meta.url === `file://${process.argv[1]}`;
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isMainModule) {
   main().catch(console.error);

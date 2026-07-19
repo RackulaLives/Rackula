@@ -375,9 +375,13 @@ ${newEntries}
   return { filePath, added, skipped, created: true };
 }
 
+// npx ships as a .cmd shim on Windows, which spawnSync can't exec directly
+// without a shell; select the shim there and the plain binary everywhere else.
+const NPX_COMMAND = process.platform === "win32" ? "npx.cmd" : "npx";
+
 /** Best-effort prettier formatting; a formatting failure should not abort the import. */
 function formatWithPrettier(relativePath: string): boolean {
-  const result = spawnSync("npx", ["prettier", "--write", relativePath], {
+  const result = spawnSync(NPX_COMMAND, ["prettier", "--write", relativePath], {
     cwd: ROOT_DIR,
     stdio: "inherit",
   });
@@ -387,7 +391,7 @@ function formatWithPrettier(relativePath: string): boolean {
 /** Runs scripts/process-images.ts scoped to one vendor, so unrelated vendors' images are untouched. */
 function runProcessImagesForVendor(vendor: string): boolean {
   const result = spawnSync(
-    "npx",
+    NPX_COMMAND,
     ["tsx", "scripts/process-images.ts", "--vendor", vendor],
     { cwd: ROOT_DIR, stdio: "inherit" },
   );
@@ -397,7 +401,7 @@ function runProcessImagesForVendor(vendor: string): boolean {
 /** Runs scripts/generate-bundled-images.ts to regenerate bundledImages.ts from the processed images on disk. */
 function runGenerateBundledImages(): boolean {
   const result = spawnSync(
-    "npx",
+    NPX_COMMAND,
     ["tsx", "scripts/generate-bundled-images.ts"],
     { cwd: ROOT_DIR, stdio: "inherit" },
   );
