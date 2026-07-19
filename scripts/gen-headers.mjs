@@ -130,7 +130,9 @@ function runCheck() {
 
   console.log();
   if (failures === 0) {
-    console.log("Header parity check passed: generator matches deploy/security-headers.conf by value.");
+    console.log(
+      "Header parity check passed: generator matches deploy/security-headers.conf by value.",
+    );
     return 0;
   }
   console.error(`Header parity check FAILED: ${failures} mismatch(es).`);
@@ -138,7 +140,9 @@ function runCheck() {
 }
 
 function printUsage() {
-  console.error("usage: node scripts/gen-headers.mjs <prod|dev> [--out <file>]");
+  console.error(
+    "usage: node scripts/gen-headers.mjs <prod|dev> [--out <file>]",
+  );
   console.error("       node scripts/gen-headers.mjs --check");
 }
 
