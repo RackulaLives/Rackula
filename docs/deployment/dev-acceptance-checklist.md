@@ -34,9 +34,9 @@ Items that hit `/api/*` authenticate the same way `deploy-dev.yml` and `soak-smo
 
 - [ ] Layout round-trip: PUT then GET returns the same body with an `X-Rackula-Updated-At` echo and a newer-or-equal `updatedAt` (R2 monotonic token).
 
-  Command: PUT a small YAML layout to `https://d.racku.la/api/layouts/<uuid>` with the same CF Access headers, then GET the same URL.
+  Command: PUT an initial YAML layout to `https://d.racku.la/api/layouts/<uuid>` with the CF Access headers and capture the `X-Rackula-Updated-At` value from the response; PUT a changed body to the same UUID with the same headers and capture the second `X-Rackula-Updated-At`; then GET the same URL.
 
-  Expected: the PUT returns 200 with an `X-Rackula-Updated-At` header (the header name is `UPDATED_AT_HEADER` in `api/src/routes/layouts.ts`); the GET returns the identical body and an `updatedAt` that is newer than or equal to the value echoed on PUT. The R2 driver issues a strictly newer `updatedAt` on every overwrite, covered by the shared storage contract in `api/src/storage/storage-contract.ts`.
+  Expected: both PUTs return 200 with an `X-Rackula-Updated-At` header (the header name is `UPDATED_AT_HEADER` in `api/src/routes/layouts.ts`); the second token is strictly newer than the first, which is what actually proves the R2 driver's monotonic-overwrite contract (covered by the shared storage contract in `api/src/storage/storage-contract.ts`) rather than just a single create-then-read; the GET returns the body and `updatedAt` from the second write.
 
 - [ ] Asset content-type: `/assets/<hashed>.js` returns `application/javascript` with an immutable cache-control.
 
