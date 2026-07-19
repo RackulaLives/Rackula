@@ -541,7 +541,10 @@
     const { rackId } = event.detail;
     layoutStore.setActiveRack(rackId);
     selectionStore.selectRack(rackId);
-    dialogStore.closeSheet();
+    // openSheet("rackEdit") already replaces whatever sheet was open (sheets
+    // are mutually exclusive), so a preceding closeSheet() is redundant. It
+    // also used to make openSheet see a false closed-to-open transition and
+    // wrongly clear a lingering non-undo toast on this same-tick swap (#3030).
     dialogStore.openSheet("rackEdit");
   }
 
