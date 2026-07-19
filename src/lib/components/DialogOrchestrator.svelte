@@ -402,7 +402,7 @@
       imageStore.setDeviceImage(device.slug, "rear", data.rearImage);
     }
 
-    toastStore.showToast(`"${data.name}" added to device library`, "success");
+    toastStore.showToast(`"${data.name}" added to Devices`, "success");
     dialogStore.close();
   }
 
@@ -416,7 +416,7 @@
     layoutStore.addDeviceTypeRaw(result.deviceType);
     layoutStore.markDirty();
     toastStore.showToast(
-      `Imported "${result.deviceType.model}" to device library`,
+      `Imported "${result.deviceType.model}" to Devices`,
       "success",
     );
     dialogStore.close();
@@ -467,7 +467,7 @@
       toastStore.showToast(message, result.skipped > 0 ? "warning" : "success");
     } catch (error) {
       dialogDebug.import("Failed to import device library: %O", error);
-      toastStore.showToast("Failed to import device library", "error");
+      toastStore.showToast("Failed to import devices", "error");
     } finally {
       input.value = "";
     }
@@ -992,7 +992,7 @@
   accept=".json,application/json"
   onchange={handleDeviceImportFileChange}
   style="display: none;"
-  aria-label="Import device library file"
+  aria-label="Import devices file"
 />
 
 <!--
