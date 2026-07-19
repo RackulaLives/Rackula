@@ -49,6 +49,13 @@ function nextAvailableRackName(
  * the schema default form factor. It is appended to the end of the row. Warns
  * when the rack limit is reached. The default name is disambiguated against
  * existing racks' names (#3002); see nextAvailableRackName.
+ *
+ * The selection change is routed through addRack's selection-sync bridge
+ * (#3033, mirroring #3003's fix for duplicateRack) rather than a bare
+ * selectionStore.selectRack() call after the fact: a bare call sits outside
+ * the command/history system, so undo restores activeRackId but leaves
+ * selectedRackId dangling on the just-removed rack's id. The bridge folds
+ * the selection change into the same undo/redo step as the rack itself.
  */
 export function handleNewRack(): void {
   const layoutStore = getLayoutStore();
@@ -62,9 +69,25 @@ export function handleNewRack(): void {
     layoutStore.racks.map((rack) => rack.name),
     NEW_RACK_DEFAULT_NAME,
   );
-  const rack = layoutStore.addRack(name, NEW_RACK_DEFAULT_HEIGHT);
+  const rack = layoutStore.addRack(
+    name,
+    NEW_RACK_DEFAULT_HEIGHT,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      getSelectedRackId: () => selectionStore.selectedRackId,
+      setSelectedRackId: (id) => {
+        if (id) {
+          selectionStore.selectRack(id);
+        } else {
+          selectionStore.clearSelection();
+        }
+      },
+    },
+  );
   if (!rack) return;
-  selectionStore.selectRack(rack.id);
   requestAnimationFrame(() => handleFitAll());
 }
 

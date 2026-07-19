@@ -410,6 +410,36 @@ describe("handleNewRack", () => {
       false,
     );
   });
+
+  // #3033: handleNewRack selected the new rack via a bare
+  // selectionStore.selectRack() call outside the command/history system,
+  // the same non-transactional gap #3003 fixed for duplicateRack. Undo
+  // restored activeRackId (#2940/#2976) but left selectedRackId dangling on
+  // the just-removed rack's id. addRack's selection-sync bridge folds the
+  // selection change into the same undo/redo step as the rack itself, so
+  // undo and redo must keep active and selected coherent throughout.
+  it("keeps active and selected coherent through new-rack undo and redo", () => {
+    const layoutStore = getLayoutStore();
+    const selectionStore = getSelectionStore();
+    const existing = layoutStore.addRack("Existing Rack", 42)!;
+    layoutStore.setActiveRack(existing.id);
+    selectionStore.selectRack(existing.id);
+
+    handleNewRack();
+    const created = layoutStore.racks.find((rack) => rack.id !== existing.id);
+    expect(created).toBeDefined();
+    expect(layoutStore.activeRackId).toBe(created!.id);
+    expect(selectionStore.selectedRackId).toBe(created!.id);
+
+    layoutStore.undo();
+    expect(layoutStore.activeRackId).toBe(existing.id);
+    expect(selectionStore.selectedRackId).toBe(existing.id);
+    expect(layoutStore.getRackById(created!.id)).toBeUndefined();
+
+    layoutStore.redo();
+    expect(layoutStore.activeRackId).toBe(created!.id);
+    expect(selectionStore.selectedRackId).toBe(created!.id);
+  });
 });
 
 describe("seedStarterRack (#3007/R6a)", () => {
