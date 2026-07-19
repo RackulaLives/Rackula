@@ -175,7 +175,7 @@ jobs:
         env:
           IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ inputs.version }}
         run: |
-          platforms="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{range .Manifest.Manifests}}{{println .Platform.OS "/" .Platform.Architecture}}{{end}}')"
+          platforms="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{range .Manifest.Manifests}}{{println (printf "%s/%s" .Platform.OS .Platform.Architecture)}}{{end}}')"
           echo "$platforms"
           echo "$platforms" | grep -qx 'linux/amd64' || { echo "::error::missing linux/amd64 manifest for ${IMAGE_TAG}"; exit 1; }
           echo "$platforms" | grep -qx 'linux/arm64' || { echo "::error::missing linux/arm64 manifest for ${IMAGE_TAG}"; exit 1; }
@@ -320,7 +320,7 @@ jobs:
         env:
           IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:v${{ inputs.version }}-persist
         run: |
-          platforms="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{range .Manifest.Manifests}}{{println .Platform.OS "/" .Platform.Architecture}}{{end}}')"
+          platforms="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{range .Manifest.Manifests}}{{println (printf "%s/%s" .Platform.OS .Platform.Architecture)}}{{end}}')"
           echo "$platforms"
           echo "$platforms" | grep -qx 'linux/amd64' || { echo "::error::missing linux/amd64 manifest for ${IMAGE_TAG}"; exit 1; }
           echo "$platforms" | grep -qx 'linux/arm64' || { echo "::error::missing linux/arm64 manifest for ${IMAGE_TAG}"; exit 1; }
@@ -472,7 +472,7 @@ jobs:
         env:
           IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:${{ inputs.version }}
         run: |
-          platforms="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{range .Manifest.Manifests}}{{println .Platform.OS "/" .Platform.Architecture}}{{end}}')"
+          platforms="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{range .Manifest.Manifests}}{{println (printf "%s/%s" .Platform.OS .Platform.Architecture)}}{{end}}')"
           echo "$platforms"
           echo "$platforms" | grep -qx 'linux/amd64' || { echo "::error::missing linux/amd64 manifest for ${IMAGE_TAG}"; exit 1; }
           echo "$platforms" | grep -qx 'linux/arm64' || { echo "::error::missing linux/arm64 manifest for ${IMAGE_TAG}"; exit 1; }
