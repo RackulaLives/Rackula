@@ -137,6 +137,8 @@ No legacy support or migration code. Features are implemented as if they're the 
 
 ## Deployment Architecture
 
+> This section describes the current VPS-based deployment. It is being migrated to Cloudflare (epic #1984: dev cutover #2134, prod cutover #2029, VPS decommission #1986). The diagram and table below will be rewritten at cutover.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     GitHub Repository                        │
