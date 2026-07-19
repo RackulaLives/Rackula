@@ -4,8 +4,8 @@ The soak-smoke workflow (`.github/workflows/soak-smoke.yml`) runs the deployed-e
 
 ## What it checks
 
-- **prod**: `https://count.racku.la`, public today, no Cloudflare Access token needed.
-- **dev**: `https://d.racku.la`, behind Cloudflare Access. Authenticates with the same service-token secrets `deploy-dev.yml` uses: `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` (added by #2346), passed as env vars that `playwright.smoke.config.ts` applies as request headers.
+- prod: `https://count.racku.la`, public today, no Cloudflare Access token needed.
+- dev: `https://d.racku.la`, behind Cloudflare Access. Authenticates with the same service-token secrets `deploy-dev.yml` uses: `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` (added by #2346), passed as env vars that `playwright.smoke.config.ts` applies as request headers.
 
 Each target runs as its own matrix leg with `fail-fast: false`, so both always run, but either leg failing marks the whole workflow run failed. That keeps the run's `conclusion` a single, unambiguous pass/fail per scheduled tick.
 
