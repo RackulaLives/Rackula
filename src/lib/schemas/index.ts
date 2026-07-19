@@ -153,6 +153,7 @@ export const InterfaceTypeSchema = z.enum([
   "400gbase-x-qsfpdd",
   // Console & Management
   "console",
+  "management",
   "usb-a",
   "usb-b",
   "usb-c",
