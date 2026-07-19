@@ -451,6 +451,11 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     label: "Restore from backup (.zip)",
     scope: "global",
     bindings: [],
+    // Mutating command: replaces the working copy with the restored file, so
+    // it is gated like undo/redo/create-rack rather than New layout/Open/
+    // imports, which do not mutate a locked layout (they replace or add via
+    // their own confirm dialogs) (#2804).
+    enabledWhen: (ctx) => !ctx.readOnly,
     appMenuGroup: "layout-data",
     keywords: [
       "restore",
@@ -594,7 +599,10 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
       { key: "z", ctrl: true },
       { key: "z", meta: true },
     ],
-    enabledWhen: (ctx) => ctx.canUndo,
+    // Mutating command: can undo past the point the layout was locked, so it
+    // is gated on !ctx.readOnly like the selection verbs, in addition to
+    // needing history to undo (#2804).
+    enabledWhen: (ctx) => !ctx.readOnly && ctx.canUndo,
     helpGroup: "File",
     keywords: ["revert", "back"],
   },
@@ -608,7 +616,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
       { key: "y", ctrl: true },
       { key: "y", meta: true },
     ],
-    enabledWhen: (ctx) => ctx.canRedo,
+    enabledWhen: (ctx) => !ctx.readOnly && ctx.canRedo,
     helpGroup: "File",
     keywords: ["forward", "repeat"],
   },

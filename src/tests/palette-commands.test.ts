@@ -90,6 +90,26 @@ describe("getPaletteCommands", () => {
     expect(ids(multi)).toContain("cycle-rack-prev");
     expect(ids(multi)).toContain("cycle-rack-next");
   });
+
+  it("hides undo/redo/restore-file from browse when read-only, even with history available (#2804)", () => {
+    // canUndo/canRedo true would otherwise make these runnable; the lock wins.
+    const locked = { ...baseCtx, canUndo: true, canRedo: true, readOnly: true };
+    const list = ids(locked);
+    expect(list).not.toContain("undo");
+    expect(list).not.toContain("redo");
+    expect(list).not.toContain("restore-file");
+  });
+
+  it("keeps new-layout, open, and imports in browse when read-only (#2804)", () => {
+    // These don't mutate the locked layout: they replace or add via their own
+    // confirm dialogs, so the lock leaves them available.
+    const locked = { ...baseCtx, readOnly: true };
+    const list = ids(locked);
+    expect(list).toContain("new-layout");
+    expect(list).toContain("load");
+    expect(list).toContain("import-devices");
+    expect(list).toContain("import-netbox");
+  });
 });
 
 describe("getPaletteCommands unified grouping (#2775)", () => {
@@ -303,6 +323,27 @@ describe("getPaletteSearchCommands (#2778)", () => {
     // the reason is read-only rather than the selection one.
     const locked = { ...baseCtx, hasSelection: true, readOnly: true };
     expect(find(locked, "delete-selection")?.disabledReason).toBe("read-only");
+  });
+
+  it("greys undo/redo/restore-file with a read-only reason when the layout is locked (#2804)", () => {
+    // History/rack conditions alone would make these runnable; the lock is the
+    // actual blocker, so it must win over "nothing to undo"/"nothing to redo".
+    const locked = { ...baseCtx, canUndo: true, canRedo: true, readOnly: true };
+    expect(find(locked, "undo")?.disabledReason).toBe("read-only");
+    expect(find(locked, "redo")?.disabledReason).toBe("read-only");
+    expect(find(locked, "restore-file")?.disabledReason).toBe("read-only");
+  });
+
+  it("keeps new-layout, open, and imports runnable in search when read-only (#2804)", () => {
+    const locked = { ...baseCtx, readOnly: true };
+    for (const id of [
+      "new-layout",
+      "load",
+      "import-devices",
+      "import-netbox",
+    ] as const) {
+      expect(find(locked, id)?.disabledReason).toBeUndefined();
+    }
   });
 
   it("never includes the wrong-mode storage variant, even greyed", () => {
