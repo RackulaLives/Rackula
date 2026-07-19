@@ -368,6 +368,68 @@ describe("actions registry", () => {
     });
   });
 
+  describe("read-only gate for global mutators (#2804)", () => {
+    // undo/redo/restore-file can mutate a locked layout (undo past the point
+    // it was locked; restore-file replaces the working copy outright), so they
+    // are gated on !ctx.readOnly like create-rack (#2995). new-layout, open,
+    // and imports are deliberately NOT gated: they replace or add rather than
+    // mutate the locked layout, and route through their own confirm dialogs.
+    const base = {
+      hasSelection: false,
+      isDeviceSelected: false,
+      isRackSelected: false,
+      canUndo: true,
+      canRedo: true,
+      hasRacks: true,
+      mode: "browser" as const,
+      canMoveDeviceSlot: false,
+    };
+
+    it("disables undo when read-only, even with history to undo", () => {
+      const undo = getActionById("undo");
+      expect(undo?.enabledWhen?.({ ...base, readOnly: true })).toBe(false);
+      expect(undo?.enabledWhen?.({ ...base, readOnly: false })).toBe(true);
+    });
+
+    it("disables redo when read-only, even with history to redo", () => {
+      const redo = getActionById("redo");
+      expect(redo?.enabledWhen?.({ ...base, readOnly: true })).toBe(false);
+      expect(redo?.enabledWhen?.({ ...base, readOnly: false })).toBe(true);
+    });
+
+    it("disables restore-file when read-only", () => {
+      const restoreFile = getActionById("restore-file");
+      expect(restoreFile?.enabledWhen).toBeDefined();
+      expect(restoreFile?.enabledWhen?.({ ...base, readOnly: true })).toBe(
+        false,
+      );
+      expect(restoreFile?.enabledWhen?.({ ...base, readOnly: false })).toBe(
+        true,
+      );
+    });
+
+    it("leaves new-layout, open, and imports ungated in read-only mode", () => {
+      // These don't mutate the locked layout: they replace or add, and route
+      // through their own confirm dialogs, so read-only leaves them runnable.
+      for (const id of [
+        "new-layout",
+        "load",
+        "import-devices",
+        "import-netbox",
+      ] as const) {
+        const action = getActionById(id);
+        expect(action).toBeDefined();
+        // Mirrors isRunnable in palette-commands.ts: no enabledWhen means the
+        // command is always runnable. Asserting the action exists first (above)
+        // stops this from trivially passing if the action were removed.
+        const enabled = action?.enabledWhen
+          ? action.enabledWhen({ ...base, readOnly: true })
+          : true;
+        expect(enabled).toBe(true);
+      }
+    });
+  });
+
   describe("export-backup relabel (#2995, R5)", () => {
     it("the displayed extension matches downloadYamlFile's real output", () => {
       // Regression guard: the label promised '.zip' while downloadYamlFile

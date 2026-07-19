@@ -72,7 +72,11 @@ export function isCommandPaletteShortcut(event: KeyboardEvent): boolean {
   );
 }
 
+// Mutating commands: guarded here like the other mutation verbs below, so the
+// read-only lock holds even if a caller reaches this entry outside the
+// palette's own enabledWhen gating (#2804, mirrors create-rack's #2995 guard).
 function performUndo(): void {
+  if (getUIStore().readOnly) return;
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
   if (!layoutStore.canUndo) return;
@@ -82,6 +86,7 @@ function performUndo(): void {
 }
 
 function performRedo(): void {
+  if (getUIStore().readOnly) return;
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
   if (!layoutStore.canRedo) return;
@@ -164,7 +169,12 @@ export function createActionDispatch(): ActionDispatch {
     "export-all": () => {
       void handleExportAll();
     },
-    "restore-file": runRestoreFromFile,
+    // Mutating command: replaces the working copy, so the read-only lock is
+    // enforced here like undo/redo above (#2804).
+    "restore-file": () => {
+      if (getUIStore().readOnly) return;
+      runRestoreFromFile();
+    },
     export: maybeExport,
     share: handleShare,
     load: handleLoad,
