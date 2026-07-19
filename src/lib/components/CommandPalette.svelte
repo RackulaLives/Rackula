@@ -314,7 +314,7 @@
   //   8 for anything else: no other row can fire from an empty query.
   // - Non-empty query with no *confident* command match: bits-ui would still
   //   auto-select and fire whatever row scored above zero, including a stray
-  //   coincidental hit ("xserve" -> "Export all layouts"). Routing Enter to
+  //   coincidental hit ("xarchive" -> "Save all layouts"). Routing Enter to
   //   the device bridge here - the same condition that renders it - means a
   //   device-like query can no longer silently run an unrelated command
   //   instead of surfacing the bridge. A confident command match (the query
@@ -647,7 +647,7 @@
                    *confident* match for the query - a true zero-match, or a
                    query that only coincidentally brushes a command's keyword
                    or an interior word (see noConfidentCommandMatch) - so a
-                   device-like query ("server", "switch", "xserve") always
+                   device-like query ("server", "switch", "xarchive") always
                    keeps a route into device search even if it also brushes an
                    unrelated command. It lives in its OWN forceMounted group,
                    NOT the command group above: bits-ui culls a group whose

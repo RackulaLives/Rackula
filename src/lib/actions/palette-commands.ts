@@ -261,7 +261,7 @@ export function getPaletteSearchCommands(
  * case) lands at ~0.99 even after the keyword-string-length penalty; a query
  * that only hits an interior word or a keyword ("device" inside "Toggle
  * device sidebar", "server" inside "...Media Server") lands at ~0.89; a stray
- * character-jump coincidence ("xserve" against "Export all layouts") lands
+ * character-jump coincidence ("xarchive" against "Save all layouts") lands
  * near 0. 0.95 sits cleanly between the first two bands, so only a genuine,
  * intentional command-name match counts as "confident" here. Exported so
  * CommandPalette.svelte and its test can share one source of truth instead of
