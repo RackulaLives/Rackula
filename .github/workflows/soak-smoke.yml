@@ -1,0 +1,94 @@
+name: Soak Smoke
+
+# Scheduled browser smoke check against the live prod and dev deployments,
+# independent of any deploy trigger. Each run is the 7-day soak signal that
+# #1986 (VPS decommission) reads before destroying the Linode instance: the
+# decommission gate is an unbroken 7-day streak of green runs on this
+# workflow, queryable with:
+#
+#   gh run list --workflow=soak-smoke.yml --limit 50
+#
+# A run's conclusion is a plain success/failure across both targets (matrix
+# fail-fast is off so both legs always run, but either leg failing marks the
+# whole run failed), so the streak query above is a straightforward read of
+# the "conclusion" column with no per-job digging required. See issue #2676.
+#
+# count.racku.la is public today (no CF Access token needed); d.racku.la sits
+# behind Cloudflare Access and authenticates via the same service-token
+# secrets deploy-dev.yml uses (CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET,
+# added by #2346).
+
+on:
+  schedule:
+    # Every 6 hours at :43, off the top and bottom of the hour to avoid the
+    # scheduler's busiest minutes.
+    - cron: "43 */6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: soak-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke (${{ matrix.target.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: prod
+            url: https://count.racku.la
+          - name: dev
+            url: https://d.racku.la
+    env:
+      SMOKE_TEST_URL: ${{ matrix.target.url }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-chromium-
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      # d.racku.la sits behind Cloudflare Access. The CF_ACCESS_* env vars are
+      # inherited by the smoke config (playwright.smoke.config.ts) and applied
+      # as headers on every request; without them the dev leg would hit the
+      # login wall instead of the app (#2346). count.racku.la is public today
+      # (#3094 tracks the pending Access decision), so the secrets are simply
+      # unused on the prod leg.
+      - name: Browser smoke test against deployed app
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: npm run test:e2e:smoke
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: soak-smoke-report-${{ matrix.target.name }}
+          path: playwright-report/
+          retention-days: 7
