@@ -4,6 +4,14 @@ name: Build Images
 # No :latest and no :year_month tags are pushed here. Those are applied later
 # by the promote stage, by digest. Mirrors the build/scan jobs from
 # deploy-prod.yml, changed only for the immutable-tag policy plus digest outputs.
+#
+# Each image (frontend, persist, api) builds linux/amd64 and linux/arm64 as
+# separate per-arch jobs, amd64 on ubuntu-latest and arm64 on the native
+# GitHub-hosted arm64 runner (ubuntu-24.04-arm). No QEMU emulation is used
+# anywhere in this workflow: each runner only ever builds its own native
+# architecture. Every per-arch leg pushes its image by digest (no tag), then
+# a merge job assembles the tagged multi-arch manifest with
+# `docker buildx imagetools create`. See #2708 / #2707.
 
 on:
   workflow_call:
@@ -30,13 +38,18 @@ env:
 
 jobs:
   build-frontend:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
-    outputs:
-      digest: ${{ steps.build.outputs.digest }}
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -51,13 +64,6 @@ jobs:
         # Derive the commit from the checked-out tag (ref above), not github.sha.
         # Short hash to match the frontend's commit format (rev-parse --short).
         run: echo "BUILD_COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
-        with:
-          # Disable binfmt image caching to avoid post-job cache-save collisions
-          # across parallel build-* jobs that share the same cache key.
-          cache-image: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -77,31 +83,118 @@ jobs:
           tags: |
             type=raw,value=${{ inputs.version }}
 
-      - name: Build and push
+      - name: Build and push by digest
         id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: deploy/Dockerfile
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/${{ matrix.arch }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache,mode=max
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache-${{ matrix.arch }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache-${{ matrix.arch }},mode=max
           build-args: |
             VITE_ENV=production
             APP_COMMIT=${{ env.BUILD_COMMIT }}
             APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
 
-  build-persist:
+      - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: digests-frontend-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-frontend:
+    name: "Merge frontend manifest"
+    needs: [build-frontend]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write
     outputs:
-      digest: ${{ steps.build.outputs.digest }}
+      digest: ${{ steps.verify.outputs.digest }}
+
+    steps:
+      - name: Set lowercase image name
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Download digests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-frontend-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ inputs.version }}
+
+      - name: Create manifest list and push
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          cd "$RUNNER_TEMP/digests"
+          tag_args=()
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && tag_args+=(--tag "$tag")
+          done <<< "$TAGS"
+          digest_args=()
+          for digest in *; do
+            digest_args+=("${IMAGE_REF}@sha256:${digest}")
+          done
+          docker buildx imagetools create "${tag_args[@]}" "${digest_args[@]}"
+
+      - name: Verify multi-arch manifest
+        id: verify
+        env:
+          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ inputs.version }}
+        run: |
+          platforms="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{range .Manifest.Manifests}}{{println (printf "%s/%s" .Platform.OS .Platform.Architecture)}}{{end}}')"
+          echo "$platforms"
+          echo "$platforms" | grep -qx 'linux/amd64' || { echo "::error::missing linux/amd64 manifest for ${IMAGE_TAG}"; exit 1; }
+          echo "$platforms" | grep -qx 'linux/arm64' || { echo "::error::missing linux/arm64 manifest for ${IMAGE_TAG}"; exit 1; }
+          digest="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{.Manifest.Digest}}')"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+  build-persist:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -116,11 +209,6 @@ jobs:
         # Derive the commit from the checked-out tag (ref above), not github.sha.
         # Short hash to match the frontend's commit format (rev-parse --short).
         run: echo "BUILD_COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
-        with:
-          cache-image: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -140,31 +228,118 @@ jobs:
           tags: |
             type=raw,value=v${{ inputs.version }}-persist
 
-      - name: Build and push persist image
+      - name: Build and push persist image by digest
         id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: deploy/Dockerfile
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/${{ matrix.arch }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache-persist
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache-persist,mode=max
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache-persist-${{ matrix.arch }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:buildcache-persist-${{ matrix.arch }},mode=max
           build-args: |
             VITE_ENV=production
             APP_COMMIT=${{ env.BUILD_COMMIT }}
             APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
 
-  build-api:
+      - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: digests-persist-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-persist:
+    name: "Merge persist manifest"
+    needs: [build-persist]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write
     outputs:
-      digest: ${{ steps.build.outputs.digest }}
+      digest: ${{ steps.verify.outputs.digest }}
+
+    steps:
+      - name: Set lowercase image name
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Download digests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-persist-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=v${{ inputs.version }}-persist
+
+      - name: Create manifest list and push
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          cd "$RUNNER_TEMP/digests"
+          tag_args=()
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && tag_args+=(--tag "$tag")
+          done <<< "$TAGS"
+          digest_args=()
+          for digest in *; do
+            digest_args+=("${IMAGE_REF}@sha256:${digest}")
+          done
+          docker buildx imagetools create "${tag_args[@]}" "${digest_args[@]}"
+
+      - name: Verify multi-arch manifest
+        id: verify
+        env:
+          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:v${{ inputs.version }}-persist
+        run: |
+          platforms="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{range .Manifest.Manifests}}{{println (printf "%s/%s" .Platform.OS .Platform.Architecture)}}{{end}}')"
+          echo "$platforms"
+          echo "$platforms" | grep -qx 'linux/amd64' || { echo "::error::missing linux/amd64 manifest for ${IMAGE_TAG}"; exit 1; }
+          echo "$platforms" | grep -qx 'linux/arm64' || { echo "::error::missing linux/arm64 manifest for ${IMAGE_TAG}"; exit 1; }
+          digest="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{.Manifest.Digest}}')"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+  build-api:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -182,11 +357,6 @@ jobs:
           echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
           # Short hash to match the frontend's commit format (rev-parse --short).
           echo "BUILD_COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
-        with:
-          cache-image: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -206,18 +376,17 @@ jobs:
           tags: |
             type=raw,value=${{ inputs.version }}
 
-      - name: Build and push API image
+      - name: Build and push API image by digest
         id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ./api
           file: ./api/Dockerfile
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/${{ matrix.arch }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:buildcache,mode=max
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:buildcache-${{ matrix.arch }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:buildcache-${{ matrix.arch }},mode=max
           # Inject the release version so the API reports it at GET /version.
           # The git tag is the single source of truth; api/package.json is only a
           # local-dev fallback.
@@ -227,9 +396,92 @@ jobs:
             APP_BUILD_TIME=${{ env.BUILD_TIME }}
             APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
 
+      - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: digests-api-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-api:
+    name: "Merge API manifest"
+    needs: [build-api]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.verify.outputs.digest }}
+
+    steps:
+      - name: Set lowercase image name
+        run: echo "API_IMAGE_NAME=${GITHUB_REPOSITORY,,}-api" >> "$GITHUB_ENV"
+
+      - name: Download digests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-api-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ inputs.version }}
+
+      - name: Create manifest list and push
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          cd "$RUNNER_TEMP/digests"
+          tag_args=()
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && tag_args+=(--tag "$tag")
+          done <<< "$TAGS"
+          digest_args=()
+          for digest in *; do
+            digest_args+=("${IMAGE_REF}@sha256:${digest}")
+          done
+          docker buildx imagetools create "${tag_args[@]}" "${digest_args[@]}"
+
+      - name: Verify multi-arch manifest
+        id: verify
+        env:
+          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}:${{ inputs.version }}
+        run: |
+          platforms="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{range .Manifest.Manifests}}{{println (printf "%s/%s" .Platform.OS .Platform.Architecture)}}{{end}}')"
+          echo "$platforms"
+          echo "$platforms" | grep -qx 'linux/amd64' || { echo "::error::missing linux/amd64 manifest for ${IMAGE_TAG}"; exit 1; }
+          echo "$platforms" | grep -qx 'linux/arm64' || { echo "::error::missing linux/arm64 manifest for ${IMAGE_TAG}"; exit 1; }
+          digest="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{.Manifest.Digest}}')"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
   verify-version-alignment:
     name: "Verify Version Alignment"
-    needs: [build-frontend, build-persist, build-api]
+    needs: [merge-frontend, merge-persist, merge-api]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -266,7 +518,7 @@ jobs:
             scripts/verify-version-alignment.sh "$VERSION"
 
   scan-images:
-    needs: [build-frontend, build-persist, build-api]
+    needs: [merge-frontend, merge-persist, merge-api]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
