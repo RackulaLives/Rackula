@@ -94,9 +94,11 @@ function parseConfHeaders(confText) {
   return headers;
 }
 
-// Verifies every shared/common header value the generator emits matches the
-// corresponding directive in deploy/security-headers.conf. Returns an exit
-// code (0 = all surfaces match, 1 = at least one mismatch).
+// Verifies bidirectional parity between the generator and
+// deploy/security-headers.conf: every shared header value must match, every
+// generator-only header must be an explicitly declared surface extra header,
+// and every conf header must appear somewhere in the generator's output.
+// Returns an exit code (0 = all surfaces match, 1 = at least one mismatch).
 function runCheck() {
   const confText = readFileSync(SOURCE_CONF, "utf8");
   const confHeaders = parseConfHeaders(confText);
@@ -108,13 +110,24 @@ function runCheck() {
 
   let failures = 0;
   for (const surfaceName of Object.keys(SURFACES)) {
-    console.log(`-- ${surfaceName} (${SURFACES[surfaceName].host}) --`);
-    for (const [name, value] of buildHeaders(surfaceName)) {
+    const surface = SURFACES[surfaceName];
+    const extraHeaderNames = new Set(surface.extraHeaders.map(([name]) => name));
+    const generated = new Map(buildHeaders(surfaceName));
+
+    console.log(`-- ${surfaceName} (${surface.host}) --`);
+    for (const [name, value] of generated) {
       const confValue = confHeaders.get(name);
       if (confValue === undefined) {
-        // Surface-only headers (e.g. dev's X-Robots-Tag) have no conf
-        // counterpart by design; nothing to diff.
-        console.log(`  skip  ${name} (no deploy/security-headers.conf entry)`);
+        if (extraHeaderNames.has(name)) {
+          // Declared surface-only headers (e.g. dev's X-Robots-Tag) have no
+          // conf counterpart by design; nothing to diff.
+          console.log(`  skip  ${name} (surface extra header)`);
+        } else {
+          failures += 1;
+          console.log(`  FAIL  ${name}`);
+          console.log(`        generator: ${value}`);
+          console.log(`        conf:      (missing)`);
+        }
         continue;
       }
       if (confValue === value) {
@@ -123,6 +136,17 @@ function runCheck() {
         failures += 1;
         console.log(`  FAIL  ${name}`);
         console.log(`        generator: ${value}`);
+        console.log(`        conf:      ${confValue}`);
+      }
+    }
+
+    // Reverse direction: a header added to security-headers.conf that the
+    // generator has not been updated to emit.
+    for (const [confName, confValue] of confHeaders) {
+      if (!generated.has(confName)) {
+        failures += 1;
+        console.log(`  FAIL  ${confName}`);
+        console.log(`        generator: (missing)`);
         console.log(`        conf:      ${confValue}`);
       }
     }
@@ -161,6 +185,12 @@ function main() {
 
   const outIndex = args.indexOf("--out");
   const outPath = outIndex !== -1 ? args[outIndex + 1] : null;
+  if (outIndex !== -1 && !outPath) {
+    console.error("error: --out requires a file path");
+    printUsage();
+    process.exit(2);
+  }
+
   const content = renderHeadersFile(surfaceName);
 
   if (outPath) {
