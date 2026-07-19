@@ -4,7 +4,7 @@
  * must use roving tabindex so the whole list is a single outer Tab stop.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/svelte";
+import { render, screen, within, fireEvent } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import TestDevicePalette from "./helpers/TestDevicePalette.svelte";
 import { resetLayoutStore } from "$lib/stores/layout.svelte";
@@ -155,5 +155,43 @@ describe("device palette tab order", () => {
     expect(tabbable()).toHaveLength(1);
     expect(tabbable()[0]).toBe(lastRow);
     expect(lastRow).toHaveFocus();
+  });
+
+  // #3015: the roving anchor is the first mounted row, not a fixed absolute
+  // index. In a virtualized long list the index-0 anchor row unmounts when the
+  // user mouse-wheel scrolls without focusing anything; without re-anchoring
+  // there would be no tabindex=0 row left and a keyboard user tabbing in would
+  // be stranded. A-Z mode renders every device in one windowed list, so it is
+  // the simplest way to drive real mount/unmount here.
+  it("keeps a tab-stop anchor after the anchor row unmounts during virtualized scroll", async () => {
+    const user = userEvent.setup();
+    render(TestDevicePalette);
+
+    await user.click(screen.getByRole("button", { name: "A-Z" }));
+    const list = screen.getByRole("list", { name: "All Devices" });
+
+    // Verifies the roving invariant: the first mounted row is the single tab
+    // stop and every other mounted row is out of the tab order.
+    const verifySingleTabStop = () => {
+      const items = within(list).getAllByRole("listitem");
+      expect(items[0]).toHaveAttribute("tabindex", "0");
+      items.slice(1).forEach((row) => {
+        expect(row).toHaveAttribute("tabindex", "-1");
+      });
+    };
+
+    // Before scrolling: the first mounted row is the single tab stop.
+    const firstRowBefore = within(list).getAllByRole("listitem")[0];
+    verifySingleTabStop();
+
+    // Scroll far enough to unmount the original anchor row, without focusing
+    // anything (mouse-wheel scroll). happy-dom reports clientHeight 0, so the
+    // window is a fixed row count and this scrollTop pushes index 0 out of it.
+    await fireEvent.scroll(list, { target: { scrollTop: 1200 } });
+    expect(firstRowBefore).not.toBeInTheDocument();
+
+    // Re-anchored: the new first mounted row is the single tab stop, so tabbing
+    // into the list still lands and the keyboard user is never stranded.
+    verifySingleTabStop();
   });
 });
