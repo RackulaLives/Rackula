@@ -154,6 +154,15 @@
 
   // --- Replace dialog handlers ---
 
+  // The new-layout confirm dialog offers to save before discarding the working
+  // copy. Name the button for what "Save First" actually does in this mode
+  // (#2801): a server save when the server is the durable home, a file save
+  // otherwise. handleSaveFirst branches on the same shouldSaveToServer signal,
+  // so the label and the action it triggers always agree.
+  const newLayoutSaveLabel = $derived(
+    shouldSaveToServer() ? "Save to server" : "Save to file",
+  );
+
   async function handleSaveFirst() {
     dialogStore.close();
     const saved = shouldSaveToServer()
@@ -808,6 +817,7 @@
 
 <ConfirmReplaceDialog
   open={showReplaceDialog}
+  saveFirstLabel={newLayoutSaveLabel}
   onSaveFirst={handleSaveFirst}
   onReplace={handleReplace}
   onCancel={handleCancelReplace}
