@@ -1072,10 +1072,6 @@
     .rack-device {
       transition: none;
     }
-
-    .rack-device.dragging {
-      transform: none;
-    }
   }
 
   /* Container child device styles */
