@@ -99,7 +99,7 @@ Rackula uses a **three-tier colour hierarchy**:
 
 For device backgrounds and data visualization, use these muted variants. They maintain Dracula hue identity but are darkened/desaturated for:
 
-- WCAG AA contrast with white text (4.5:1 minimum)
+- WCAG AA contrast with the actual device-label token (`--neutral-50`, `#fafafa`) (4.5:1 minimum)
 - Reduced visual fatigue at scale
 - Professional appearance
 
@@ -108,12 +108,12 @@ For device backgrounds and data visualization, use these muted variants. They ma
 | Category | Muted Colour | Original | Contrast | Rationale |
 | --- | --- | --- | --- | --- |
 | `server` | `#4A7A8A` | `#8BE9FD` | 4.8:1 | Core infrastructure — teal/cyan family |
-| `network` | `#7968A6` | `#BD93F9` | 4.6:1 | Primary accent — purple family |
-| `storage` | `#3D7A4A` | `#50FA7B` | 5.2:1 | Data/growth — green family |
-| `power` | `#A84A4A` | `#FF5555` | 5.1:1 | Critical/energy — red family |
-| `kvm` | `#926A40` | `#FFB86C` | 4.6:1 | Control/interactive — orange family |
-| `av-media` | `#A85A7A` | `#FF79C6` | 4.7:1 | Media/entertainment — pink family |
-| `cooling` | `#75753F` | `#F1FA8C` | 4.6:1 | Environmental — yellow/olive family |
+| `network` | `#7968A6` | `#BD93F9` | 4.6:1 | Primary accent: purple family |
+| `storage` | `#3D7A4A` | `#50FA7B` | 5.2:1 | Data/growth: green family |
+| `power` | `#A84A4A` | `#FF5555` | 5.1:1 | Critical/energy: red family |
+| `kvm` | `#926A40` | `#FFB86C` | 4.6:1 | Control/interactive: orange family |
+| `av-media` | `#A85A7A` | `#FF79C6` | 4.7:1 | Media/entertainment: pink family |
+| `cooling` | `#75753F` | `#F1FA8C` | 4.6:1 | Environmental: yellow/olive family |
 
 **Note:** `network`, `kvm`, and `cooling` were darkened slightly in issue #3016 after measuring their contrast against the actual device-label token (`--neutral-50`, `#fafafa`) rather than the previously assumed white: the prior hexes measured 4.46:1, 3.63:1, and 3.46:1, with `kvm` and `cooling` failing WCAG AA. Each new hex keeps the same hue and saturation, darkened only enough to clear 4.5:1 with margin.
 
