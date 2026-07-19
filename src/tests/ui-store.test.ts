@@ -126,23 +126,9 @@ describe("UI Store", () => {
   });
 
   describe("Drawers", () => {
-    it("leftDrawerOpen starts false", () => {
-      const store = getUIStore();
-      expect(store.leftDrawerOpen).toBe(false);
-    });
-
     it("rightDrawerOpen starts false", () => {
       const store = getUIStore();
       expect(store.rightDrawerOpen).toBe(false);
-    });
-
-    it("toggleLeftDrawer toggles leftDrawerOpen", () => {
-      const store = getUIStore();
-      store.toggleLeftDrawer();
-      expect(store.leftDrawerOpen).toBe(true);
-
-      store.toggleLeftDrawer();
-      expect(store.leftDrawerOpen).toBe(false);
     });
 
     it("toggleRightDrawer toggles rightDrawerOpen", () => {
@@ -152,19 +138,6 @@ describe("UI Store", () => {
 
       store.toggleRightDrawer();
       expect(store.rightDrawerOpen).toBe(false);
-    });
-
-    it("openLeftDrawer sets leftDrawerOpen to true", () => {
-      const store = getUIStore();
-      store.openLeftDrawer();
-      expect(store.leftDrawerOpen).toBe(true);
-    });
-
-    it("closeLeftDrawer sets leftDrawerOpen to false", () => {
-      const store = getUIStore();
-      store.openLeftDrawer();
-      store.closeLeftDrawer();
-      expect(store.leftDrawerOpen).toBe(false);
     });
 
     it("openRightDrawer sets rightDrawerOpen to true", () => {
