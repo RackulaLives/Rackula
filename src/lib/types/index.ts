@@ -156,6 +156,15 @@ export type InterfaceType =
   // Virtual
   | "virtual" // Virtual interface
   | "lag" // Link Aggregation Group
+  // Pro audio / AV (fork; per spike #1927 taxonomy)
+  | "xlr-3" // XLR 3-pin (mic/line/AES3)
+  | "trs-1-4" // 1/4" TRS balanced
+  | "ts-1-4" // 1/4" TS unbalanced
+  | "rca" // RCA/phono (consumer line, S/PDIF)
+  | "adat-optical" // TOSLINK ADAT
+  | "midi-din" // 5-pin DIN MIDI
+  | "bnc" // BNC (word clock, AES3id)
+  | "db25-audio" // DB25 TASCAM analog 8-channel
   // Other
   | "other"; // Catch-all for unlisted types
 
