@@ -325,9 +325,9 @@ describe("actions registry", () => {
     });
 
     it("the bare 'd' key no longer resolves to any action", () => {
-      // toggle-sidebar flipped leftDrawerOpen, a flag no component read; it was
-      // removed rather than wired up, per the no-dead-code policy. Nothing else
-      // in the registry claims the bare 'd' key.
+      // toggle-sidebar drove a flag no component read; it was removed rather
+      // than wired up, per the no-dead-code policy. Nothing else in the
+      // registry claims the bare 'd' key.
       const event = new KeyboardEvent("keydown", { key: "d" });
       expect(findActionForEvent(event)).toBeUndefined();
     });

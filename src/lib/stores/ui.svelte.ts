@@ -211,7 +211,6 @@ const initialEnableBayedRacks = loadEnableBayedRacksFromStorage();
 
 // Module-level state (using $state rune)
 let zoom = $state(100);
-let leftDrawerOpen = $state(false);
 let rightDrawerOpen = $state(false);
 let displayMode = $state<DisplayMode>("label");
 let showAnnotations = $state(false);
@@ -250,7 +249,6 @@ const showLabelsOnImages = $derived(displayMode === "image-label");
  */
 export function resetUIStore(): void {
   zoom = 100;
-  leftDrawerOpen = false;
   rightDrawerOpen = false;
   displayMode = "label";
   showAnnotations = false;
@@ -289,9 +287,6 @@ export function getUIStore() {
     },
 
     // Drawer state getters
-    get leftDrawerOpen() {
-      return leftDrawerOpen;
-    },
     get rightDrawerOpen() {
       return rightDrawerOpen;
     },
@@ -360,10 +355,7 @@ export function getUIStore() {
     resetZoom,
 
     // Drawer actions
-    toggleLeftDrawer,
     toggleRightDrawer,
-    openLeftDrawer,
-    closeLeftDrawer,
     openRightDrawer,
     closeRightDrawer,
 
@@ -446,31 +438,10 @@ function resetZoom(): void {
 }
 
 /**
- * Toggle left drawer visibility
- */
-function toggleLeftDrawer(): void {
-  leftDrawerOpen = !leftDrawerOpen;
-}
-
-/**
  * Toggle right drawer visibility
  */
 function toggleRightDrawer(): void {
   rightDrawerOpen = !rightDrawerOpen;
-}
-
-/**
- * Open left drawer
- */
-function openLeftDrawer(): void {
-  leftDrawerOpen = true;
-}
-
-/**
- * Close left drawer
- */
-function closeLeftDrawer(): void {
-  leftDrawerOpen = false;
 }
 
 /**

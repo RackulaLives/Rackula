@@ -112,7 +112,6 @@ function handleEscape(): void {
   }
   selectionStore.clearSelection();
   layoutStore.setActiveRack(null);
-  uiStore.closeLeftDrawer();
   uiStore.closeRightDrawer();
 }
 
