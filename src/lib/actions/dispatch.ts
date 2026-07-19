@@ -50,7 +50,7 @@ import {
   handleRackContextFocus,
   handleRackContextExport,
 } from "$lib/utils/rack-actions";
-import { handleLoad, handleExportAll } from "$lib/storage";
+import { handleLoad, handleExportAll, shouldSaveToServer } from "$lib/storage";
 import { runImportDevices } from "$lib/actions/import-devices-trigger";
 import { runRestoreFromFile } from "$lib/actions/restore-file-trigger";
 import { openStarterById } from "$lib/stores/starter-templates.svelte";
@@ -179,12 +179,20 @@ export function createActionDispatch(): ActionDispatch {
     share: handleShare,
     load: handleLoad,
     "view-yaml": handleOpenYamlEditor,
-    // Resetting to a new layout replaces the working copy. Confirm first when
-    // there are changes not yet in any exported file (mirrors restore-file); the
-    // shared confirmReplace dialog offers to export first, then resets. A fully
-    // backed-up copy resets straight away (#2775).
+    // Resetting to a new layout replaces the working copy, so confirm first when
+    // the current layout is not durably persisted. The signal is storage-mode
+    // aware (#2801): in server mode a successful server save clears isDirty, so
+    // key on isDirty (edits not yet saved to the server); in file/browser mode
+    // key on changesSinceExport (edits not yet in any exported file). This
+    // mirrors what the confirm dialog's "Save First" button does per mode
+    // (handleSaveFirst also branches on shouldSaveToServer), so the guard and the
+    // save it offers never disagree. A durably-persisted copy resets straight away.
     "new-layout": () => {
-      if (getLayoutStore().changesSinceExport > 0) {
+      const layoutStore = getLayoutStore();
+      const hasUndurableChanges = shouldSaveToServer()
+        ? layoutStore.isDirty
+        : layoutStore.changesSinceExport > 0;
+      if (hasUndurableChanges) {
         dialogStore.open("confirmReplace");
       } else {
         resetAndCreateNewRack();

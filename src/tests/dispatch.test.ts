@@ -78,39 +78,80 @@ describe("createActionDispatch", () => {
     }
   });
 
-  // new-layout replaces the working copy. When there are changes not yet in any
-  // exported file it must confirm first (the shared confirmReplace dialog),
-  // mirroring restore-file; a backed-up copy resets straight away (#2775).
-  // Wrap the real store and override only changesSinceExport, so the mock stays
-  // a complete, type-sound LayoutStore: any other field the new-layout branch
-  // might read returns the real value rather than silently being undefined.
-  function stubLayoutChangesSinceExport(value: number) {
+  // new-layout replaces the working copy, so it confirms first when the current
+  // layout is not durably persisted. The guard is storage-mode aware (#2801): in
+  // server mode it keys on isDirty (edits not yet saved to the server), in
+  // file/browser mode on changesSinceExport (edits not yet in any exported
+  // file). shouldSaveToServer picks the mode, mirroring the dialog's "Save
+  // First" button so the guard and the offered save never disagree.
+  //
+  // Wrap the real store and override only the fields under test, so the mock
+  // stays a complete, type-sound LayoutStore: any other field the new-layout
+  // branch might read returns the real value rather than silently being
+  // undefined.
+  function stubLayoutStore(overrides: {
+    changesSinceExport?: number;
+    isDirty?: boolean;
+  }) {
     const real = layoutStore.getLayoutStore();
     const stub = new Proxy(real, {
       get(target, prop) {
-        if (prop === "changesSinceExport") return value;
+        if (typeof prop === "string" && prop in overrides) {
+          return overrides[prop as keyof typeof overrides];
+        }
         return Reflect.get(target, prop, target);
       },
     });
     vi.spyOn(layoutStore, "getLayoutStore").mockReturnValue(stub);
   }
 
-  it("new-layout confirms before resetting when there are unexported changes", () => {
-    stubLayoutChangesSinceExport(2);
-    const reset = vi
+  function spyReset() {
+    return vi
       .spyOn(appActions, "resetAndCreateNewRack")
       .mockReturnValue(undefined);
+  }
+
+  // --- server mode: key on isDirty (unsaved to the server) ---
+
+  // The over-prompt bug this issue fixes: a server user who has saved to the
+  // server (isDirty false) but never exported a file (changesSinceExport > 0)
+  // must NOT be prompted, because the layout is durably persisted.
+  it("new-layout resets straight away in server mode when saved to the server, even with unexported changes", () => {
+    vi.spyOn(storage, "shouldSaveToServer").mockReturnValue(true);
+    stubLayoutStore({ isDirty: false, changesSinceExport: 5 });
+    const reset = spyReset();
+    const dispatch = createActionDispatch();
+    dispatch["new-layout"]();
+    expect(reset).toHaveBeenCalledOnce();
+    expect(dialogStore.isOpen("confirmReplace")).toBe(false);
+  });
+
+  it("new-layout confirms first in server mode when there are unsaved server changes", () => {
+    vi.spyOn(storage, "shouldSaveToServer").mockReturnValue(true);
+    stubLayoutStore({ isDirty: true, changesSinceExport: 0 });
+    const reset = spyReset();
     const dispatch = createActionDispatch();
     dispatch["new-layout"]();
     expect(dialogStore.isOpen("confirmReplace")).toBe(true);
     expect(reset).not.toHaveBeenCalled();
   });
 
-  it("new-layout resets straight away when there are no unexported changes", () => {
-    stubLayoutChangesSinceExport(0);
-    const reset = vi
-      .spyOn(appActions, "resetAndCreateNewRack")
-      .mockReturnValue(undefined);
+  // --- file/browser mode: semantics unchanged (key on changesSinceExport) ---
+
+  it("new-layout confirms first in file mode when there are unexported changes", () => {
+    vi.spyOn(storage, "shouldSaveToServer").mockReturnValue(false);
+    stubLayoutStore({ changesSinceExport: 2, isDirty: true });
+    const reset = spyReset();
+    const dispatch = createActionDispatch();
+    dispatch["new-layout"]();
+    expect(dialogStore.isOpen("confirmReplace")).toBe(true);
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it("new-layout resets straight away in file mode when everything is exported, even if dirty", () => {
+    vi.spyOn(storage, "shouldSaveToServer").mockReturnValue(false);
+    stubLayoutStore({ changesSinceExport: 0, isDirty: true });
+    const reset = spyReset();
     const dispatch = createActionDispatch();
     dispatch["new-layout"]();
     expect(reset).toHaveBeenCalledOnce();
