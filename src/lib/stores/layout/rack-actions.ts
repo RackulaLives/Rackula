@@ -288,6 +288,11 @@ export function getTargetRack(
  * @param form_factor - Rack form factor
  * @param desc_units - Whether units are numbered top-down
  * @param starting_unit - First U number
+ * @param selectionSync - Optional selection-store bridge (#3033, mirroring
+ * duplicateRack's #3003 fix). When provided, the caller's post-create
+ * selection change is folded into this command so undo/redo keep selection
+ * transactionally coherent with activeRackId; without it, the caller must
+ * sync selection itself outside the command/history system.
  * @returns The created rack object with ID, or null if at max capacity
  */
 export function addRack(
@@ -298,6 +303,7 @@ export function addRack(
   form_factor?: FormFactor,
   desc_units?: boolean,
   starting_unit?: number,
+  selectionSync?: RackSelectionSync,
 ): (Rack & { id: string }) | null {
   const layout = ctx.getLayout();
 
@@ -334,7 +340,25 @@ export function addRack(
   // setActive: true ensures redo also restores the active rack selection
   const history = ctx.getHistory();
   const adapter = getRackLifecycleCommandAdapter(ctx);
-  const command = createAddRackCommand(newRack, adapter, true, layoutNameSync);
+  // When a caller wants selection to follow this new rack transactionally
+  // (#3033, mirroring #3003), layer the bridge onto the shared adapter for
+  // just this command; other callers of getRackLifecycleCommandAdapter
+  // (duplicateRack, createRackGroup, etc.) are unaffected since
+  // syncSelection stays false.
+  const commandStore: RackLifecycleCommandStore = selectionSync
+    ? {
+        ...adapter,
+        getSelectedRackId: selectionSync.getSelectedRackId,
+        setSelectedRackId: selectionSync.setSelectedRackId,
+      }
+    : adapter;
+  const command = createAddRackCommand(
+    newRack,
+    commandStore,
+    true,
+    layoutNameSync,
+    Boolean(selectionSync),
+  );
   history.execute(command);
   ctx.markDirty();
 
@@ -538,13 +562,14 @@ export function moveRackInRow(
 
 /**
  * Optional bridge to the UI selection store, passed by a caller that wants
- * duplicateRack's post-duplicate selection change to be transactionally
- * coherent with activeRackId across undo/redo (#3003 fix round 1). Without
- * it, duplicateRack only manages activeRackId; the caller is responsible for
- * selecting the copy itself (and for any undo/redo coherence, which it then
- * cannot get for free).
+ * a rack-creating action's post-creation selection change to be
+ * transactionally coherent with activeRackId across undo/redo (#3003 fix
+ * round 1, extended to addRack by #3033). Without it, the action only
+ * manages activeRackId; the caller is responsible for selecting the new
+ * rack itself (and for any undo/redo coherence, which it then cannot get
+ * for free). Shared by addRack and duplicateRack.
  */
-export interface RackDuplicateSelectionSync {
+export interface RackSelectionSync {
   getSelectedRackId(): string | null;
   setSelectedRackId(id: string | null): void;
 }
@@ -560,7 +585,7 @@ export interface RackDuplicateSelectionSync {
 export function duplicateRack(
   ctx: LayoutStateAccess,
   id: string,
-  selectionSync?: RackDuplicateSelectionSync,
+  selectionSync?: RackSelectionSync,
 ): {
   error?: string;
   rack?: Rack & { id: string };
@@ -625,8 +650,8 @@ export function duplicateRack(
   const adapter = getRackLifecycleCommandAdapter(ctx);
   // When a caller wants selection to follow this duplicate transactionally
   // (#3003 fix round 1), layer the bridge onto the shared adapter for just
-  // this command; other callers of getRackLifecycleCommandAdapter (addRack,
-  // createRackGroup, etc.) are unaffected since syncSelection stays false.
+  // this command; other callers of getRackLifecycleCommandAdapter
+  // (createRackGroup, etc.) are unaffected since syncSelection stays false.
   const commandStore: RackLifecycleCommandStore = selectionSync
     ? {
         ...adapter,

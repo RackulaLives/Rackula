@@ -53,7 +53,7 @@ import {
   getRackById as getRackByIdImpl,
   setActiveRack as setActiveRackImpl,
   getTargetRack as getTargetRackImpl,
-  type RackDuplicateSelectionSync,
+  type RackSelectionSync,
 } from "./layout/rack-actions";
 import {
   createRackGroup as createRackGroupImpl,
@@ -441,6 +441,14 @@ export function createLayoutStore(
   // Rack Actions — delegated to layout/rack-actions.ts
   // =============================================================================
 
+  /**
+   * @param selectionSync - Optional bridge to the UI selection store. Pass it
+   * when the caller tracks a separate "selected" rack (distinct from
+   * "active") that should follow the new rack and stay coherent with
+   * activeRackId through undo/redo (#3033, mirroring duplicateRack's #3003
+   * fix); without it, the caller must sync selection itself after the call
+   * returns.
+   */
   function addRack(
     name: string,
     height: number,
@@ -448,6 +456,7 @@ export function createLayoutStore(
     form_factor?: FormFactor,
     desc_units?: boolean,
     starting_unit?: number,
+    selectionSync?: RackSelectionSync,
   ) {
     return addRackImpl(
       stateAccess,
@@ -457,6 +466,7 @@ export function createLayoutStore(
       form_factor,
       desc_units,
       starting_unit,
+      selectionSync,
     );
   }
 
@@ -523,10 +533,7 @@ export function createLayoutStore(
    * selection itself after the call returns.
    * @returns The duplicated rack, or an error message if duplication failed
    */
-  function duplicateRack(
-    id: string,
-    selectionSync?: RackDuplicateSelectionSync,
-  ) {
+  function duplicateRack(id: string, selectionSync?: RackSelectionSync) {
     return duplicateRackImpl(stateAccess, id, selectionSync);
   }
 
