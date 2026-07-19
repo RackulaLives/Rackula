@@ -16,7 +16,7 @@ The Cloudflare Access service token pair (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLI
 
 ## Account-wide risk: read this before rotating anything
 
-Cloudflare API tokens scoped to Workers Scripts edit cannot be restricted to a single Worker. A token minted to deploy `rackula-dev` can also overwrite `rackula-prod` (see #2031). Treat every Cloudflare API deploy token as prod-grade, regardless of which GitHub Environment holds it or which Worker it is nominally used for. Do not downgrade the rotation cadence or the revocation urgency for a token just because it lives in the `dev` environment.
+Cloudflare API tokens scoped to Workers Scripts edit cannot be restricted to a single Worker. A token minted to deploy `rackula-dev` can also overwrite `rackula-prod` (see #2031). Treat every Cloudflare API deploy token as prod-grade, regardless of whether it is stored as a repository secret or scoped to a specific GitHub Environment, and regardless of which Worker it is nominally used for. Do not downgrade the rotation cadence or the revocation urgency for a token just because a copy of it is scoped to `dev`.
 
 ## Token class 1: Cloudflare API deploy tokens
 
@@ -25,22 +25,22 @@ Used by the deploy workflows to publish the Worker and manage R2 bindings (`wran
 ### Storage
 
 - Secret names (planned, per the migration plan and #2675's acceptance criteria): `<CF_API_TOKEN_NAME_TBD>` (expected to follow the Wrangler convention `CLOUDFLARE_API_TOKEN`) and `<CF_ACCOUNT_ID_NAME_TBD>` (expected `CLOUDFLARE_ACCOUNT_ID`).
-- Stored as GitHub Actions secrets on the `dev` and `prod` GitHub Environments (both already exist in repo settings; `e2e-approval` and `e2e-trusted` also exist but are not deploy-token holders).
+- Storage tier is not yet fixed: #2675 must decide between repository-level GitHub Actions secrets (visible to every workflow, matching how `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` are stored today) and GitHub Environment secrets scoped to `dev` and/or `prod` (both environments already exist in repo settings, alongside `e2e-approval` and `e2e-trusted`, which are not deploy-token holders). Environment scoping buys GitHub-side protection rules (required reviewers) even though Cloudflare itself cannot scope the token below account-wide; #2675 should record which tier it chose and this file should be updated to match.
 - Scope (per #2675 AC): Workers Scripts edit, R2 read/write, account-wide. No narrower scope is available from Cloudflare for this permission set.
 
 ### Who can rotate
 
-A GitHub repository admin (Settings > Environments > secrets) acting together with a Cloudflare account member who holds Workers and Access administration permissions in the Cloudflare dashboard. Both access levels are required: GitHub admin to update the secret, Cloudflare account access to mint or revoke the token.
+A GitHub repository admin (Settings > Secrets and variables > Actions, covering both repository secrets and any Environment secrets) acting together with a Cloudflare account member who holds Workers and Access administration permissions in the Cloudflare dashboard. Both access levels are required: GitHub admin to update the secret, Cloudflare account access to mint or revoke the token.
 
 ### Rotation cadence
 
-Every 90 days, or immediately on suspected compromise. Put a recurring reminder on the calendar; Cloudflare does not currently enforce expiry on account API tokens, so there is no automatic prompt.
+Every 90 days, or immediately on suspected compromise. Cloudflare account API tokens support an optional expiry (TTL) set at creation; if no expiry is configured the token stays valid indefinitely and Cloudflare will not prompt you to rotate it. Put a recurring reminder on the calendar for the 90-day cadence regardless, and consider setting an explicit expiry when minting the token so an unrotated token fails closed instead of staying valid forever.
 
 ### Rotation procedure
 
 1. In the Cloudflare dashboard, go to My Profile > API Tokens > Create Token. Recreate the same scope as the token being replaced (Workers Scripts edit, R2 read/write, account-wide). Do not reuse the old token's name; append a date suffix so the audit log distinguishes them.
 2. Copy the new token value immediately; Cloudflare shows it once.
-3. In GitHub, go to Settings > Environments > `dev` (repeat for `prod` if it holds a separate copy) > Secrets, and update `<CF_API_TOKEN_NAME_TBD>` with the new value. Confirm `<CF_ACCOUNT_ID_NAME_TBD>` is still correct; it does not usually need to change.
+3. Update `<CF_API_TOKEN_NAME_TBD>` with the new value everywhere it is stored: check Settings > Secrets and variables > Actions for a repository secret, and check Settings > Environments > `dev` and > `prod` for environment secrets, and update every copy you find. Do not stop at the first one; a copy left on the old value is a copy still trusting a token you are about to revoke. Confirm `<CF_ACCOUNT_ID_NAME_TBD>` is still correct in each location; it does not usually need to change.
 4. Trigger a `workflow_dispatch` run of `Deploy Dev` (Actions > Deploy Dev > Run workflow) and confirm the `deploy` job succeeds against d.racku.la. For a prod-side rotation, trigger the equivalent verification path once #2029 lands (`deploy-prod.yml` is currently a `workflow_call`-only reusable workflow invoked by the release orchestrator; confirm with a real release promote or with whatever manual dispatch path #2029 adds).
 5. Once the new token has verified deploy success, return to the Cloudflare dashboard and revoke the old token (API Tokens > find the old entry > Roll or Delete).
 6. Note the rotation date and who performed it somewhere durable (a comment on the tracking issue is sufficient); there is no in-repo rotation log to update.
@@ -49,7 +49,7 @@ Every 90 days, or immediately on suspected compromise. Put a recurring reminder 
 
 1. Revoke the token in the Cloudflare dashboard first (API Tokens > Delete), before touching GitHub. This stops the token from being usable immediately, even if the attacker also has GitHub access.
 2. Mint a replacement token following steps 1 to 2 above.
-3. Update the GitHub Environment secret(s) following step 3 above.
+3. Update every copy of the secret following step 3 above; do not skip a location because it seems unlikely to be compromised.
 4. Verify with a `workflow_dispatch` run following step 4 above.
 5. Audit the Cloudflare account's audit log (Manage Account > Audit Log) and the GitHub Actions run history for both the `dev` and `prod` environments, covering the window from when compromise is suspected to have started through the revocation. Look for Worker deployments, R2 object writes, or DNS changes that were not initiated by a known workflow run. Flag anything unexplained to the maintainer.
 6. If the audit finds unauthorized activity, escalate: rotate the Cloudflare account owner credentials too, since an account-wide Workers Scripts token implies the compromise could extend beyond this one secret.
@@ -61,12 +61,12 @@ Used by the `smoke-test` job in `deploy-dev.yml` to authenticate through Cloudfl
 ### Storage
 
 - Secret names: `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`.
-- Stored as GitHub Actions secrets on the `dev` GitHub Environment (see `deploy-dev.yml`, the `environment: name: dev` block and the `smoke-test` job's `env:`).
+- Stored as repository-level GitHub Actions secrets (Settings > Secrets and variables > Actions > Repository secrets), not scoped to a GitHub Environment. Verified via `gh secret list --env dev` and `--env prod`, both empty; the `check-cf-access` and `smoke-test` jobs in `deploy-dev.yml` read `secrets.CF_ACCESS_CLIENT_ID` / `secrets.CF_ACCESS_CLIENT_SECRET` directly without an `environment:` binding, which only works because they are repository secrets.
 - Prod (`count.racku.la`) is not behind Cloudflare Access today, so there is no prod copy of this pair. If a future issue puts prod behind Access, this section's storage and cadence apply there too; update this file rather than writing a second one.
 
 ### Who can rotate
 
-A Cloudflare account member with Access administration permissions (Zero Trust dashboard > Access > Service Auth) to mint or rotate the service token, and a GitHub repository admin to update the secrets.
+A Cloudflare account member with Access administration permissions (Zero Trust dashboard > Access controls > Service credentials) to mint or rotate the service token, and a GitHub repository admin to update the secrets.
 
 ### Rotation cadence
 
@@ -74,9 +74,9 @@ Every 90 days, matching the API token cadence, or immediately on suspected compr
 
 ### Rotation procedure
 
-1. In the Cloudflare Zero Trust dashboard, go to Access > Service Auth > Service Tokens. Create a new service token (or use the dashboard's rotate action on the existing token if available at the time; check whether it issues a new Client Secret for the same Client ID with an overlap window, which avoids a hard cutover).
+1. In the Cloudflare Zero Trust dashboard, go to Access controls > Service credentials > Service Tokens. Create a new service token (or use the dashboard's rotate action on the existing token if available at the time; check whether it issues a new Client Secret for the same Client ID with an overlap window, which avoids a hard cutover).
 2. Copy the new Client ID and Client Secret.
-3. In GitHub, go to Settings > Environments > `dev` > Secrets, and update `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`.
+3. In GitHub, go to Settings > Secrets and variables > Actions > Repository secrets, and update `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`.
 4. Trigger a `workflow_dispatch` run of `Deploy Dev` and confirm the `check-cf-access` job reports the secret available and the `smoke-test` job passes, specifically the curl gate against `https://d.racku.la` and `https://d.racku.la/api/layouts`.
 5. Once verified, delete the old service token in the Zero Trust dashboard (or confirm the rotate action already invalidated it).
 
@@ -84,7 +84,7 @@ Every 90 days, matching the API token cadence, or immediately on suspected compr
 
 1. Delete the service token in the Cloudflare Zero Trust dashboard first, before touching GitHub.
 2. Mint a replacement following steps 1 to 2 above.
-3. Update the GitHub Environment secrets following step 3 above.
+3. Update the GitHub secrets following step 3 above.
 4. Verify with a `workflow_dispatch` run following step 4 above.
 5. Audit the Cloudflare Access audit log for authentications using the old Client ID, and the GitHub Actions run history for the `dev` environment, covering the suspected compromise window. A compromised Access service token only grants entry through the Access gate; it does not grant Workers or R2 write access, so the blast radius is narrower than the API deploy token, but still confirm no unexpected requests reached `/api/*`.
 
