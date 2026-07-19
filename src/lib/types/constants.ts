@@ -15,13 +15,13 @@ import type { DeviceCategory, RackView, DeviceFace } from "./index";
 export const CATEGORY_COLOURS: Record<DeviceCategory, string> = {
   // Active categories - Muted Dracula (WCAG AA compliant)
   server: "#4A7A8A", // muted cyan (4.8:1)
-  network: "#7B6BA8", // muted purple (4.6:1)
+  network: "#7968A6", // muted purple (4.6:1, issue #3016)
   firewall: "#C0392B", // alert red (5.4:1) - distinct from muted power red
   storage: "#3D7A4A", // muted green (5.2:1)
   power: "#A84A4A", // muted red (5.1:1)
-  kvm: "#A87A4A", // muted orange (4.5:1)
+  kvm: "#926A40", // muted orange (4.6:1, issue #3016)
   "av-media": "#A85A7A", // muted pink (4.7:1)
-  cooling: "#8A8A4A", // muted yellow (4.6:1)
+  cooling: "#75753F", // muted yellow (4.6:1, issue #3016)
   chassis: "#5A6A8A", // muted blue-gray for blade chassis (4.5:1)
 
   // Passive categories - Dracula neutrals (unchanged)
