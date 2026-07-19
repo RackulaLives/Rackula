@@ -44,7 +44,7 @@ describe("noConfidentCommandMatch routing bands (#2996)", () => {
   });
 
   describe("device/category queries stay below the threshold (bridge available)", () => {
-    it.each(["xserve", "switch", "server", "device", "rack"])(
+    it.each(["xarchive", "switch", "server", "device", "rack"])(
       "%s does not confidently match any registry command",
       (query) => {
         expect(noConfidentCommandMatch(query, commands)).toBe(true);

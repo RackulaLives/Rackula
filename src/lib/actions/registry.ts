@@ -410,7 +410,10 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
   },
   {
     id: "export-all",
-    label: "Export all layouts (.zip)",
+    // Backs up the whole workspace to a ZIP: persisting layouts, so it leads
+    // with "Save" like export-backup and save-as above, not the derived-
+    // artifact "Export" export/export-rack use below (#3061, #2995/#3007).
+    label: "Save all layouts (.zip)",
     scope: "global",
     bindings: [],
     appMenuGroup: "workspace",

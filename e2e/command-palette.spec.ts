@@ -412,27 +412,30 @@ test.describe("Command palette", () => {
   test("the device bridge stays available for a query that also fuzzy-matches a command, and Enter goes to the bridge, not the command (#2996)", async ({
     page,
   }) => {
-    // "xserve" is the issue's own repro: it fuzzy-matches "Export all layouts"
-    // via a stray character-jump (a coincidental, low-confidence hit), which
-    // previously hid the device bridge entirely and let a bare Enter silently
-    // fire the export command instead of surfacing a way to place a device.
+    // "xarchive" reproduces the issue's own repro (#2996's original hit was
+    // "xserve" against the label's pre-rename text "Export all layouts"; #3061
+    // renamed the label to "Save all layouts" so the stray jump moved to this
+    // string): it fuzzy-matches "Save all layouts (.zip)" via a stray
+    // character-jump (a coincidental, low-confidence hit), which previously hid
+    // the device bridge entirely and let a bare Enter silently fire the save
+    // command instead of surfacing a way to place a device.
     await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
     const input = page.getByTestId("command-palette-input");
-    await input.fill("xserve");
+    await input.fill("xarchive");
 
     const bridge = page.getByTestId("command-palette-create-device");
     await expect(bridge).toBeVisible();
 
     await page.keyboard.press("Enter");
 
-    // Enter went to the device bridge, not "Export all layouts": the palette
-    // is still open, in the device sub-page, carrying the typed query. Had the
-    // export command fired instead, the palette would have closed entirely.
+    // Enter went to the device bridge, not "Save all layouts": the palette is
+    // still open, in the device sub-page, carrying the typed query. Had the
+    // save-all command fired instead, the palette would have closed entirely.
     await expect(
       page.getByRole("dialog", { name: "Command palette" }),
     ).toBeVisible();
     await expect(page.getByTestId("command-palette-device-back")).toBeVisible();
-    await expect(input).toHaveValue("xserve");
+    await expect(input).toHaveValue("xarchive");
   });
 
   test("the device bridge stays available for a device-category word that also fuzzy-matches a command (#2996)", async ({
