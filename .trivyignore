@@ -1,0 +1,18 @@
+# Trivy exception list for release image scans (scan-images in
+# .github/workflows/build-images.yml). See issue #2720 and
+# docs/deployment/RELEASE-PIPELINE.md for the Trivy gate this file feeds.
+#
+# The scan gate is fail-closed: a fixable HIGH/CRITICAL CVE in a release
+# image blocks promote. This file is the only sanctioned escape hatch, and
+# only for findings that are unfixable upstream or an accepted risk.
+#
+# Every entry below must have:
+#   - the CVE id
+#   - a comment explaining why it is unfixable or accepted
+#   - a link to the accepted-risk discussion (GitHub issue or PR) that
+#     recorded the decision
+#
+# Do not add an entry to unblock a release without that discussion. If a fix
+# becomes available upstream, remove the entry instead of leaving it stale.
+#
+# No active entries at this time.

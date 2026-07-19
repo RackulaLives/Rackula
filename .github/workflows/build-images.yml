@@ -537,6 +537,18 @@ jobs:
             tag: ${{ inputs.version }}
 
     steps:
+      # Needed so trivy-action can read the reviewed exceptions file below.
+      # Pinned to the release tag being scanned, not the ref that triggered
+      # the workflow, so promote decisions use the tag's own exceptions.
+      - name: Checkout .trivyignore
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+          sparse-checkout: |
+            .trivyignore
+          sparse-checkout-cone-mode: false
+
       - name: Log in to Container Registry
         uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
@@ -563,9 +575,15 @@ jobs:
           limit-severities-for-sarif: true
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: 0
+          # Fail closed: a fixable HIGH/CRITICAL CVE blocks promote (#2720).
+          # Unfixable/accepted findings are excluded via .trivyignore, not by
+          # loosening this exit code.
+          exit-code: 1
+          trivyignores: .trivyignore
           version: "v0.70.0"
 
+      # Runs even when the scan step above fails the job, so a blocked
+      # release still lands its findings in the Security tab for triage.
       - name: Upload scan results
         if: always()
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
