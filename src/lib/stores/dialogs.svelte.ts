@@ -126,9 +126,21 @@ function isOpen(id: DialogId): boolean {
 }
 
 /**
- * Open a mobile sheet by ID.
+ * Open a mobile sheet by ID. Clears any lingering non-undo toast on the
+ * closed-to-open transition (#3030), so a toast left over from a prior
+ * action can't cover a nav sheet's controls (Layouts/Racks/Devices/View,
+ * deviceDetails), same as open()'s dialog-open clear (#3004/R27a). Only
+ * fires when no sheet was already open: nav sheets swap frequently (tab
+ * switches, selecting a different device while deviceDetails is already
+ * showing), and re-clearing on every one of those redundant/same-state
+ * calls would eat a toast the user still wants to see. Unlike open(), an
+ * isUndoAffordance toast is exempt, since sheets don't block it the way a
+ * modal dialog does and it already auto-dismisses on its own.
  */
 function openSheetById(id: SheetId, deviceIndex?: number) {
+  if (openSheet === null) {
+    getToastStore().clearNonUndoToasts();
+  }
   openSheet = id;
   if (deviceIndex !== undefined) {
     selectedDeviceIndex = deviceIndex;

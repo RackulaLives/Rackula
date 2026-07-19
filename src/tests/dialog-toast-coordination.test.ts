@@ -81,3 +81,76 @@ describe("dialog open dismisses lingering toasts", () => {
     );
   });
 });
+
+/**
+ * Sheet/toast coordination tests (#3030)
+ *
+ * Extends the dialog-open clear above to mobile bottom-nav sheets
+ * (Layouts/Racks/Devices/View, deviceDetails): a toast left over from a
+ * prior action must not linger and cover a nav sheet's controls either.
+ * Unlike a dialog, a sheet can reopen with a different ID or device index
+ * while already open (nav tab switches, selecting another device), so the
+ * clear only fires on the closed-to-open transition, not on every one of
+ * those. An isUndoAffordance toast is also exempt, since sheets open far
+ * more often than dialogs and an unclicked, still-valid Undo must survive.
+ */
+describe("sheet open dismisses lingering toasts", () => {
+  beforeEach(() => {
+    resetToastStore();
+    dialogStore.close();
+    dialogStore.closeSheet();
+  });
+
+  it("clears a plain toast on the closed-to-open transition", () => {
+    const toastStore = getToastStore();
+    toastStore.showToast("Device duplicated", "success");
+    expect(
+      toastStore.toasts.some((t) => t.message === "Device duplicated"),
+    ).toBe(true);
+
+    dialogStore.openSheet("racks");
+
+    expect(toastStore.toasts).toEqual([]);
+  });
+
+  it("does not clear an undo-affordance toast on the closed-to-open transition", () => {
+    const toastStore = getToastStore();
+    toastStore.showUndoToast("Removed switch", () => {});
+    expect(toastStore.toasts.some((t) => t.isUndoAffordance)).toBe(true);
+
+    dialogStore.openSheet("deviceDetails", 0);
+
+    expect(toastStore.toasts.some((t) => t.isUndoAffordance)).toBe(true);
+  });
+
+  it("does not clear toasts on a redundant openSheet call while already open", () => {
+    const toastStore = getToastStore();
+    dialogStore.openSheet("deviceDetails", 0);
+    toastStore.showToast("Device duplicated", "success");
+    expect(
+      toastStore.toasts.some((t) => t.message === "Device duplicated"),
+    ).toBe(true);
+
+    // Selecting a different device re-fires openSheet for the same sheet.
+    dialogStore.openSheet("deviceDetails", 1);
+
+    expect(
+      toastStore.toasts.some((t) => t.message === "Device duplicated"),
+    ).toBe(true);
+  });
+
+  it("does not clear toasts when switching directly from one open sheet to another", () => {
+    const toastStore = getToastStore();
+    dialogStore.openSheet("racks");
+    toastStore.showToast("Rack duplicated", "success");
+    expect(toastStore.toasts.some((t) => t.message === "Rack duplicated")).toBe(
+      true,
+    );
+
+    dialogStore.openSheet("layouts");
+
+    expect(toastStore.toasts.some((t) => t.message === "Rack duplicated")).toBe(
+      true,
+    );
+  });
+});

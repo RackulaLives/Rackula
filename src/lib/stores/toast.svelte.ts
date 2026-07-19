@@ -132,6 +132,24 @@ function dismissUndoToasts(): void {
 }
 
 /**
+ * Clear every toast except undo affordances (#3030). Used by the mobile
+ * bottom-nav sheets (Layouts/Racks/Devices/View, deviceDetails) on their
+ * closed-to-open transition, mirroring dialogStore.open()'s lingering-toast
+ * clear but carving out isUndoAffordance toasts: sheets open far more
+ * frequently than dialogs, and an unclicked, still-valid Undo toast must
+ * survive a nav-sheet open rather than being wiped mid-window. Safe because
+ * undo toasts already auto-dismiss at 5s and on the next history command
+ * (dismissUndoToasts()), so exempting them here can't leak one indefinitely.
+ */
+function clearNonUndoToasts(): void {
+  for (const toast of toasts) {
+    if (!toast.isUndoAffordance) {
+      dismissToast(toast.id);
+    }
+  }
+}
+
+/**
  * Dismiss a specific toast by ID
  */
 function dismissToast(id: string): void {
@@ -177,6 +195,7 @@ export function getToastStore() {
     showUndoToast,
     dismissToast,
     dismissUndoToasts,
+    clearNonUndoToasts,
     clearAllToasts,
   };
 }
