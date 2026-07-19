@@ -19,8 +19,12 @@
     itemHeight: number;
     /** Rows rendered beyond the viewport on each side. */
     overscan?: number;
-    /** Renders a single row. Receives the item and its absolute index. */
-    row: Snippet<[T, number]>;
+    /** Renders a single row. Receives the item, its absolute index, and
+     *  whether it is the first row of the currently mounted window. The last
+     *  flag lets a roving-tabindex list re-anchor its single tab stop to the
+     *  nearest mounted row as scrolling unmounts rows above it (#3015), so a
+     *  keyboard user tabbing in is never stranded with no tabindex=0 row. */
+    row: Snippet<[T, number, boolean]>;
     /** Stable identity for an item, used as the {#each} key so the same DOM
      *  node is never reused for a different item when the slice shifts. */
     key: (item: T) => string | number;
@@ -78,7 +82,7 @@
       style:transform="translateY({visibleWindow.offsetY}px)"
     >
       {#each visibleItems as item, i (key(item))}
-        {@render row(item, visibleWindow.startIndex + i)}
+        {@render row(item, visibleWindow.startIndex + i, i === 0)}
       {/each}
     </div>
   </div>

@@ -619,10 +619,14 @@
 
   <!-- Device List -->
   <div class="device-list" class:fill-flat={flatFill}>
-    {#snippet deviceRow(device: DeviceType, index = 0)}
+    <!-- isAnchor marks this row as the list's single roving tab stop
+         (tabindex 0). It is the first mounted row of the list, not a fixed
+         absolute index, so a virtualized list re-anchors to the nearest
+         mounted row when scrolling unmounts the rows above it (#3015). -->
+    {#snippet deviceRow(device: DeviceType, isAnchor = true)}
       <DevicePaletteItem
         {device}
-        tabindex={index === 0 ? 0 : -1}
+        tabindex={isAnchor ? 0 : -1}
         searchQuery={isSearchActive ? searchQuery : ""}
         isCompatible={isCompatible(device)}
         incompatibilityReason={incompatibilityReason(device)}
@@ -651,15 +655,15 @@
             key={(device) => device.slug}
             ariaLabel={label}
           >
-            {#snippet row(device, index)}
-              {@render deviceRow(device, index)}
+            {#snippet row(device, _index, isFirst)}
+              {@render deviceRow(device, isFirst)}
             {/snippet}
           </VirtualList>
         </div>
       {:else}
         <div class="section-devices" role="list" aria-label={label}>
           {#each devices as device, index (device.slug)}
-            {@render deviceRow(device, index)}
+            {@render deviceRow(device, index === 0)}
           {/each}
         </div>
       {/if}
