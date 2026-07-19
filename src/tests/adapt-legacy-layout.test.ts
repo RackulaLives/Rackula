@@ -82,6 +82,40 @@ describe("adaptLegacyLayout", () => {
     });
   });
 
+  describe("empty-string container_id (#2759)", () => {
+    it("treats a rack-level device with an empty-string container_id as rack-level, snapping its fractional rail position", () => {
+      // A prior-release rack-level device can serialize container_id as ""
+      // (matching the class of bug fixed for the schema/storage position
+      // migration in #2699/#2756/#2931). isRackLevel's strict
+      // `=== undefined` check would misclassify this device as a container
+      // child, sending it to passthrough and skipping the fractional snap
+      // that every other rack-level device gets.
+      const dt = createTestDeviceType({ slug: "rb-1u-empty-cid", u_height: 1 });
+      const layout = createTestLayout({
+        device_types: [dt],
+        racks: [
+          createTestRack({
+            devices: [
+              createTestDevice({
+                id: "frac-empty-cid",
+                device_type: "rb-1u-empty-cid",
+                position: 32 / UNITS_PER_U, // factory re-applies toInternalUnits
+                container_id: "",
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const adapted = adaptLegacyLayout(layout);
+      const device = adapted.racks[0]!.devices.find(
+        (d) => d.id === "frac-empty-cid",
+      );
+      // Same snap as a rack-level device without container_id: round(32/6)=5 -> 30 internal == U5.
+      expect(device?.position).toBe(toInternalUnits(5));
+    });
+  });
+
   describe("half-width pair wrapping (legacy slot_position)", () => {
     it("wraps two co-located half-width devices into a carrier-1u-2col with two children", () => {
       const half = createTestDeviceType({

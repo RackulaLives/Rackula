@@ -63,10 +63,24 @@ const KNOWN_CARRIER_SLUGS = new Set<string>([
   CARRIER_2U_2COL_SLUG,
 ]);
 
-/** A rack-level device has none of the child-placement markers set. */
+/**
+ * A rack-level device has none of the child-placement markers set.
+ *
+ * A falsy container_id (undefined or "") is rack-level here, matching how
+ * PlacedDeviceSchema, the carrier-first refine, and migrations.ts distinguish
+ * rail devices from container children (#2759, same class as #2699). A prior-
+ * release rack-level device can serialize container_id as "" (the schema's own
+ * default), so a strict `=== undefined` check misclassified it as a container
+ * child.
+ *
+ * parent_device and device_bay stay strict (`=== undefined`): they are
+ * schema-only fields (see PlacedDevice in types/index.ts) that no serializer
+ * in this codebase has ever written a value for, so there is no prior-release
+ * data that could carry an empty-string value for either.
+ */
 function isRackLevel(d: PlacedDevice): boolean {
   return (
-    d.container_id === undefined &&
+    !d.container_id &&
     d.parent_device === undefined &&
     d.device_bay === undefined
   );
