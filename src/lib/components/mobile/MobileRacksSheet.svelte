@@ -35,12 +35,14 @@
 
   // Open the existing rack-edit sheet for the tapped rack. This routes through
   // the same verbs as the long-press flow (App.handleRackLongPress) so mobile
-  // does not fork rack-edit logic: the rack becomes active and selected, the
-  // racks sheet closes, and RackEditSheet renders the now-active rack.
+  // does not fork rack-edit logic: the rack becomes active and selected, and
+  // RackEditSheet renders the now-active rack. openSheet("rackEdit") already
+  // replaces this sheet (sheets are mutually exclusive), so onclose is not
+  // called here: doing so used to make openSheet see a false closed-to-open
+  // transition and wrongly clear a lingering non-undo toast (#3030).
   function openRack(rack: Rack) {
     layoutStore.setActiveRack(rack.id);
     selectionStore.selectRack(rack.id);
-    onclose?.();
     dialogStore.openSheet("rackEdit");
   }
 

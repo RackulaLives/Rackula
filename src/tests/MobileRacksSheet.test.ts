@@ -8,7 +8,7 @@ import {
 } from "$lib/stores/selection.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
-import { resetToastStore } from "$lib/stores/toast.svelte";
+import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 
 function renderSheet(
   overrides: Partial<{ onnewrack: () => void; onclose: () => void }> = {},
@@ -70,15 +70,38 @@ describe("MobileRacksSheet", () => {
     expect(selection.selectedRackId).toBe(edge!.id);
   });
 
-  it("closes the racks sheet after opening rack properties", async () => {
+  it("implicitly closes the racks sheet by opening rack properties in its place", async () => {
+    // Sheets are mutually exclusive, so opening "rackEdit" replaces "racks"
+    // without an explicit close call in between (#3030): a preceding
+    // dialogStore.closeSheet() would make the open-sheet toast clear see a
+    // false closed-to-open transition on this same-tick swap.
     const layout = getLayoutStore();
     layout.addRack("Edge", 42);
+    dialogStore.openSheet("racks");
 
-    const props = renderSheet();
+    renderSheet();
 
     await fireEvent.click(screen.getByRole("button", { name: /Edge/ }));
 
-    expect(props.onclose).toHaveBeenCalledTimes(1);
+    expect(dialogStore.isSheetOpen("racks")).toBe(false);
+    expect(dialogStore.isSheetOpen("rackEdit")).toBe(true);
+  });
+
+  it("does not clear a lingering toast when tapping a rack swaps racks for rackEdit (#3030)", async () => {
+    const layout = getLayoutStore();
+    layout.addRack("Edge", 42);
+    dialogStore.openSheet("racks");
+    const toastStore = getToastStore();
+    toastStore.showToast("Rack duplicated", "success");
+
+    renderSheet();
+
+    await fireEvent.click(screen.getByRole("button", { name: /Edge/ }));
+
+    expect(dialogStore.isSheetOpen("rackEdit")).toBe(true);
+    expect(toastStore.toasts.some((t) => t.message === "Rack duplicated")).toBe(
+      true,
+    );
   });
 
   it("raises the New Rack flow and closes the sheet from the New rack action", async () => {
