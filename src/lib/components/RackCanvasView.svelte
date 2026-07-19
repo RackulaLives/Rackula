@@ -763,6 +763,7 @@
             selectedRackId={selectionStore.selectedType === "rack"
               ? selectionStore.selectedRackId
               : null}
+            {selectedGroupId}
             displayMode={uiStore.displayMode}
             showLabelsOnImages={uiStore.showLabelsOnImages}
             showAnnotations={uiStore.showAnnotations}
