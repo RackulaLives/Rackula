@@ -12,6 +12,7 @@ Previously a tag push published `latest` everywhere (Docker `:latest`, GitHub la
    - `gh release create <tag> --prerelease`. Prereleases are excluded from `/releases/latest`, so LXC `fetch_and_deploy latest` does not pick them up yet.
    - Build the LXC tarball plus a matching `rackula-lxc-<tag>.tar.gz.sha256` and attach both to the prerelease. The `.sha256` file is `sha256sum -c` compatible (one line: hash, two spaces, bare filename) and is generated from the exact uploaded tarball.
    - Build and push Docker images with immutable tags only: `:X.Y.Z`, `:vX.Y.Z-persist`, and api `:X.Y.Z`. No `:latest`. No prod deploy.
+   - Scan every published image with Trivy (`scan-images` in `.github/workflows/build-images.yml`). A fixable HIGH or CRITICAL CVE fails the scan, which fails staging, which blocks gate and promote. See [Trivy image gate](#trivy-image-gate).
 2. Gate (automatic, fail closed)
    - Docker gate (GitHub-hosted): `docker compose up` the `:X.Y.Z` image, check `/` 200, then the persist profile (persist frontend + api sidecar) and check `/api/health` 200.
    - LXC gate (self-hosted `ci-runner` on the non-prod Proxmox host pve-rusty): download both the staged tarball and its `.sha256` from the release, verify integrity with `sha256sum -c` (the post-upload checksum check), then run `scripts/lxc-smoke-test.sh` on a throwaway unprivileged CT. A checksum mismatch fails the gate.
@@ -53,6 +54,30 @@ gh release edit vX.Y.Z --prerelease=false --latest=true
 ```
 
 Prefer fixing forward over overriding.
+
+## Trivy image gate
+
+`scan-images` in `.github/workflows/build-images.yml` scans every published release image (frontend, persist, api) for fixable HIGH and CRITICAL CVEs, with `ignore-unfixed: true` so findings with no available fix never block a release on their own. The scan runs `exit-code: 1`: a fixable finding fails the job, which fails `stage-docker`, which blocks `gate-docker` and every job downstream of it, so nothing promotes. This matches the fail-closed model the rest of the pipeline already follows for the docker and LXC gates.
+
+Findings still upload to the Security tab (`Upload scan results` runs with `if: always()`), so a blocked release leaves a normal SARIF trail for triage even though the job itself failed.
+
+### Exceptions: .trivyignore
+
+`.trivyignore` at the repo root is the only sanctioned way to exclude a finding from the gate. It is checked out at the release tag before the scan runs, so a release is evaluated against the exceptions committed at that tag, not against whatever is on `main` later.
+
+Every entry requires:
+
+- the CVE id
+- a comment explaining why it is unfixable upstream or an accepted risk
+- a link to the accepted-risk discussion (issue or PR) that recorded the decision
+
+Do not add an entry to unblock a release without that discussion first. If a fix becomes available upstream, remove the entry rather than leaving it stale; the weekly `trivy.yml` scan and the monthly `rebuild-images.yml` OS-patch rescan will keep surfacing it as a reminder if you don't.
+
+## Smoke test visibility
+
+`smoke-test` in `deploy-dev.yml` runs the deployed app through Playwright once the dev deploy completes. It needs a Cloudflare Access service token (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`) because d.racku.la sits behind Cloudflare Access; without it every request only reaches the login wall (#2346). Rather than let those requests fail (or silently no-op inside a job that still reports success), a preceding `check-cf-access` job checks secret availability and publishes it as an output. `smoke-test` has a job-level `if:` on that output, so when the token is unavailable the job's conclusion is `skipped`, visibly distinct from a passed run in the Actions summary, and the gate step also emits an `::notice::` and a `$GITHUB_STEP_SUMMARY` line explaining why. This does not change when the smoke test is skipped, only how the skip is reported.
+
+`smoke-test` in `deploy-prod.yml` has no equivalent skip: it runs on the trusted self-hosted path during promote, count.racku.la is not behind Cloudflare Access, and the required secrets are always present there.
 
 ## Upgrade-gate baseline
 
