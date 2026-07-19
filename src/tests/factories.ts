@@ -26,6 +26,7 @@ import type {
   RackWidth,
   SlotWidth,
   Cable,
+  InterfaceTemplate,
 } from "$lib/types";
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import type { NetBoxDeviceType } from "$lib/utils/netbox-import";
@@ -211,6 +212,20 @@ export function createTestDevice(
     ...(overrides.position !== undefined
       ? { position: toInternalUnits(overrides.position) }
       : {}),
+  };
+}
+
+/**
+ * Creates a test InterfaceTemplate. Defaults to a gigabit RJ45 port; override
+ * `type` to exercise other interface types.
+ */
+export function createTestInterfaceTemplate(
+  overrides: Partial<InterfaceTemplate> = {},
+): InterfaceTemplate {
+  return {
+    name: "Test Interface",
+    type: "1000base-t",
+    ...overrides,
   };
 }
 

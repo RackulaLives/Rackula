@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { InterfaceTemplateSchema } from "$lib/schemas";
+import { createTestInterfaceTemplate } from "./factories";
 
 const PRO_AUDIO_TYPES = [
   "xlr-3",
@@ -16,7 +17,9 @@ describe("pro-audio interface types", () => {
   it.each(PRO_AUDIO_TYPES)(
     "schema accepts an interface template of type %s",
     (type) => {
-      const result = InterfaceTemplateSchema.safeParse({ name: "Mic 1", type });
+      const result = InterfaceTemplateSchema.safeParse(
+        createTestInterfaceTemplate({ type }),
+      );
       expect(result.success).toBe(true);
     },
   );
