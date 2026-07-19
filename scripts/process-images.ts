@@ -6,7 +6,13 @@
  * - Converts to WebP format
  * - Preserves directory structure
  *
- * Usage: npm run process-images
+ * Usage:
+ *   npm run process-images                    # process every vendor
+ *   npx tsx scripts/process-images.ts --vendor mikrotik   # process one vendor only
+ *
+ * Scoping to a vendor avoids re-encoding unrelated vendors' images (each
+ * encode is lossy, so an unscoped run churns every vendor's webp output even
+ * when only one vendor changed, e.g. during a NetBox import).
  */
 
 import sharp from "sharp";
@@ -29,6 +35,12 @@ const OUTPUT_DIR = join(
 );
 const MAX_WIDTH = 400;
 const SUPPORTED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
+
+function parseVendorArg(argv: string[]): string | undefined {
+  const index = argv.indexOf("--vendor");
+  if (index === -1) return undefined;
+  return argv[index + 1];
+}
 
 interface ProcessResult {
   file: string;
@@ -119,32 +131,36 @@ async function processImage(sourcePath: string): Promise<ProcessResult> {
   }
 }
 
-async function main(): Promise<void> {
+async function processImages(vendor?: string): Promise<ProcessResult[]> {
+  const scanDir = vendor ? join(SOURCE_DIR, vendor.toLowerCase()) : SOURCE_DIR;
+
   console.log("🖼️  Device Image Processor");
   console.log("========================\n");
-  console.log(`Source: ${SOURCE_DIR}`);
+  console.log(`Source: ${scanDir}`);
   console.log(`Output: ${OUTPUT_DIR}`);
   console.log(`Max width: ${MAX_WIDTH}px`);
   console.log(`Output format: WebP\n`);
 
   // Check if source directory exists
   try {
-    await stat(SOURCE_DIR);
+    await stat(scanDir);
   } catch {
     console.log("⚠️  Source directory does not exist. Nothing to process.");
     console.log(
-      "   Place images in assets-source/device-images/ and run again.\n",
+      vendor
+        ? `   No images found for vendor "${vendor}" in assets-source/device-images/.\n`
+        : "   Place images in assets-source/device-images/ and run again.\n",
     );
-    return;
+    return [];
   }
 
   // Get all image files
-  const files = await getFiles(SOURCE_DIR);
+  const files = await getFiles(scanDir);
 
   if (files.length === 0) {
     console.log("⚠️  No images found in source directory.");
     console.log("   Supported formats: PNG, JPG, JPEG, WebP\n");
-    return;
+    return [];
   }
 
   console.log(`Found ${files.length} image(s) to process...\n`);
@@ -176,6 +192,23 @@ async function main(): Promise<void> {
     console.log(`❌ Errors: ${errors}`);
   }
   console.log("Done!\n");
+
+  return results;
 }
 
-main().catch(console.error);
+async function main(): Promise<void> {
+  const vendor = parseVendorArg(process.argv.slice(2));
+  await processImages(vendor);
+}
+
+// Only run when invoked directly (e.g. `npx tsx scripts/process-images.ts`), not
+// when imported as a module (e.g. by scripts/import-netbox-devices.ts).
+const isMainModule =
+  process.argv[1] !== undefined &&
+  import.meta.url === `file://${process.argv[1]}`;
+
+if (isMainModule) {
+  main().catch(console.error);
+}
+
+export { processImages };

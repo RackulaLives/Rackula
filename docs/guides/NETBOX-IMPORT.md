@@ -7,17 +7,22 @@ This guide explains how to import devices from the [NetBox community devicetype-
 ### Complete Import Workflow
 
 ```bash
-# 1. Import devices (downloads YAML + images automatically)
+# 1. Import devices: downloads YAML + images, writes device definitions to
+#    src/lib/data/brandPacks/<vendor>.ts, and (when any imported device has
+#    an image) processes that vendor's images and regenerates
+#    bundledImages.ts automatically
 npx tsx scripts/import-netbox-devices.ts --vendor HPE --all
 
-# 2. Process images (convert to optimized WebP)
-npm run process-images
-
-# 3. Generate bundled images manifest (register images for bundling)
-npm run generate-bundled-images
-
-# 4. Verify build works
+# 2. Verify build works
 npm run build
+```
+
+Re-running the same command is safe: devices already present in the brand pack file are skipped, so nothing is duplicated. If a new brand pack file was created (a vendor imported for the first time), register it per [BRAND-PACKS.md](BRAND-PACKS.md#step-2-register-the-pack); the script prints a reminder when this happens. To process images or regenerate `bundledImages.ts` by hand (for example after manually editing a brand pack file), the underlying commands are still available:
+
+```bash
+npm run process-images                                    # all vendors
+npx tsx scripts/process-images.ts --vendor hpe             # one vendor only
+npm run generate-bundled-images
 ```
 
 ### Using the Import Script
