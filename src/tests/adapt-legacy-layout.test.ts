@@ -1110,3 +1110,272 @@ describe("dangling connection salvage (#3090)", () => {
     expect(() => adaptLegacyLayout(layout)).not.toThrow();
   });
 });
+
+describe("legacy cables migration (#3091)", () => {
+  /** Build a layout with two devices, each carrying one named port. */
+  function twoPortedDevices() {
+    const deviceType = createTestDeviceType({
+      slug: "port-device",
+      u_height: 1,
+    });
+    const portA = createTestPlacedPort({
+      id: "port-a",
+      template_name: "eth0",
+      template_index: 0,
+    });
+    const portB = createTestPlacedPort({
+      id: "port-b",
+      template_name: "eth1",
+      template_index: 0,
+    });
+    const layout = createTestLayout({
+      device_types: [deviceType],
+      racks: [
+        createTestRack({
+          id: "rack-0",
+          devices: [
+            createTestDevice({
+              id: "device-a",
+              device_type: "port-device",
+              position: 5,
+              ports: [portA],
+            }),
+            createTestDevice({
+              id: "device-b",
+              device_type: "port-device",
+              position: 10,
+              ports: [portB],
+            }),
+          ],
+        }),
+      ],
+    });
+    return { layout, portA, portB };
+  }
+
+  it("converts a resolvable legacy cable into an equivalent connection", () => {
+    const { layout, portA, portB } = twoPortedDevices();
+    const legacyLayout = {
+      ...layout,
+      cables: [
+        {
+          id: "cable-1",
+          a_device_id: "device-a",
+          a_interface: "eth0",
+          b_device_id: "device-b",
+          b_interface: "eth1",
+          label: "Uplink",
+          color: "#FF5500",
+          // Cable-only metadata with no Connection equivalent; must not
+          // leak onto the migrated connection.
+          type: "cat6a",
+        },
+      ],
+    } as unknown as Layout;
+
+    const adapted = adaptLegacyLayout(legacyLayout);
+
+    // eslint-disable-next-line no-restricted-syntax -- exactly one cable, exactly one migrated connection
+    expect(adapted.connections).toHaveLength(1);
+    const connection = adapted.connections![0]!;
+    expect(connection.a_port_id).toBe(portA.id);
+    expect(connection.b_port_id).toBe(portB.id);
+    expect(connection.label).toBe("Uplink");
+    // Not a design-token assertion: verifies the cable's user-supplied color
+    // value carries over onto the migrated connection unchanged.
+    const expectedColor = "#FF5500";
+    expect(connection.color === expectedColor).toBe(true);
+    expect("type" in connection).toBe(false);
+    // The legacy cable id is not reused as the connection id.
+    expect(connection.id).not.toBe("cable-1");
+    // The deprecated field never survives onto the adapted layout.
+    expect((adapted as unknown as { cables?: unknown }).cables).toBeUndefined();
+  });
+
+  it("drops a cable whose device id does not resolve to any placed device", () => {
+    const { layout } = twoPortedDevices();
+    const legacyLayout = {
+      ...layout,
+      cables: [
+        {
+          id: "cable-orphan",
+          a_device_id: "device-that-does-not-exist",
+          a_interface: "eth0",
+          b_device_id: "device-b",
+          b_interface: "eth1",
+        },
+      ],
+    } as unknown as Layout;
+
+    const adapted = adaptLegacyLayout(legacyLayout);
+
+    // No `connections` field existed on the input and nothing resolved, so
+    // the field is correctly left absent rather than synthesized as `[]`
+    // (mirrors dropDanglingConnections' own undefined-in/undefined-out
+    // behaviour when there was never a connections array to begin with).
+    expect(adapted.connections ?? []).toEqual([]);
+  });
+
+  it("drops a cable whose interface name does not match any port on the device", () => {
+    const { layout } = twoPortedDevices();
+    const legacyLayout = {
+      ...layout,
+      cables: [
+        {
+          id: "cable-bad-interface",
+          a_device_id: "device-a",
+          a_interface: "does-not-exist",
+          b_device_id: "device-b",
+          b_interface: "eth1",
+        },
+      ],
+    } as unknown as Layout;
+
+    const adapted = adaptLegacyLayout(legacyLayout);
+
+    expect(adapted.connections ?? []).toEqual([]);
+  });
+
+  it("drops a cable whose two endpoints resolve to the same port (degenerate self-loop)", () => {
+    const { layout } = twoPortedDevices();
+    const legacyLayout = {
+      ...layout,
+      cables: [
+        {
+          id: "cable-self-loop",
+          a_device_id: "device-a",
+          a_interface: "eth0",
+          b_device_id: "device-a",
+          b_interface: "eth0",
+        },
+      ],
+    } as unknown as Layout;
+
+    const adapted = adaptLegacyLayout(legacyLayout);
+
+    expect(adapted.connections ?? []).toEqual([]);
+  });
+
+  it("disambiguates a duplicate interface name on one device to the lowest template_index", () => {
+    // Cable has no template_index of its own; a device with two ports sharing
+    // the same template_name (legal, port-geometry.ts) is a genuinely
+    // ambiguous reference. The migration's documented fallback is the port
+    // declared earliest (lowest template_index).
+    const deviceType = createTestDeviceType({
+      slug: "dup-name-device",
+      u_height: 1,
+    });
+    const firstPort = createTestPlacedPort({
+      id: "port-first",
+      template_name: "SFP+",
+      template_index: 0,
+    });
+    const secondPort = createTestPlacedPort({
+      id: "port-second",
+      template_name: "SFP+",
+      template_index: 1,
+    });
+    const otherType = createTestDeviceType({
+      slug: "port-device",
+      u_height: 1,
+    });
+    const otherPort = createTestPlacedPort({
+      id: "port-other",
+      template_name: "eth0",
+      template_index: 0,
+    });
+    const layout = createTestLayout({
+      device_types: [deviceType, otherType],
+      racks: [
+        createTestRack({
+          id: "rack-0",
+          devices: [
+            createTestDevice({
+              id: "device-dup",
+              device_type: "dup-name-device",
+              position: 5,
+              ports: [secondPort, firstPort],
+            }),
+            createTestDevice({
+              id: "device-other",
+              device_type: "port-device",
+              position: 10,
+              ports: [otherPort],
+            }),
+          ],
+        }),
+      ],
+    });
+    const legacyLayout = {
+      ...layout,
+      cables: [
+        {
+          id: "cable-ambiguous",
+          a_device_id: "device-dup",
+          a_interface: "SFP+",
+          b_device_id: "device-other",
+          b_interface: "eth0",
+        },
+      ],
+    } as unknown as Layout;
+
+    const adapted = adaptLegacyLayout(legacyLayout);
+
+    // eslint-disable-next-line no-restricted-syntax -- exactly one cable, exactly one migrated connection
+    expect(adapted.connections).toHaveLength(1);
+    expect(adapted.connections![0]!.a_port_id).toBe(firstPort.id);
+  });
+
+  it("merges a migrated cable alongside an existing connection, still salvaging a genuinely dangling one", () => {
+    const { layout, portA, portB } = twoPortedDevices();
+    const handAuthored = createTestConnection({
+      id: "hand-authored",
+      a_port_id: portA.id,
+      b_port_id: portB.id,
+    });
+    const dangling = createTestConnection({
+      id: "dangling",
+      a_port_id: portA.id,
+      b_port_id: "port-that-no-longer-exists",
+    });
+    const legacyLayout = {
+      ...layout,
+      connections: [handAuthored, dangling],
+      cables: [
+        {
+          id: "cable-1",
+          a_device_id: "device-a",
+          a_interface: "eth0",
+          b_device_id: "device-b",
+          b_interface: "eth1",
+        },
+      ],
+    } as unknown as Layout;
+
+    const adapted = adaptLegacyLayout(legacyLayout);
+
+    const connectionIds = adapted.connections!.map((c) => c.id).sort();
+    expect(connectionIds).not.toContain("dangling");
+    expect(connectionIds).toContain("hand-authored");
+    // eslint-disable-next-line no-restricted-syntax -- exactly the hand-authored connection plus the one migrated cable survive
+    expect(adapted.connections).toHaveLength(2);
+  });
+
+  it("is a no-op when there is no legacy cables field", () => {
+    const layout = createTestLayout();
+
+    const adapted = adaptLegacyLayout(layout);
+
+    expect(adapted).toBe(layout);
+  });
+
+  it("does not throw when cables is a truthy non-array (malformed/hand-edited input)", () => {
+    const legacyLayout = {
+      ...createTestLayout(),
+      cables: {},
+    } as unknown as Layout;
+
+    expect(() => adaptLegacyLayout(legacyLayout)).not.toThrow();
+    expect(adaptLegacyLayout(legacyLayout).connections ?? []).toEqual([]);
+  });
+});

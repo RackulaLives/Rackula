@@ -1,0 +1,16 @@
+{
+  "allowList": [
+    {
+      "pathPattern": "^\\$\\.racks\\[0\\]\\.devices\\[[01]\\]\\.id$",
+      "reason": "dev-switch/dev-server ids are also referenced by cable-uplink's a_device_id/b_device_id, which the cables->connections migration (#3091) consumes when resolving the endpoint's PlacedPort. The device ids themselves are retained on the devices; this only satisfies the count-based silent-loss check's coincidental value reuse, not an actual loss."
+    },
+    {
+      "pathPattern": "^\\$\\.(device_types\\[\\d+\\]\\.interfaces|racks\\[0\\]\\.devices\\[\\d+\\]\\.ports)\\[0\\]\\.(name|template_name)$",
+      "reason": "Uplink 1 / NIC 1 interface names are also referenced by cable-uplink's a_interface/b_interface, consumed by the migration to resolve the matching PlacedPort by template_name. The InterfaceTemplate.name and PlacedPort.template_name fields themselves are retained unchanged (same collision caveat as above)."
+    },
+    {
+      "pathPattern": "^\\$\\.cables\\[\\d+\\]\\.(id|a_device_id|a_interface|b_device_id|b_interface|type|label)$",
+      "reason": "The legacy cables array is fully consumed by the read-path migration (#3091). id is replaced by a freshly minted connection id (never reused, to avoid colliding with an id minted elsewhere). a_device_id/a_interface and b_device_id/b_interface are resolved to PlacedPort ids and are not stored verbatim on the Connection. type has no Connection equivalent and is intentionally dropped. cable-orphan's label is discarded because neither of its endpoints resolves (dev-ghost-a/dev-ghost-b do not exist), so the whole cable is dropped; cable-uplink's label and color do carry over onto the migrated connection and are not part of this loss."
+    }
+  ]
+}

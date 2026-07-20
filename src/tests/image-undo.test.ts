@@ -59,8 +59,6 @@ function createMockDeviceStore(devices: PlacedDevice[]): DeviceCommandStore {
     getDeviceAtIndex(index: number) {
       return devices[index];
     },
-    addCableRaw() {},
-    removeCableRaw() {},
   };
 }
 
@@ -100,8 +98,6 @@ function createMockDeviceTypeStore(
     getActiveRackId() {
       return activeRackId;
     },
-    addCableRaw() {},
-    removeCableRaw() {},
   };
 }
 
@@ -261,7 +257,6 @@ describe("Image Undo — Device Type Deletion", () => {
         { rackId: "rack-1", device: device2 },
       ],
       store,
-      [],
       TEST_LAYOUT_ID,
     );
 
@@ -297,7 +292,6 @@ describe("Image Undo — Device Type Deletion", () => {
       deviceType,
       [],
       store,
-      [],
       TEST_LAYOUT_ID,
     );
 

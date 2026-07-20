@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
+metadata:
+  id: d844d630-5d29-4161-b861-52d5af31c02c
+  name: Legacy Cable Rack
+  schema_version: "1.0"
+version: "26.7.0"
+name: Legacy Cable Rack
+racks:
+  - id: rack-cable
+    name: Legacy Cable Rack
+    height: 8
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: dev-switch
+        device_type: network-switch-1u
+        position: 6
+        face: front
+        ports:
+          - id: port-switch-uplink-1
+            template_name: Uplink 1
+            template_index: 0
+            type: 1000base-t
+      - id: dev-server
+        device_type: server-1u
+        position: 12
+        face: front
+        ports:
+          - id: port-server-nic-1
+            template_name: NIC 1
+            template_index: 0
+            type: 1000base-t
+device_types:
+  - slug: network-switch-1u
+    manufacturer: Acme Networks
+    model: Switch 1U
+    u_height: 1
+    colour: "#50FA7B"
+    category: network
+    interfaces:
+      - name: Uplink 1
+        type: 1000base-t
+  - slug: server-1u
+    manufacturer: Acme Servers
+    model: Server 1U
+    u_height: 1
+    colour: "#8BE9FD"
+    category: server
+    interfaces:
+      - name: NIC 1
+        type: 1000base-t
+cables:
+  - id: cable-uplink
+    a_device_id: dev-switch
+    a_interface: Uplink 1
+    b_device_id: dev-server
+    b_interface: NIC 1
+    type: cat6a
+    color: "#FF5500"
+    label: Primary Uplink
+  - id: cable-orphan
+    a_device_id: dev-ghost-a
+    a_interface: Ghost NIC A
+    b_device_id: dev-ghost-b
+    b_interface: Ghost NIC B
+    label: Dangling Uplink
+settings:
+  display_mode: label
+  show_labels_on_images: false

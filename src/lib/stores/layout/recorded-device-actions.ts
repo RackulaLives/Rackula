@@ -15,10 +15,7 @@ import { canPlaceDevice, requiresCarrier } from "$lib/utils/collision";
 import { effectiveFace } from "$lib/utils/effective-face";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
-import {
-  findCablesForDevices,
-  findConnectionsForDevices,
-} from "./recorded-device-type-actions";
+import { findConnectionsForDevices } from "./recorded-device-type-actions";
 import { debug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { instantiatePorts } from "$lib/utils/port-utils";
@@ -437,16 +434,6 @@ export function removeDeviceRecorded(
     .filter((d) => d.container_id === device.id)
     .map((child) => snapshotDevice(child));
 
-  // Cables reference placed devices by id. Deleting a device (or a carrier
-  // and its children) without cleaning up its cables leaves dangling
-  // endpoint references, saved as-is on the next autosave (#2924). Gather and
-  // remove them in the same undoable command, mirroring the #1483 pattern
-  // used for device-type deletion.
-  const connectedCables = findCablesForDevices(ctx, [
-    { rackId, device },
-    ...children.map((child) => ({ rackId, device: child })),
-  ]);
-
   // Connections reference placed devices' ports by id. Deleting a device (or
   // a carrier and its children) without cleaning up its connections leaves
   // dangling port references, saved as-is on the next autosave (#639).
@@ -466,14 +453,12 @@ export function removeDeviceRecorded(
           adapter,
           deviceName,
           layout.metadata?.id ?? "",
-          connectedCables,
         )
       : createRemoveDeviceCommand(
           device,
           adapter,
           deviceName,
           layout.metadata?.id ?? "",
-          connectedCables,
         );
 
   // Connections don't need the id-remap handling cables need: they key off

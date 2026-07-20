@@ -22,11 +22,13 @@ import {
 } from "$lib/utils/yaml";
 import { toInternalUnits } from "$lib/utils/position";
 import { INVALID_LAYOUT_FORMAT_MESSAGE } from "$lib/utils/import-errors";
-import type { Cable, Layout, RackGroup } from "$lib/types";
+import type { Connection, Layout, RackGroup } from "$lib/types";
 import {
+  createTestConnection,
   createTestDevice,
   createTestDeviceType,
   createTestLayout,
+  createTestPlacedPort,
   createTestRack,
 } from "./factories";
 
@@ -35,10 +37,19 @@ const UUID = "550e8400-e29b-41d4-a716-446655440000";
 /**
  * A layout that exercises every structural section the serializer writes:
  * metadata, multiple racks, multiple device types, placed devices, rack_groups,
- * cables, and settings. Used as the "representative layout" for round-trip
- * assertions.
+ * connections, and settings. Used as the "representative layout" for
+ * round-trip assertions.
  */
 function representativeLayout(): Layout {
+  const switchPort = createTestPlacedPort({
+    id: "port-switch-eth0",
+    template_name: "eth0",
+  });
+  const serverPort = createTestPlacedPort({
+    id: "port-server-eth1",
+    template_name: "eth1",
+  });
+
   const switchType = createTestDeviceType({
     slug: "switch-1u",
     u_height: 1,
@@ -60,11 +71,13 @@ function representativeLayout(): Layout {
         id: "dev-switch",
         device_type: "switch-1u",
         position: 40,
+        ports: [switchPort],
       }),
       createTestDevice({
         id: "dev-server",
         device_type: "server-2u",
         position: 10,
+        ports: [serverPort],
       }),
     ],
   });
@@ -83,16 +96,13 @@ function representativeLayout(): Layout {
     },
   ];
 
-  const cables: Cable[] = [
-    {
-      id: "cable-1",
-      a_device_id: "dev-switch",
-      a_interface: "eth0",
-      b_device_id: "dev-server",
-      b_interface: "eth1",
-      type: "cat6a",
+  const connections: Connection[] = [
+    createTestConnection({
+      id: "connection-1",
+      a_port_id: switchPort.id,
+      b_port_id: serverPort.id,
       label: "uplink",
-    },
+    }),
   ];
 
   return createTestLayout({
@@ -100,7 +110,7 @@ function representativeLayout(): Layout {
     racks: [rackA, rackB],
     device_types: [switchType, serverType],
     rack_groups: rackGroups,
-    cables,
+    connections,
     metadata: { id: UUID, name: "Representative Lab", schema_version: "1.0" },
   });
 }
@@ -144,12 +154,12 @@ describe("representative layout save/reload round-trip (#1114)", () => {
     const typeSlugs = layout.device_types.map((t) => t.slug).sort();
     expect(typeSlugs).toEqual(["server-2u", "switch-1u"]);
 
-    // rack_groups and cables survive with their references intact.
+    // rack_groups and connections survive with their references intact.
     expect(layout.rack_groups?.[0]?.rack_ids).toEqual(["rack-a", "rack-b"]);
-    const cable = layout.cables?.find((c) => c.id === "cable-1");
-    expect(cable?.a_device_id).toBe("dev-switch");
-    expect(cable?.b_device_id).toBe("dev-server");
-    expect(cable?.label).toBe("uplink");
+    const connection = layout.connections?.find((c) => c.id === "connection-1");
+    expect(connection?.a_port_id).toBe("port-switch-eth0");
+    expect(connection?.b_port_id).toBe("port-server-eth1");
+    expect(connection?.label).toBe("uplink");
   });
 
   it("survives a second save/reload cycle without losing or mutating sections", async () => {
@@ -166,7 +176,9 @@ describe("representative layout save/reload round-trip (#1114)", () => {
       "rack-a",
       "rack-b",
     ]);
-    expect(secondReload.cables?.map((c) => c.id)).toEqual(["cable-1"]);
+    expect(secondReload.connections?.map((c) => c.id)).toEqual([
+      "connection-1",
+    ]);
     expect(secondReload.rack_groups?.[0]?.rack_ids).toEqual([
       "rack-a",
       "rack-b",

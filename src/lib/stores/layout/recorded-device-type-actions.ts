@@ -6,7 +6,7 @@
  * wrapping raw mutators, then executes it through the history system.
  */
 
-import type { Cable, Connection, DeviceType, PlacedDevice } from "$lib/types";
+import type { Connection, DeviceType, PlacedDevice } from "$lib/types";
 import {
   createDeviceType as createDeviceTypeHelper,
   findDeviceType as findDeviceTypeInArray,
@@ -76,31 +76,11 @@ export function updateDeviceTypeRecorded(
 }
 
 /**
- * Find cables connected to any of the given placed devices.
- * Used so DELETE_DEVICE_TYPE (#1483) and REMOVE_DEVICE (#2924) can clean up
- * dangling cable endpoints.
- */
-export function findCablesForDevices(
-  ctx: LayoutStateAccess,
-  placedDevices: { rackId: string; device: PlacedDevice }[],
-): Cable[] {
-  const layout = ctx.getLayout();
-  const cables = layout.cables;
-  if (!cables || cables.length === 0) return [];
-  const deviceIds = new Set(placedDevices.map((p) => p.device.id));
-  if (deviceIds.size === 0) return [];
-  return cables.filter(
-    (c) => deviceIds.has(c.a_device_id) || deviceIds.has(c.b_device_id),
-  );
-}
-
-/**
  * Find connections attached to any port on the given placed devices.
  * Used so REMOVE_DEVICE / REMOVE_DEVICE_WITH_CHILDREN (#639) and
- * DELETE_DEVICE_TYPE can clean up dangling connection endpoints, mirroring
- * findCablesForDevices above. Unlike cables, connections reference
- * PlacedPort.id (not device id), and port ids never change across a
- * remove/restore cycle, so no id-remap bookkeeping is needed on undo.
+ * DELETE_DEVICE_TYPE can clean up dangling connection endpoints. Connections
+ * reference PlacedPort.id (not device id), and port ids never change across
+ * a remove/restore cycle, so no id-remap bookkeeping is needed on undo.
  */
 export function findConnectionsForDevices(
   ctx: LayoutStateAccess,
@@ -132,7 +112,6 @@ export function deleteDeviceTypeRecorded(
   if (!existing) return;
 
   const placedDevices = getPlacedDevicesWithRackForType(ctx, slug);
-  const connectedCables = findCablesForDevices(ctx, placedDevices);
   const connectedConnections = findConnectionsForDevices(ctx, placedDevices);
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
@@ -141,13 +120,12 @@ export function deleteDeviceTypeRecorded(
     existing,
     placedDevices,
     adapter,
-    connectedCables,
     layout.metadata?.id ?? "",
   );
 
   // Connections reference PlacedPort.id, which DELETE_DEVICE_TYPE's device
   // restore never remaps, so a plain REMOVE_CONNECTION per connection is
-  // enough (#639, mirrors the cable handling above).
+  // enough (#639).
   const connectionCommands: Command[] = connectedConnections.map((connection) =>
     createRemoveConnectionCommand(
       connection,
@@ -195,11 +173,9 @@ export function deleteMultipleDeviceTypesRecorded(
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
   const commands: ReturnType<typeof createDeleteDeviceTypeCommand>[] = [];
-  // A cable connecting devices of two different types would otherwise be
-  // snapshotted by both per-type delete commands, restoring it twice on undo.
-  const claimedCableIds = new Set<string>();
-  // Same double-restore risk for a connection spanning two of the deleted
-  // types (#639).
+  // A connection spanning two of the deleted types would otherwise be
+  // snapshotted by both per-type delete commands, restoring it twice on undo
+  // (#639).
   const claimedConnectionIds = new Set<string>();
   const connectionCommands: Command[] = [];
 
@@ -208,13 +184,6 @@ export function deleteMultipleDeviceTypesRecorded(
     if (!existing) continue;
 
     const placedDevices = getPlacedDevicesWithRackForType(ctx, slug);
-    const connectedCables = findCablesForDevices(ctx, placedDevices).filter(
-      (cable) => {
-        if (claimedCableIds.has(cable.id)) return false;
-        claimedCableIds.add(cable.id);
-        return true;
-      },
-    );
     const connectedConnections = findConnectionsForDevices(
       ctx,
       placedDevices,
@@ -236,7 +205,6 @@ export function deleteMultipleDeviceTypesRecorded(
       existing,
       placedDevices,
       adapter,
-      connectedCables,
       layout.metadata?.id ?? "",
     );
     commands.push(command);

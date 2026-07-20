@@ -40,8 +40,6 @@ import {
   replaceRackRaw,
   clearRackDevicesRaw,
   restoreRackDevicesRaw,
-  addCableRaw,
-  removeCableRaw,
   addConnectionRaw,
   updateConnectionRaw,
   removeConnectionRaw,
@@ -104,8 +102,6 @@ export function getCommandStoreAdapter(
     getPlacedDevicesForType: (slug) => getPlacedDevicesForType(ctx, slug),
     setActiveRackId: (id) => ctx.setActiveRackId(id),
     getActiveRackId: () => ctx.getActiveRackId(),
-    addCableRaw: (cable) => addCableRaw(ctx, cable),
-    removeCableRaw: (id) => removeCableRaw(ctx, id),
 
     // ConnectionCommandStore
     addConnectionRaw: (connection) => addConnectionRaw(ctx, connection),

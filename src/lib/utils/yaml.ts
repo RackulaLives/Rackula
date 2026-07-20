@@ -180,7 +180,7 @@ export async function serializeLayoutToYamlWithMetadata(
 
 /**
  * Convert Zod-validated layout to runtime Layout type
- * Adds runtime defaults (e.g., rack.view) and preserves cables
+ * Adds runtime defaults (e.g., rack.view)
  */
 function toRuntimeLayout(parsed: LayoutZod): Layout {
   return {
@@ -195,7 +195,6 @@ function toRuntimeLayout(parsed: LayoutZod): Layout {
       view: "front",
     })),
     rack_groups: parsed.rack_groups,
-    cables: parsed.cables,
   };
 }
 
