@@ -171,6 +171,22 @@ export const InterfaceTypeSchema = z.enum([
   "midi-din",
   "bnc",
   "db25-audio",
+  "phoenix",
+  "speakon",
+  "xlr-5",
+  // AV - Video
+  "displayport",
+  "hdmi",
+  "sdi-bnc",
+  "vga",
+  // AV - Control
+  "dmx-xlr",
+  "rs-232",
+  "rs-422",
+  // AV - Other
+  "aes3",
+  "avb",
+  "dante",
   // Other
   "other",
 ]);

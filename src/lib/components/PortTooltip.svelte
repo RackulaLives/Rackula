@@ -33,6 +33,19 @@
     "midi-din": "MIDI (5-pin DIN)",
     bnc: "BNC",
     "db25-audio": "DB25 (TASCAM)",
+    phoenix: "Phoenix/Euroblock",
+    speakon: "Speakon",
+    "xlr-5": "XLR-5",
+    displayport: "DisplayPort",
+    hdmi: "HDMI",
+    "sdi-bnc": "SDI (BNC)",
+    vga: "VGA",
+    "dmx-xlr": "DMX512 (XLR-5)",
+    "rs-232": "RS-232",
+    "rs-422": "RS-422",
+    aes3: "AES3",
+    avb: "AVB",
+    dante: "Dante",
   };
 
   // Get human-readable type label

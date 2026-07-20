@@ -165,6 +165,22 @@ export type InterfaceType =
   | "midi-din" // 5-pin DIN MIDI
   | "bnc" // BNC (word clock, AES3id)
   | "db25-audio" // DB25 TASCAM analog 8-channel
+  | "phoenix" // Phoenix/Euroblock terminal block
+  | "speakon" // Neutrik Speakon (powered speaker)
+  | "xlr-5" // XLR 5-pin (DMX512-capable connector, some mic variants)
+  // AV - Video
+  | "displayport" // DisplayPort
+  | "hdmi" // HDMI
+  | "sdi-bnc" // SDI video (BNC, 75 ohm)
+  | "vga" // VGA (D-sub 15)
+  // AV - Control
+  | "dmx-xlr" // DMX512 over XLR (5-pin)
+  | "rs-232" // RS-232 serial
+  | "rs-422" // RS-422 serial
+  // AV - Other
+  | "aes3" // AES3 digital audio
+  | "avb" // AVB audio/video bridging
+  | "dante" // Dante audio-over-IP
   // Other
   | "other"; // Catch-all for unlisted types
 
