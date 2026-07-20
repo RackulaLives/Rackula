@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { getImageStore, resetImageStore } from "$lib/stores/images.svelte";
 import {
+  createTestConnection,
   createTestDeviceType,
   createTestDeviceTypeInput,
   createTestInterfaceTemplate,
@@ -212,11 +213,11 @@ describe("Layout Store", () => {
         (d) => d.device_type === otherType.slug,
       )!;
 
-      const connection = {
+      const connection = createTestConnection({
         id: "connection-1",
         a_port_id: deleted.ports![0]!.id,
         b_port_id: survivor.ports![0]!.id,
-      };
+      });
       store.addConnectionRaw(connection);
 
       store.deleteDeviceType(deviceType.slug);
@@ -260,11 +261,11 @@ describe("Layout Store", () => {
         (d) => d.device_type === typeB.slug,
       )!;
 
-      const connection = {
+      const connection = createTestConnection({
         id: "connection-1",
         a_port_id: deviceA.ports![0]!.id,
         b_port_id: deviceB.ports![0]!.id,
-      };
+      });
       store.addConnectionRaw(connection);
 
       const deletedCount = store.deleteMultipleDeviceTypesRecorded([

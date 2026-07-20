@@ -6,6 +6,7 @@ import { parseLayoutObject } from "$lib/utils/yaml";
 import {
   setupStoreWithDevice,
   createTestCable,
+  createTestConnection,
   createTestDevice,
   createTestDeviceType,
   createTestDeviceTypeInput,
@@ -636,11 +637,11 @@ describe("Layout Store", () => {
       const deviceA = store.rack.devices[0]!;
       const deviceB = store.rack.devices[1]!;
 
-      const connection = {
+      const connection = createTestConnection({
         id: "connection-1",
         a_port_id: deviceA.ports![0]!.id,
         b_port_id: deviceB.ports![0]!.id,
-      };
+      });
       store.addConnectionRaw(connection);
 
       return {
@@ -726,11 +727,11 @@ describe("Layout Store", () => {
       const deviceC = store.rack.devices.find(
         (d) => d.device_type === otherType.slug,
       )!;
-      const unrelatedConnection = {
+      const unrelatedConnection = createTestConnection({
         id: "connection-2",
         a_port_id: deviceB.ports![0]!.id,
         b_port_id: deviceC.ports![0]!.id,
-      };
+      });
       store.addConnectionRaw(unrelatedConnection);
 
       const deviceAIndex = store.rack.devices.findIndex(
@@ -795,11 +796,11 @@ describe("Layout Store", () => {
 
       // Connection hangs off the carrier's CHILD (not the carrier itself),
       // mirroring the cable carrier-cascade test above.
-      const connection = {
+      const connection = createTestConnection({
         id: "connection-1",
         a_port_id: child.ports![0]!.id,
         b_port_id: other.ports![0]!.id,
-      };
+      });
       store.addConnectionRaw(connection);
 
       const carrierIndex = store.rack.devices.findIndex(
