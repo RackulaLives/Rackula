@@ -1103,10 +1103,7 @@ export function createLayoutStore(
     addConnectionRawImpl(stateAccess, connection);
   }
 
-  function updateConnectionRaw(
-    id: string,
-    updates: Partial<Connection>,
-  ): void {
+  function updateConnectionRaw(id: string, updates: Partial<Connection>): void {
     updateConnectionRawImpl(stateAccess, id, updates);
   }
 

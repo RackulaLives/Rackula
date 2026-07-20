@@ -284,10 +284,7 @@ export function getConnectionStore() {
     layoutStore.addConnectionRaw(connection);
   }
 
-  function updateConnectionRaw(
-    id: string,
-    updates: Partial<Connection>,
-  ): void {
+  function updateConnectionRaw(id: string, updates: Partial<Connection>): void {
     layoutStore.updateConnectionRaw(id, updates);
   }
 

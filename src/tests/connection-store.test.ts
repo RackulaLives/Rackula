@@ -69,8 +69,7 @@ describe("connection store", () => {
       });
 
       expect("connection" in result).toBe(true);
-      const connection = (result as { connection: { id: string } })
-        .connection;
+      const connection = (result as { connection: { id: string } }).connection;
       expect(connection.id).toBeTruthy();
       expect(store.connections).toContainEqual(
         expect.objectContaining({
@@ -106,9 +105,7 @@ describe("connection store", () => {
       });
 
       expect("errors" in second).toBe(true);
-      expect((second as { errors: string[] }).errors.length).toBeGreaterThan(
-        0,
-      );
+      expect((second as { errors: string[] }).errors.length).toBeGreaterThan(0);
       // Only the first connection was created.
       expect(store.getConnectionsForPort(a.ports[0]!.id)).toContainEqual(
         expect.objectContaining({ b_port_id: b.ports[0]!.id }),
@@ -192,8 +189,11 @@ describe("connection store", () => {
 
       expect(validation.valid).toBe(false);
       expect(
-        validation.errors.some((e) => e.toLowerCase().includes("duplicate") ||
-          e.toLowerCase().includes("already exists")),
+        validation.errors.some(
+          (e) =>
+            e.toLowerCase().includes("duplicate") ||
+            e.toLowerCase().includes("already exists"),
+        ),
       ).toBe(true);
     });
   });
@@ -214,9 +214,9 @@ describe("connection store", () => {
       });
 
       expect(validation.valid).toBe(true);
-      expect(
-        validation.warnings.some((w) => w.includes("categories")),
-      ).toBe(true);
+      expect(validation.warnings.some((w) => w.includes("categories"))).toBe(
+        true,
+      );
     });
 
     it("warns on type mismatch within the same category (RJ45 vs SFP)", () => {

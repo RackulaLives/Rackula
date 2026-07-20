@@ -109,8 +109,7 @@ export function getCommandStoreAdapter(
 
     // ConnectionCommandStore
     addConnectionRaw: (connection) => addConnectionRaw(ctx, connection),
-    updateConnectionRaw: (id, updates) =>
-      updateConnectionRaw(ctx, id, updates),
+    updateConnectionRaw: (id, updates) => updateConnectionRaw(ctx, id, updates),
     removeConnectionRaw: (id) => removeConnectionRaw(ctx, id),
 
     // DeviceCommandStore
