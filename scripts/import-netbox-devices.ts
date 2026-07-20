@@ -19,12 +19,21 @@
  *   --list-vendors    List all available vendors
  *   --dry-run         Show what would be imported without making changes
  *   --images-only     Only download images, don't update TypeScript files
+ *
+ * On a real (non-dry-run, non-images-only) import, the script writes new
+ * device definitions to src/lib/data/brandPacks/<vendor>.ts (creating the
+ * file if it does not exist yet) and, when any imported device has an image,
+ * runs the image pipeline for that vendor only: scripts/process-images.ts
+ * --vendor <vendor> followed by scripts/generate-bundled-images.ts, so
+ * bundledImages.ts is regenerated in the same run. Devices whose slug is
+ * already present in the brand pack file are skipped (idempotent re-runs).
  */
 
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, readFile } from "fs/promises";
 import { existsSync } from "fs";
-import { join, dirname } from "path";
+import { join, dirname, relative } from "path";
 import { fileURLToPath } from "url";
+import { spawnSync } from "child_process";
 import yaml from "js-yaml";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -215,17 +224,6 @@ async function fetchDeviceYaml(
   }
 }
 
-function slugToVarName(slug: string): string {
-  // Convert slug to camelCase variable name
-  // ubiquiti-usw-pro-24 -> ubiquitiUswPro24
-  return slug
-    .split("-")
-    .map((part, i) =>
-      i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1),
-    )
-    .join("");
-}
-
 function inferCategory(device: NetBoxDevice): string {
   const model = device.model.toLowerCase();
   const slug = device.slug.toLowerCase();
@@ -250,7 +248,13 @@ function inferCategory(device: NetBoxDevice): string {
 
 function deviceToTypeScript(device: NetBoxDevice): string {
   const category = inferCategory(device);
-  const categoryColour = `CATEGORY_COLOURS.${category.replace("-", "_")}`;
+  // Category keys with a hyphen (e.g. "patch-panel") are not valid dot-access
+  // identifiers, so CATEGORY_COLOURS must be indexed with bracket notation for
+  // those and dot notation otherwise, matching the convention used across the
+  // brand pack files (see e.g. kws.ts's CATEGORY_COLOURS["patch-panel"]).
+  const categoryColour = category.includes("-")
+    ? `CATEGORY_COLOURS["${category}"]`
+    : `CATEGORY_COLOURS.${category}`;
 
   const lines = [
     "\t{",
@@ -260,20 +264,21 @@ function deviceToTypeScript(device: NetBoxDevice): string {
     `\t\tmodel: '${device.model}',`,
     `\t\tis_full_depth: ${device.is_full_depth ?? true},`,
     `\t\tcolour: ${categoryColour},`,
-    `\t\tcategory: '${category}'`,
+    `\t\tcategory: '${category}',`,
   ];
 
   if (device.front_image) {
     lines.push(`\t\tfront_image: true,`);
   }
   if (device.rear_image) {
-    lines.push(`\t\trear_image: true`);
+    lines.push(`\t\trear_image: true,`);
   }
   if (device.airflow) {
     lines.push(`\t\tairflow: '${device.airflow}',`);
   }
 
-  // Clean up trailing comma on last property
+  // Clean up trailing comma on the last property (whichever field ends up
+  // last depends on which optional fields are present above).
   const lastLine = lines[lines.length - 1];
   if (lastLine.endsWith(",")) {
     lines[lines.length - 1] = lastLine.slice(0, -1);
@@ -281,6 +286,126 @@ function deviceToTypeScript(device: NetBoxDevice): string {
 
   lines.push("\t}");
   return lines.join("\n");
+}
+
+const BRAND_PACKS_DIR = join(ROOT_DIR, "src", "lib", "data", "brandPacks");
+
+function brandPackFilePath(vendor: string): string {
+  return join(BRAND_PACKS_DIR, `${vendor.toLowerCase()}.ts`);
+}
+
+/**
+ * Extract every device slug already present in a brand pack file's source
+ * text. Used to make writes idempotent: a slug found here is skipped rather
+ * than appended again on a re-run.
+ */
+function extractExistingSlugs(content: string): Set<string> {
+  const slugs = new Set<string>();
+  const slugPattern = /slug:\s*['"]([^'"]+)['"]/g;
+  let match: RegExpExecArray | null;
+  while ((match = slugPattern.exec(content)) !== null) {
+    const slug = match[1];
+    if (slug) {
+      slugs.add(slug);
+    }
+  }
+  return slugs;
+}
+
+interface WriteBrandPackResult {
+  filePath: string;
+  added: NetBoxDevice[];
+  skipped: NetBoxDevice[];
+  created: boolean;
+}
+
+/**
+ * Write newly imported devices into the vendor's brand pack file, creating
+ * the file if it doesn't exist yet. Devices whose slug is already present are
+ * skipped so re-running the import is a no-op for devices already added.
+ */
+async function writeBrandPackDevices(
+  vendor: string,
+  devices: NetBoxDevice[],
+): Promise<WriteBrandPackResult> {
+  const filePath = brandPackFilePath(vendor);
+  const fileExists = existsSync(filePath);
+  const existingContent = fileExists ? await readFile(filePath, "utf-8") : "";
+  const existingSlugs = extractExistingSlugs(existingContent);
+
+  const added = devices.filter((d) => !existingSlugs.has(d.slug));
+  const skipped = devices.filter((d) => existingSlugs.has(d.slug));
+
+  if (added.length === 0) {
+    return { filePath, added, skipped, created: false };
+  }
+
+  const newEntries = added.map((d) => deviceToTypeScript(d)).join(",\n");
+
+  if (fileExists) {
+    const trimmed = existingContent.replace(/\s+$/, "");
+    if (!trimmed.endsWith("];")) {
+      throw new Error(
+        `Could not safely append to ${filePath}: expected the file to end with "];"`,
+      );
+    }
+    const before = trimmed.slice(0, -2).replace(/,\s*$/, "");
+    const updated = `${before},\n${newEntries},\n];\n`;
+    await writeFile(filePath, updated, "utf-8");
+    return { filePath, added, skipped, created: false };
+  }
+
+  const vendorLower = vendor.toLowerCase();
+  const arrayName = `${vendorLower}Devices`;
+  const newFile = `/**
+ * ${vendor} Brand Pack
+ * Pre-defined device types for ${vendor} equipment
+ * Source: NetBox community devicetype-library
+ */
+
+import type { DeviceType } from '$lib/types';
+import { CATEGORY_COLOURS } from '$lib/types/constants';
+
+export const ${arrayName}: DeviceType[] = [
+${newEntries}
+];
+`;
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(filePath, newFile, "utf-8");
+  return { filePath, added, skipped, created: true };
+}
+
+// npx ships as a .cmd shim on Windows, which spawnSync can't exec directly
+// without a shell; select the shim there and the plain binary everywhere else.
+const NPX_COMMAND = process.platform === "win32" ? "npx.cmd" : "npx";
+
+/** Best-effort prettier formatting; a formatting failure should not abort the import. */
+function formatWithPrettier(relativePath: string): boolean {
+  const result = spawnSync(NPX_COMMAND, ["prettier", "--write", relativePath], {
+    cwd: ROOT_DIR,
+    stdio: "inherit",
+  });
+  return result.status === 0;
+}
+
+/** Runs scripts/process-images.ts scoped to one vendor, so unrelated vendors' images are untouched. */
+function runProcessImagesForVendor(vendor: string): boolean {
+  const result = spawnSync(
+    NPX_COMMAND,
+    ["tsx", "scripts/process-images.ts", "--vendor", vendor],
+    { cwd: ROOT_DIR, stdio: "inherit" },
+  );
+  return result.status === 0;
+}
+
+/** Runs scripts/generate-bundled-images.ts to regenerate bundledImages.ts from the processed images on disk. */
+function runGenerateBundledImages(): boolean {
+  const result = spawnSync(
+    NPX_COMMAND,
+    ["tsx", "scripts/generate-bundled-images.ts"],
+    { cwd: ROOT_DIR, stdio: "inherit" },
+  );
+  return result.status === 0;
 }
 
 async function importDevice(
@@ -426,60 +551,76 @@ async function main(): Promise<void> {
   console.log(`Imported ${importedDevices.length} rack-mountable device(s)`);
 
   if (importedDevices.length > 0 && !options.dryRun && !options.imagesOnly) {
-    // Generate TypeScript for imported devices
-    console.log(`\n📝 Generated TypeScript:`);
-    console.log(`\nAdd these to your brand pack file:\n`);
-    console.log(`import type { DeviceType } from '$lib/types';`);
-    console.log(`import { CATEGORY_COLOURS } from '$lib/types/constants';\n`);
-    console.log(
-      `export const ${options.vendor.toLowerCase()}Devices: DeviceType[] = [`,
-    );
-    importedDevices.forEach((device, i) => {
-      console.log(
-        deviceToTypeScript(device) +
-          (i < importedDevices.length - 1 ? "," : ""),
-      );
-    });
-    console.log(`];`);
+    const vendorLower = options.vendor.toLowerCase();
 
-    // Generate bundledImages.ts entries
-    const devicesWithImages = importedDevices.filter(
+    console.log(`\n📝 Writing device definitions...`);
+    const { filePath, added, skipped, created } = await writeBrandPackDevices(
+      options.vendor,
+      importedDevices,
+    );
+    const relFilePath = relative(ROOT_DIR, filePath);
+
+    if (added.length > 0) {
+      console.log(
+        `  ✅ ${created ? "Created" : "Updated"} ${relFilePath}: added ${added.length} device(s)`,
+      );
+      added.forEach((d) => console.log(`    + ${d.slug}`));
+      formatWithPrettier(relFilePath);
+    } else {
+      console.log(`  ⏭️  ${relFilePath}: no new devices (all already present)`);
+    }
+    if (skipped.length > 0) {
+      console.log(
+        `  ⏭️  Skipped ${skipped.length} device(s) already in the brand pack:`,
+      );
+      skipped.forEach((d) => console.log(`    - ${d.slug}`));
+    }
+    if (created) {
+      console.log(
+        `\n⚠️  New brand pack file created. It still needs to be registered manually (see docs/guides/BRAND-PACKS.md):`,
+      );
+      console.log(
+        `  1. Import ${vendorLower}Devices in src/lib/data/brandPacks/index.ts`,
+      );
+      console.log(`  2. Add one BRAND_PACK_REGISTRY entry`);
+      console.log(`  3. Wire up the brand icon in BrandIcon.svelte`);
+    }
+
+    const devicesWithImages = added.filter(
       (d) => d.front_image || d.rear_image,
     );
     if (devicesWithImages.length > 0) {
-      console.log(`\n📸 Add to bundledImages.ts:\n`);
-      console.log(`// Imports:`);
-      const vendorLower = options.vendor.toLowerCase();
-      devicesWithImages.forEach((device) => {
-        const varBase = slugToVarName(device.slug);
-        if (device.front_image) {
+      console.log(`\n📸 Processing images for ${options.vendor}...`);
+      const processOk = runProcessImagesForVendor(vendorLower);
+      if (!processOk) {
+        console.log(
+          `  ⚠️  Image processing failed; run 'npm run process-images' manually.`,
+        );
+      } else {
+        console.log(`\n📸 Regenerating bundledImages.ts...`);
+        const generateOk = runGenerateBundledImages();
+        if (!generateOk) {
           console.log(
-            `import ${varBase}Front from '$lib/assets/device-images/${vendorLower}/${device.slug}.front.webp';`,
+            `  ⚠️  bundledImages.ts regeneration failed; run 'npm run generate-bundled-images' manually.`,
           );
+        } else {
+          formatWithPrettier(join("src", "lib", "data", "bundledImages.ts"));
         }
-        if (device.rear_image) {
-          console.log(
-            `import ${varBase}Rear from '$lib/assets/device-images/${vendorLower}/${device.slug}.rear.webp';`,
-          );
-        }
-      });
-
-      console.log(`\n// Manifest entries:`);
-      devicesWithImages.forEach((device) => {
-        const varBase = slugToVarName(device.slug);
-        const parts = [];
-        if (device.front_image) parts.push(`front: ${varBase}Front`);
-        if (device.rear_image) parts.push(`rear: ${varBase}Rear`);
-        console.log(`'${device.slug}': { ${parts.join(", ")} },`);
-      });
+      }
     }
   }
 
   if (!options.dryRun) {
     console.log(`\n📋 Next steps:`);
-    console.log(`1. Run: npm run process-images`);
-    console.log(`2. Update src/lib/data/bundledImages.ts with new imports`);
-    console.log(`3. Add devices to brand pack file if not already present`);
+    console.log(
+      `1. Review the diff (brand pack file, bundledImages.ts, images)`,
+    );
+    console.log(`2. Run: npm run build`);
+    if (options.imagesOnly) {
+      console.log(
+        `3. Images only were downloaded; re-run without --images-only to write device definitions`,
+      );
+    }
   }
 }
 
