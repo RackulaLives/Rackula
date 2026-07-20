@@ -20,13 +20,21 @@
  * no re-snap drift).
  */
 
-import type { Layout, PlacedDevice, DeviceType, DeviceFace } from "$lib/types";
+import type {
+  Layout,
+  PlacedDevice,
+  DeviceType,
+  DeviceFace,
+  Rack,
+  Connection,
+} from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { generateId } from "$lib/utils/device";
 import { findStarterDevice } from "$lib/data/starterLibrary";
 import { ensurePreCarrierBackup } from "./pre-carrier-backup";
 import { getStorageMode } from "./availability.svelte";
 import { markPreCarrierMigrationPending } from "./pre-carrier-migration-pending";
+import { layoutDebug } from "$lib/utils/debug";
 
 /**
  * A placed device as it may appear in raw legacy input. The carrier-first model
@@ -392,6 +400,58 @@ function hydrateCarrierTypes(
 }
 
 /**
+ * Drop connections whose a_port_id or b_port_id does not resolve to a
+ * PlacedPort anywhere in the given racks (#3090). A device (or carrier)
+ * removed without cascading to its connections, or a hand-edited file, can
+ * leave a Connection pointing at a port that no longer exists. Salvage the
+ * rest of the layout by dropping just the dangling connections instead of
+ * failing the load or leaving the reference dangling; mirrors
+ * dropOrphanedChildren's container-reference salvage above. A malformed
+ * (non-object) connection, or one whose port id fields are not strings, is
+ * dropped too, matching the defensive handling of untrusted input elsewhere
+ * in this adapter.
+ */
+function dropDanglingConnections(
+  connections: Connection[] | undefined,
+  racks: Rack[],
+): { connections: Connection[] | undefined; changed: boolean } {
+  if (!connections || connections.length === 0) {
+    return { connections, changed: false };
+  }
+
+  const knownPortIds = new Set<string>();
+  for (const rack of racks) {
+    if (!rack || !Array.isArray(rack.devices)) continue;
+    for (const device of rack.devices) {
+      if (!device || !Array.isArray(device.ports)) continue;
+      for (const port of device.ports) {
+        if (port && typeof port.id === "string") knownPortIds.add(port.id);
+      }
+    }
+  }
+
+  let changed = false;
+  const kept = connections.filter((connection) => {
+    const valid =
+      connection &&
+      typeof connection.a_port_id === "string" &&
+      typeof connection.b_port_id === "string" &&
+      knownPortIds.has(connection.a_port_id) &&
+      knownPortIds.has(connection.b_port_id);
+    if (!valid) {
+      changed = true;
+      layoutDebug.state(
+        "dropped dangling connection %s: port reference not found",
+        connection?.id ?? "(unknown)",
+      );
+    }
+    return valid;
+  });
+
+  return changed ? { connections: kept, changed } : { connections, changed };
+}
+
+/**
  * Normalize a legacy layout to carrier-first. Safe to run repeatedly. Writes a
  * one-time pre-migration backup before returning a changed layout, so the
  * irreversible first carrier-first autosave can be undone.
@@ -440,24 +500,39 @@ export function adaptLegacyLayout(layout: Layout): Layout {
     referencedCarrierSlugs,
   );
 
-  if (!racksChanged && !typesChanged) return layout;
+  // Dangling connection salvage (#3090): runs against the carrier-adapted
+  // racks so it sees the final port set. Carrier adaptation never touches
+  // PlacedPort.id, so this is equivalent to checking the raw input. Kept
+  // independent of racksChanged/typesChanged below: a connection-only change
+  // must never trigger the pre-carrier-first backup, which exists solely to
+  // protect the irreversible carrier rewrite.
+  const { connections, changed: connectionsChanged } = dropDanglingConnections(
+    layout.connections,
+    racks,
+  );
+
+  const carrierMigrationChanged = racksChanged || typesChanged;
+  if (!carrierMigrationChanged && !connectionsChanged) return layout;
 
   // Preserve the pre-carrier state once before the adapted layout can be written
   // back over the original. The two storage modes are mutually exclusive:
   // browser mode snapshots the whole localStorage state locally; server mode
   // instead marks this layout's uuid pending, so its next save-to-server signals
   // the server to durably back up the prior YAML (#2517).
-  if (getStorageMode() === "server") {
-    if (layout.metadata?.id) {
-      markPreCarrierMigrationPending(layout.metadata.id);
+  if (carrierMigrationChanged) {
+    if (getStorageMode() === "server") {
+      if (layout.metadata?.id) {
+        markPreCarrierMigrationPending(layout.metadata.id);
+      }
+    } else {
+      ensurePreCarrierBackup();
     }
-  } else {
-    ensurePreCarrierBackup();
   }
 
   return {
     ...layout,
     racks,
     device_types: deviceTypes,
+    ...(connectionsChanged ? { connections } : {}),
   };
 }

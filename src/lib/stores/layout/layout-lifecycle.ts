@@ -173,13 +173,67 @@ export function loadLayout(
       : (layoutDeviceIdRemap.get(cable.b_device_id) ?? cable.b_device_id),
   }));
 
+  // Third pass (layout-level): regenerate duplicate or missing PlacedPort ids
+  // across the whole layout, recording old -> new remaps so Connection
+  // endpoints (below) can follow (#3090). Ports round-trip inside their
+  // device's `ports` array; a hand-edited or corrupted file can carry a
+  // duplicate or missing port id. Dedup is layout-global, not per-rack or
+  // per-device, because a Connection can link ports on devices in different
+  // racks, mirroring the cable/device-id dedup precedent above. Reuses
+  // generateUniqueDeviceId (generic: generates against any `seen` set) rather
+  // than adding a port-specific variant.
+  const seenPortIds = new Set<string>();
+  const portIdRemap = new Map<string, string>();
+  const racksWithPorts = racksFirstPass.map((r) => {
+    let rackPortsChanged = false;
+    const devices = r.devices.map((d) => {
+      if (!d.ports || d.ports.length === 0) return d;
+      let devicePortsChanged = false;
+      const ports = d.ports.map((p) => {
+        const originalId = p.id;
+        if (originalId && !seenPortIds.has(originalId)) {
+          seenPortIds.add(originalId);
+          return p;
+        }
+        const nextId = generateUniqueDeviceId(seenPortIds);
+        if (originalId && !portIdRemap.has(originalId)) {
+          portIdRemap.set(originalId, nextId);
+        }
+        devicePortsChanged = true;
+        return { ...p, id: nextId };
+      });
+      if (!devicePortsChanged) return d;
+      rackPortsChanged = true;
+      return { ...d, ports };
+    });
+    return rackPortsChanged ? { ...r, devices } : r;
+  });
+
+  // Third pass (layout-level): rewrite Connection endpoints through the
+  // layout-global port-id map, mirroring the cable endpoint remap above. Only
+  // remap when the referenced id was renamed away (no surviving port anywhere
+  // in the layout still holds it); a reference to a surviving original id is
+  // preserved. A connection whose endpoint never resolved to any port (a
+  // genuinely dangling reference) was already dropped by adaptLegacyLayout, so
+  // every remaining connection is expected to resolve here.
+  const connections = layoutData.connections?.map((connection) => ({
+    ...connection,
+    a_port_id: seenPortIds.has(connection.a_port_id)
+      ? connection.a_port_id
+      : (portIdRemap.get(connection.a_port_id) ?? connection.a_port_id),
+    b_port_id: seenPortIds.has(connection.b_port_id)
+      ? connection.b_port_id
+      : (portIdRemap.get(connection.b_port_id) ?? connection.b_port_id),
+  }));
+
   // Ensure runtime view is set, show_rear defaults, and all racks have valid IDs
   ctx.setLayout({
     ...layoutData,
     metadata,
-    racks: racksFirstPass,
+    racks: racksWithPorts,
     ...(rackGroups !== undefined ? { rack_groups: rackGroups } : {}),
     ...(cables !== undefined ? { cables } : {}),
+    ...(connections !== undefined ? { connections } : {}),
   });
   ctx.resetBackupTracking();
 

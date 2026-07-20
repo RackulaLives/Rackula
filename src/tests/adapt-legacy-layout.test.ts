@@ -10,11 +10,13 @@ import { toInternalUnits } from "$lib/utils/position";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { encodeLayout, decodeLayout } from "$lib/utils/share";
 import {
+  createTestConnection,
   createTestContainerChild,
   createTestContainerType,
   createTestDevice,
   createTestDeviceType,
   createTestLayout,
+  createTestPlacedPort,
   createTestRack,
 } from "./factories";
 import type { Layout, PlacedDevice } from "$lib/types";
@@ -883,5 +885,214 @@ describe("orphaned child salvage (#2911)", () => {
     expect(
       adapted.racks[0]?.devices.find((d) => d.id === "rack-level"),
     ).toBeDefined();
+  });
+});
+
+describe("dangling connection salvage (#3090)", () => {
+  it("drops a connection whose a_port_id references a port that no longer exists", () => {
+    const deviceType = createTestDeviceType({
+      slug: "port-device",
+      u_height: 1,
+    });
+    const portB = createTestPlacedPort({ id: "port-b" });
+    const layout = createTestLayout({
+      device_types: [deviceType],
+      racks: [
+        createTestRack({
+          id: "rack-0",
+          devices: [
+            createTestDevice({
+              id: "device-b",
+              device_type: "port-device",
+              position: 5,
+              ports: [portB],
+            }),
+          ],
+        }),
+      ],
+      connections: [
+        createTestConnection({
+          id: "dangling-conn",
+          a_port_id: "port-that-no-longer-exists",
+          b_port_id: portB.id,
+        }),
+      ],
+    });
+
+    const adapted = adaptLegacyLayout(layout);
+
+    expect(adapted.connections).toEqual([]);
+  });
+
+  it("drops a connection whose b_port_id references a port that no longer exists", () => {
+    const deviceType = createTestDeviceType({
+      slug: "port-device",
+      u_height: 1,
+    });
+    const portA = createTestPlacedPort({ id: "port-a" });
+    const layout = createTestLayout({
+      device_types: [deviceType],
+      racks: [
+        createTestRack({
+          id: "rack-0",
+          devices: [
+            createTestDevice({
+              id: "device-a",
+              device_type: "port-device",
+              position: 5,
+              ports: [portA],
+            }),
+          ],
+        }),
+      ],
+      connections: [
+        createTestConnection({
+          id: "dangling-conn",
+          a_port_id: portA.id,
+          b_port_id: "port-that-no-longer-exists",
+        }),
+      ],
+    });
+
+    const adapted = adaptLegacyLayout(layout);
+
+    expect(adapted.connections).toEqual([]);
+  });
+
+  it("keeps a connection whose both ports still exist, leaving it untouched", () => {
+    const deviceType = createTestDeviceType({
+      slug: "port-device",
+      u_height: 1,
+    });
+    const portA = createTestPlacedPort({ id: "port-a" });
+    const portB = createTestPlacedPort({ id: "port-b" });
+    const connection = createTestConnection({
+      id: "valid-conn",
+      a_port_id: portA.id,
+      b_port_id: portB.id,
+    });
+    const layout = createTestLayout({
+      device_types: [deviceType],
+      racks: [
+        createTestRack({
+          id: "rack-0",
+          devices: [
+            createTestDevice({
+              id: "device-a",
+              device_type: "port-device",
+              position: 5,
+              ports: [portA],
+            }),
+            createTestDevice({
+              id: "device-b",
+              device_type: "port-device",
+              position: 10,
+              ports: [portB],
+            }),
+          ],
+        }),
+      ],
+      connections: [connection],
+    });
+
+    const adapted = adaptLegacyLayout(layout);
+
+    expect(adapted.connections).toEqual([connection]);
+  });
+
+  it("drops only the dangling connection, keeping a valid one alongside it", () => {
+    const deviceType = createTestDeviceType({
+      slug: "port-device",
+      u_height: 1,
+    });
+    const portA = createTestPlacedPort({ id: "port-a" });
+    const portB = createTestPlacedPort({ id: "port-b" });
+    const validConnection = createTestConnection({
+      id: "valid-conn",
+      a_port_id: portA.id,
+      b_port_id: portB.id,
+    });
+    const layout = createTestLayout({
+      device_types: [deviceType],
+      racks: [
+        createTestRack({
+          id: "rack-0",
+          devices: [
+            createTestDevice({
+              id: "device-a",
+              device_type: "port-device",
+              position: 5,
+              ports: [portA],
+            }),
+            createTestDevice({
+              id: "device-b",
+              device_type: "port-device",
+              position: 10,
+              ports: [portB],
+            }),
+          ],
+        }),
+      ],
+      connections: [
+        validConnection,
+        createTestConnection({
+          id: "dangling-conn",
+          a_port_id: portA.id,
+          b_port_id: "port-that-no-longer-exists",
+        }),
+      ],
+    });
+
+    const adapted = adaptLegacyLayout(layout);
+
+    expect(adapted.connections).toEqual([validConnection]);
+  });
+
+  it("does not trigger the pre-carrier-first backup for a connection-only change", () => {
+    // A connection-only salvage must not be conflated with the carrier-first
+    // migration: the racks/device_types must be returned unchanged (same
+    // devices, no carrier synthesis) even though the layout object itself
+    // changes because a dangling connection was dropped.
+    const deviceType = createTestDeviceType({
+      slug: "port-device",
+      u_height: 1,
+    });
+    const portA = createTestPlacedPort({ id: "port-a" });
+    const layout = createTestLayout({
+      device_types: [deviceType],
+      racks: [
+        createTestRack({
+          id: "rack-0",
+          devices: [
+            createTestDevice({
+              id: "device-a",
+              device_type: "port-device",
+              position: 5,
+              ports: [portA],
+            }),
+          ],
+        }),
+      ],
+      connections: [
+        createTestConnection({
+          id: "dangling-conn",
+          a_port_id: portA.id,
+          b_port_id: "port-that-no-longer-exists",
+        }),
+      ],
+    });
+
+    const adapted = adaptLegacyLayout(layout);
+
+    expect(adapted.connections).toEqual([]);
+    expect(adapted.racks[0]?.devices).toEqual(layout.racks[0]?.devices);
+  });
+
+  it("is a no-op when there are no connections", () => {
+    const layout = createTestLayout();
+
+    const adapted = adaptLegacyLayout(layout);
+
+    expect(adapted).toBe(layout);
   });
 });

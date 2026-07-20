@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
+metadata:
+  id: dd365008-167b-4f13-b716-a411d06e3201
+  name: Connection Rack
+  schema_version: "1.0"
+version: "26.7.0"
+name: Connection Rack
+racks:
+  - id: rack-conn
+    name: Connection Rack
+    height: 8
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: dev-switch
+        device_type: network-switch-1u
+        position: 6
+        face: front
+        ports:
+          - id: port-switch-uplink-1
+            template_name: Uplink 1
+            template_index: 0
+            type: 1000base-t
+          - id: port-switch-uplink-2
+            template_name: Uplink 2
+            template_index: 1
+            type: 1000base-t
+      - id: dev-server
+        device_type: server-1u
+        position: 12
+        face: front
+        ports:
+          - id: port-server-nic-1
+            template_name: NIC 1
+            template_index: 0
+            type: 1000base-t
+device_types:
+  - slug: network-switch-1u
+    manufacturer: Acme Networks
+    model: Switch 1U
+    u_height: 1
+    colour: "#50FA7B"
+    category: network
+    interfaces:
+      - name: Uplink 1
+        type: 1000base-t
+      - name: Uplink 2
+        type: 1000base-t
+  - slug: server-1u
+    manufacturer: Acme Servers
+    model: Server 1U
+    u_height: 1
+    colour: "#8BE9FD"
+    category: server
+    interfaces:
+      - name: NIC 1
+        type: 1000base-t
+connections:
+  - id: conn-uplink
+    a_port_id: port-switch-uplink-1
+    b_port_id: port-server-nic-1
+    label: Primary Uplink
+    color: "#FF5500"
+settings:
+  display_mode: label
+  show_labels_on_images: false

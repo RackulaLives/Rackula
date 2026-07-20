@@ -7,6 +7,10 @@ import {
   createTestDeviceType,
   createTestContainerType,
   createTestCable,
+  createTestConnection,
+  createTestDevice,
+  createTestPlacedPort,
+  createTestRack,
 } from "./factories";
 
 describe("Layout Store", () => {
@@ -741,6 +745,121 @@ describe("Layout Store", () => {
       // is deterministic rather than depending on which rack was processed last.
       expect(cable!.a_device_id).toBe(firstDevice.id);
       expect(cable!.b_device_id).toBe(firstDevice.id);
+    });
+  });
+
+  describe("loadLayout connection port-id remapping (#3090)", () => {
+    it("regenerates a duplicated PlacedPort id on load, keeping the connection resolvable", () => {
+      const store = getLayoutStore();
+      // Two devices whose sole port shares the literal id "dup-port". The
+      // dedup pass must regenerate one copy so every live port id is unique,
+      // and the connection referencing "dup-port" must still resolve to a
+      // real port afterward rather than dangling.
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Port Dedup Test",
+        racks: [
+          createTestRack({
+            id: "rack-1",
+            devices: [
+              createTestDevice({
+                id: "device-a",
+                device_type: "server-c",
+                position: 1,
+                ports: [createTestPlacedPort({ id: "dup-port" })],
+              }),
+              createTestDevice({
+                id: "device-b",
+                device_type: "server-c",
+                position: 5,
+                ports: [createTestPlacedPort({ id: "dup-port" })],
+              }),
+              createTestDevice({
+                id: "device-c",
+                device_type: "server-c",
+                position: 10,
+                ports: [createTestPlacedPort({ id: "port-c" })],
+              }),
+            ],
+          }),
+        ],
+        device_types: [
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+        ],
+        connections: [
+          createTestConnection({
+            id: "conn-1",
+            a_port_id: "dup-port",
+            b_port_id: "port-c",
+          }),
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      const allPorts = store.layout.racks.flatMap((r) =>
+        r.devices.flatMap((d) => d.ports ?? []),
+      );
+      const portIds = allPorts.map((p) => p.id);
+      // Every live port id is unique after dedup.
+      expect(new Set(portIds).size).toBe(portIds.length);
+
+      const connection = store.layout.connections?.[0];
+      expect(connection).toBeDefined();
+      // The connection resolves to a port that actually exists; it never
+      // dangles at a duplicate id that was regenerated away.
+      expect(portIds).toContain(connection!.a_port_id);
+      expect(portIds).toContain(connection!.b_port_id);
+      expect(connection!.b_port_id).toBe("port-c");
+    });
+
+    it("drops a connection whose port reference never existed anywhere in the layout", () => {
+      const store = getLayoutStore();
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Dangling Connection Test",
+        racks: [
+          createTestRack({
+            id: "rack-1",
+            devices: [
+              createTestDevice({
+                id: "device-a",
+                device_type: "server-c",
+                position: 1,
+                ports: [createTestPlacedPort({ id: "port-a" })],
+              }),
+            ],
+          }),
+        ],
+        device_types: [
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+        ],
+        connections: [
+          createTestConnection({
+            id: "dangling-conn",
+            a_port_id: "port-a",
+            b_port_id: "port-that-never-existed",
+          }),
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      expect(store.layout.connections).toEqual([]);
     });
   });
 
