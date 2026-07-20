@@ -24,6 +24,7 @@
     PlacedDevice,
   } from "$lib/types";
   import RackDevice from "./RackDevice.svelte";
+  import ConnectionLayer from "./ConnectionLayer.svelte";
   import RackFrame from "./RackFrame.svelte";
   import RackDropZone from "./RackDropZone.svelte";
   import RackChristmasHat from "./RackChristmasHat.svelte";
@@ -263,6 +264,14 @@
         );
         return ef === "both" || ef === effectiveFaceFilter;
       }),
+  );
+
+  // Devices this rack/face actually renders, for ConnectionLayer (#1931) to
+  // anchor connection endpoints against. Same set RackDevice renders from
+  // visibleDevices, kept as its own derived so ConnectionLayer only
+  // recomputes when the rendered device set itself changes.
+  const connectionDevices = $derived(
+    visibleDevices.map(({ placedDevice }) => placedDevice),
   );
 
   const containerChildren = $derived.by(() => {
@@ -589,6 +598,14 @@
         </g>
       {/each}
     </g>
+
+    <!-- Layer 2b: Connections, drawn above every device body (#1931) -->
+    <ConnectionLayer
+      devices={connectionDevices}
+      {deviceLibrary}
+      rackView={effectiveFaceFilter}
+      {rackDims}
+    />
 
     <!-- Empty-state hint: only in a face-filtered (dual) view, so an empty rear
          reads as "nothing rear-facing here" rather than looking broken. -->
