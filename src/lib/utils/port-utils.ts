@@ -106,6 +106,40 @@ export function inferDirection(
   return "bidirectional";
 }
 
+/** Connector gender for display. Computed only, never stored (spike #1927). */
+export type ConnectorGender = "male" | "female";
+
+/**
+ * Derive the connector gender for a port from its type and resolved
+ * direction, for connectors with a strong convention (spike #1927,
+ * Finding 6):
+ * - XLR-3 follows AES14 (signal flows out of male pins) so an output port is
+ *   male and an input port is female; XLR-5 follows the same convention.
+ *   Without a resolved in/out direction the gender is not derivable.
+ * - Speakon chassis connectors are male regardless of direction (the mating
+ *   cable end is female); a port models the chassis side.
+ * - dmx-xlr is deliberately not derived: DMX512 (ANSI E1.11) reverses the
+ *   AES14 convention (transmitters are female), so the XLR rule would
+ *   mislead here.
+ * Ambiguous connectors (TRS, TS, RCA, ...) return undefined.
+ */
+export function deriveGender(
+  type: string,
+  direction?: PortDirection,
+): ConnectorGender | undefined {
+  switch (type) {
+    case "xlr-3":
+    case "xlr-5":
+      if (direction === "output") return "male";
+      if (direction === "input") return "female";
+      return undefined;
+    case "speakon":
+      return "male";
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Instantiate ports from a DeviceType's interface templates
  * Creates PlacedPort instances with stable UUIDs for each interface
