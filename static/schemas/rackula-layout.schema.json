@@ -197,6 +197,14 @@
             "items": {
               "additionalProperties": {},
               "properties": {
+                "direction": {
+                  "enum": [
+                    "input",
+                    "output",
+                    "bidirectional"
+                  ],
+                  "type": "string"
+                },
                 "label": {
                   "maxLength": 64,
                   "type": "string"
@@ -700,6 +708,14 @@
                 "items": {
                   "additionalProperties": {},
                   "properties": {
+                    "direction": {
+                      "enum": [
+                        "input",
+                        "output",
+                        "bidirectional"
+                      ],
+                      "type": "string"
+                    },
                     "id": {
                       "minLength": 1,
                       "type": "string"
@@ -989,6 +1005,14 @@
                   "items": {
                     "additionalProperties": {},
                     "properties": {
+                      "direction": {
+                        "enum": [
+                          "input",
+                          "output",
+                          "bidirectional"
+                        ],
+                        "type": "string"
+                      },
                       "id": {
                         "minLength": 1,
                         "type": "string"

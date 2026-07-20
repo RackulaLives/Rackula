@@ -27,6 +27,7 @@ import type {
   SlotWidth,
   Cable,
   InterfaceTemplate,
+  PlacedPort,
 } from "$lib/types";
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import type { NetBoxDeviceType } from "$lib/utils/netbox-import";
@@ -224,6 +225,23 @@ export function createTestInterfaceTemplate(
 ): InterfaceTemplate {
   return {
     name: "Test Interface",
+    type: "1000base-t",
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a test PlacedPort. Defaults to a gigabit RJ45 port instance;
+ * override `type`/`direction` to exercise other interface types or a
+ * direction override that differs from its InterfaceTemplate.
+ */
+export function createTestPlacedPort(
+  overrides: Partial<PlacedPort> = {},
+): PlacedPort {
+  return {
+    id: overrides.id ?? generateId(),
+    template_name: "Test Interface",
+    template_index: 0,
     type: "1000base-t",
     ...overrides,
   };
