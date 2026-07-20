@@ -6,7 +6,11 @@
 <script lang="ts">
   import type { InterfaceTemplate, InterfaceType } from "$lib/types";
   import { getPortTooltipState } from "$lib/stores/portTooltip.svelte";
-  import { inferDirection } from "$lib/utils/port-utils";
+  import {
+    inferDirection,
+    inferSignalType,
+    getSignalLabel,
+  } from "$lib/utils/port-utils";
 
   // Get reactive tooltip state from store
   const tooltipState = $derived(getPortTooltipState());
@@ -68,6 +72,15 @@
     return direction ? DIRECTION_LABELS[direction] : null;
   }
 
+  // Signal label: explicit signal_type wins; otherwise inferred from the
+  // connector type plus the (explicit or inferred) direction. Null hides the row.
+  function getSignalTypeLabel(port: InterfaceTemplate): string | null {
+    const direction =
+      port.direction ?? inferDirection(port.type, port.mgmt_only);
+    const signal = port.signal_type ?? inferSignalType(port.type, direction);
+    return signal ? getSignalLabel(signal) : null;
+  }
+
   // Get PoE label
   function getPoELabel(
     poeMode?: "pd" | "pse",
@@ -93,6 +106,9 @@
     <div class="port-tooltip-type">{getTypeLabel(port.type)}</div>
     {#if getDirectionLabel(port)}
       <div class="port-tooltip-direction">{getDirectionLabel(port)}</div>
+    {/if}
+    {#if getSignalTypeLabel(port)}
+      <div class="port-tooltip-signal">{getSignalTypeLabel(port)}</div>
     {/if}
     {#if port.mgmt_only}
       <div class="port-tooltip-badge mgmt">Management Only</div>
@@ -149,7 +165,8 @@
     font-size: var(--font-size-xs);
   }
 
-  .port-tooltip-direction {
+  .port-tooltip-direction,
+  .port-tooltip-signal {
     color: var(--colour-text-muted-inverse, rgba(255, 255, 255, 0.7));
     font-size: var(--font-size-xs);
   }
