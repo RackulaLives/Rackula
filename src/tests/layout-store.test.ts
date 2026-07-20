@@ -6,7 +6,6 @@ import {
   createTestDeviceTypeInput,
   createTestDeviceType,
   createTestContainerType,
-  createTestCable,
   createTestConnection,
   createTestDevice,
   createTestPlacedPort,
@@ -503,248 +502,92 @@ describe("Layout Store", () => {
     });
   });
 
-  describe("loadLayout cable endpoint remapping (#2923)", () => {
-    it("rewrites cable endpoints across racks when device ids are regenerated", () => {
+  describe("loadLayout legacy cables migration (#3091)", () => {
+    it("migrates a legacy cable to a connection and survives the port-id dedup pass", () => {
       const store = getLayoutStore();
-      // Both devices collide with ids already reserved by another open tab
-      // (#2182 cross-tab dedup), so both get regenerated. The cable spans
-      // racks, so a per-rack remap map cannot fix both endpoints: the fix
-      // must accumulate a layout-global old -> new id map.
-      store.loadLayout(
-        {
-          version: "0.7.0",
-          name: "Cable Remap Test",
-          racks: [
-            {
-              id: "rack-a",
-              name: "Rack A",
-              height: 42,
-              width: 19,
-              desc_units: false,
-              form_factor: "4-post-cabinet",
-              starting_unit: 1,
-              position: 0,
-              devices: [
-                {
-                  id: "dev-a",
-                  device_type: "server-c",
-                  position: 1,
-                  face: "front" as const,
-                },
-              ],
-            },
-            {
-              id: "rack-b",
-              name: "Rack B",
-              height: 42,
-              width: 19,
-              desc_units: false,
-              form_factor: "4-post-cabinet",
-              starting_unit: 1,
-              position: 1,
-              devices: [
-                {
-                  id: "dev-b",
-                  device_type: "server-c",
-                  position: 1,
-                  face: "front" as const,
-                },
-              ],
-            },
-          ],
-          device_types: [
-            {
-              slug: "server-c",
-              u_height: 1,
-              colour: "#4A90A4",
-              category: "server" as const,
-            },
-          ],
-          cables: [
-            createTestCable({
-              id: "cable-1",
-              a_device_id: "dev-a",
-              b_device_id: "dev-b",
-            }),
-          ],
-          settings: {
-            display_mode: "label",
-            show_labels_on_images: false,
+      // device-a's port has an empty-string id, which the port-id dedup pass
+      // (layout-lifecycle.ts) always regenerates (an empty id can never be
+      // kept as-is, the same treatment a hand-authored connection gets, see
+      // "loadLayout connection port-id remapping" below). A legacy `cables`
+      // entry (no `connections` field) references both devices by id +
+      // interface name. adaptLegacyLayout resolves the cable to a Connection
+      // referencing the pre-dedup port ids (including the empty one) BEFORE
+      // this loadLayout call's port-id dedup pass runs; the migrated
+      // connection's endpoint must follow the regenerated id afterward,
+      // proving the migration -> dedup ordering is correct rather than
+      // dangling at the empty id that got regenerated away.
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Legacy Cable Migration Test",
+        racks: [
+          createTestRack({
+            id: "rack-1",
+            devices: [
+              createTestDevice({
+                id: "device-a",
+                device_type: "server-c",
+                position: 1,
+                ports: [
+                  createTestPlacedPort({ id: "", template_name: "eth0" }),
+                ],
+              }),
+              createTestDevice({
+                id: "device-b",
+                device_type: "server-c",
+                position: 5,
+                ports: [
+                  createTestPlacedPort({
+                    id: "port-b",
+                    template_name: "eth1",
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+        device_types: [
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
           },
-        },
-        new Set(["dev-a", "dev-b"]),
-      );
-
-      // Exactly one device per rack, so each endpoint has one correct target.
-      const [rackA, rackB] = store.layout.racks;
-      const deviceA = rackA.devices[0];
-      const deviceB = rackB.devices[0];
-      const cable = store.layout.cables?.[0];
-      expect(cable).toBeDefined();
-      // Both original ids were reserved, so both were regenerated. Each
-      // endpoint must now resolve to the live device that replaced the id it
-      // originally referenced, not merely to some surviving device.
-      expect(deviceA.id).not.toBe("dev-a");
-      expect(deviceB.id).not.toBe("dev-b");
-      expect(cable!.a_device_id).toBe(deviceA.id);
-      expect(cable!.b_device_id).toBe(deviceB.id);
-    });
-
-    it("preserves a surviving endpoint and remaps a regenerated one in the same cable", () => {
-      const store = getLayoutStore();
-      // "keep-me" is not reserved, so it survives and its endpoint is left
-      // untouched (surviving-original precedence). "regen-me" collides with a
-      // reserved id, so it is regenerated and its endpoint must follow it.
-      store.loadLayout(
-        {
-          version: "0.7.0",
-          name: "Cable Surviving Id Test",
-          racks: [
-            {
-              id: "rack-1",
-              name: "Test Rack",
-              height: 42,
-              width: 19,
-              desc_units: false,
-              form_factor: "4-post-cabinet",
-              starting_unit: 1,
-              position: 0,
-              devices: [
-                {
-                  id: "keep-me",
-                  device_type: "server-c",
-                  position: 100,
-                  face: "front" as const,
-                },
-                {
-                  id: "regen-me",
-                  device_type: "server-c",
-                  position: 200,
-                  face: "front" as const,
-                },
-              ],
-            },
-          ],
-          device_types: [
-            {
-              slug: "server-c",
-              u_height: 1,
-              colour: "#4A90A4",
-              category: "server" as const,
-            },
-          ],
-          cables: [
-            createTestCable({
-              id: "cable-1",
-              a_device_id: "keep-me",
-              b_device_id: "regen-me",
-            }),
-          ],
-          settings: {
-            display_mode: "label",
-            show_labels_on_images: false,
+        ],
+        cables: [
+          {
+            id: "cable-1",
+            a_device_id: "device-a",
+            a_interface: "eth0",
+            b_device_id: "device-b",
+            b_interface: "eth1",
+            label: "Legacy Uplink",
           },
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
         },
-        new Set(["regen-me"]),
-      );
+      } as unknown as Layout);
 
-      const devices = store.layout.racks[0].devices;
-      const regenerated = devices.find((d) => d.id !== "keep-me")!;
-      const cable = store.layout.cables?.[0];
-      expect(cable).toBeDefined();
-      // Surviving original id is preserved.
-      expect(cable!.a_device_id).toBe("keep-me");
-      // The reserved-id collision was regenerated, and the endpoint follows it
-      // to the new id rather than dangling at the dead original.
-      expect(regenerated.id).not.toBe("regen-me");
-      expect(cable!.b_device_id).toBe(regenerated.id);
-    });
+      // The deprecated cables field never round-trips onto the loaded layout.
+      expect(
+        (store.layout as unknown as { cables?: unknown }).cables,
+      ).toBeUndefined();
 
-    it("resolves a cable referencing a duplicate id deterministically to the first device", () => {
-      const store = getLayoutStore();
-      // Degenerate input: the same id "dup" is shared across two racks and is
-      // also reserved by another tab, so no copy survives and both are
-      // regenerated. The layout-global remap keeps the first regenerated
-      // mapping (matching the #2155 rack-id remap), so the ambiguous cable
-      // endpoints resolve deterministically to the first device, independent
-      // of rack iteration order.
-      store.loadLayout(
-        {
-          version: "0.7.0",
-          name: "Duplicate Id Cable Test",
-          racks: [
-            {
-              id: "rack-a",
-              name: "Rack A",
-              height: 42,
-              width: 19,
-              desc_units: false,
-              form_factor: "4-post-cabinet",
-              starting_unit: 1,
-              position: 0,
-              devices: [
-                {
-                  id: "dup",
-                  device_type: "server-c",
-                  position: 1,
-                  face: "front" as const,
-                },
-              ],
-            },
-            {
-              id: "rack-b",
-              name: "Rack B",
-              height: 42,
-              width: 19,
-              desc_units: false,
-              form_factor: "4-post-cabinet",
-              starting_unit: 1,
-              position: 1,
-              devices: [
-                {
-                  id: "dup",
-                  device_type: "server-c",
-                  position: 1,
-                  face: "front" as const,
-                },
-              ],
-            },
-          ],
-          device_types: [
-            {
-              slug: "server-c",
-              u_height: 1,
-              colour: "#4A90A4",
-              category: "server" as const,
-            },
-          ],
-          cables: [
-            createTestCable({
-              id: "cable-1",
-              a_device_id: "dup",
-              b_device_id: "dup",
-            }),
-          ],
-          settings: {
-            display_mode: "label",
-            show_labels_on_images: false,
-          },
-        },
-        new Set(["dup"]),
-      );
+      const deviceA = store.layout.racks[0]!.devices.find(
+        (d) => d.id === "device-a",
+      )!;
+      const regeneratedPortId = deviceA.ports![0]!.id;
+      // The empty id was always going to regenerate; confirm it actually did.
+      expect(regeneratedPortId).not.toBe("");
 
-      const firstDevice = store.layout.racks[0].devices[0];
-      const secondDevice = store.layout.racks[1].devices[0];
-      const cable = store.layout.cables?.[0];
-      expect(cable).toBeDefined();
-      // Both copies were regenerated to distinct live ids.
-      expect(firstDevice.id).not.toBe("dup");
-      expect(secondDevice.id).not.toBe("dup");
-      expect(firstDevice.id).not.toBe(secondDevice.id);
-      // Both endpoints resolve to the first device (first-wins), so the result
-      // is deterministic rather than depending on which rack was processed last.
-      expect(cable!.a_device_id).toBe(firstDevice.id);
-      expect(cable!.b_device_id).toBe(firstDevice.id);
+      const connection = store.layout.connections?.[0];
+      expect(connection).toBeDefined();
+      expect(connection!.label).toBe("Legacy Uplink");
+      // The migrated connection's a-side endpoint follows device-a's port to
+      // its regenerated id rather than dangling at the empty string.
+      expect(connection!.a_port_id).toBe(regeneratedPortId);
+      expect(connection!.b_port_id).toBe("port-b");
     });
   });
 

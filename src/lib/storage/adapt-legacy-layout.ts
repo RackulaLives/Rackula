@@ -8,6 +8,13 @@
  * (file, API, archive, share decode, browser restore, YAML editor) passes
  * through it before the layout reaches reactive state.
  *
+ * It also owns the legacy cables -> connections migration (#3091): the
+ * deprecated Cable model (device id + interface name references) is no
+ * longer part of the Layout type, but a prior-release file can still carry a
+ * `cables` array. This adapter converts a resolvable cable into a Connection
+ * (PlacedPort.id references) and drops an unresolvable one, so the legacy
+ * key is still accepted on read even though it is never written again.
+ *
  * It normalizes; it does NOT enforce. Schema/store enforcement lands in C4.
  *
  * Input is untrusted: share links and localStorage bodies reach loadLayout
@@ -27,6 +34,7 @@ import type {
   DeviceFace,
   Rack,
   Connection,
+  PlacedPort,
 } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { generateId } from "$lib/utils/device";
@@ -400,6 +408,151 @@ function hydrateCarrierTypes(
 }
 
 /**
+ * A legacy Cable entry as it may appear in raw pre-#3091 layout input. Cable
+ * (device id + interface name references) was retired in favour of Connection
+ * (stable PlacedPort.id references, #3091); the type no longer exists on
+ * Layout. This permissive shape reads whatever survives on untrusted input:
+ * a `.passthrough()` Zod parse of the YAML/JSON `cables` key, or a fully raw
+ * object handed to loadLayout's direct ingress (share decode, browser
+ * restore).
+ */
+interface LegacyCable {
+  id?: unknown;
+  a_device_id?: unknown;
+  a_interface?: unknown;
+  b_device_id?: unknown;
+  b_interface?: unknown;
+  label?: unknown;
+  color?: unknown;
+}
+
+/** A Layout that may still carry the legacy `cables` top-level key. */
+type LegacyLayout = Layout & { cables?: unknown };
+
+/**
+ * Resolve a Cable endpoint (device id + interface name) to the matching
+ * PlacedPort on that device, mirroring the historical validateCable lookup
+ * (cables.svelte.ts) but against the port instances instead of the device
+ * type's interface templates.
+ *
+ * Matches by PlacedPort.template_name, the only reference Cable ever carried.
+ * Duplicate interface names on one device are legal (port-geometry.ts); when
+ * more than one port shares the name, the port with the lowest
+ * template_index wins, matching interface declaration order. This is a best-
+ * effort default, not the exact disambiguation Cable itself supported: Cable
+ * had no template_index field, so an ambiguous legacy cable's exact target is
+ * genuinely unrecoverable.
+ *
+ * Returns undefined (never throws) when the device id or interface name does
+ * not resolve, so the caller can drop the cable cleanly.
+ */
+function resolveLegacyCableEndpoint(
+  devicesById: Map<string, PlacedDevice>,
+  deviceId: unknown,
+  interfaceName: unknown,
+): PlacedPort | undefined {
+  if (typeof deviceId !== "string" || typeof interfaceName !== "string") {
+    return undefined;
+  }
+  const device = devicesById.get(deviceId);
+  if (!device || !Array.isArray(device.ports)) return undefined;
+
+  let best: PlacedPort | undefined;
+  for (const port of device.ports) {
+    if (!port || port.template_name !== interfaceName) continue;
+    if (typeof port.id !== "string") continue;
+    if (!best || port.template_index < best.template_index) {
+      best = port;
+    }
+  }
+  return best;
+}
+
+/**
+ * Convert legacy Cable entries to Connection objects (#3091). Cable
+ * references a device id plus an interface name (fragile, pre-PlacedPort);
+ * Connection references PlacedPort.id directly (stable). Each endpoint is
+ * resolved against the given racks' devices via resolveLegacyCableEndpoint;
+ * an endpoint that does not resolve (unknown device, no port with that
+ * name) drops the whole cable with a debug log, never a thrown error,
+ * mirroring dropDanglingConnections' salvage-not-fail contract below. A
+ * cable whose two endpoints resolve to the same port (a degenerate
+ * self-loop) is dropped the same way, matching ConnectionSchema's
+ * self-connection refine.
+ *
+ * Runs against `racks` (the carrier-adapted racks already computed by the
+ * caller): carrier adaptation only ever touches container_id/slot_id/
+ * position, never a device's id or its `ports` array, so resolution here is
+ * equivalent to resolving against the raw input racks.
+ *
+ * A migrated connection always gets a freshly minted id: the legacy cable id
+ * is not a meaningful Connection identity and reusing it risks colliding
+ * with an id minted elsewhere. label and color carry over when present;
+ * Cable's other fields (type, length, length_unit, status) have no
+ * Connection equivalent and are intentionally dropped.
+ */
+function migrateLegacyCables(cables: unknown, racks: Rack[]): Connection[] {
+  if (!Array.isArray(cables) || cables.length === 0) return [];
+
+  const devicesById = new Map<string, PlacedDevice>();
+  for (const rack of racks) {
+    if (!rack || !Array.isArray(rack.devices)) continue;
+    for (const device of rack.devices) {
+      if (device && typeof device.id === "string") {
+        devicesById.set(device.id, device);
+      }
+    }
+  }
+
+  const connections: Connection[] = [];
+  for (const raw of cables as LegacyCable[]) {
+    if (!raw || typeof raw !== "object") continue;
+    const cableId = typeof raw.id === "string" ? raw.id : "(unknown)";
+
+    const aPort = resolveLegacyCableEndpoint(
+      devicesById,
+      raw.a_device_id,
+      raw.a_interface,
+    );
+    const bPort = resolveLegacyCableEndpoint(
+      devicesById,
+      raw.b_device_id,
+      raw.b_interface,
+    );
+
+    if (!aPort || !bPort) {
+      layoutDebug.state(
+        "dropped legacy cable %s: endpoint did not resolve to a placed port",
+        cableId,
+      );
+      continue;
+    }
+    // Object identity, not `.id` equality: migration runs before the
+    // layout-lifecycle.ts port-id dedup pass, so two distinct ports on two
+    // different devices can still share a not-yet-deduped literal id. Only a
+    // literal self-reference (same array entry resolved from both endpoints)
+    // is a genuine self-loop.
+    if (aPort === bPort) {
+      layoutDebug.state(
+        "dropped legacy cable %s: both endpoints resolved to the same port",
+        cableId,
+      );
+      continue;
+    }
+
+    connections.push({
+      id: generateId(),
+      a_port_id: aPort.id,
+      b_port_id: bPort.id,
+      ...(typeof raw.label === "string" ? { label: raw.label } : {}),
+      ...(typeof raw.color === "string" ? { color: raw.color } : {}),
+    });
+  }
+
+  return connections;
+}
+
+/**
  * Drop connections whose a_port_id or b_port_id does not resolve to a
  * PlacedPort anywhere in the given racks (#3090). A device (or carrier)
  * removed without cascading to its connections, or a hand-edited file, can
@@ -504,19 +657,64 @@ export function adaptLegacyLayout(layout: Layout): Layout {
     referencedCarrierSlugs,
   );
 
+  // Legacy cables -> connections migration (#3091): converts fragile
+  // device-id + interface-name Cable references into stable PlacedPort.id
+  // Connection references, resolved against the carrier-adapted racks (same
+  // equivalence-to-raw-input reasoning as the dangling-connection salvage
+  // below). Runs BEFORE that salvage so a migrated connection gets the same
+  // referential-integrity check as a hand-authored one, and merges into
+  // `layout.connections` before the salvage call rather than after.
+  //
+  // Ordering with layout-lifecycle.ts's port-id dedup pass: this function
+  // (adaptLegacyLayout) runs before that pass, so a migrated connection's
+  // a_port_id/b_port_id are resolved against the SAME pre-dedup port ids the
+  // dedup pass will later scan. Connections never reference device ids (only
+  // port ids), so the earlier device-id dedup pass in layout-lifecycle.ts
+  // cannot affect them either way; only a literal duplicate port id can
+  // trigger a remap, and the dedup pass rewrites every connection in
+  // `layoutData.connections` (migrated ones included, since they are already
+  // merged in by the time layout-lifecycle.ts reads this field) to follow it.
+  const legacyCables = (layout as LegacyLayout).cables;
+  const cablesFieldPresent = Object.prototype.hasOwnProperty.call(
+    layout,
+    "cables",
+  );
+  const migratedConnections = migrateLegacyCables(legacyCables, racks);
+  // Array.isArray, not `?? []`: untrusted/hand-edited input can carry a
+  // truthy non-array `connections` (e.g. `connections: {}`), which `?? []`
+  // does not catch (it only substitutes for null/undefined). Spreading that
+  // directly would throw, matching the same malformed-input class
+  // dropDanglingConnections below already guards against (#3090/#3115).
+  const existingConnections = Array.isArray(layout.connections)
+    ? layout.connections
+    : [];
+  const connectionsWithMigrated =
+    migratedConnections.length > 0
+      ? [...existingConnections, ...migratedConnections]
+      : layout.connections;
+
   // Dangling connection salvage (#3090): runs against the carrier-adapted
-  // racks so it sees the final port set. Carrier adaptation never touches
-  // PlacedPort.id, so this is equivalent to checking the raw input. Kept
-  // independent of racksChanged/typesChanged below: a connection-only change
-  // must never trigger the pre-carrier-first backup, which exists solely to
-  // protect the irreversible carrier rewrite.
+  // racks so it sees the final port set, and against the migrated connection
+  // list above so a migrated connection is held to the same integrity check.
+  // Carrier adaptation never touches PlacedPort.id, so this is equivalent to
+  // checking the raw input. Kept independent of racksChanged/typesChanged
+  // below: a connection-only change must never trigger the pre-carrier-first
+  // backup, which exists solely to protect the irreversible carrier rewrite.
   const { connections, changed: connectionsChanged } = dropDanglingConnections(
-    layout.connections,
+    connectionsWithMigrated,
     racks,
   );
 
   const carrierMigrationChanged = racksChanged || typesChanged;
-  if (!carrierMigrationChanged && !connectionsChanged) return layout;
+  const connectionsFieldChanged =
+    connectionsChanged || migratedConnections.length > 0;
+  if (
+    !carrierMigrationChanged &&
+    !connectionsFieldChanged &&
+    !cablesFieldPresent
+  ) {
+    return layout;
+  }
 
   // Preserve the pre-carrier state once before the adapted layout can be written
   // back over the original. The two storage modes are mutually exclusive:
@@ -533,10 +731,18 @@ export function adaptLegacyLayout(layout: Layout): Layout {
     }
   }
 
+  // Cable is fully retired (#3091): the legacy `cables` field, when present,
+  // was consumed above and is never re-attached to the output, so it can
+  // never round-trip back out as an "unknown top-level section"
+  // (yaml-field-order.ts appendUnknownSections).
+  const { cables: _legacyCables, ...layoutWithoutCables } =
+    layout as LegacyLayout;
+  void _legacyCables;
+
   return {
-    ...layout,
+    ...layoutWithoutCables,
     racks,
     device_types: deviceTypes,
-    ...(connectionsChanged ? { connections } : {}),
+    ...(connectionsFieldChanged ? { connections } : {}),
   };
 }

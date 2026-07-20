@@ -4,9 +4,8 @@ import {
   serializeLayoutToYamlWithMetadata,
   parseLayoutYaml,
 } from "$lib/utils/yaml";
-import type { Cable, DeviceType, PlacedDevice, Rack } from "$lib/types";
+import type { DeviceType, PlacedDevice, Rack } from "$lib/types";
 import {
-  createTestCable,
   createTestConnection,
   createTestContainerChild,
   createTestDevice,
@@ -253,19 +252,6 @@ describe("YAML connections round-trip (#3090)", () => {
       },
     ]);
   });
-
-  it("orders connections before the deprecated cables field it supersedes", async () => {
-    const layout = createTestLayout({
-      connections: [createTestConnection({ id: "conn-1" })],
-      cables: [createTestCable({ id: "cable-1" })],
-    });
-
-    const yaml = await serializeLayoutToYaml(layout);
-    const connectionsIndex = yaml.indexOf("connections:");
-    const cablesIndex = yaml.indexOf("cables:");
-    expect(connectionsIndex).toBeGreaterThanOrEqual(0);
-    expect(cablesIndex).toBeGreaterThan(connectionsIndex);
-  });
 });
 
 describe("YAML editor schema hint (#2230)", () => {
@@ -458,38 +444,6 @@ describe("YAML nested unknown-field round-trip (#2927)", () => {
 
     const resaved = await serializeLayoutToYaml(restored);
     expect(resaved).toContain("future_rack_field");
-  });
-
-  it("preserves an unknown field on a cable through a save/load/save round-trip", async () => {
-    const deviceA = createTestDevice({ id: "device-a", position: 10 });
-    const deviceB = createTestDevice({ id: "device-b", position: 12 });
-    const deviceType = createTestDeviceType({ slug: "test-device" });
-    const cable = {
-      ...createTestCable({
-        id: "cable-1",
-        a_device_id: "device-a",
-        b_device_id: "device-b",
-      }),
-      future_cable_field: "keep-me",
-    } as unknown as Cable;
-
-    const layout = createTestLayout({
-      racks: [createTestRack({ id: "rack-1", devices: [deviceA, deviceB] })],
-      device_types: [deviceType],
-      cables: [cable],
-    });
-
-    const yaml = await serializeLayoutToYaml(layout);
-    expect(yaml).toContain("future_cable_field");
-
-    const restored = await parseLayoutYaml(yaml);
-    const restoredCable = restored.cables?.find(
-      (c) => c.id === "cable-1",
-    ) as unknown as Record<string, unknown> | undefined;
-    expect(restoredCable?.future_cable_field).toBe("keep-me");
-
-    const resaved = await serializeLayoutToYaml(restored);
-    expect(resaved).toContain("future_cable_field");
   });
 
   it("preserves the known-but-unlisted rack_widths field on a device type through a round-trip", async () => {

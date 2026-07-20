@@ -214,41 +214,6 @@ export type InterfacePosition = "front" | "rear";
  */
 export type PortDirection = "input" | "output" | "bidirectional";
 
-/**
- * Cable type (NetBox-compatible)
- * Physical cable types for network, fiber, and power connections
- */
-export type CableType =
-  // Copper Ethernet
-  | "cat5e"
-  | "cat6"
-  | "cat6a"
-  | "cat7"
-  | "cat8"
-  // Direct Attach Copper
-  | "dac-passive"
-  | "dac-active"
-  // Fiber - Multi-mode
-  | "mmf-om3"
-  | "mmf-om4"
-  // Fiber - Single-mode
-  | "smf-os2"
-  // Active Optical Cable
-  | "aoc"
-  // Power & Serial
-  | "power"
-  | "serial";
-
-/**
- * Cable status (NetBox-compatible)
- */
-export type CableStatus = "connected" | "planned" | "decommissioning";
-
-/**
- * Length unit for cable measurements
- */
-export type LengthUnit = "m" | "cm" | "ft" | "in";
-
 // =============================================================================
 // Component Types (NetBox-compatible, schema-only)
 // =============================================================================
@@ -437,44 +402,6 @@ export interface Connection {
   label?: string;
   /** Optional color for visualization (hex, e.g., '#FF5500') */
   color?: string;
-}
-
-// =============================================================================
-// Cable Types (NetBox-compatible) - DEPRECATED
-// =============================================================================
-
-/**
- * @deprecated Use Connection instead - Cable uses fragile device+interface references
- */
-export interface Cable {
-  /** Unique identifier (UUID) */
-  id: string;
-
-  // --- A-side termination ---
-  /** Placed device UUID (A-side) */
-  a_device_id: string;
-  /** Interface name on A-side device */
-  a_interface: string;
-
-  // --- B-side termination ---
-  /** Placed device UUID (B-side) */
-  b_device_id: string;
-  /** Interface name on B-side device */
-  b_interface: string;
-
-  // --- Cable properties ---
-  /** Cable type (e.g., 'cat6a', 'smf-os2') */
-  type?: CableType;
-  /** Cable color as 6-digit hex (e.g., '#FF5500') */
-  color?: string;
-  /** Cable label/identifier */
-  label?: string;
-  /** Cable length */
-  length?: number;
-  /** Length unit */
-  length_unit?: LengthUnit;
-  /** Connection status */
-  status?: CableStatus;
 }
 
 // =============================================================================
@@ -762,10 +689,6 @@ export interface Layout {
   settings: LayoutSettings;
   /** Port-to-port connections (MVP model) */
   connections?: Connection[];
-  /**
-   * @deprecated Use connections instead - cables uses fragile device+interface references
-   */
-  cables?: Cable[];
   /** Metadata for persistence (UUID, name, description, etc.) */
   metadata?: Partial<LayoutMetadata>;
 }

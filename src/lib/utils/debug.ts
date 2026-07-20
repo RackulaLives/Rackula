@@ -37,10 +37,6 @@ export const dndDebug = {
   render: Debug("rackula:dnd:render"),
 };
 
-export const cableDebug = {
-  validation: Debug("rackula:cable:validation"),
-};
-
 export const appDebug = {
   mobile: Debug("rackula:app:mobile"),
   export: Debug("rackula:app:export"),

@@ -7,13 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  debug,
-  layoutDebug,
-  canvasDebug,
-  cableDebug,
-  appDebug,
-} from "$lib/utils/debug";
+import { debug, layoutDebug, canvasDebug, appDebug } from "$lib/utils/debug";
 
 describe("Debug utilities", () => {
   describe("Legacy compatibility", () => {
@@ -63,8 +57,6 @@ describe("Debug utilities", () => {
       // Canvas namespace loggers
       expect(() => canvasDebug.transform("test")).not.toThrow();
       expect(() => canvasDebug.panzoom("test")).not.toThrow();
-      // Cable namespace logger
-      expect(() => cableDebug.validation("test")).not.toThrow();
       // App namespace logger
       expect(() => appDebug.mobile("test")).not.toThrow();
     });

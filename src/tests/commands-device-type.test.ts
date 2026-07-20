@@ -6,11 +6,7 @@ import {
   type DeviceTypeCommandStore,
 } from "$lib/stores/commands/device-type";
 import type { DeviceType } from "$lib/types";
-import {
-  createTestCable,
-  createTestDeviceType,
-  createTestDevice,
-} from "./factories";
+import { createTestDeviceType, createTestDevice } from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
 
 function createMockStore(): DeviceTypeCommandStore & {
@@ -23,8 +19,6 @@ function createMockStore(): DeviceTypeCommandStore & {
   getDeviceAtIndex: ReturnType<typeof vi.fn>;
   setActiveRackId: ReturnType<typeof vi.fn>;
   getActiveRackId: ReturnType<typeof vi.fn>;
-  addCableRaw: ReturnType<typeof vi.fn>;
-  removeCableRaw: ReturnType<typeof vi.fn>;
 } {
   let activeRackId: string | null = null;
   return {
@@ -39,8 +33,6 @@ function createMockStore(): DeviceTypeCommandStore & {
       activeRackId = id;
     }),
     getActiveRackId: vi.fn(() => activeRackId),
-    addCableRaw: vi.fn(),
-    removeCableRaw: vi.fn(),
   };
 }
 
@@ -316,49 +308,6 @@ describe("Device Type Commands", () => {
       // Should restore with original position (5 in internal units), not mutated (99)
       expect(store.placeDeviceRaw).toHaveBeenCalledWith(
         expect.objectContaining({ position: toInternalUnits(5) }),
-      );
-    });
-
-    it("removes connected cables on execute and restores them on undo (#1483)", () => {
-      const store = createMockStore();
-      const deviceType = createTestDeviceType({ slug: "switch-type" });
-      const devA = createTestDevice({
-        device_type: "switch-type",
-        position: 1,
-      });
-      const devB = createTestDevice({
-        device_type: "switch-type",
-        position: 2,
-      });
-      const placedDevices = [
-        { rackId: "rack-1", device: devA },
-        { rackId: "rack-1", device: devB },
-      ];
-      const cables = [
-        createTestCable({
-          id: "cable-1",
-          a_device_id: devA.id,
-          b_device_id: devB.id,
-        }),
-      ];
-
-      const command = createDeleteDeviceTypeCommand(
-        deviceType,
-        placedDevices,
-        store,
-        cables,
-      );
-
-      command.execute();
-      expect(store.removeCableRaw).toHaveBeenCalledWith("cable-1");
-
-      command.undo();
-      expect(store.addCableRaw).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "cable-1",
-          a_device_id: devA.id,
-          b_device_id: devB.id,
-        }),
       );
     });
   });

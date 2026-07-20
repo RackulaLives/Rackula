@@ -222,45 +222,6 @@ export const InterfacePositionSchema = z.enum(["front", "rear"]);
  */
 export const PortDirectionSchema = z.enum(["input", "output", "bidirectional"]);
 
-/**
- * Cable type enum (NetBox-compatible)
- */
-export const CableTypeSchema = z.enum([
-  // Copper Ethernet
-  "cat5e",
-  "cat6",
-  "cat6a",
-  "cat7",
-  "cat8",
-  // Direct Attach Copper
-  "dac-passive",
-  "dac-active",
-  // Fiber - Multi-mode
-  "mmf-om3",
-  "mmf-om4",
-  // Fiber - Single-mode
-  "smf-os2",
-  // Active Optical Cable
-  "aoc",
-  // Power & Serial
-  "power",
-  "serial",
-]);
-
-/**
- * Cable status enum (NetBox-compatible)
- */
-export const CableStatusSchema = z.enum([
-  "connected",
-  "planned",
-  "decommissioning",
-]);
-
-/**
- * Length unit enum for cable measurements
- */
-export const LengthUnitSchema = z.enum(["m", "cm", "ft", "in"]);
-
 // ============================================================================
 // Container Slot Schemas (v0.6.0)
 // ============================================================================
@@ -450,55 +411,6 @@ export const ConnectionSchema = z
     message: "Cannot connect a port to itself",
     path: ["b_port_id"],
   });
-
-// ============================================================================
-// Cable Schemas (NetBox-compatible) - DEPRECATED
-// ============================================================================
-
-/**
- * @deprecated Use ConnectionSchema instead - Cable uses fragile device+interface references
- */
-export const CableSchema = z
-  .object({
-    // Unique identifier
-    id: z.string().min(1, "Cable ID is required"),
-
-    // A-side termination
-    a_device_id: z.string().min(1, "A-side device ID is required"),
-    a_interface: z.string().min(1, "A-side interface is required"),
-
-    // B-side termination
-    b_device_id: z.string().min(1, "B-side device ID is required"),
-    b_interface: z.string().min(1, "B-side interface is required"),
-
-    // Cable properties
-    type: CableTypeSchema.optional(),
-    color: z
-      .string()
-      .regex(
-        HEX_COLOUR_PATTERN,
-        "Color must be a valid hex color (e.g., #FF5500)",
-      )
-      .optional(),
-    label: z.string().max(100).optional(),
-    length: z.number().positive().optional(),
-    length_unit: LengthUnitSchema.optional(),
-    status: CableStatusSchema.optional(),
-  })
-  .passthrough()
-  .refine(
-    (data) => {
-      // If length is provided, length_unit must also be provided
-      if (data.length !== undefined && data.length_unit === undefined) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message: "length_unit is required when length is specified",
-      path: ["length_unit"],
-    },
-  );
 
 // ============================================================================
 // Composite Schemas
@@ -839,8 +751,6 @@ const LayoutSchemaInput = z
     device_types: z.array(DeviceTypeSchema),
     settings: LayoutSettingsSchema,
     connections: z.array(ConnectionSchema).optional(),
-    /** @deprecated Use connections instead */
-    cables: z.array(CableSchema).optional(),
   })
   .passthrough();
 
@@ -1216,10 +1126,6 @@ export type RackGroupZod = z.infer<typeof RackGroupSchema>;
 export type LayoutSettingsZod = z.infer<typeof LayoutSettingsSchema>;
 export type LayoutMetadataZod = z.infer<typeof LayoutMetadataSchema>;
 export type LayoutZod = z.infer<typeof LayoutSchema>;
-export type CableType = z.infer<typeof CableTypeSchema>;
-export type CableStatus = z.infer<typeof CableStatusSchema>;
-export type LengthUnit = z.infer<typeof LengthUnitSchema>;
-export type CableZod = z.infer<typeof CableSchema>;
 /** Validated slot position - row/col are non-negative integers (unlike plain SlotPosition2D interface which accepts any number) */
 export type SlotPosition2DZod = z.infer<typeof SlotPosition2DSchema>;
 export type SlotZod = z.infer<typeof SlotSchema>;

@@ -17,7 +17,6 @@ import type {
   DeviceFace,
   RackView,
   DisplayMode,
-  Cable,
   Connection,
 } from "$lib/types";
 import { MAX_RACKS } from "$lib/types/constants";
@@ -93,10 +92,6 @@ import {
   replaceRackRaw as replaceRackRawImpl,
   clearRackDevicesRaw as clearRackDevicesRawImpl,
   restoreRackDevicesRaw as restoreRackDevicesRawImpl,
-  addCableRaw as addCableRawImpl,
-  updateCableRaw as updateCableRawImpl,
-  removeCableRaw as removeCableRawImpl,
-  removeCablesRaw as removeCablesRawImpl,
   addConnectionRaw as addConnectionRawImpl,
   updateConnectionRaw as updateConnectionRawImpl,
   removeConnectionRaw as removeConnectionRawImpl,
@@ -386,12 +381,6 @@ export function createLayoutStore(
     replaceRackRaw,
     clearRackDevicesRaw,
     restoreRackDevicesRaw,
-
-    // Cable raw actions
-    addCableRaw,
-    updateCableRaw,
-    removeCableRaw,
-    removeCablesRaw,
 
     // Connection raw actions
     addConnectionRaw,
@@ -1074,27 +1063,6 @@ export function createLayoutStore(
 
   function restoreRackDevicesRaw(devices: PlacedDevice[]): void {
     restoreRackDevicesRawImpl(stateAccess, devices);
-  }
-
-  // Cable raw actions
-
-  function addCableRaw(cable: Cable): void {
-    addCableRawImpl(stateAccess, cable);
-  }
-
-  function updateCableRaw(
-    id: string,
-    updates: Partial<Omit<Cable, "id">>,
-  ): void {
-    updateCableRawImpl(stateAccess, id, updates);
-  }
-
-  function removeCableRaw(id: string): void {
-    removeCableRawImpl(stateAccess, id);
-  }
-
-  function removeCablesRaw(ids: Set<string>): void {
-    removeCablesRawImpl(stateAccess, ids);
   }
 
   // Connection raw actions

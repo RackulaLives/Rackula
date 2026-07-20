@@ -2,11 +2,13 @@
  * Connection Store
  * CRUD operations and validation for port-to-port connections (#369)
  *
- * Structured after cables.svelte.ts, but unlike the deprecated Cable store
- * (retiring in #3091), the mutating operations here go through the layout
- * store's recorded/raw command pattern (src/lib/stores/layout/
- * recorded-connection-actions.ts + src/lib/stores/commands/connection.ts),
- * so add/update/remove are undoable via the existing history system.
+ * The mutating operations here go through the layout store's recorded/raw
+ * command pattern (src/lib/stores/layout/recorded-connection-actions.ts +
+ * src/lib/stores/commands/connection.ts), so add/update/remove are undoable
+ * via the existing history system. This supersedes the deprecated Cable
+ * model, which used fragile device-id + interface-name references; Cable
+ * was retired in #3091, and a prior-release layout's `cables` migrates to
+ * Connection on read (src/lib/storage/adapt-legacy-layout.ts).
  *
  * Connections reference PlacedPort.id directly (Connection.a_port_id /
  * b_port_id). Serialization with stable port IDs across save/load is out of
@@ -43,8 +45,7 @@ export interface ConnectionValidationResult {
 /**
  * Every PlacedPort across every rack. Connections reference ports by id
  * only, and ports live on PlacedDevice.ports, so validation must search
- * every rack, not just the active one (mirrors validateCable's cross-rack
- * device lookup in cables.svelte.ts).
+ * every rack, not just the active one.
  */
 function getAllPlacedPorts(): PlacedPort[] {
   const layoutStore = getLayoutStore();
