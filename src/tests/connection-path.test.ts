@@ -10,14 +10,14 @@
  * are out of unit scope per the issue's Testing Notes; they are verified
  * manually / via E2E, not here.
  *
- * Connection test objects use a small local helper (not
- * src/tests/factories.ts's createTestConnection): PR #3115 is adding that
- * factory concurrently, so a local helper here avoids colliding with it.
+ * Connection test objects use src/tests/factories.ts's createTestConnection
+ * (added by #3090's PR #3115).
  */
 import { describe, it, expect } from "vitest";
-import type { Connection, PortDirection } from "$lib/types";
+import type { PortDirection } from "$lib/types";
 import { toInternalUnits } from "$lib/utils/position";
 import {
+  createTestConnection,
   createTestDevice,
   createTestDeviceType,
   createTestInterfaceTemplate,
@@ -41,16 +41,6 @@ import {
   type ResolvedPortAnchor,
 } from "$lib/utils/connection-path";
 import { HIGH_DENSITY_THRESHOLD } from "$lib/utils/port-geometry";
-
-/** Local Connection factory - see file header for why this isn't in factories.ts. */
-function makeTestConnection(overrides: Partial<Connection> = {}): Connection {
-  return {
-    id: "test-connection",
-    a_port_id: "port-a",
-    b_port_id: "port-b",
-    ...overrides,
-  };
-}
 
 function makeResolvedAnchor(
   portId: string,
@@ -465,7 +455,7 @@ describe("buildRenderedConnections", () => {
       ["port-a", makeResolvedAnchor("port-a", 10, 50, "output")],
       ["port-b", makeResolvedAnchor("port-b", 190, 300, "input")],
     ]);
-    const connection = makeTestConnection();
+    const connection = createTestConnection();
 
     const rendered = buildRenderedConnections(
       [connection],
@@ -485,7 +475,7 @@ describe("buildRenderedConnections", () => {
       // port-b intentionally missing: high-density device, wrong face, or
       // legacy data with no PlacedPort match.
     ]);
-    const connection = makeTestConnection();
+    const connection = createTestConnection();
 
     const rendered = buildRenderedConnections(
       [connection],
@@ -504,19 +494,19 @@ describe("buildRenderedConnections", () => {
       ["port-d", makeResolvedAnchor("port-d", 190, 400)],
     ]);
     const connections = [
-      makeTestConnection({
+      createTestConnection({
         id: "conn-1",
         a_port_id: "port-a",
         b_port_id: "port-b",
       }),
       // conn-2 references a port with no anchor and is skipped; it must not
       // consume a channel-side slot.
-      makeTestConnection({
+      createTestConnection({
         id: "conn-2",
         a_port_id: "port-a",
         b_port_id: "missing",
       }),
-      makeTestConnection({
+      createTestConnection({
         id: "conn-3",
         a_port_id: "port-c",
         b_port_id: "port-d",
