@@ -12,6 +12,7 @@
 
 import type {
   Cable,
+  Connection,
   DeviceFace,
   DeviceType,
   PlacedDevice,
@@ -676,5 +677,58 @@ export function removeCablesRaw(
   ctx.setLayout({
     ...layout,
     cables: (layout.cables ?? []).filter((c) => !ids.has(c.id)),
+  });
+}
+
+// =============================================================================
+// Connection Raw Mutators
+// =============================================================================
+
+/**
+ * Add a connection directly (raw)
+ * @param ctx - Layout state access
+ * @param connection - Connection to add
+ */
+export function addConnectionRaw(
+  ctx: LayoutStateAccess,
+  connection: Connection,
+): void {
+  const layout = ctx.getLayout();
+  ctx.setLayout({
+    ...layout,
+    connections: [...(layout.connections ?? []), connection],
+  });
+}
+
+/**
+ * Update a connection directly (raw)
+ * @param ctx - Layout state access
+ * @param id - Connection ID to update
+ * @param updates - Properties to update
+ */
+export function updateConnectionRaw(
+  ctx: LayoutStateAccess,
+  id: string,
+  updates: Partial<Connection>,
+): void {
+  const layout = ctx.getLayout();
+  ctx.setLayout({
+    ...layout,
+    connections: (layout.connections ?? []).map((c) =>
+      c.id === id ? { ...c, ...updates } : c,
+    ),
+  });
+}
+
+/**
+ * Remove a connection directly (raw)
+ * @param ctx - Layout state access
+ * @param id - Connection ID to remove
+ */
+export function removeConnectionRaw(ctx: LayoutStateAccess, id: string): void {
+  const layout = ctx.getLayout();
+  ctx.setLayout({
+    ...layout,
+    connections: (layout.connections ?? []).filter((c) => c.id !== id),
   });
 }

@@ -33,6 +33,9 @@ export type CommandType =
   | "CREATE_RACK_GROUP"
   | "UPDATE_RACK_GROUP"
   | "DELETE_RACK_GROUP"
+  | "ADD_CONNECTION"
+  | "UPDATE_CONNECTION"
+  | "REMOVE_CONNECTION"
   | "BATCH";
 
 /**
