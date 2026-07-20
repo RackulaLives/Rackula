@@ -401,6 +401,22 @@ export interface PlacedPort {
   direction?: PortDirection;
 }
 
+/**
+ * Payload emitted when a rendered port is clicked. Carries the PlacedPort.id
+ * so callers (e.g. click-to-connect, #1932) can identify which port instance
+ * was targeted, not just which interface template it renders from.
+ */
+export interface PortClickInfo {
+  /**
+   * PlacedPort.id, when this port has an instantiated placement. Undefined
+   * for a layout placed before PlacedPort/instantiatePorts() existed, or for
+   * a template added to the device type after this device was placed.
+   */
+  portId: string | undefined;
+  /** The interface template this port renders from. */
+  iface: InterfaceTemplate;
+}
+
 // =============================================================================
 // Connection Types (Port-based - MVP)
 // =============================================================================
