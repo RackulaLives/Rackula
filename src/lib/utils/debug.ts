@@ -107,6 +107,16 @@ export const debug = {
     toPosition: number;
     result: string;
   }) => layoutDebug.device("move %O", data),
+  /**
+   * Warn that removing a device cascaded into deleting its connections
+   * (#639), so a layout that looked fully wired can silently lose links
+   * without a trace unless this is surfaced.
+   */
+  deviceRemove: (data: {
+    deviceName: string;
+    connectionsRemoved: number;
+    connectionIds: string[];
+  }) => layoutDebug.device("remove %O", data),
 };
 
 // Auto-enable in development (browser only)

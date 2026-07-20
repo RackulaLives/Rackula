@@ -6,9 +6,11 @@ import { parseLayoutObject } from "$lib/utils/yaml";
 import {
   setupStoreWithDevice,
   createTestCable,
+  createTestConnection,
   createTestDevice,
   createTestDeviceType,
   createTestDeviceTypeInput,
+  createTestInterfaceTemplate,
 } from "./factories";
 
 describe("Layout Store", () => {
@@ -610,6 +612,210 @@ describe("Layout Store", () => {
 
       expect(reloaded).not.toBeNull();
       expect(reloaded?.cables ?? []).toEqual([]);
+    });
+  });
+
+  describe("removeDeviceFromRack (connection cleanup, #639)", () => {
+    /**
+     * Place two devices with one gigabit port each and connect them; return
+     * their ids plus the connecting Connection's id. Mirrors
+     * setupTwoDevicesWithCable above, but for the port-based Connection model
+     * (#369) rather than the deprecated Cable model.
+     */
+    function setupTwoDevicesWithConnection() {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+
+      const deviceType = createTestDeviceType({ slug: "test-switch" });
+      deviceType.interfaces = [
+        createTestInterfaceTemplate({ name: "port-0", type: "1000base-t" }),
+      ];
+      store.addDeviceTypeRaw(deviceType);
+
+      store.placeDevice(rack.id, deviceType.slug, 5);
+      store.placeDevice(rack.id, deviceType.slug, 10);
+      const deviceA = store.rack.devices[0]!;
+      const deviceB = store.rack.devices[1]!;
+
+      const connection = createTestConnection({
+        id: "connection-1",
+        a_port_id: deviceA.ports![0]!.id,
+        b_port_id: deviceB.ports![0]!.id,
+      });
+      store.addConnectionRaw(connection);
+
+      return {
+        store,
+        rack,
+        deviceAId: deviceA.id,
+        deviceBId: deviceB.id,
+        connection,
+      };
+    }
+
+    it("removes connections attached to the deleted device's ports and keeps the layout schema-valid", () => {
+      const { store, rack, deviceAId } = setupTwoDevicesWithConnection();
+      const deviceAIndex = store.rack.devices.findIndex(
+        (d) => d.id === deviceAId,
+      );
+
+      store.removeDeviceFromRack(rack.id, deviceAIndex);
+
+      expect(store.layout.connections ?? []).toEqual([]);
+
+      const result = LayoutSchema.safeParse(store.layout);
+      expect(result.success).toBe(true);
+    });
+
+    it("undo restores the device and its connection in a single step", () => {
+      const { store, rack, deviceAId, deviceBId, connection } =
+        setupTwoDevicesWithConnection();
+      const deviceAIndex = store.rack.devices.findIndex(
+        (d) => d.id === deviceAId,
+      );
+
+      store.removeDeviceFromRack(rack.id, deviceAIndex);
+      expect(store.rack.devices.some((d) => d.id === deviceAId)).toBe(false);
+      expect(store.layout.connections ?? []).toEqual([]);
+
+      store.undo();
+
+      expect(store.rack.devices.some((d) => d.id === deviceAId)).toBe(true);
+      expect(store.layout.connections).toEqual([
+        expect.objectContaining({
+          id: connection.id,
+          a_port_id: connection.a_port_id,
+          b_port_id: connection.b_port_id,
+        }),
+      ]);
+      // Device restore also brought its ports back under the same id, so the
+      // restored connection still points at a real port on device B too.
+      const deviceB = store.rack.devices.find((d) => d.id === deviceBId)!;
+      expect(deviceB.ports!.some((p) => p.id === connection.b_port_id)).toBe(
+        true,
+      );
+    });
+
+    it("redo removes the device and its connection again", () => {
+      const { store, rack, deviceAId } = setupTwoDevicesWithConnection();
+      const deviceAIndex = store.rack.devices.findIndex(
+        (d) => d.id === deviceAId,
+      );
+
+      store.removeDeviceFromRack(rack.id, deviceAIndex);
+      store.undo();
+      store.redo();
+
+      expect(store.rack.devices.some((d) => d.id === deviceAId)).toBe(false);
+      expect(store.layout.connections ?? []).toEqual([]);
+    });
+
+    it("leaves connections between two other devices untouched", () => {
+      const { store, rack, deviceAId } = setupTwoDevicesWithConnection();
+
+      // A third, unrelated device connected to device B: removing device A
+      // must not disturb this connection.
+      const otherType = createTestDeviceType({ slug: "test-other" });
+      otherType.interfaces = [
+        createTestInterfaceTemplate({ name: "port-0", type: "1000base-t" }),
+      ];
+      store.addDeviceTypeRaw(otherType);
+      store.placeDevice(rack.id, otherType.slug, 20);
+      const deviceB = store.rack.devices.find(
+        (d) => d.device_type === "test-switch" && d.id !== deviceAId,
+      )!;
+      const deviceC = store.rack.devices.find(
+        (d) => d.device_type === otherType.slug,
+      )!;
+      const unrelatedConnection = createTestConnection({
+        id: "connection-2",
+        a_port_id: deviceB.ports![0]!.id,
+        b_port_id: deviceC.ports![0]!.id,
+      });
+      store.addConnectionRaw(unrelatedConnection);
+
+      const deviceAIndex = store.rack.devices.findIndex(
+        (d) => d.id === deviceAId,
+      );
+      store.removeDeviceFromRack(rack.id, deviceAIndex);
+
+      expect(store.layout.connections).toEqual([
+        expect.objectContaining({ id: "connection-2" }),
+      ]);
+    });
+
+    it("also cleans up connections when deleting a carrier with children", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+
+      const containerType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test Carrier",
+          u_height: 1,
+          category: "server",
+          colour: "#8B4513",
+          slots: [
+            {
+              id: "slot-left",
+              position: { row: 0, col: 0 },
+              width_fraction: 0.5,
+            },
+          ],
+        }),
+      );
+      const childType = createTestDeviceType({ slug: "test-child" });
+      childType.slot_width = 1;
+      childType.is_full_depth = false;
+      childType.interfaces = [
+        createTestInterfaceTemplate({ name: "port-0", type: "1000base-t" }),
+      ];
+      store.addDeviceTypeRaw(childType);
+
+      const otherType = createTestDeviceType({ slug: "test-other" });
+      otherType.interfaces = [
+        createTestInterfaceTemplate({ name: "port-0", type: "1000base-t" }),
+      ];
+      store.addDeviceTypeRaw(otherType);
+
+      store.placeDevice(rack.id, containerType.slug, 10);
+      const carrierId = store.activeRack!.devices[0]!.id;
+      store.placeInContainer(
+        rack.id,
+        childType.slug,
+        carrierId,
+        "slot-left",
+        0,
+      );
+      const child = store.rack.devices.find(
+        (d) => d.container_id === carrierId,
+      )!;
+      store.placeDevice(rack.id, otherType.slug, 20);
+      const other = store.rack.devices.find(
+        (d) => d.device_type === otherType.slug,
+      )!;
+
+      // Connection hangs off the carrier's CHILD (not the carrier itself),
+      // mirroring the cable carrier-cascade test above.
+      const connection = createTestConnection({
+        id: "connection-1",
+        a_port_id: child.ports![0]!.id,
+        b_port_id: other.ports![0]!.id,
+      });
+      store.addConnectionRaw(connection);
+
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrierId,
+      );
+      store.removeDeviceFromRack(rack.id, carrierIndex);
+
+      expect(store.layout.connections ?? []).toEqual([]);
+      const result = LayoutSchema.safeParse(store.layout);
+      expect(result.success).toBe(true);
+
+      store.undo();
+      expect(store.layout.connections).toEqual([
+        expect.objectContaining({ id: "connection-1" }),
+      ]);
     });
   });
 
