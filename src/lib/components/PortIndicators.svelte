@@ -206,7 +206,11 @@
   <g class="port-indicators">
     {#if !isHighDensity}
       <!-- Individual port circles for low-density devices -->
-      {#each portPositions as { iface, port, x, y, color } (port?.id ?? iface.name)}
+      <!-- Keyed by PlacedPort.id when available; falls back to the loop
+           index, not iface.name, since duplicate interface names are legal
+           (see port-geometry.ts) and legacy layouts can leave every port
+           undefined, which would make an iface.name-only fallback collide. -->
+      {#each portPositions as { iface, port, x, y, color }, i (port?.id ?? i)}
         <circle
           class="port-circle"
           cx={x}
@@ -257,7 +261,7 @@
       {/each}
 
       <!-- Invisible SVG click targets (larger than visual ports, Safari compatible) -->
-      {#each portPositions as { iface, port, x, y } (port?.id ?? iface.name)}
+      {#each portPositions as { iface, port, x, y }, i (port?.id ?? i)}
         <circle
           class="port-hit-target"
           cx={x}
