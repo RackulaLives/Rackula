@@ -709,13 +709,18 @@ export function addConnectionRaw(
 export function updateConnectionRaw(
   ctx: LayoutStateAccess,
   id: string,
-  updates: Partial<Connection>,
+  updates: Partial<Omit<Connection, "id">>,
 ): void {
   const layout = ctx.getLayout();
   ctx.setLayout({
     ...layout,
+    // `id: c.id` after the spread pins identity even if a caller with a wider
+    // (e.g. Partial<Connection>) or untyped payload smuggles an `id` key
+    // through — the type narrowing above blocks this at compile time for
+    // normal callers, but this is the single mutation choke point, so the
+    // invariant is enforced here regardless of how updates was constructed.
     connections: (layout.connections ?? []).map((c) =>
-      c.id === id ? { ...c, ...updates } : c,
+      c.id === id ? { ...c, ...updates, id: c.id } : c,
     ),
   });
 }

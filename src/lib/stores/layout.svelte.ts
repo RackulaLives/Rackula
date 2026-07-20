@@ -1103,7 +1103,10 @@ export function createLayoutStore(
     addConnectionRawImpl(stateAccess, connection);
   }
 
-  function updateConnectionRaw(id: string, updates: Partial<Connection>): void {
+  function updateConnectionRaw(
+    id: string,
+    updates: Partial<Omit<Connection, "id">>,
+  ): void {
     updateConnectionRawImpl(stateAccess, id, updates);
   }
 
@@ -1119,7 +1122,7 @@ export function createLayoutStore(
 
   function updateConnectionRecorded(
     id: string,
-    updates: Partial<Connection>,
+    updates: Partial<Omit<Connection, "id">>,
   ): boolean {
     return updateConnectionRecordedImpl(stateAccess, id, updates);
   }

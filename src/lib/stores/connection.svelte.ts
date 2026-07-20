@@ -173,14 +173,26 @@ export function getConnectionStore() {
   }
 
   /**
-   * Get connections attached to any port on a specific device
+   * Resolve a device across every rack and return the SvelteSet of its port
+   * ids, or undefined if the device is missing or has no ports. Shared by
+   * getConnectionsForDevice and removeConnectionsForDevice so the two stay
+   * in sync (plain Set is blocked here by the svelte/prefer-svelte-reactivity
+   * ESLint rule, which applies to *.svelte.ts regardless of reactivity).
    */
-  function getConnectionsForDevice(deviceId: string): Connection[] {
+  function getPortIdsForDevice(deviceId: string): SvelteSet<string> | undefined {
     const device = layoutStore.racks
       .flatMap((rack) => rack.devices)
       .find((d) => d.id === deviceId);
-    if (!device?.ports || device.ports.length === 0) return [];
-    const portIds = new SvelteSet(device.ports.map((p) => p.id));
+    if (!device?.ports || device.ports.length === 0) return undefined;
+    return new SvelteSet(device.ports.map((p) => p.id));
+  }
+
+  /**
+   * Get connections attached to any port on a specific device
+   */
+  function getConnectionsForDevice(deviceId: string): Connection[] {
+    const portIds = getPortIdsForDevice(deviceId);
+    if (!portIds) return [];
     return getConnections().filter(
       (c) => portIds.has(c.a_port_id) || portIds.has(c.b_port_id),
     );
@@ -222,22 +234,29 @@ export function getConnectionStore() {
    */
   function updateConnection(
     id: string,
-    updates: Partial<Connection>,
+    updates: Partial<Omit<Connection, "id">>,
   ): { success: true } | { errors: string[] } {
     const existing = getConnection(id);
     if (!existing) {
       return { errors: ["Connection not found"] };
     }
 
-    // Only revalidate endpoints if the update touches a port; label/color
-    // edits skip the port-based checks entirely.
-    if (updates.a_port_id !== undefined || updates.b_port_id !== undefined) {
-      const merged: CreateConnectionInput = {
-        a_port_id: updates.a_port_id ?? existing.a_port_id,
-        b_port_id: updates.b_port_id ?? existing.b_port_id,
-      };
+    // Revalidate whenever the payload touches an endpoint key at all, not
+    // just when its value is non-undefined: an explicit `{ a_port_id:
+    // undefined }` still has the key present and would otherwise skip this
+    // gate, then blank the endpoint when the raw mutator spreads it in.
+    const touchesAPort = "a_port_id" in updates;
+    const touchesBPort = "b_port_id" in updates;
+    if (touchesAPort || touchesBPort) {
+      const nextAPortId = touchesAPort ? updates.a_port_id : existing.a_port_id;
+      const nextBPortId = touchesBPort ? updates.b_port_id : existing.b_port_id;
+      // a_port_id/b_port_id are required strings on Connection; an explicit
+      // undefined/empty value here is itself invalid, not "no change".
+      if (!nextAPortId || !nextBPortId) {
+        return { errors: ["Connection endpoints cannot be cleared"] };
+      }
       const validation = validateConnection(
-        merged,
+        { a_port_id: nextAPortId, b_port_id: nextBPortId },
         getConnections(),
         getAllPlacedPorts(),
         id,
@@ -267,11 +286,8 @@ export function getConnectionStore() {
    * @returns The number of connections removed
    */
   function removeConnectionsForDevice(deviceId: string): number {
-    const device = layoutStore.racks
-      .flatMap((rack) => rack.devices)
-      .find((d) => d.id === deviceId);
-    if (!device?.ports || device.ports.length === 0) return 0;
-    const portIds = new SvelteSet(device.ports.map((p) => p.id));
+    const portIds = getPortIdsForDevice(deviceId);
+    if (!portIds) return 0;
     return layoutStore.removeConnectionsForPortsRecorded(portIds);
   }
 
@@ -284,7 +300,10 @@ export function getConnectionStore() {
     layoutStore.addConnectionRaw(connection);
   }
 
-  function updateConnectionRaw(id: string, updates: Partial<Connection>): void {
+  function updateConnectionRaw(
+    id: string,
+    updates: Partial<Omit<Connection, "id">>,
+  ): void {
     layoutStore.updateConnectionRaw(id, updates);
   }
 

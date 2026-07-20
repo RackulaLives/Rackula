@@ -49,7 +49,7 @@ export function addConnectionRecorded(
 export function updateConnectionRecorded(
   ctx: LayoutStateAccess,
   id: string,
-  updates: Partial<Connection>,
+  updates: Partial<Omit<Connection, "id">>,
 ): boolean {
   const layout = ctx.getLayout();
   const existing = (layout.connections ?? []).find((c) => c.id === id);
@@ -57,8 +57,11 @@ export function updateConnectionRecorded(
 
   // Capture before-state for only the keys being changed, mirroring
   // updateRackRecorded in recorded-rack-actions.ts.
-  const before: Partial<Connection> = {};
-  for (const key of Object.keys(updates) as (keyof Connection)[]) {
+  const before: Partial<Omit<Connection, "id">> = {};
+  for (const key of Object.keys(updates) as (keyof Omit<
+    Connection,
+    "id"
+  >)[]) {
     before[key] = existing[key] as never;
   }
 

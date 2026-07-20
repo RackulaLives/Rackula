@@ -15,7 +15,10 @@ import type { Connection } from "$lib/types";
  */
 export interface ConnectionCommandStore {
   addConnectionRaw(connection: Connection): void;
-  updateConnectionRaw(id: string, updates: Partial<Connection>): void;
+  updateConnectionRaw(
+    id: string,
+    updates: Partial<Omit<Connection, "id">>,
+  ): void;
   removeConnectionRaw(id: string): void;
 }
 
@@ -46,8 +49,8 @@ export function createAddConnectionCommand(
  */
 export function createUpdateConnectionCommand(
   id: string,
-  before: Partial<Connection>,
-  after: Partial<Connection>,
+  before: Partial<Omit<Connection, "id">>,
+  after: Partial<Omit<Connection, "id">>,
   store: ConnectionCommandStore,
   description: string = "Update connection",
 ): Command {
