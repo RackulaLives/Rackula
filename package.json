@@ -96,7 +96,7 @@
     "pako": "^3.0.1",
     "panzoom": "^9.4.4",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.26.0",
+    "simple-icons": "^16.27.0",
     "svg2pdf.js": "^2.7.0",
     "zod": "^4.4.3"
   }
