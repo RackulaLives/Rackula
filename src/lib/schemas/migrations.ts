@@ -18,7 +18,7 @@ import { heightToInternalUnits } from "$lib/utils/position";
  * document's metadata.schema_version against this constant. See the versioning
  * policy in docs/reference/SCHEMA.md (#1113).
  */
-export const SCHEMA_VERSION = "1.0";
+export const SCHEMA_VERSION = "1.1";
 
 /** MAJOR component of a MAJOR.MINOR version string (untrusted-input safe). */
 export function majorOf(version: string): number {

@@ -25,6 +25,14 @@
     "1000base-x-sfp": "1GbE SFP",
     console: "Console",
     management: "Management",
+    "xlr-3": "XLR",
+    "trs-1-4": '1/4" TRS',
+    "ts-1-4": '1/4" TS',
+    rca: "RCA",
+    "adat-optical": "ADAT Optical",
+    "midi-din": "MIDI (5-pin DIN)",
+    bnc: "BNC",
+    "db25-audio": "DB25 (TASCAM)",
   };
 
   // Get human-readable type label

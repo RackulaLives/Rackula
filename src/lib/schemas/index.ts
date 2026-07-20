@@ -162,6 +162,15 @@ export const InterfaceTypeSchema = z.enum([
   // Virtual
   "virtual",
   "lag",
+  // Pro audio / AV (fork; per spike #1927 taxonomy)
+  "xlr-3",
+  "trs-1-4",
+  "ts-1-4",
+  "rca",
+  "adat-optical",
+  "midi-din",
+  "bnc",
+  "db25-audio",
   // Other
   "other",
 ]);
