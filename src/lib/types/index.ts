@@ -210,6 +210,11 @@ export type PoEMode = "pd" | "pse";
 export type InterfacePosition = "front" | "rear";
 
 /**
+ * Port signal direction (spike #1927; used for AV signal routing)
+ */
+export type PortDirection = "input" | "output" | "bidirectional";
+
+/**
  * Cable type (NetBox-compatible)
  * Physical cable types for network, fiber, and power connections
  */
@@ -271,6 +276,8 @@ export interface InterfaceTemplate {
   poe_mode?: PoEMode;
   /** PoE type/standard */
   poe_type?: PoEType;
+  /** Signal direction. Provides the default used when the placed port omits its own. */
+  direction?: PortDirection;
 }
 
 /**
@@ -390,6 +397,8 @@ export interface PlacedPort {
   type: InterfaceType;
   /** User override label for this port instance */
   label?: string;
+  /** Signal direction override; falls back to the InterfaceTemplate default when unset */
+  direction?: PortDirection;
 }
 
 // =============================================================================

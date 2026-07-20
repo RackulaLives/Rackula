@@ -4,8 +4,9 @@
   Renders at the document level, positioned using fixed coordinates.
 -->
 <script lang="ts">
-  import type { InterfaceType } from "$lib/types";
+  import type { InterfaceTemplate, InterfaceType } from "$lib/types";
   import { getPortTooltipState } from "$lib/stores/portTooltip.svelte";
+  import { inferDirection } from "$lib/utils/port-utils";
 
   // Get reactive tooltip state from store
   const tooltipState = $derived(getPortTooltipState());
@@ -53,6 +54,20 @@
     return TYPE_LABELS[type] ?? type;
   }
 
+  const DIRECTION_LABELS = {
+    input: "Input",
+    output: "Output",
+    bidirectional: "Bidirectional",
+  } as const;
+
+  // Get human-readable direction label; null when no direction is set or
+  // inferred (AV types without an explicit direction).
+  function getDirectionLabel(port: InterfaceTemplate): string | null {
+    const direction =
+      port.direction ?? inferDirection(port.type, port.mgmt_only);
+    return direction ? DIRECTION_LABELS[direction] : null;
+  }
+
   // Get PoE label
   function getPoELabel(
     poeMode?: "pd" | "pse",
@@ -76,6 +91,9 @@
   <div class="port-tooltip" role="tooltip" style="left: {x}px; top: {y}px;">
     <div class="port-tooltip-name">{port.label ?? port.name}</div>
     <div class="port-tooltip-type">{getTypeLabel(port.type)}</div>
+    {#if getDirectionLabel(port)}
+      <div class="port-tooltip-direction">{getDirectionLabel(port)}</div>
+    {/if}
     {#if port.mgmt_only}
       <div class="port-tooltip-badge mgmt">Management Only</div>
     {/if}
@@ -127,6 +145,11 @@
   }
 
   .port-tooltip-type {
+    color: var(--colour-text-muted-inverse, rgba(255, 255, 255, 0.7));
+    font-size: var(--font-size-xs);
+  }
+
+  .port-tooltip-direction {
     color: var(--colour-text-muted-inverse, rgba(255, 255, 255, 0.7));
     font-size: var(--font-size-xs);
   }

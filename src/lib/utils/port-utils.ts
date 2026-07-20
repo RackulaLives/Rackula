@@ -3,7 +3,7 @@
  * Functions for port instantiation when devices are placed
  */
 
-import type { DeviceType, PlacedPort } from "$lib/types";
+import type { DeviceType, PlacedPort, PortDirection } from "$lib/types";
 import { generateId } from "$lib/utils/device";
 
 export type PortCategory = "network" | "power" | "console" | "av";
@@ -43,6 +43,14 @@ const AV_INTERFACE_TYPES = new Set<string>([
 ]);
 
 /**
+ * Interface types whose direction defaults to "input" (spike #1927 taxonomy):
+ * management/console ports and the AV control-serial types. Checked before
+ * AV_INTERFACE_TYPES in inferDirection() since rs-232/rs-422 are members of
+ * both sets and the specific input default takes priority.
+ */
+const INPUT_DEFAULT_TYPES = new Set<string>(["console", "rs-232", "rs-422"]);
+
+/**
  * Categorize an interface type string into network, power, console, or av.
  * Uses string matching for network/power/console so it handles future types
  * (e.g. power-inlet-*) even before they are added to the InterfaceType enum.
@@ -63,6 +71,36 @@ export function getPortCategory(type: string): PortCategory {
     return "power";
   }
   return "network";
+}
+
+/**
+ * Infer the default signal direction for an interface type (spike #1927).
+ * Used when an InterfaceTemplate (or PlacedPort) does not set `direction`
+ * explicitly:
+ * - Management-only interfaces default to "input".
+ * - Console and AV control-serial types (rs-232, rs-422) default to "input".
+ * - All other AV types (XLR, HDMI, SDI, ...) have no default: direction must
+ *   be set explicitly on the device type.
+ * - Everything else (network, power, USB, etc.) defaults to "bidirectional".
+ *
+ * @param type - Interface type string
+ * @param mgmtOnly - Whether the interface is management-only
+ * @returns The inferred direction, or undefined if none should be assumed
+ */
+export function inferDirection(
+  type: string,
+  mgmtOnly?: boolean,
+): PortDirection | undefined {
+  if (mgmtOnly) {
+    return "input";
+  }
+  if (INPUT_DEFAULT_TYPES.has(type)) {
+    return "input";
+  }
+  if (AV_INTERFACE_TYPES.has(type)) {
+    return undefined;
+  }
+  return "bidirectional";
 }
 
 /**

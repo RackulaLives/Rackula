@@ -12,12 +12,17 @@
   - Hover tooltips with port details (#251)
 -->
 <script lang="ts">
-  import type { InterfaceTemplate, InterfaceType, RackView } from "$lib/types";
+  import type {
+    InterfaceTemplate,
+    InterfaceType,
+    PortDirection,
+    RackView,
+  } from "$lib/types";
   import {
     showPortTooltip,
     hidePortTooltip,
   } from "$lib/stores/portTooltip.svelte";
-  import { getPortCategory } from "$lib/utils/port-utils";
+  import { getPortCategory, inferDirection } from "$lib/utils/port-utils";
 
   interface Props {
     interfaces: InterfaceTemplate[];
@@ -84,6 +89,14 @@
 
   function getInterfaceColor(type: InterfaceType): string {
     return INTERFACE_COLORS[type] ?? CATEGORY_COLORS[getPortCategory(type)];
+  }
+
+  // Direction arrow shown for input/output ports (none for bidirectional,
+  // and none when an AV type has no explicit or inferred direction).
+  function getPortDirection(
+    iface: InterfaceTemplate,
+  ): PortDirection | undefined {
+    return iface.direction ?? inferDirection(iface.type, iface.mgmt_only);
   }
 
   // Filter interfaces for current view
@@ -214,6 +227,27 @@
             ⚡
           </text>
         {/if}
+
+        <!-- Direction arrow (input/output only; bidirectional and unset show nothing) -->
+        {#if getPortDirection(iface) === "input"}
+          <text
+            class="port-direction-indicator"
+            x={x - PORT_RADIUS - 2}
+            y={y + 2}
+            text-anchor="end"
+          >
+            &#8592;
+          </text>
+        {:else if getPortDirection(iface) === "output"}
+          <text
+            class="port-direction-indicator"
+            x={x + PORT_RADIUS + 2}
+            y={y + 2}
+            text-anchor="start"
+          >
+            &#8594;
+          </text>
+        {/if}
       {/each}
 
       <!-- Invisible SVG click targets (larger than visual ports, Safari compatible) -->
@@ -281,6 +315,12 @@
   }
 
   .port-poe-indicator {
+    font-size: 6px;
+    pointer-events: none;
+  }
+
+  .port-direction-indicator {
+    fill: var(--colour-port-indicator);
     font-size: 6px;
     pointer-events: none;
   }

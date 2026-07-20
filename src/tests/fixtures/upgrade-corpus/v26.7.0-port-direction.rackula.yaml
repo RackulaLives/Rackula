@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
+metadata:
+  id: 7d2e9c4a-1f6b-4a3d-9e2c-5b8a3f7d1c66
+  name: Port Direction Demo Rack
+  schema_version: "1.0"
+version: "26.7.0"
+name: Port Direction Demo Rack
+racks:
+  - id: rack-direction
+    name: Direction Demo Rack
+    height: 8
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: dev-direction-demo
+        device_type: direction-demo-device
+        position: 3
+        face: front
+        ports:
+          - id: port-line-out
+            template_name: Line Out
+            template_index: 0
+            type: hdmi
+            direction: input
+          - id: port-line-in
+            template_name: Line In
+            template_index: 1
+            type: hdmi
+            direction: input
+          - id: port-uplink
+            template_name: Uplink
+            template_index: 2
+            type: 1000base-t
+device_types:
+  - slug: direction-demo-device
+    manufacturer: Acme AV
+    model: Direction Demo 1U
+    u_height: 1
+    colour: "#8BE9FD"
+    category: av-media
+    interfaces:
+      - name: Line Out
+        type: hdmi
+        direction: output
+      - name: Line In
+        type: hdmi
+        direction: input
+      - name: Uplink
+        type: 1000base-t
+settings:
+  display_mode: label
+  show_labels_on_images: false
