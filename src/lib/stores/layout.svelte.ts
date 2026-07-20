@@ -18,6 +18,7 @@ import type {
   RackView,
   DisplayMode,
   Cable,
+  Connection,
 } from "$lib/types";
 import { MAX_RACKS } from "$lib/types/constants";
 import { createLayout } from "$lib/utils/serialization";
@@ -96,6 +97,9 @@ import {
   updateCableRaw as updateCableRawImpl,
   removeCableRaw as removeCableRawImpl,
   removeCablesRaw as removeCablesRawImpl,
+  addConnectionRaw as addConnectionRawImpl,
+  updateConnectionRaw as updateConnectionRawImpl,
+  removeConnectionRaw as removeConnectionRawImpl,
 } from "./layout/mutators";
 import {
   addDeviceTypeRecorded as addDeviceTypeRecordedImpl,
@@ -119,6 +123,12 @@ import {
   updateRacksBatchRecorded as updateRacksBatchRecordedImpl,
   clearRackRecorded as clearRackRecordedImpl,
 } from "./layout/recorded-rack-actions";
+import {
+  addConnectionRecorded as addConnectionRecordedImpl,
+  updateConnectionRecorded as updateConnectionRecordedImpl,
+  removeConnectionRecorded as removeConnectionRecordedImpl,
+  removeConnectionsForPortsRecorded as removeConnectionsForPortsRecordedImpl,
+} from "./layout/recorded-connection-actions";
 import {
   duplicateDevice as duplicateDeviceImpl,
   placeInContainer as placeInContainerImpl,
@@ -382,6 +392,17 @@ export function createLayoutStore(
     updateCableRaw,
     removeCableRaw,
     removeCablesRaw,
+
+    // Connection raw actions
+    addConnectionRaw,
+    updateConnectionRaw,
+    removeConnectionRaw,
+
+    // Connection recorded actions (use undo/redo)
+    addConnectionRecorded,
+    updateConnectionRecorded,
+    removeConnectionRecorded,
+    removeConnectionsForPortsRecorded,
 
     // Utility
     getUsedDeviceTypeSlugs,
@@ -1074,6 +1095,44 @@ export function createLayoutStore(
 
   function removeCablesRaw(ids: Set<string>): void {
     removeCablesRawImpl(stateAccess, ids);
+  }
+
+  // Connection raw actions
+
+  function addConnectionRaw(connection: Connection): void {
+    addConnectionRawImpl(stateAccess, connection);
+  }
+
+  function updateConnectionRaw(
+    id: string,
+    updates: Partial<Omit<Connection, "id">>,
+  ): void {
+    updateConnectionRawImpl(stateAccess, id, updates);
+  }
+
+  function removeConnectionRaw(id: string): void {
+    removeConnectionRawImpl(stateAccess, id);
+  }
+
+  // Connection recorded actions (use undo/redo)
+
+  function addConnectionRecorded(connection: Connection): void {
+    addConnectionRecordedImpl(stateAccess, connection);
+  }
+
+  function updateConnectionRecorded(
+    id: string,
+    updates: Partial<Omit<Connection, "id">>,
+  ): boolean {
+    return updateConnectionRecordedImpl(stateAccess, id, updates);
+  }
+
+  function removeConnectionRecorded(id: string): Connection | undefined {
+    return removeConnectionRecordedImpl(stateAccess, id);
+  }
+
+  function removeConnectionsForPortsRecorded(portIds: Set<string>): number {
+    return removeConnectionsForPortsRecordedImpl(stateAccess, portIds);
   }
 
   // =============================================================================
