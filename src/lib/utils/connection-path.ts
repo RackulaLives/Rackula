@@ -183,6 +183,77 @@ export function cubicBezierTangentAt(
   };
 }
 
+function lerpPoint(a: Point, b: Point, t: number): Point {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+/** De Casteljau subdivision: control points either side of parameter t. */
+function splitCubic(
+  p0: Point,
+  p1: Point,
+  p2: Point,
+  p3: Point,
+  t: number,
+): { left: [Point, Point, Point, Point]; right: [Point, Point, Point, Point] } {
+  const a = lerpPoint(p0, p1, t);
+  const b = lerpPoint(p1, p2, t);
+  const c = lerpPoint(p2, p3, t);
+  const d = lerpPoint(a, b, t);
+  const e = lerpPoint(b, c, t);
+  const f = lerpPoint(d, e, t);
+  return { left: [p0, a, d, f], right: [f, e, c, p3] };
+}
+
+/**
+ * Fraction of the curve's parameter range trimmed off each end when building
+ * a connection's invisible hit-stroke (see ConnectionPath.svelte and
+ * trimCubicBezier below). Not applied to the visible line or arrow.
+ */
+export const HIT_PATH_TRIM = 0.1;
+
+/**
+ * The exact cubic bezier sub-segment spanning parameter range [t0, t1] of the
+ * original curve (De Casteljau subdivision, applied twice: once to keep
+ * [0, t1], then again on that result to keep [t0, t1]). Bezier curves are
+ * closed under sub-segment extraction, so this is exact, not an
+ * approximation.
+ *
+ * Used to trim ConnectionPath's invisible hit-stroke away from both curve
+ * endpoints. A connection's endpoints are exactly its own two port anchors;
+ * an untrimmed, pointer-events-enabled hit-stroke reaching all the way to
+ * them sits on top of (ConnectionLayer renders after the device layer) each
+ * port's own, smaller hit-circle. Since the hit-stroke has no click handler,
+ * a click there does not fall through to the port or device underneath - it
+ * bubbles past them entirely to whatever ancestor does handle it (the rack
+ * container's own click handler), silently doing the wrong thing instead of
+ * selecting/clicking the port. Trimming the ends keeps the fat, hover-
+ * friendly hit target everywhere else - which, per the external-channel
+ * routing, is nearly the curve's whole length, since it spends only a short
+ * span near each end inside the rack body at all (see #1931 PR review).
+ */
+export function trimCubicBezier(
+  source: Point,
+  control: CubicControlPoints,
+  target: Point,
+  t0: number,
+  t1: number,
+): { source: Point; control: CubicControlPoints; target: Point } {
+  if (t1 <= t0) {
+    const point = cubicBezierPointAt(source, control, target, t0);
+    return { source: point, control: { c1: point, c2: point }, target: point };
+  }
+
+  const { left } = splitCubic(source, control.c1, control.c2, target, t1);
+  const t0Relative = t0 / t1;
+  const { right } = splitCubic(left[0], left[1], left[2], left[3], t0Relative);
+
+  return {
+    source: right[0],
+    control: { c1: right[1], c2: right[2] },
+    target: right[3],
+  };
+}
+
 /**
  * Which way a direction arrow should point, or null when no arrow should be
  * drawn. Gating rule (#1931 AC): an arrow renders only when the two ports
@@ -277,6 +348,12 @@ export function arrowPointsAttr(triangle: ArrowTriangle): string {
 
 export interface ConnectionGeometry {
   path: string;
+  /**
+   * A trimmed sub-segment of `path` (see trimCubicBezier/HIT_PATH_TRIM),
+   * for the invisible hit-stroke only. Never used for the visible line or
+   * arrow, both of which use the full `path`.
+   */
+  hitPath: string;
   side: ChannelSide;
   midpoint: Point;
   arrow: ArrowTriangle | null;
@@ -309,6 +386,18 @@ export function computeConnectionGeometry(
     options.gutterOffset,
   );
   const path = buildCubicBezierPath(source, control, target);
+  const trimmed = trimCubicBezier(
+    source,
+    control,
+    target,
+    HIT_PATH_TRIM,
+    1 - HIT_PATH_TRIM,
+  );
+  const hitPath = buildCubicBezierPath(
+    trimmed.source,
+    trimmed.control,
+    trimmed.target,
+  );
   const midpoint = cubicBezierPointAt(source, control, target, 0.5);
   const arrow = computeArrowTriangle(
     source,
@@ -318,7 +407,7 @@ export function computeConnectionGeometry(
     options.arrowSize,
   );
 
-  return { path, side, midpoint, arrow };
+  return { path, hitPath, side, midpoint, arrow };
 }
 
 /**
@@ -392,6 +481,17 @@ export interface ResolvedPortAnchor {
  * contribute no entries for their ports - getPortAnchors returns [] for them
  * by design - which is what lets buildRenderedConnections below skip a
  * connection to such a port instead of guessing at a location for it.
+ *
+ * `devices` is expected to be top-level (non-container-child) placements
+ * only, same as what RackDevice actually renders a body for. Container
+ * children (PlacedDevice.container_id set) are deliberately out of scope
+ * here, not merely forgotten: RackDevice's own container-children block
+ * renders a plain rect + label with no PortIndicators call, so a child's
+ * ports have no rendered indicator or computed anchor anywhere in the app
+ * yet, independent of this module. A connection to a child's port therefore
+ * has no anchor to resolve and is skipped by buildRenderedConnections, the
+ * same graceful fallback used for grouped/high-density and wrong-face ports.
+ * Tracked as follow-up work: #3117.
  */
 export function buildPortAnchorMap(
   devices: PlacedDevice[],

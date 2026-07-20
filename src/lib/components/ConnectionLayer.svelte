@@ -12,9 +12,9 @@
   Anchors come exclusively from port-geometry.ts's getPortAnchors (#3089),
   by way of connection-path.ts's buildPortAnchorMap - never recomputed here.
   A connection whose port has no anchor (grouped/high-density device, wrong
-  rack face, cross-rack endpoint, or legacy data with no PlacedPort match)
-  is silently skipped rather than approximated; see buildRenderedConnections'
-  doc comment for the reasoning.
+  rack face, cross-rack endpoint, container-child device (#3117), or legacy
+  data with no PlacedPort match) is silently skipped rather than
+  approximated; see buildRenderedConnections' doc comment for the reasoning.
 -->
 <script lang="ts">
   import type { DeviceType, PlacedDevice, RackView } from "$lib/types";
@@ -27,7 +27,13 @@
   import ConnectionPath from "./ConnectionPath.svelte";
 
   interface Props {
-    /** This rack's currently-visible, non-container-child devices (same set RackDevice renders). */
+    /**
+     * This rack's currently-visible, non-container-child devices (same set
+     * RackDevice renders). Container-child ports have no rendered anchor
+     * anywhere yet (RackDevice's children block has no PortIndicators); a
+     * connection to one is skipped by buildRenderedConnections rather than
+     * approximated. Tracked as follow-up work: #3117.
+     */
     devices: PlacedDevice[];
     deviceLibrary: DeviceType[];
     /** Matches RackDevice's own rackView default: falls back to "front" when the rack has no view set. */

@@ -8,6 +8,19 @@
   (a lightweight tooltip, per the issue's Testing Notes; hover/frame-rate
   behaviour is verified manually / via E2E, not by unit tests), while a CSS
   :hover on the shared group highlights the visible line and arrow.
+
+  Interaction model: the hit-stroke uses geometry.hitPath, a version of the
+  curve trimmed away from both endpoints (see trimCubicBezier in
+  connection-path.ts), not the full geometry.path the visible line/arrow use.
+  ConnectionLayer renders after (visually above) the device layer, so an
+  untrimmed, pointer-events-enabled hit-stroke reaching all the way to a
+  connection's own port anchors would sit on top of those ports' own hit
+  targets. Since the hit-stroke has no click handler, a click landing on it
+  does not fall through to the port/device underneath - it bubbles past them
+  to whatever ancestor does handle clicks (the rack container), silently
+  doing the wrong thing instead of hitting the port. Trimming the ends keeps
+  the hover/tooltip target everywhere except right at the ports, where the
+  port's own hit target should win (#1931 PR review).
 -->
 <script lang="ts">
   import type { Connection } from "$lib/types";
@@ -35,10 +48,10 @@
 <g class="connection">
   <path
     class="connection-hit"
-    d={geometry.path}
+    d={geometry.hitPath}
     fill="none"
     stroke="transparent"
-    stroke-width="12"
+    stroke-width="8"
   >
     {#if connection.label}
       <title>{connection.label}</title>

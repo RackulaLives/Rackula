@@ -25,6 +25,7 @@ import {
 } from "./factories";
 import {
   DEFAULT_GUTTER_OFFSET,
+  HIT_PATH_TRIM,
   arrowPointsAttr,
   assignChannelSide,
   buildCubicBezierPath,
@@ -38,6 +39,7 @@ import {
   cubicBezierTangentAt,
   resolveArrowDirection,
   resolveConnectionPortDirection,
+  trimCubicBezier,
   type ResolvedPortAnchor,
 } from "$lib/utils/connection-path";
 import { HIGH_DENSITY_THRESHOLD } from "$lib/utils/port-geometry";
@@ -147,6 +149,48 @@ describe("cubicBezierTangentAt", () => {
         y: 60,
       });
     }
+  });
+});
+
+describe("trimCubicBezier", () => {
+  // A genuinely curved (non-collinear) fixture, so the subdivision test
+  // below is not trivially satisfied by a degenerate straight-line case.
+  const source = { x: 0, y: 0 };
+  const control = { c1: { x: 0, y: 100 }, c2: { x: 100, y: 100 } };
+  const target = { x: 100, y: 0 };
+
+  it("leaves the curve unchanged when trimming the full [0, 1] range", () => {
+    const trimmed = trimCubicBezier(source, control, target, 0, 1);
+    expect(trimmed).toEqual({ source, control, target });
+  });
+
+  it("reproduces the exact original curve over the trimmed sub-range (De Casteljau exactness)", () => {
+    const t0 = 0.15;
+    const t1 = 0.85;
+    const trimmed = trimCubicBezier(source, control, target, t0, t1);
+
+    for (const s of [0, 0.25, 0.5, 0.75, 1]) {
+      const originalT = t0 + s * (t1 - t0);
+      const expected = cubicBezierPointAt(source, control, target, originalT);
+      const actual = cubicBezierPointAt(
+        trimmed.source,
+        trimmed.control,
+        trimmed.target,
+        s,
+      );
+      expect(actual.x).toBeCloseTo(expected.x, 6);
+      expect(actual.y).toBeCloseTo(expected.y, 6);
+    }
+  });
+
+  it("collapses to a single point when t1 does not exceed t0", () => {
+    const point = cubicBezierPointAt(source, control, target, 0.4);
+    const trimmed = trimCubicBezier(source, control, target, 0.4, 0.4);
+    expect(trimmed).toEqual({
+      source: point,
+      control: { c1: point, c2: point },
+      target: point,
+    });
   });
 });
 
@@ -298,6 +342,37 @@ describe("computeConnectionGeometry", () => {
     expect(geometry.midpoint).toEqual(
       cubicBezierPointAt(source, control, target, 0.5),
     );
+  });
+
+  it("trims the hit-stroke path away from both endpoints, unlike the full visible path", () => {
+    const geometry = computeConnectionGeometry(
+      source,
+      target,
+      rackBounds,
+      0,
+      null,
+    );
+    const control = computeChannelControlPoints(
+      source,
+      target,
+      rackBounds,
+      "right",
+    );
+    const trimmedStart = cubicBezierPointAt(
+      source,
+      control,
+      target,
+      HIT_PATH_TRIM,
+    );
+
+    // The full path still starts at the true source (the port anchor).
+    expect(geometry.path.startsWith(`M ${source.x},${source.y}`)).toBe(true);
+
+    expect(geometry.hitPath).not.toBe(geometry.path);
+    const hitStartMatch = geometry.hitPath.match(/^M ([\d.-]+),([\d.-]+)/);
+    expect(hitStartMatch).not.toBeNull();
+    expect(Number(hitStartMatch![1])).toBeCloseTo(trimmedStart.x, 6);
+    expect(Number(hitStartMatch![2])).toBeCloseTo(trimmedStart.y, 6);
   });
 });
 
@@ -463,8 +538,7 @@ describe("buildRenderedConnections", () => {
       rackBounds,
     );
 
-    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: exactly one fully-anchored connection renders
-    expect(rendered).toHaveLength(1);
+    expect(rendered.map((r) => r.connection.id)).toEqual([connection.id]);
     expect(rendered[0].connection).toBe(connection);
     expect(rendered[0].geometry.arrow).not.toBeNull();
   });
@@ -519,8 +593,7 @@ describe("buildRenderedConnections", () => {
       rackBounds,
     );
 
-    // eslint-disable-next-line no-restricted-syntax -- behavioral invariant: the skipped connection must not render or consume a channel-side slot
-    expect(rendered).toHaveLength(2);
+    expect(rendered.map((r) => r.connection.id)).toEqual(["conn-1", "conn-3"]);
     expect(rendered[0].geometry.side).toBe("right");
     expect(rendered[1].geometry.side).toBe("left");
   });
