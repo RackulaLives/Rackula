@@ -15,6 +15,8 @@
   import type {
     InterfaceTemplate,
     InterfaceType,
+    PlacedPort,
+    PortClickInfo,
     PortDirection,
     RackView,
   } from "$lib/types";
@@ -23,18 +25,26 @@
     hidePortTooltip,
   } from "$lib/stores/portTooltip.svelte";
   import { getPortCategory, inferDirection } from "$lib/utils/port-utils";
+  import {
+    computeVisiblePortLayout,
+    HIGH_DENSITY_THRESHOLD,
+    PORT_Y_OFFSET,
+  } from "$lib/utils/port-geometry";
 
   interface Props {
     interfaces: InterfaceTemplate[];
+    /** Placed port instances for this device, keyed to `interfaces` by template_index (#3089). */
+    ports?: PlacedPort[];
     deviceWidth: number;
     deviceHeight: number;
     rackView: RackView;
     showPorts?: boolean;
-    onPortClick?: (iface: InterfaceTemplate) => void;
+    onPortClick?: (info: PortClickInfo) => void;
   }
 
   let {
     interfaces,
+    ports = [],
     deviceWidth,
     deviceHeight,
     rackView,
@@ -76,11 +86,6 @@
 
   // Constants for port rendering
   const PORT_RADIUS = 3;
-  const PORT_SPACING = 8;
-  const PORT_Y_OFFSET = 8; // Distance from bottom of device
-
-  // High-density threshold
-  const HIGH_DENSITY_THRESHOLD = 24;
 
   // Badge dimensions for high-density mode
   const BADGE_WIDTH = 24;
@@ -112,24 +117,22 @@
     visibleInterfaces.length > HIGH_DENSITY_THRESHOLD,
   );
 
-  // Calculate port positions (centered horizontally)
-  const portPositions = $derived.by(() => {
-    if (isHighDensity) return [];
-
-    const count = visibleInterfaces.length;
-    if (count === 0) return [];
-
-    const totalWidth = (count - 1) * PORT_SPACING;
-    const startX = (deviceWidth - totalWidth) / 2;
-    const y = deviceHeight - PORT_Y_OFFSET;
-
-    return visibleInterfaces.map((iface, i) => ({
-      iface,
-      x: startX + i * PORT_SPACING,
-      y,
-      color: getInterfaceColor(iface.type),
-    }));
-  });
+  // Port positions (centered horizontally), keyed by PlacedPort.id where one
+  // exists. Delegates to the shared geometry helper (#3089) so this layout
+  // and the one ConnectionLayer (#1931) will look up an anchor from are
+  // always identical.
+  const portPositions = $derived(
+    computeVisiblePortLayout({
+      interfaces,
+      ports,
+      rackView,
+      deviceWidth,
+      deviceHeight,
+    }).map((entry) => ({
+      ...entry,
+      color: getInterfaceColor(entry.iface.type),
+    })),
+  );
 
   // Group ports by type for high-density mode
   const portGroups = $derived.by(() => {
@@ -168,8 +171,11 @@
     }));
   });
 
-  function handlePortClick(iface: InterfaceTemplate) {
-    onPortClick?.(iface);
+  function handlePortClick(
+    iface: InterfaceTemplate,
+    port: PlacedPort | undefined,
+  ) {
+    onPortClick?.({ portId: port?.id, iface });
   }
 
   function handlePortMouseEnter(event: MouseEvent, iface: InterfaceTemplate) {
@@ -200,7 +206,11 @@
   <g class="port-indicators">
     {#if !isHighDensity}
       <!-- Individual port circles for low-density devices -->
-      {#each portPositions as { iface, x, y, color } (iface.name)}
+      <!-- Keyed by PlacedPort.id when available; falls back to the loop
+           index, not iface.name, since duplicate interface names are legal
+           (see port-geometry.ts) and legacy layouts can leave every port
+           undefined, which would make an iface.name-only fallback collide. -->
+      {#each portPositions as { iface, port, x, y, color }, i (port?.id ?? i)}
         <circle
           class="port-circle"
           cx={x}
@@ -251,7 +261,7 @@
       {/each}
 
       <!-- Invisible SVG click targets (larger than visual ports, Safari compatible) -->
-      {#each portPositions as { iface, x, y } (iface.name)}
+      {#each portPositions as { iface, port, x, y }, i (port?.id ?? i)}
         <circle
           class="port-hit-target"
           cx={x}
@@ -261,13 +271,13 @@
           role="button"
           tabindex="0"
           aria-label="{iface.label ?? iface.name} ({iface.type})"
-          onclick={() => handlePortClick(iface)}
+          onclick={() => handlePortClick(iface, port)}
           onmouseenter={(e) => handlePortMouseEnter(e, iface)}
           onmouseleave={handlePortMouseLeave}
           onkeydown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              handlePortClick(iface);
+              handlePortClick(iface, port);
             }
           }}
         >

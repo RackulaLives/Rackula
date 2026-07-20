@@ -6,8 +6,9 @@
   import type {
     DeviceType,
     DisplayMode,
-    InterfaceTemplate,
     PlacedDevice,
+    PlacedPort,
+    PortClickInfo,
     RackView,
   } from "$lib/types";
   import { SvelteMap } from "svelte/reactivity";
@@ -74,6 +75,8 @@
     }>;
     /** ID of currently selected child device (for highlighting) */
     selectedChildId?: string | null;
+    /** Instantiated port instances for this placement (PlacedDevice.ports), passed alongside device.interfaces (#3089) */
+    ports?: PlacedPort[];
     /** Whether a device is being dragged over this container (shows slot overlay) */
     isDragOverContainer?: boolean;
     /** The slot ID currently targeted during drag (null if none) */
@@ -104,7 +107,7 @@
         y: number;
       }>,
     ) => void;
-    onPortClick?: (iface: InterfaceTemplate) => void;
+    onPortClick?: (info: PortClickInfo) => void;
   }
 
   let {
@@ -127,6 +130,7 @@
     deviceLibrary = [],
     containerChildDevices = [],
     selectedChildId = null,
+    ports = [],
     isDragOverContainer = false,
     dragTargetSlotId = null,
     isDragTargetValid = false,
@@ -839,6 +843,7 @@
   {#if device.interfaces?.length}
     <PortIndicators
       interfaces={device.interfaces}
+      {ports}
       {deviceWidth}
       {deviceHeight}
       {rackView}

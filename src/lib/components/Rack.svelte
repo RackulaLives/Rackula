@@ -562,6 +562,7 @@
               {showLabelsOnImages}
               placedDeviceName={placedDevice.name}
               placedDeviceId={placedDevice.id}
+              ports={placedDevice.ports}
               frontImageRef={placedDevice.front_image}
               rearImageRef={placedDevice.rear_image}
               colourOverride={placedDevice.colour_override}
