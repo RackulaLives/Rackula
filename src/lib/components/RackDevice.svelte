@@ -29,6 +29,7 @@
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
+  import { getConnectionCreationStore } from "$lib/stores/connection-creation.svelte";
   import { placementKey } from "$lib/utils/placement-key";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { useLongPress } from "$lib/utils/gestures";
@@ -154,6 +155,7 @@
   const imageStore = getImageStore();
   const layoutStore = getLayoutStore();
   const placementStore = getPlacementStore();
+  const connectionCreationStore = getConnectionCreationStore();
 
   // Check if display mode shows images (either 'image' or 'image-label')
   const isImageMode = $derived(
@@ -632,10 +634,17 @@
     }
   }
 
-  // Context menu handler (right-click) - opens device context menu
+  // Context menu handler (right-click) - opens device context menu, unless
+  // connection-creation mode is armed (#1932), in which case right-click
+  // cancels the mode instead (mirrors Escape). Ports render inside this
+  // device's own <g>, so a right-click on a port also reaches this handler.
   function handleContextMenu(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
+    if (connectionCreationStore.isCreating) {
+      connectionCreationStore.cancelConnection();
+      return;
+    }
     // Use element bounds as fallback when clientX/Y are outside the device
     // (panzoom transforms can distort coordinates for half-width devices)
     let x = event.clientX;

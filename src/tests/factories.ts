@@ -27,7 +27,9 @@ import type {
   SlotWidth,
   Connection,
   InterfaceTemplate,
+  InterfaceType,
   PlacedPort,
+  PortDirection,
 } from "$lib/types";
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import type { NetBoxDeviceType } from "$lib/utils/netbox-import";
@@ -261,6 +263,50 @@ export function createTestConnection(
     b_port_id: "port-b",
     ...overrides,
   };
+}
+
+/**
+ * Places a device with the given interfaces in a rack via the real placement
+ * pipeline (store.placeDevice -> instantiatePorts) and returns its id and
+ * resulting PlacedPort instances, with real store-generated ids. Shared by
+ * connection-store.test.ts and connection-creation.test.ts so both exercise
+ * the same setup instead of duplicating it.
+ *
+ * Each entry is either a bare InterfaceType (uses the InterfaceTemplate
+ * default direction) or an object with a `direction` override, for tests
+ * that need to set the interface template's direction explicitly.
+ *
+ * Resolves the placed device by scoping to `rackId` and taking the last
+ * device with a matching slug in that rack's devices array (placeDeviceRaw
+ * always appends, so the most recently placed instance is always last),
+ * rather than by slug alone: a global first-match would return the wrong
+ * instance across racks, or an earlier instance within the same rack, when a
+ * test places more than one device of the same type. Deliberately not
+ * matching on `position` instead: PlacedDevice.position is stored in
+ * internal units (position.ts's toInternalUnits, U x 6), not the human-unit
+ * `position` argument this function takes, so a naive `d.position ===
+ * position` comparison would never match.
+ */
+export function placeDeviceWithPorts(
+  store: ReturnType<typeof getLayoutStore>,
+  rackId: string,
+  slug: string,
+  position: number,
+  interfaces: Array<
+    InterfaceType | { type: InterfaceType; direction?: PortDirection }
+  >,
+): { deviceId: string; ports: PlacedPort[] } {
+  const deviceType = createTestDeviceType({ slug });
+  deviceType.interfaces = interfaces.map((entry, index) => {
+    const spec = typeof entry === "string" ? { type: entry } : entry;
+    return createTestInterfaceTemplate({ name: `port-${index}`, ...spec });
+  });
+  store.addDeviceTypeRaw(deviceType);
+  store.placeDevice(rackId, slug, position);
+  const rack = store.racks.find((r) => r.id === rackId)!;
+  const matches = rack.devices.filter((d) => d.device_type === slug);
+  const device = matches[matches.length - 1]!;
+  return { deviceId: device.id, ports: device.ports ?? [] };
 }
 
 // =============================================================================
