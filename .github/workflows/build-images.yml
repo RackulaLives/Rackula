@@ -52,7 +52,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
           persist-credentials: false
@@ -197,7 +197,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
           persist-credentials: false
@@ -342,7 +342,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
           persist-credentials: false
@@ -488,7 +488,7 @@ jobs:
       contents: read
       packages: read
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
           persist-credentials: false
@@ -541,7 +541,7 @@ jobs:
       # Pinned to the release tag being scanned, not the ref that triggered
       # the workflow, so promote decisions use the tag's own exceptions.
       - name: Checkout .trivyignore
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
           persist-credentials: false
@@ -586,7 +586,7 @@ jobs:
       # release still lands its findings in the Security tab for triage.
       - name: Upload scan results
         if: always()
-        uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-${{ env.IMAGE_CATEGORY }}
