@@ -12,6 +12,7 @@ import type {
   DeviceType,
   PlacedDevice,
   Rack,
+  Connection,
   Cable,
   LayoutMetadata,
 } from "$lib/types";
@@ -173,6 +174,31 @@ function orderRackFields(rack: Rack): Record<string, unknown> {
 }
 
 /**
+ * Order Connection fields according to schema v1.0.0
+ * Field order: id, a_port_id, b_port_id, label, color
+ */
+function orderConnectionFields(
+  connection: Connection,
+): Record<string, unknown> {
+  const ordered: Record<string, unknown> = {};
+
+  // --- Core Fields ---
+  ordered.id = connection.id;
+
+  // --- Port References ---
+  ordered.a_port_id = connection.a_port_id;
+  ordered.b_port_id = connection.b_port_id;
+
+  // --- Connection properties ---
+  if (connection.label !== undefined) ordered.label = connection.label;
+  if (connection.color !== undefined) ordered.color = connection.color;
+
+  appendUnknownKeys(ordered, connection, KNOWN_CONNECTION_KEYS);
+
+  return ordered;
+}
+
+/**
  * Order Cable fields according to schema v1.0.0
  * Field order: id, a_device_id, a_interface, b_device_id, b_interface, type, color, label, length, length_unit, status
  */
@@ -224,11 +250,10 @@ function orderMetadataFields(
 
 /**
  * Top-level keys the serializer writes explicitly above. Any other top-level key
- * (an unknown additive section from a newer schema, or a recognised-but-not-yet-
- * serialised field such as `connections`) is round-tripped by appendUnknownSections
- * so it is never silently dropped on save (#2208). `connections` is deliberately
- * NOT listed: neither serializer writes it yet, so excluding it lets the fallback
- * preserve it until explicit serialization exists.
+ * (an unknown additive section from a newer schema) is round-tripped by
+ * appendUnknownSections so it is never silently dropped on save (#2208).
+ * `connections` is explicitly serialized (#3090), ordered before the
+ * deprecated `cables` field it supersedes.
  */
 const KNOWN_TOP_LEVEL_KEYS = new Set<string>([
   "metadata",
@@ -239,6 +264,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set<string>([
   "rack_groups",
   "device_types",
   "settings",
+  "connections",
   "cables",
 ]);
 
@@ -345,6 +371,14 @@ const KNOWN_RACK_KEYS = new Set<string>([
   "view",
 ]);
 
+const KNOWN_CONNECTION_KEYS = new Set<string>([
+  "id",
+  "a_port_id",
+  "b_port_id",
+  "label",
+  "color",
+]);
+
 const KNOWN_CABLE_KEYS = new Set<string>([
   "id",
   "a_device_id",
@@ -423,6 +457,14 @@ export function orderLayoutFields(
   // Only include rack_groups if present
   if (layout.rack_groups !== undefined && layout.rack_groups.length > 0) {
     layoutForSerialization.rack_groups = layout.rack_groups;
+  }
+
+  // Only include connections if present; ordered before the deprecated
+  // cables field it supersedes (#3090).
+  if (layout.connections !== undefined && layout.connections.length > 0) {
+    layoutForSerialization.connections = layout.connections.map(
+      orderConnectionFields,
+    );
   }
 
   // Only include cables if present

@@ -7,6 +7,10 @@ import {
   createTestDeviceType,
   createTestContainerType,
   createTestCable,
+  createTestConnection,
+  createTestDevice,
+  createTestPlacedPort,
+  createTestRack,
 } from "./factories";
 
 describe("Layout Store", () => {
@@ -741,6 +745,219 @@ describe("Layout Store", () => {
       // is deterministic rather than depending on which rack was processed last.
       expect(cable!.a_device_id).toBe(firstDevice.id);
       expect(cable!.b_device_id).toBe(firstDevice.id);
+    });
+  });
+
+  describe("loadLayout connection port-id remapping (#3090)", () => {
+    it("regenerates a duplicated PlacedPort id on load, keeping the connection resolvable", () => {
+      const store = getLayoutStore();
+      // Two devices whose sole port shares the literal id "dup-port". The
+      // dedup pass must regenerate one copy so every live port id is unique,
+      // and the connection referencing "dup-port" must still resolve to a
+      // real port afterward rather than dangling.
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Port Dedup Test",
+        racks: [
+          createTestRack({
+            id: "rack-1",
+            devices: [
+              createTestDevice({
+                id: "device-a",
+                device_type: "server-c",
+                position: 1,
+                ports: [createTestPlacedPort({ id: "dup-port" })],
+              }),
+              createTestDevice({
+                id: "device-b",
+                device_type: "server-c",
+                position: 5,
+                ports: [createTestPlacedPort({ id: "dup-port" })],
+              }),
+              createTestDevice({
+                id: "device-c",
+                device_type: "server-c",
+                position: 10,
+                ports: [createTestPlacedPort({ id: "port-c" })],
+              }),
+            ],
+          }),
+        ],
+        device_types: [
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+        ],
+        connections: [
+          createTestConnection({
+            id: "conn-1",
+            a_port_id: "dup-port",
+            b_port_id: "port-c",
+          }),
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      const allPorts = store.layout.racks.flatMap((r) =>
+        r.devices.flatMap((d) => d.ports ?? []),
+      );
+      const portIds = allPorts.map((p) => p.id);
+      // Every live port id is unique after dedup.
+      expect(new Set(portIds).size).toBe(portIds.length);
+
+      const connection = store.layout.connections?.[0];
+      expect(connection).toBeDefined();
+      // The connection resolves to a port that actually exists; it never
+      // dangles at a duplicate id that was regenerated away.
+      expect(portIds).toContain(connection!.a_port_id);
+      expect(portIds).toContain(connection!.b_port_id);
+      expect(connection!.b_port_id).toBe("port-c");
+    });
+
+    it("drops a connection whose port reference never existed anywhere in the layout", () => {
+      const store = getLayoutStore();
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Dangling Connection Test",
+        racks: [
+          createTestRack({
+            id: "rack-1",
+            devices: [
+              createTestDevice({
+                id: "device-a",
+                device_type: "server-c",
+                position: 1,
+                ports: [createTestPlacedPort({ id: "port-a" })],
+              }),
+            ],
+          }),
+        ],
+        device_types: [
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+        ],
+        connections: [
+          createTestConnection({
+            id: "dangling-conn",
+            a_port_id: "port-a",
+            b_port_id: "port-that-never-existed",
+          }),
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      expect(store.layout.connections).toEqual([]);
+    });
+
+    it("remaps a connection endpoint that referenced an empty-string port id when it is regenerated", () => {
+      // A port with id "" always regenerates (it can never be kept as-is,
+      // since two empty-string ports would collide), but a connection that
+      // survived salvage referencing "" must still follow the regenerated id
+      // rather than staying pinned to the dead empty string (#3090 review).
+      const store = getLayoutStore();
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Empty Port Id Test",
+        racks: [
+          createTestRack({
+            id: "rack-1",
+            devices: [
+              createTestDevice({
+                id: "device-a",
+                device_type: "server-c",
+                position: 1,
+                ports: [createTestPlacedPort({ id: "" })],
+              }),
+              createTestDevice({
+                id: "device-b",
+                device_type: "server-c",
+                position: 5,
+                ports: [createTestPlacedPort({ id: "port-b" })],
+              }),
+            ],
+          }),
+        ],
+        device_types: [
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+        ],
+        connections: [
+          createTestConnection({
+            id: "conn-1",
+            a_port_id: "",
+            b_port_id: "port-b",
+          }),
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      const allPortIds = store.layout.racks.flatMap((r) =>
+        r.devices.flatMap((d) => (d.ports ?? []).map((p) => p.id)),
+      );
+      const connection = store.layout.connections?.[0];
+      expect(connection).toBeDefined();
+      // The connection resolves to a real, live port, not the dead "" id.
+      expect(connection!.a_port_id).not.toBe("");
+      expect(allPortIds).toContain(connection!.a_port_id);
+      expect(connection!.b_port_id).toBe("port-b");
+    });
+
+    it("does not throw when connections is a truthy non-array (malformed/hand-edited input)", () => {
+      // Array.isArray guard, not just presence (#3090 review): untrusted input
+      // reaching the store's public loadLayout directly must not crash on a
+      // crafted `connections: {}`.
+      const store = getLayoutStore();
+      expect(() =>
+        store.loadLayout({
+          version: "0.7.0",
+          name: "Malformed Connections Test",
+          racks: [
+            createTestRack({
+              id: "rack-1",
+              devices: [
+                createTestDevice({
+                  id: "device-a",
+                  device_type: "server-c",
+                  position: 1,
+                }),
+              ],
+            }),
+          ],
+          device_types: [
+            {
+              slug: "server-c",
+              u_height: 1,
+              colour: "#4A90A4",
+              category: "server" as const,
+            },
+          ],
+          connections: {} as unknown as never,
+          settings: {
+            display_mode: "label",
+            show_labels_on_images: false,
+          },
+        }),
+      ).not.toThrow();
     });
   });
 

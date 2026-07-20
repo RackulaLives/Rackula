@@ -26,6 +26,7 @@ import type {
   RackWidth,
   SlotWidth,
   Cable,
+  Connection,
   InterfaceTemplate,
   PlacedPort,
 } from "$lib/types";
@@ -259,6 +260,22 @@ export function createTestCable(overrides: Partial<Cable> = {}): Cable {
     a_interface: "eth0",
     b_device_id: "device-b",
     b_interface: "eth1",
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a test Connection between two PlacedPort ids.
+ * Defaults connect "port-a" to "port-b"; override to match the ports under
+ * test (e.g. real ids from createTestPlacedPort or a placed device).
+ */
+export function createTestConnection(
+  overrides: Partial<Connection> = {},
+): Connection {
+  return {
+    id: overrides.id ?? generateId(),
+    a_port_id: "port-a",
+    b_port_id: "port-b",
     ...overrides,
   };
 }

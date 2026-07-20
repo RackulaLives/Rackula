@@ -7,10 +7,12 @@ import {
 import type { Cable, DeviceType, PlacedDevice, Rack } from "$lib/types";
 import {
   createTestCable,
+  createTestConnection,
   createTestContainerChild,
   createTestDevice,
   createTestDeviceType,
   createTestLayout,
+  createTestPlacedPort,
   createTestRack,
 } from "./factories";
 
@@ -197,6 +199,75 @@ describe("YAML layout round-trip", () => {
   });
 });
 
+describe("YAML connections round-trip (#3090)", () => {
+  it("preserves a connection's id, port references, label, and colour through a round-trip", async () => {
+    const deviceType = createTestDeviceType({ slug: "conn-device" });
+    const portA = createTestPlacedPort({ id: "port-a-1" });
+    const portB = createTestPlacedPort({ id: "port-b-1" });
+    const connection = createTestConnection({
+      id: "conn-1",
+      a_port_id: portA.id,
+      b_port_id: portB.id,
+      label: "uplink",
+      color: "#ff5500",
+    });
+
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({
+          id: "rack-1",
+          devices: [
+            createTestDevice({
+              id: "device-a",
+              device_type: deviceType.slug,
+              position: 10,
+              ports: [portA],
+            }),
+            createTestDevice({
+              id: "device-b",
+              device_type: deviceType.slug,
+              position: 14,
+              ports: [portB],
+            }),
+          ],
+        }),
+      ],
+      device_types: [deviceType],
+      connections: [connection],
+    });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    // connections must be serialised explicitly, not merely round-tripped via
+    // the unknown-top-level-section passthrough it relied on before #3090.
+    expect(yaml).toContain("connections");
+    expect(yaml).toContain("conn-1");
+
+    const restored = await parseLayoutYaml(yaml);
+    expect(restored.connections).toEqual([
+      {
+        id: "conn-1",
+        a_port_id: portA.id,
+        b_port_id: portB.id,
+        label: "uplink",
+        color: "#ff5500",
+      },
+    ]);
+  });
+
+  it("orders connections before the deprecated cables field it supersedes", async () => {
+    const layout = createTestLayout({
+      connections: [createTestConnection({ id: "conn-1" })],
+      cables: [createTestCable({ id: "cable-1" })],
+    });
+
+    const yaml = await serializeLayoutToYaml(layout);
+    const connectionsIndex = yaml.indexOf("connections:");
+    const cablesIndex = yaml.indexOf("cables:");
+    expect(connectionsIndex).toBeGreaterThanOrEqual(0);
+    expect(cablesIndex).toBeGreaterThan(connectionsIndex);
+  });
+});
+
 describe("YAML editor schema hint (#2230)", () => {
   // Asserted via startsWith/string equality on a captured variable rather than a
   // `toBe("#...")` literal: the latter trips the no-restricted-syntax hardcoded
@@ -296,25 +367,6 @@ describe("YAML unknown top-level section round-trip (#2208)", () => {
     expect(restored.name).toBe(layout.name);
     // A clean layout has no stray top-level "future"/"unknown" markers.
     expect(yaml).not.toContain("undefined");
-  });
-
-  it("preserves connections, which the serializer does not write explicitly", async () => {
-    const layout = {
-      ...createTestLayout(),
-      connections: [
-        {
-          id: "c1",
-          a_device_id: "d1",
-          a_interface: "eth0",
-          b_device_id: "d2",
-          b_interface: "eth0",
-        },
-      ],
-    } as unknown as Parameters<typeof serializeLayoutToYaml>[0];
-
-    const yaml = await serializeLayoutToYaml(layout);
-    expect(yaml).toContain("connections");
-    expect(yaml).toContain("c1");
   });
 
   it("does not copy prototype-polluting keys from a crafted layout", async () => {
