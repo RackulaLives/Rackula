@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { getImageStore, resetImageStore } from "$lib/stores/images.svelte";
-import { createTestDeviceTypeInput } from "./factories";
+import {
+  createTestDeviceType,
+  createTestDeviceTypeInput,
+  createTestInterfaceTemplate,
+} from "./factories";
 
 describe("Layout Store", () => {
   beforeEach(() => {
@@ -181,6 +185,103 @@ describe("Layout Store", () => {
       // Images should be cleaned up
       expect(imageStore.hasImage(deviceType.slug, "front")).toBe(false);
       expect(imageStore.hasImage(deviceType.slug, "rear")).toBe(false);
+    });
+
+    it("also removes connections attached to the deleted placed devices' ports, undoably (#639)", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test", 42)!;
+
+      const deviceType = createTestDeviceType({ slug: "test-delete-type" });
+      deviceType.interfaces = [
+        createTestInterfaceTemplate({ name: "port-0", type: "1000base-t" }),
+      ];
+      store.addDeviceTypeRaw(deviceType);
+
+      const otherType = createTestDeviceType({ slug: "test-other-type" });
+      otherType.interfaces = [
+        createTestInterfaceTemplate({ name: "port-0", type: "1000base-t" }),
+      ];
+      store.addDeviceTypeRaw(otherType);
+
+      store.placeDevice(rack.id, deviceType.slug, 5);
+      store.placeDevice(rack.id, otherType.slug, 10);
+      const deleted = store.rack.devices.find(
+        (d) => d.device_type === deviceType.slug,
+      )!;
+      const survivor = store.rack.devices.find(
+        (d) => d.device_type === otherType.slug,
+      )!;
+
+      const connection = {
+        id: "connection-1",
+        a_port_id: deleted.ports![0]!.id,
+        b_port_id: survivor.ports![0]!.id,
+      };
+      store.addConnectionRaw(connection);
+
+      store.deleteDeviceType(deviceType.slug);
+
+      expect(store.layout.connections ?? []).toEqual([]);
+
+      store.undo();
+
+      expect(store.layout.connections).toEqual([
+        expect.objectContaining({ id: "connection-1" }),
+      ]);
+      expect(
+        store.rack.devices.some((d) => d.device_type === deviceType.slug),
+      ).toBe(true);
+    });
+  });
+
+  describe("deleteMultipleDeviceTypesRecorded", () => {
+    it("removes a connection spanning two of the deleted types exactly once, undoably (#639)", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test", 42)!;
+
+      const typeA = createTestDeviceType({ slug: "test-bulk-a" });
+      typeA.interfaces = [
+        createTestInterfaceTemplate({ name: "port-0", type: "1000base-t" }),
+      ];
+      store.addDeviceTypeRaw(typeA);
+
+      const typeB = createTestDeviceType({ slug: "test-bulk-b" });
+      typeB.interfaces = [
+        createTestInterfaceTemplate({ name: "port-0", type: "1000base-t" }),
+      ];
+      store.addDeviceTypeRaw(typeB);
+
+      store.placeDevice(rack.id, typeA.slug, 5);
+      store.placeDevice(rack.id, typeB.slug, 10);
+      const deviceA = store.rack.devices.find(
+        (d) => d.device_type === typeA.slug,
+      )!;
+      const deviceB = store.rack.devices.find(
+        (d) => d.device_type === typeB.slug,
+      )!;
+
+      const connection = {
+        id: "connection-1",
+        a_port_id: deviceA.ports![0]!.id,
+        b_port_id: deviceB.ports![0]!.id,
+      };
+      store.addConnectionRaw(connection);
+
+      const deletedCount = store.deleteMultipleDeviceTypesRecorded([
+        typeA.slug,
+        typeB.slug,
+      ]);
+
+      expect(deletedCount).toBe(2);
+      expect(store.layout.connections ?? []).toEqual([]);
+
+      store.undo();
+
+      // Single undo restores both device types, both placed devices, and the
+      // connection exactly once (not duplicated by both per-type commands).
+      expect(store.layout.connections).toEqual([
+        expect.objectContaining({ id: "connection-1" }),
+      ]);
     });
   });
 });

@@ -6,7 +6,7 @@
  * wrapping raw mutators, then executes it through the history system.
  */
 
-import type { Cable, DeviceType, PlacedDevice } from "$lib/types";
+import type { Cable, Connection, DeviceType, PlacedDevice } from "$lib/types";
 import {
   createDeviceType as createDeviceTypeHelper,
   findDeviceType as findDeviceTypeInArray,
@@ -17,7 +17,9 @@ import {
   createAddDeviceTypeCommand,
   createUpdateDeviceTypeCommand,
   createDeleteDeviceTypeCommand,
+  createRemoveConnectionCommand,
   createBatchCommand,
+  type Command,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
 import { getCommandStoreAdapter } from "./command-adapters";
@@ -93,6 +95,30 @@ export function findCablesForDevices(
 }
 
 /**
+ * Find connections attached to any port on the given placed devices.
+ * Used so REMOVE_DEVICE / REMOVE_DEVICE_WITH_CHILDREN (#639) and
+ * DELETE_DEVICE_TYPE can clean up dangling connection endpoints, mirroring
+ * findCablesForDevices above. Unlike cables, connections reference
+ * PlacedPort.id (not device id), and port ids never change across a
+ * remove/restore cycle, so no id-remap bookkeeping is needed on undo.
+ */
+export function findConnectionsForDevices(
+  ctx: LayoutStateAccess,
+  placedDevices: { rackId: string; device: PlacedDevice }[],
+): Connection[] {
+  const layout = ctx.getLayout();
+  const connections = layout.connections;
+  if (!connections || connections.length === 0) return [];
+  const portIds = new Set(
+    placedDevices.flatMap((p) => (p.device.ports ?? []).map((port) => port.id)),
+  );
+  if (portIds.size === 0) return [];
+  return connections.filter(
+    (c) => portIds.has(c.a_port_id) || portIds.has(c.b_port_id),
+  );
+}
+
+/**
  * Delete a device type with undo/redo support
  * @param ctx - Layout state access
  * @param slug - Device type slug
@@ -107,16 +133,37 @@ export function deleteDeviceTypeRecorded(
 
   const placedDevices = getPlacedDevicesWithRackForType(ctx, slug);
   const connectedCables = findCablesForDevices(ctx, placedDevices);
+  const connectedConnections = findConnectionsForDevices(ctx, placedDevices);
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
-  const command = createDeleteDeviceTypeCommand(
+  const deleteCommand = createDeleteDeviceTypeCommand(
     existing,
     placedDevices,
     adapter,
     connectedCables,
     layout.metadata?.id ?? "",
   );
+
+  // Connections reference PlacedPort.id, which DELETE_DEVICE_TYPE's device
+  // restore never remaps, so a plain REMOVE_CONNECTION per connection is
+  // enough (#639, mirrors the cable handling above).
+  const connectionCommands: Command[] = connectedConnections.map((connection) =>
+    createRemoveConnectionCommand(
+      connection,
+      adapter,
+      `Remove connection ${connection.label ?? connection.id}`,
+    ),
+  );
+
+  const command =
+    connectionCommands.length > 0
+      ? createBatchCommand(`Delete ${existing.model ?? existing.slug}`, [
+          ...connectionCommands,
+          deleteCommand,
+        ])
+      : deleteCommand;
+
   history.execute(command);
   ctx.markDirty();
 }
@@ -151,6 +198,10 @@ export function deleteMultipleDeviceTypesRecorded(
   // A cable connecting devices of two different types would otherwise be
   // snapshotted by both per-type delete commands, restoring it twice on undo.
   const claimedCableIds = new Set<string>();
+  // Same double-restore risk for a connection spanning two of the deleted
+  // types (#639).
+  const claimedConnectionIds = new Set<string>();
+  const connectionCommands: Command[] = [];
 
   for (const slug of slugs) {
     const existing = findDeviceTypeInArray(layout.device_types, slug);
@@ -164,6 +215,23 @@ export function deleteMultipleDeviceTypesRecorded(
         return true;
       },
     );
+    const connectedConnections = findConnectionsForDevices(
+      ctx,
+      placedDevices,
+    ).filter((connection) => {
+      if (claimedConnectionIds.has(connection.id)) return false;
+      claimedConnectionIds.add(connection.id);
+      return true;
+    });
+    for (const connection of connectedConnections) {
+      connectionCommands.push(
+        createRemoveConnectionCommand(
+          connection,
+          adapter,
+          `Remove connection ${connection.label ?? connection.id}`,
+        ),
+      );
+    }
     const command = createDeleteDeviceTypeCommand(
       existing,
       placedDevices,
@@ -191,7 +259,10 @@ export function deleteMultipleDeviceTypesRecorded(
     description,
   );
 
-  const batchCommand = createBatchCommand(description, commands);
+  const batchCommand = createBatchCommand(description, [
+    ...connectionCommands,
+    ...commands,
+  ]);
   history.execute(batchCommand);
   ctx.markDirty();
 

@@ -15,7 +15,10 @@ import { canPlaceDevice, requiresCarrier } from "$lib/utils/collision";
 import { effectiveFace } from "$lib/utils/effective-face";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
-import { findCablesForDevices } from "./recorded-device-type-actions";
+import {
+  findCablesForDevices,
+  findConnectionsForDevices,
+} from "./recorded-device-type-actions";
 import { debug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { instantiatePorts } from "$lib/utils/port-utils";
@@ -32,6 +35,7 @@ import {
   createDetachContainerCommand,
   createUpdateDeviceNotesCommand,
   createUpdateDeviceIpCommand,
+  createRemoveConnectionCommand,
   createBatchCommand,
   type Command,
 } from "../commands";
@@ -443,7 +447,18 @@ export function removeDeviceRecorded(
     ...children.map((child) => ({ rackId, device: child })),
   ]);
 
-  const command =
+  // Connections reference placed devices' ports by id. Deleting a device (or
+  // a carrier and its children) without cleaning up its connections leaves
+  // dangling port references, saved as-is on the next autosave (#639).
+  // Gather them here and fold their removal into the same undo step as the
+  // device removal below, so undo restores the device and its connections
+  // together.
+  const connectedConnections = findConnectionsForDevices(ctx, [
+    { rackId, device },
+    ...children.map((child) => ({ rackId, device: child })),
+  ]);
+
+  const removeCommand =
     children.length > 0
       ? createRemoveDeviceWithChildrenCommand(
           device,
@@ -460,8 +475,41 @@ export function removeDeviceRecorded(
           layout.metadata?.id ?? "",
           connectedCables,
         );
+
+  // Connections don't need the id-remap handling cables need: they key off
+  // PlacedPort.id, and port ids never change across a remove/restore cycle
+  // (unlike device ids, which placeDeviceRaw can remap on collision), so a
+  // plain REMOVE_CONNECTION per connection is enough. Compose them ahead of
+  // the device removal so execute() clears connections before the device
+  // disappears, and undo (which runs in reverse) restores the device before
+  // the connections that reference its ports.
+  const connectionCommands: Command[] = connectedConnections.map((connection) =>
+    createRemoveConnectionCommand(
+      connection,
+      adapter,
+      `Remove connection ${connection.label ?? connection.id}`,
+    ),
+  );
+
+  const command =
+    connectionCommands.length > 0
+      ? createBatchCommand(`Remove ${deviceName}`, [
+          ...connectionCommands,
+          removeCommand,
+        ])
+      : removeCommand;
+
   history.execute(command);
   ctx.markDirty();
+
+  if (connectedConnections.length > 0) {
+    debug.deviceRemove({
+      deviceName,
+      connectionsRemoved: connectedConnections.length,
+      connectionIds: connectedConnections.map((c) => c.id),
+    });
+  }
+
   return deviceName;
 }
 
