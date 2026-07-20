@@ -295,6 +295,14 @@
     return deviceLibrary.find((d) => d.slug === slug);
   }
 
+  // Slot display name for a container child, falling back to the raw slot id
+  // when the slot has no display name (mirrors EditPanelPosition's
+  // containerContext.slotName precedence).
+  function getSlotName(slotId: string | undefined): string {
+    const slot = device.slots?.find((s) => s.id === slotId);
+    return slot?.name ?? slotId ?? "Unknown";
+  }
+
   // Calculate child device position within container
   // Position is 0-indexed from bottom of container, Y is SVG coordinate (origin at top)
   function getChildY(childPosition: number, childUHeight: number): number {
@@ -869,10 +877,14 @@
             "var(--colour-device-default)"}
           {@const childName = child.name ?? childType.model ?? childType.slug}
           {@const isChildSelected = selectedChildId === child.id}
+          {@const slotName = getSlotName(child.slot_id)}
+          {@const childAriaLabel = `${childName}, ${childType.u_height}U ${childType.category} in ${slotName} of ${displayName} at U${positionHuman}`}
           <g
             class="container-child"
             class:selected={isChildSelected}
             transform="translate({childX}, {childY})"
+            role="img"
+            aria-label={childAriaLabel}
           >
             <!-- Child device rectangle -->
             <rect
