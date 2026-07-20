@@ -179,7 +179,9 @@ export function getConnectionStore() {
    * in sync (plain Set is blocked here by the svelte/prefer-svelte-reactivity
    * ESLint rule, which applies to *.svelte.ts regardless of reactivity).
    */
-  function getPortIdsForDevice(deviceId: string): SvelteSet<string> | undefined {
+  function getPortIdsForDevice(
+    deviceId: string,
+  ): SvelteSet<string> | undefined {
     const device = layoutStore.racks
       .flatMap((rack) => rack.devices)
       .find((d) => d.id === deviceId);

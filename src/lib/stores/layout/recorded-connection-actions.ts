@@ -58,10 +58,7 @@ export function updateConnectionRecorded(
   // Capture before-state for only the keys being changed, mirroring
   // updateRackRecorded in recorded-rack-actions.ts.
   const before: Partial<Omit<Connection, "id">> = {};
-  for (const key of Object.keys(updates) as (keyof Omit<
-    Connection,
-    "id"
-  >)[]) {
+  for (const key of Object.keys(updates) as (keyof Omit<Connection, "id">)[]) {
     before[key] = existing[key] as never;
   }
 
