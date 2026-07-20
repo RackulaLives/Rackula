@@ -6,7 +6,7 @@
 <script lang="ts">
   import type { InterfaceTemplate, InterfaceType } from "$lib/types";
   import { getPortTooltipState } from "$lib/stores/portTooltip.svelte";
-  import { inferDirection } from "$lib/utils/port-utils";
+  import { inferDirection, deriveGender } from "$lib/utils/port-utils";
 
   // Get reactive tooltip state from store
   const tooltipState = $derived(getPortTooltipState());
@@ -68,6 +68,17 @@
     return direction ? DIRECTION_LABELS[direction] : null;
   }
 
+  const GENDER_LABELS = { male: "Male", female: "Female" } as const;
+
+  // Gender label from the connector convention and the (explicit or
+  // inferred) direction; null hides the row for underivable connectors.
+  function getGenderLabel(port: InterfaceTemplate): string | null {
+    const direction =
+      port.direction ?? inferDirection(port.type, port.mgmt_only);
+    const gender = deriveGender(port.type, direction);
+    return gender ? GENDER_LABELS[gender] : null;
+  }
+
   // Get PoE label
   function getPoELabel(
     poeMode?: "pd" | "pse",
@@ -88,11 +99,15 @@
 </script>
 
 {#if visible && port}
+  {@const genderLabel = getGenderLabel(port)}
   <div class="port-tooltip" role="tooltip" style="left: {x}px; top: {y}px;">
     <div class="port-tooltip-name">{port.label ?? port.name}</div>
     <div class="port-tooltip-type">{getTypeLabel(port.type)}</div>
     {#if getDirectionLabel(port)}
       <div class="port-tooltip-direction">{getDirectionLabel(port)}</div>
+    {/if}
+    {#if genderLabel}
+      <div class="port-tooltip-gender">{genderLabel}</div>
     {/if}
     {#if port.mgmt_only}
       <div class="port-tooltip-badge mgmt">Management Only</div>
@@ -149,7 +164,8 @@
     font-size: var(--font-size-xs);
   }
 
-  .port-tooltip-direction {
+  .port-tooltip-direction,
+  .port-tooltip-gender {
     color: var(--colour-text-muted-inverse, rgba(255, 255, 255, 0.7));
     font-size: var(--font-size-xs);
   }
