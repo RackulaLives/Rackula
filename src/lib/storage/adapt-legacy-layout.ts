@@ -680,9 +680,17 @@ export function adaptLegacyLayout(layout: Layout): Layout {
     "cables",
   );
   const migratedConnections = migrateLegacyCables(legacyCables, racks);
+  // Array.isArray, not `?? []`: untrusted/hand-edited input can carry a
+  // truthy non-array `connections` (e.g. `connections: {}`), which `?? []`
+  // does not catch (it only substitutes for null/undefined). Spreading that
+  // directly would throw, matching the same malformed-input class
+  // dropDanglingConnections below already guards against (#3090/#3115).
+  const existingConnections = Array.isArray(layout.connections)
+    ? layout.connections
+    : [];
   const connectionsWithMigrated =
     migratedConnections.length > 0
-      ? [...(layout.connections ?? []), ...migratedConnections]
+      ? [...existingConnections, ...migratedConnections]
       : layout.connections;
 
   // Dangling connection salvage (#3090): runs against the carrier-adapted

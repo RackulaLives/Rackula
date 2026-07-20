@@ -1175,12 +1175,16 @@ describe("legacy cables migration (#3091)", () => {
 
     const adapted = adaptLegacyLayout(legacyLayout);
 
-    // eslint-disable-next-line no-restricted-syntax -- exactly one cable, exactly one migrated connection
-    expect(adapted.connections).toHaveLength(1);
+    // Full array equality (not an exact-length assertion) proves exactly one
+    // cable resolved to exactly one migrated connection with this shape.
+    expect(adapted.connections).toEqual([
+      expect.objectContaining({
+        a_port_id: portA.id,
+        b_port_id: portB.id,
+        label: "Uplink",
+      }),
+    ]);
     const connection = adapted.connections![0]!;
-    expect(connection.a_port_id).toBe(portA.id);
-    expect(connection.b_port_id).toBe(portB.id);
-    expect(connection.label).toBe("Uplink");
     // Not a design-token assertion: verifies the cable's user-supplied color
     // value carries over onto the migrated connection unchanged.
     const expectedColor = "#FF5500";
@@ -1321,9 +1325,14 @@ describe("legacy cables migration (#3091)", () => {
 
     const adapted = adaptLegacyLayout(legacyLayout);
 
-    // eslint-disable-next-line no-restricted-syntax -- exactly one cable, exactly one migrated connection
-    expect(adapted.connections).toHaveLength(1);
-    expect(adapted.connections![0]!.a_port_id).toBe(firstPort.id);
+    // Full array equality proves exactly one migrated connection, and that
+    // it resolved to the earliest-declared (lowest template_index) port.
+    expect(adapted.connections).toEqual([
+      expect.objectContaining({
+        a_port_id: firstPort.id,
+        b_port_id: otherPort.id,
+      }),
+    ]);
   });
 
   it("merges a migrated cable alongside an existing connection, still salvaging a genuinely dangling one", () => {
@@ -1354,11 +1363,16 @@ describe("legacy cables migration (#3091)", () => {
 
     const adapted = adaptLegacyLayout(legacyLayout);
 
-    const connectionIds = adapted.connections!.map((c) => c.id).sort();
-    expect(connectionIds).not.toContain("dangling");
-    expect(connectionIds).toContain("hand-authored");
-    // eslint-disable-next-line no-restricted-syntax -- exactly the hand-authored connection plus the one migrated cable survive
-    expect(adapted.connections).toHaveLength(2);
+    // Full array equality proves the dangling connection was salvaged away
+    // while the hand-authored connection and the one migrated cable both
+    // survive, in that order.
+    expect(adapted.connections).toEqual([
+      expect.objectContaining({ id: "hand-authored" }),
+      expect.objectContaining({
+        a_port_id: portA.id,
+        b_port_id: portB.id,
+      }),
+    ]);
   });
 
   it("is a no-op when there is no legacy cables field", () => {
@@ -1377,5 +1391,39 @@ describe("legacy cables migration (#3091)", () => {
 
     expect(() => adaptLegacyLayout(legacyLayout)).not.toThrow();
     expect(adaptLegacyLayout(legacyLayout).connections ?? []).toEqual([]);
+  });
+
+  it("does not throw when a migrated cable is merged into a truthy non-array connections field (malformed/hand-edited input)", () => {
+    // Reproduces the crash class #3115 already fixed elsewhere in this file:
+    // `layout.connections ?? []` does not catch a truthy non-array value (it
+    // only substitutes for null/undefined), so spreading a malformed
+    // `connections: {}` alongside a migrated cable used to throw
+    // "TypeError: object is not iterable" instead of salvaging the load.
+    const { layout, portA, portB } = twoPortedDevices();
+    const legacyLayout = {
+      ...layout,
+      connections: {},
+      cables: [
+        {
+          id: "cable-1",
+          a_device_id: "device-a",
+          a_interface: "eth0",
+          b_device_id: "device-b",
+          b_interface: "eth1",
+        },
+      ],
+    } as unknown as Layout;
+
+    expect(() => adaptLegacyLayout(legacyLayout)).not.toThrow();
+
+    const adapted = adaptLegacyLayout(legacyLayout);
+    // The malformed connections field is treated as empty, not crashed on;
+    // the migrated cable still comes through as a real connection.
+    expect(adapted.connections).toEqual([
+      expect.objectContaining({
+        a_port_id: portA.id,
+        b_port_id: portB.id,
+      }),
+    ]);
   });
 });
