@@ -24,6 +24,7 @@
     showPortTooltip,
     hidePortTooltip,
   } from "$lib/stores/portTooltip.svelte";
+  import { getConnectionCreationStore } from "$lib/stores/connection-creation.svelte";
   import { getPortCategory, inferDirection } from "$lib/utils/port-utils";
   import {
     computeVisiblePortLayout,
@@ -55,6 +56,19 @@
   // Tooltip delay timer (reactive state for proper cleanup)
   let hoverTimeoutId = $state<ReturnType<typeof setTimeout> | null>(null);
   const TOOLTIP_DELAY_MS = 300;
+
+  // Connection-creation mode (#1932): while armed, the source port shows as
+  // active and every other rendered port shows as a potential target. Read
+  // directly from the store (like placementStore elsewhere) rather than
+  // threaded as a prop, since every PortIndicators instance needs the same
+  // global mode state.
+  const connectionCreationStore = getConnectionCreationStore();
+  const connectionSourcePortId = $derived(
+    connectionCreationStore.isCreating
+      ? connectionCreationStore.sourcePortId
+      : null,
+  );
+  const isConnectionCreationMode = $derived(connectionCreationStore.isCreating);
 
   // Cleanup timeout on component unmount to prevent dangling timers
   $effect(() => {
@@ -213,6 +227,9 @@
       {#each portPositions as { iface, port, x, y, color }, i (port?.id ?? i)}
         <circle
           class="port-circle"
+          class:port-connection-source={port?.id === connectionSourcePortId}
+          class:port-connection-target={isConnectionCreationMode &&
+            port?.id !== connectionSourcePortId}
           cx={x}
           cy={y}
           r={PORT_RADIUS}
@@ -264,13 +281,21 @@
       {#each portPositions as { iface, port, x, y }, i (port?.id ?? i)}
         <circle
           class="port-hit-target"
+          class:port-connection-source={port?.id === connectionSourcePortId}
+          class:port-connection-target={isConnectionCreationMode &&
+            port?.id !== connectionSourcePortId}
           cx={x}
           cy={y}
           r={6}
           fill="transparent"
           role="button"
           tabindex="0"
-          aria-label="{iface.label ?? iface.name} ({iface.type})"
+          aria-label="{iface.label ?? iface.name} ({iface.type}){port?.id ===
+          connectionSourcePortId
+            ? ', connection source'
+            : isConnectionCreationMode && port?.id !== connectionSourcePortId
+              ? ', potential connection target'
+              : ''}"
           onclick={() => handlePortClick(iface, port)}
           onmouseenter={(e) => handlePortMouseEnter(e, iface)}
           onmouseleave={handlePortMouseLeave}
@@ -355,6 +380,21 @@
     font-weight: 600;
     font-family: var(--font-mono, monospace);
     text-shadow: var(--shadow-port-text);
+  }
+
+  /* Connection-creation mode (#1932): the source port shows as active... */
+  .port-connection-source {
+    stroke: var(--colour-selection, var(--dracula-pink, #ff79c6));
+    stroke-width: 1.5;
+  }
+
+  /* ...every other port shows as a potential target while the mode is armed.
+     Stroke-only: the hit-target's fill stays transparent (or its existing
+     hover tint) so this layers with, rather than replaces, hover feedback. */
+  .port-connection-target {
+    stroke: var(--colour-selection, var(--dracula-pink, #ff79c6));
+    stroke-width: 1;
+    stroke-dasharray: 1.5 1;
   }
 
   .port-group-badge rect {

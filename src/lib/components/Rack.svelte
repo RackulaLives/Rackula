@@ -42,6 +42,10 @@
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { validStartPositions } from "$lib/utils/placement-keyboard";
+  import { getConnectionCreationStore } from "$lib/stores/connection-creation.svelte";
+  import { getConnectionStore } from "$lib/stores/connection.svelte";
+  import { handleConnectionPortClick } from "$lib/utils/connection-creation";
+  import type { PortClickInfo } from "$lib/types";
   import { SvelteSet, SvelteMap } from "svelte/reactivity";
   import { fade } from "svelte/transition";
   import { prefersReducedMotion } from "svelte/motion";
@@ -81,6 +85,8 @@
   const toastStore = getToastStore();
   const layoutStore = getLayoutStore();
   const selectionStore = getSelectionStore();
+  const connectionCreationStore = getConnectionCreationStore();
+  const connectionStore = getConnectionStore();
 
   const showChristmasHats = isChristmas();
   const DRAG_CLICK_DEBOUNCE_MS = 100;
@@ -473,6 +479,22 @@
       onselect?.(new CustomEvent("select", { detail: { rackId: rack.id } }));
     }
   }
+
+  /**
+   * Route a port click through connection-creation mode (#1932): the first
+   * click on a port arms the mode with it as source, the second click on a
+   * different port validates and creates the connection. Delegates to the
+   * pure handler in connection-creation.ts so the state machine and
+   * validation/warning surfacing are unit-testable without mounting Rack.
+   */
+  function handlePortClick(info: PortClickInfo) {
+    handleConnectionPortClick(info, {
+      connectionCreation: connectionCreationStore,
+      validateConnection: connectionStore.validateConnection,
+      addConnection: connectionStore.addConnection,
+      showToast: (message, type) => toastStore.showToast(message, type, 4000),
+    });
+  }
 </script>
 
 <!-- The rack is a list item that holds interactive devices, so it is a
@@ -585,6 +607,7 @@
               isDragTargetValid={isHoveredContainer &&
                 (containerHoverInfo?.isValidTarget ?? false)}
               onselect={ondeviceselect}
+              onPortClick={handlePortClick}
               ondragend={() => setDragFinished()}
               onduplicate={(e) =>
                 contextActions.handleDuplicate(rack, {
