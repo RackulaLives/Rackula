@@ -109,6 +109,30 @@ Legacy layouts and share links that used fractional rail positions are adapted o
 | Max image size          | 5MB             |
 | Supported image formats | PNG, JPEG, WebP |
 
+### Interface Data
+
+Device types can define `interfaces[]` port templates (see [SCHEMA.md](./SCHEMA.md) for the `InterfaceTemplate` shape). Interface data is optional; most starter and brand-pack devices are visual-only today. Brand packs (`src/lib/data/brandPacks/`) do not yet carry interface data; that population is tracked as deferred follow-up work (#260).
+
+Starter library devices (`src/lib/data/starterLibrary.ts`) that ship with interface data:
+
+| Device                | Slug                   | Interfaces                                                      |
+| ---------------------- | ----------------------- | ------------------------------------------------------------------ |
+| Switch (24-Port)       | `24-port-switch`        | 24x 1000base-t                                                     |
+| Switch (48-Port)       | `48-port-switch`        | 48x 1000base-t                                                     |
+| Half Switch (8-Port)   | `1u-half-switch`        | 8x 1000base-t                                                      |
+| Fiber Patch Panel      | `1u-fiber-patch-panel`  | 12x 1000base-x-sfp                                                 |
+| Patch Panel (24-Port)  | `24-port-patch-panel`   | 24x 1000base-t                                                     |
+| Patch Panel (48-Port)  | `48-port-patch-panel`   | 48x 1000base-t                                                     |
+| Half Patch Panel       | `1u-half-patch-panel`   | 12x 1000base-t                                                     |
+| Amplifier (1U)         | `1u-amplifier`          | xlr-3 inputs, speakon outputs, rs-232 control                      |
+| Amplifier (2U)         | `2u-amplifier`          | xlr-3 inputs, speakon outputs, rs-232 and management control       |
+| Audio Processor        | `1u-audio-processor`    | xlr-3 in, trs-1-4 out, aes3 out, dual dante, rs-232 control         |
+| AV Receiver (1U)       | `1u-av-receiver`        | hdmi in/out, rca aux in, rs-232 control                            |
+| AV Receiver (2U)       | `2u-av-receiver`        | hdmi in/out, rca aux in, management and rs-232 control             |
+| Power Amplifier (3U)   | `3u-power-amplifier`    | xlr-3 inputs, speakon outputs, dual dante, management control      |
+| Streaming Encoder      | `1u-streaming-encoder`  | hdmi and sdi-bnc in, xlr-3 audio in, 1000base-t network             |
+| Video Switcher         | `1u-video-switcher`     | hdmi/displayport/vga in, hdmi out, rs-232 and management control   |
+
 ### Collision Detection
 
 Two rail-level devices collide if **both** conditions are true:
