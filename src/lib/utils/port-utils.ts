@@ -6,14 +6,51 @@
 import type { DeviceType, PlacedPort } from "$lib/types";
 import { generateId } from "$lib/utils/device";
 
-export type PortCategory = "network" | "power" | "console";
+export type PortCategory = "network" | "power" | "console" | "av";
 
 /**
- * Categorize an interface type string into network, power, or console.
- * Uses string matching so it handles future types (e.g. power-inlet-*) even
- * before they are added to the InterfaceType enum.
+ * Pro audio / AV interface types (spike #1927 taxonomy). Listed explicitly
+ * rather than matched by substring: the set spans audio, video, control, and
+ * data connectors (xlr, hdmi, rs-232, dante, ...) with no shared naming
+ * pattern to key off, unlike the power/console heuristics below.
+ */
+const AV_INTERFACE_TYPES = new Set<string>([
+  // Audio
+  "xlr-3",
+  "trs-1-4",
+  "ts-1-4",
+  "rca",
+  "adat-optical",
+  "midi-din",
+  "bnc",
+  "db25-audio",
+  "phoenix",
+  "speakon",
+  "xlr-5",
+  // Video
+  "displayport",
+  "hdmi",
+  "sdi-bnc",
+  "vga",
+  // Control
+  "dmx-xlr",
+  "rs-232",
+  "rs-422",
+  // Other
+  "aes3",
+  "avb",
+  "dante",
+]);
+
+/**
+ * Categorize an interface type string into network, power, console, or av.
+ * Uses string matching for network/power/console so it handles future types
+ * (e.g. power-inlet-*) even before they are added to the InterfaceType enum.
  */
 export function getPortCategory(type: string): PortCategory {
+  if (AV_INTERFACE_TYPES.has(type)) {
+    return "av";
+  }
   if (
     type === "console" ||
     type.includes("usb") ||

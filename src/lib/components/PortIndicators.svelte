@@ -66,6 +66,7 @@
     network: "var(--colour-port-default)",
     console: "var(--colour-port-console)",
     power: "var(--colour-port-power)",
+    av: "var(--colour-port-av)",
   };
 
   // Constants for port rendering
