@@ -275,6 +275,17 @@ export function createTestConnection(
  * Each entry is either a bare InterfaceType (uses the InterfaceTemplate
  * default direction) or an object with a `direction` override, for tests
  * that need to set the interface template's direction explicitly.
+ *
+ * Resolves the placed device by scoping to `rackId` and taking the last
+ * device with a matching slug in that rack's devices array (placeDeviceRaw
+ * always appends, so the most recently placed instance is always last),
+ * rather than by slug alone: a global first-match would return the wrong
+ * instance across racks, or an earlier instance within the same rack, when a
+ * test places more than one device of the same type. Deliberately not
+ * matching on `position` instead: PlacedDevice.position is stored in
+ * internal units (position.ts's toInternalUnits, U x 6), not the human-unit
+ * `position` argument this function takes, so a naive `d.position ===
+ * position` comparison would never match.
  */
 export function placeDeviceWithPorts(
   store: ReturnType<typeof getLayoutStore>,
@@ -292,9 +303,9 @@ export function placeDeviceWithPorts(
   });
   store.addDeviceTypeRaw(deviceType);
   store.placeDevice(rackId, slug, position);
-  const device = store.racks
-    .flatMap((r) => r.devices)
-    .find((d) => d.device_type === slug)!;
+  const rack = store.racks.find((r) => r.id === rackId)!;
+  const matches = rack.devices.filter((d) => d.device_type === slug);
+  const device = matches[matches.length - 1]!;
   return { deviceId: device.id, ports: device.ports ?? [] };
 }
 

@@ -439,3 +439,39 @@ describe("getDirectionMismatchWarning", () => {
     });
   });
 });
+
+describe("placeDeviceWithPorts test factory (#1932 CodeRabbit review)", () => {
+  let layoutStore: ReturnType<typeof getLayoutStore>;
+  let rackId: string;
+
+  beforeEach(() => {
+    layoutStore = createTestLayoutStore();
+    const rack = layoutStore.addRack("Test Rack", 42)!;
+    rackId = rack.id;
+  });
+
+  it("resolves the newly placed instance's ports, not an earlier instance with the same slug", () => {
+    const first = placeDeviceWithPorts(layoutStore, rackId, "device-a", 5, [
+      "1000base-t",
+    ]);
+    const second = placeDeviceWithPorts(layoutStore, rackId, "device-a", 10, [
+      "1000base-t",
+    ]);
+
+    // Both placements share slug "device-a"; the second call must resolve to
+    // the PlacedDevice it just placed, not fall back to the first instance
+    // via a global first-match on slug (they are distinct placements with
+    // distinct ids and distinct instantiated port ids, even though both
+    // share the same device type and interface list).
+    expect(second.deviceId).not.toBe(first.deviceId);
+    expect(second.ports[0]!.id).not.toBe(first.ports[0]!.id);
+
+    // Both instances persist as separate devices in the rack; the second
+    // call did not silently replace or alias the first.
+    const rackDeviceIds = layoutStore.racks
+      .find((r) => r.id === rackId)!
+      .devices.map((d) => d.id);
+    expect(rackDeviceIds).toContain(first.deviceId);
+    expect(rackDeviceIds).toContain(second.deviceId);
+  });
+});
