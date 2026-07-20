@@ -236,7 +236,7 @@
             y={y + 2}
             text-anchor="end"
           >
-            &#8592;
+            &#8594;
           </text>
         {:else if getPortDirection(iface) === "output"}
           <text

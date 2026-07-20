@@ -44,9 +44,12 @@ const AV_INTERFACE_TYPES = new Set<string>([
 
 /**
  * Interface types whose direction defaults to "input" (spike #1927 taxonomy):
- * management/console ports and the AV control-serial types. Checked before
+ * console ports and the AV control-serial types. Checked before
  * AV_INTERFACE_TYPES in inferDirection() since rs-232/rs-422 are members of
- * both sets and the specific input default takes priority.
+ * both sets and the specific input default takes priority. Management-only
+ * interfaces also default to "input", but via the separate mgmt_only check
+ * in inferDirection(), not through this set: the "management" interface
+ * type itself falls through to "bidirectional" unless mgmt_only is set.
  */
 const INPUT_DEFAULT_TYPES = new Set<string>(["console", "rs-232", "rs-422"]);
 
