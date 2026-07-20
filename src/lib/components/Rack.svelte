@@ -486,10 +486,14 @@
    * different port validates and creates the connection. Delegates to the
    * pure handler in connection-creation.ts so the state machine and
    * validation/warning surfacing are unit-testable without mounting Rack.
+   * Placement mode owns the click gesture while armed (isPlacementActive),
+   * so a port click is a no-op there rather than also arming connection
+   * creation on top of an active placement.
    */
   function handlePortClick(info: PortClickInfo) {
     handleConnectionPortClick(info, {
       connectionCreation: connectionCreationStore,
+      isPlacementActive: placementStore.isPlacing,
       validateConnection: connectionStore.validateConnection,
       addConnection: connectionStore.addConnection,
       showToast: (message, type) => toastStore.showToast(message, type, 4000),

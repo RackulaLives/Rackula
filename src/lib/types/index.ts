@@ -380,6 +380,14 @@ export interface PortClickInfo {
   portId: string | undefined;
   /** The interface template this port renders from. */
   iface: InterfaceTemplate;
+  /**
+   * The instantiated PlacedPort itself, when one exists (same presence rule
+   * as portId - they always agree). Carries any per-port direction override
+   * (#1930) so a consumer can resolve the effective direction the same way
+   * connection rendering does (resolveConnectionPortDirection in
+   * connection-path.ts), not just from the InterfaceTemplate default.
+   */
+  port: PlacedPort | undefined;
 }
 
 // =============================================================================

@@ -7,12 +7,20 @@
  * on cancel/complete rather than accumulated across attempts.
  */
 
-import type { InterfaceTemplate } from "$lib/types";
+import type { InterfaceTemplate, PlacedPort } from "$lib/types";
 
 // State
 let isCreating = $state(false);
 let sourcePortId = $state<string | null>(null);
 let sourceIface = $state<InterfaceTemplate | null>(null);
+/**
+ * The source PlacedPort itself, when the click that armed the source had
+ * one (it always does in practice, since a click with no id is a no-op
+ * before startConnection is ever called). Carries any per-port direction
+ * override (#1930) so the handler can resolve effective direction the same
+ * way connection rendering does, not just from the InterfaceTemplate default.
+ */
+let sourcePort = $state<PlacedPort | null>(null);
 
 /**
  * Screen-reader announcement for connection-creation state transitions. Set
@@ -31,11 +39,16 @@ let connectionAnnouncement = $state<string | null>(null);
  * sets an announcement rather than clearing it: it is the only screen-reader
  * signal that the mode was entered.
  */
-function startConnection(portId: string, iface: InterfaceTemplate): void {
+function startConnection(
+  portId: string,
+  iface: InterfaceTemplate,
+  port: PlacedPort | null,
+): void {
   connectionAnnouncement = `${iface.label ?? iface.name} selected, click a target port to connect`;
   isCreating = true;
   sourcePortId = portId;
   sourceIface = iface;
+  sourcePort = port;
 }
 
 /**
@@ -46,6 +59,7 @@ function resetState(): void {
   isCreating = false;
   sourcePortId = null;
   sourceIface = null;
+  sourcePort = null;
 }
 
 /**
@@ -93,6 +107,9 @@ export function getConnectionCreationStore() {
     },
     get sourceIface() {
       return sourceIface;
+    },
+    get sourcePort() {
+      return sourcePort;
     },
     /**
      * Screen-reader announcement text for the most recent connection-creation

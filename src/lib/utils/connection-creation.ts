@@ -12,35 +12,46 @@
  *   the connection store's own validateConnection() (#369) - not
  *   reimplemented here.
  * - Direction mismatch (e.g. output to output) has no store-side check: the
- *   store's Connection model does not carry direction, only the
- *   InterfaceTemplate does, and PortClickInfo already gives this handler both
- *   endpoints' templates. Computed here instead.
+ *   store's Connection model does not carry direction, only PlacedPort and
+ *   InterfaceTemplate do, and PortClickInfo already gives this handler both
+ *   endpoints' PlacedPort/InterfaceTemplate pairs. Computed here instead,
+ *   using the same override-then-template-then-inferred resolution
+ *   connection rendering uses (resolveConnectionPortDirection).
  */
 
-import type {
-  InterfaceTemplate,
-  PortClickInfo,
-  PortDirection,
-} from "$lib/types";
+import type { InterfaceTemplate, PlacedPort, PortClickInfo } from "$lib/types";
 import type {
   ConnectionValidationResult,
   CreateConnectionInput,
 } from "$lib/stores/connection.svelte";
 import type { Connection } from "$lib/types";
-import { inferDirection } from "$lib/utils/port-utils";
+import { resolveConnectionPortDirection } from "$lib/utils/connection-path";
 
 /** The subset of the connection-creation store's API the handler needs. */
 export interface ConnectionCreationStoreLike {
   readonly isCreating: boolean;
   readonly sourcePortId: string | null;
   readonly sourceIface: InterfaceTemplate | null;
-  startConnection: (portId: string, iface: InterfaceTemplate) => void;
+  readonly sourcePort: PlacedPort | null;
+  startConnection: (
+    portId: string,
+    iface: InterfaceTemplate,
+    port: PlacedPort | null,
+  ) => void;
   cancelConnection: () => void;
   completeConnection: (summary?: string) => void;
 }
 
 export interface ConnectionCreationHandlerContext {
   connectionCreation: ConnectionCreationStoreLike;
+  /**
+   * Whether tap-to-place is currently armed (placementStore.isPlacing).
+   * Placement owns the click gesture while armed (it already suppresses
+   * device selection the same way, see RackDevice.svelte's handlePointerUp),
+   * so a port click is a no-op here rather than also arming connection
+   * creation and leaving both modes active at once.
+   */
+  isPlacementActive: boolean;
   validateConnection: (
     input: CreateConnectionInput,
   ) => ConnectionValidationResult;
@@ -51,30 +62,24 @@ export interface ConnectionCreationHandlerContext {
 }
 
 /**
- * Resolve the direction PortIndicators would display for this template:
- * its own override, or the type-inferred default. Matches
- * PortIndicators.svelte's getPortDirection() exactly, so a direction warning
- * here always agrees with what the user sees rendered as an arrow.
- */
-function effectiveDirection(
-  iface: InterfaceTemplate,
-): PortDirection | undefined {
-  return iface.direction ?? inferDirection(iface.type, iface.mgmt_only);
-}
-
-/**
  * Warn when both endpoints resolve to the same non-bidirectional direction
- * (output-to-output, or input-to-input). Undirected AV types (no default,
- * e.g. an XLR port with no explicit direction set) and bidirectional ports
- * never trigger this: there is nothing to mismatch.
+ * (output-to-output, or input-to-input). Direction is resolved the same way
+ * connection rendering resolves it for its arrows
+ * (resolveConnectionPortDirection: PlacedPort.direction override, then
+ * InterfaceTemplate.direction, then the type-inferred default), so a warning
+ * here always agrees with what the user sees drawn. Undirected AV types (no
+ * default, e.g. an XLR port with no explicit direction set anywhere) and
+ * bidirectional ports never trigger this: there is nothing to mismatch.
  * @returns A warning message, or null when directions are compatible.
  */
 export function getDirectionMismatchWarning(
-  a: InterfaceTemplate,
-  b: InterfaceTemplate,
+  aPort: PlacedPort | undefined,
+  aIface: InterfaceTemplate,
+  bPort: PlacedPort | undefined,
+  bIface: InterfaceTemplate,
 ): string | null {
-  const aDirection = effectiveDirection(a);
-  const bDirection = effectiveDirection(b);
+  const aDirection = resolveConnectionPortDirection(aPort, aIface);
+  const bDirection = resolveConnectionPortDirection(bPort, bIface);
   if (!aDirection || !bDirection) return null;
   if (aDirection === "bidirectional" || bDirection === "bidirectional") {
     return null;
@@ -89,6 +94,9 @@ export function getDirectionMismatchWarning(
  * Route a port click through connection-creation mode.
  *
  * State machine (mirrors tap-to-place's arm/complete/cancel shape):
+ * - Placement mode armed -> no-op. Placement owns the click gesture until
+ *   it is placed or cancelled; arming connection creation on top of it would
+ *   leave two global modes active at once with conflicting cancel paths.
  * - Idle + click a port with an id -> arm the mode with that port as source.
  * - Armed + click any port (including the source port again) -> validate,
  *   then create. Clicking the same port twice reaches the store's own
@@ -108,13 +116,15 @@ export function handleConnectionPortClick(
   info: PortClickInfo,
   ctx: ConnectionCreationHandlerContext,
 ): void {
-  const { portId, iface } = info;
+  if (ctx.isPlacementActive) return;
+
+  const { portId, iface, port } = info;
   if (!portId) return;
 
   const { connectionCreation } = ctx;
 
   if (!connectionCreation.isCreating) {
-    connectionCreation.startConnection(portId, iface);
+    connectionCreation.startConnection(portId, iface, port ?? null);
     return;
   }
 
@@ -123,9 +133,10 @@ export function handleConnectionPortClick(
   if (!sourcePortId || !sourceIface) {
     // Defensive: armed with no recorded source (should not happen); start
     // clean from this click rather than attempt an invalid connection.
-    connectionCreation.startConnection(portId, iface);
+    connectionCreation.startConnection(portId, iface, port ?? null);
     return;
   }
+  const sourcePort = connectionCreation.sourcePort;
 
   const input: CreateConnectionInput = {
     a_port_id: sourcePortId,
@@ -139,7 +150,12 @@ export function handleConnectionPortClick(
     return;
   }
 
-  const directionWarning = getDirectionMismatchWarning(sourceIface, iface);
+  const directionWarning = getDirectionMismatchWarning(
+    sourcePort ?? undefined,
+    sourceIface,
+    port,
+    iface,
+  );
   const warnings = directionWarning
     ? [...validation.warnings, directionWarning]
     : validation.warnings;

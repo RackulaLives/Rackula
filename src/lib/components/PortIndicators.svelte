@@ -189,7 +189,7 @@
     iface: InterfaceTemplate,
     port: PlacedPort | undefined,
   ) {
-    onPortClick?.({ portId: port?.id, iface });
+    onPortClick?.({ portId: port?.id, iface, port });
   }
 
   function handlePortMouseEnter(event: MouseEvent, iface: InterfaceTemplate) {
@@ -229,7 +229,8 @@
           class="port-circle"
           class:port-connection-source={port?.id === connectionSourcePortId}
           class:port-connection-target={isConnectionCreationMode &&
-            port?.id !== connectionSourcePortId}
+            port?.id != null &&
+            port.id !== connectionSourcePortId}
           cx={x}
           cy={y}
           r={PORT_RADIUS}
@@ -283,7 +284,8 @@
           class="port-hit-target"
           class:port-connection-source={port?.id === connectionSourcePortId}
           class:port-connection-target={isConnectionCreationMode &&
-            port?.id !== connectionSourcePortId}
+            port?.id != null &&
+            port.id !== connectionSourcePortId}
           cx={x}
           cy={y}
           r={6}
@@ -293,7 +295,9 @@
           aria-label="{iface.label ?? iface.name} ({iface.type}){port?.id ===
           connectionSourcePortId
             ? ', connection source'
-            : isConnectionCreationMode && port?.id !== connectionSourcePortId
+            : isConnectionCreationMode &&
+                port?.id != null &&
+                port.id !== connectionSourcePortId
               ? ', potential connection target'
               : ''}"
           onclick={() => handlePortClick(iface, port)}

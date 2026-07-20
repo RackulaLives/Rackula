@@ -27,7 +27,9 @@ import type {
   SlotWidth,
   Connection,
   InterfaceTemplate,
+  InterfaceType,
   PlacedPort,
+  PortDirection,
 } from "$lib/types";
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import type { NetBoxDeviceType } from "$lib/utils/netbox-import";
@@ -261,6 +263,39 @@ export function createTestConnection(
     b_port_id: "port-b",
     ...overrides,
   };
+}
+
+/**
+ * Places a device with the given interfaces in a rack via the real placement
+ * pipeline (store.placeDevice -> instantiatePorts) and returns its id and
+ * resulting PlacedPort instances, with real store-generated ids. Shared by
+ * connection-store.test.ts and connection-creation.test.ts so both exercise
+ * the same setup instead of duplicating it.
+ *
+ * Each entry is either a bare InterfaceType (uses the InterfaceTemplate
+ * default direction) or an object with a `direction` override, for tests
+ * that need to set the interface template's direction explicitly.
+ */
+export function placeDeviceWithPorts(
+  store: ReturnType<typeof getLayoutStore>,
+  rackId: string,
+  slug: string,
+  position: number,
+  interfaces: Array<
+    InterfaceType | { type: InterfaceType; direction?: PortDirection }
+  >,
+): { deviceId: string; ports: PlacedPort[] } {
+  const deviceType = createTestDeviceType({ slug });
+  deviceType.interfaces = interfaces.map((entry, index) => {
+    const spec = typeof entry === "string" ? { type: entry } : entry;
+    return createTestInterfaceTemplate({ name: `port-${index}`, ...spec });
+  });
+  store.addDeviceTypeRaw(deviceType);
+  store.placeDevice(rackId, slug, position);
+  const device = store.racks
+    .flatMap((r) => r.devices)
+    .find((d) => d.device_type === slug)!;
+  return { deviceId: device.id, ports: device.ports ?? [] };
 }
 
 // =============================================================================
