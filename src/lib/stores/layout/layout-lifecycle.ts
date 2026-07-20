@@ -196,7 +196,13 @@ export function loadLayout(
           return p;
         }
         const nextId = generateUniqueDeviceId(seenPortIds);
-        if (originalId && !portIdRemap.has(originalId)) {
+        // typeof check, not truthiness: an empty-string port id must still
+        // regenerate every time (the `originalId &&` check above already
+        // forces that), but the remap needs to be recorded for it too, or a
+        // connection that survived salvage with `a_port_id: ""` loses its
+        // endpoint here (#3090 review). Only a non-string (missing/malformed)
+        // id has no meaningful key to remap.
+        if (typeof originalId === "string" && !portIdRemap.has(originalId)) {
           portIdRemap.set(originalId, nextId);
         }
         devicePortsChanged = true;
@@ -216,15 +222,21 @@ export function loadLayout(
   // preserved. A connection whose endpoint never resolved to any port (a
   // genuinely dangling reference) was already dropped by adaptLegacyLayout, so
   // every remaining connection is expected to resolve here.
-  const connections = layoutData.connections?.map((connection) => ({
-    ...connection,
-    a_port_id: seenPortIds.has(connection.a_port_id)
-      ? connection.a_port_id
-      : (portIdRemap.get(connection.a_port_id) ?? connection.a_port_id),
-    b_port_id: seenPortIds.has(connection.b_port_id)
-      ? connection.b_port_id
-      : (portIdRemap.get(connection.b_port_id) ?? connection.b_port_id),
-  }));
+  // Array.isArray, not just presence: untrusted/hand-edited input reaching
+  // the store's public loadLayout directly (bypassing Zod, e.g. a crafted
+  // `connections: {}`) must not throw here either, matching the same guard
+  // added to dropDanglingConnections above (#3090 review).
+  const connections = Array.isArray(layoutData.connections)
+    ? layoutData.connections.map((connection) => ({
+        ...connection,
+        a_port_id: seenPortIds.has(connection.a_port_id)
+          ? connection.a_port_id
+          : (portIdRemap.get(connection.a_port_id) ?? connection.a_port_id),
+        b_port_id: seenPortIds.has(connection.b_port_id)
+          ? connection.b_port_id
+          : (portIdRemap.get(connection.b_port_id) ?? connection.b_port_id),
+      }))
+    : layoutData.connections;
 
   // Ensure runtime view is set, show_rear defaults, and all racks have valid IDs
   ctx.setLayout({

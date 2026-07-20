@@ -1086,6 +1086,7 @@ describe("dangling connection salvage (#3090)", () => {
 
     expect(adapted.connections).toEqual([]);
     expect(adapted.racks[0]?.devices).toEqual(layout.racks[0]?.devices);
+    expect(adapted.device_types).toEqual(layout.device_types);
   });
 
   it("is a no-op when there are no connections", () => {
@@ -1094,5 +1095,18 @@ describe("dangling connection salvage (#3090)", () => {
     const adapted = adaptLegacyLayout(layout);
 
     expect(adapted).toBe(layout);
+  });
+
+  it("does not throw when connections is a truthy non-array (malformed/hand-edited input)", () => {
+    // Array.isArray guard, not just truthiness (#3090 review): a crafted
+    // `connections: {}` must degrade gracefully, matching this adapter's
+    // documented never-throw-on-malformed-input contract, rather than
+    // reaching `.filter` and throwing.
+    const layout = {
+      ...createTestLayout(),
+      connections: {},
+    } as unknown as Layout;
+
+    expect(() => adaptLegacyLayout(layout)).not.toThrow();
   });
 });

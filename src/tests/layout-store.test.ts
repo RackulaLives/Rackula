@@ -861,6 +861,104 @@ describe("Layout Store", () => {
 
       expect(store.layout.connections).toEqual([]);
     });
+
+    it("remaps a connection endpoint that referenced an empty-string port id when it is regenerated", () => {
+      // A port with id "" always regenerates (it can never be kept as-is,
+      // since two empty-string ports would collide), but a connection that
+      // survived salvage referencing "" must still follow the regenerated id
+      // rather than staying pinned to the dead empty string (#3090 review).
+      const store = getLayoutStore();
+      store.loadLayout({
+        version: "0.7.0",
+        name: "Empty Port Id Test",
+        racks: [
+          createTestRack({
+            id: "rack-1",
+            devices: [
+              createTestDevice({
+                id: "device-a",
+                device_type: "server-c",
+                position: 1,
+                ports: [createTestPlacedPort({ id: "" })],
+              }),
+              createTestDevice({
+                id: "device-b",
+                device_type: "server-c",
+                position: 5,
+                ports: [createTestPlacedPort({ id: "port-b" })],
+              }),
+            ],
+          }),
+        ],
+        device_types: [
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+        ],
+        connections: [
+          createTestConnection({
+            id: "conn-1",
+            a_port_id: "",
+            b_port_id: "port-b",
+          }),
+        ],
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      });
+
+      const allPortIds = store.layout.racks.flatMap((r) =>
+        r.devices.flatMap((d) => (d.ports ?? []).map((p) => p.id)),
+      );
+      const connection = store.layout.connections?.[0];
+      expect(connection).toBeDefined();
+      // The connection resolves to a real, live port, not the dead "" id.
+      expect(connection!.a_port_id).not.toBe("");
+      expect(allPortIds).toContain(connection!.a_port_id);
+      expect(connection!.b_port_id).toBe("port-b");
+    });
+
+    it("does not throw when connections is a truthy non-array (malformed/hand-edited input)", () => {
+      // Array.isArray guard, not just presence (#3090 review): untrusted input
+      // reaching the store's public loadLayout directly must not crash on a
+      // crafted `connections: {}`.
+      const store = getLayoutStore();
+      expect(() =>
+        store.loadLayout({
+          version: "0.7.0",
+          name: "Malformed Connections Test",
+          racks: [
+            createTestRack({
+              id: "rack-1",
+              devices: [
+                createTestDevice({
+                  id: "device-a",
+                  device_type: "server-c",
+                  position: 1,
+                }),
+              ],
+            }),
+          ],
+          device_types: [
+            {
+              slug: "server-c",
+              u_height: 1,
+              colour: "#4A90A4",
+              category: "server" as const,
+            },
+          ],
+          connections: {} as unknown as never,
+          settings: {
+            display_mode: "label",
+            show_labels_on_images: false,
+          },
+        }),
+      ).not.toThrow();
+    });
   });
 
   describe("dirty tracking", () => {

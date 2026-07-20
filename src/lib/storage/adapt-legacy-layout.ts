@@ -415,7 +415,11 @@ function dropDanglingConnections(
   connections: Connection[] | undefined,
   racks: Rack[],
 ): { connections: Connection[] | undefined; changed: boolean } {
-  if (!connections || connections.length === 0) {
+  // Array.isArray, not just truthiness: untrusted/hand-edited input can carry
+  // a truthy non-array `connections` (e.g. `connections: {}`), which would
+  // otherwise fall through to `.filter` below and throw, violating this
+  // adapter's never-throw-on-malformed-input contract (#3090 review).
+  if (!Array.isArray(connections) || connections.length === 0) {
     return { connections, changed: false };
   }
 
