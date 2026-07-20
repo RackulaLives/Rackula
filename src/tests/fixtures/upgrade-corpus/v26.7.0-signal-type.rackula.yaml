@@ -1,0 +1,53 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
+metadata:
+  id: 3f8a1c2d-9e4b-4c7a-8d1f-6b2e9a5c3d71
+  name: Signal Type Demo Rack
+  schema_version: "1.1"
+version: "26.7.0"
+name: Signal Type Demo Rack
+racks:
+  - id: rack-signal
+    name: Signal Demo Rack
+    height: 8
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: dev-signal-demo
+        device_type: signal-demo-device
+        position: 3
+        face: front
+        ports:
+          - id: port-mic-in
+            template_name: Mic In
+            template_index: 0
+            type: xlr-3
+            direction: input
+          - id: port-aes-out
+            template_name: AES Out
+            template_index: 1
+            type: xlr-3
+            direction: output
+            signal_type: digital-audio-aes3
+device_types:
+  - slug: signal-demo-device
+    manufacturer: Acme Audio
+    model: Signal Demo 1U
+    u_height: 1
+    colour: "#8BE9FD"
+    category: av-media
+    interfaces:
+      - name: Mic In
+        type: xlr-3
+        direction: input
+        signal_type: analog-audio-mic
+      - name: AES Out
+        type: xlr-3
+        direction: output
+        signal_type: digital-audio-aes3
+settings:
+  display_mode: label
+  show_labels_on_images: false
