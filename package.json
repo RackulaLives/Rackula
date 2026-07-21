@@ -91,12 +91,12 @@
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "lz-string": "^1.5.0",
-    "marked": "^18.0.6",
+    "marked": "^18.0.7",
     "nanoid": "^6.0.0",
     "pako": "^3.0.1",
     "panzoom": "^9.4.4",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.26.0",
+    "simple-icons": "^16.27.0",
     "svg2pdf.js": "^2.7.0",
     "zod": "^4.4.3"
   }
