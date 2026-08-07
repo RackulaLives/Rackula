@@ -85,7 +85,7 @@
     "bits-ui": "^2.18.1",
     "browser-fs-access": "^0.38.0",
     "debug": "^4.4.3",
-    "dompurify": "^3.4.12",
+    "dompurify": "^3.4.13",
     "fuse.js": "^7.5.0",
     "js-yaml": "^4.3.0",
     "jspdf": "^4.2.1",
