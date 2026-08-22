@@ -3,7 +3,13 @@
  * Functions for port instantiation when devices are placed
  */
 
-import type { DeviceType, PlacedPort, PortDirection } from "$lib/types";
+import type {
+  DeviceType,
+  InterfaceType,
+  PlacedPort,
+  PortDirection,
+  SignalType,
+} from "$lib/types";
 import { generateId } from "$lib/utils/device";
 
 export type PortCategory = "network" | "power" | "console" | "av";
@@ -104,6 +110,73 @@ export function inferDirection(
     return undefined;
   }
   return "bidirectional";
+}
+
+/**
+ * Human-readable signal names, one per SignalType value. Shared source for
+ * every surface that labels signals, so a label change lands everywhere.
+ */
+export const SIGNAL_LABELS: Record<SignalType, string> = {
+  "analog-audio-mic": "Mic level",
+  "analog-audio-line": "Line level",
+  "analog-audio-speaker": "Speaker level",
+  "digital-audio-aes3": "AES3",
+  "digital-audio-dante": "Dante",
+  "digital-audio-avb": "AVB",
+  "digital-video-hdmi": "HDMI",
+  "digital-video-sdi": "SDI",
+  "clock-word": "Word clock",
+  "control-midi": "MIDI",
+};
+
+/**
+ * Label for a signal type, falling back to the raw slug for forward
+ * compatibility if a new value is not yet in SIGNAL_LABELS.
+ */
+export function getSignalLabel(signal: SignalType): string {
+  return SIGNAL_LABELS[signal] ?? signal;
+}
+
+/**
+ * Infer the signal a connector carries from its type (and, for XLR, its
+ * direction: mic level into an input, line level out of anything else).
+ * Returns undefined when the connector implies no distinct signal to label:
+ * network types (ethernet is the connector, not a separate signal), connectors
+ * whose signal has no SignalTypeSchema value yet (DMX, ADAT), and genuinely
+ * ambiguous ones. Device authors set signal_type explicitly for those.
+ */
+export function inferSignalType(
+  type: InterfaceType,
+  direction?: PortDirection,
+): SignalType | undefined {
+  switch (type) {
+    case "xlr-3":
+      return direction === "input" ? "analog-audio-mic" : "analog-audio-line";
+    case "trs-1-4":
+    case "ts-1-4":
+    case "rca":
+    case "db25-audio":
+    case "phoenix":
+      return "analog-audio-line";
+    case "speakon":
+      return "analog-audio-speaker";
+    case "aes3":
+      return "digital-audio-aes3";
+    case "dante":
+      return "digital-audio-dante";
+    case "avb":
+      return "digital-audio-avb";
+    case "hdmi":
+      return "digital-video-hdmi";
+    case "sdi-bnc":
+      return "digital-video-sdi";
+    case "bnc":
+      return "clock-word";
+    case "midi-din":
+      return "control-midi";
+    default:
+      return undefined;
+  }
 }
 
 /**
