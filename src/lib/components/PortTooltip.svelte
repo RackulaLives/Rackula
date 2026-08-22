@@ -101,6 +101,7 @@
 </script>
 
 {#if visible && port}
+  {@const genderLabel = getGenderLabel(port)}
   <div class="port-tooltip" role="tooltip" style="left: {x}px; top: {y}px;">
     <div class="port-tooltip-name">{port.label ?? port.name}</div>
     <div class="port-tooltip-type">{getTypeLabel(port.type)}</div>
