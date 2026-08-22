@@ -214,6 +214,23 @@ export type InterfacePosition = "front" | "rear";
  */
 export type PortDirection = "input" | "output" | "bidirectional";
 
+/**
+ * Signal type carried by a port, independent of the physical connector.
+ * The connector (InterfaceType) describes the plug; the signal type describes
+ * what flows through it (e.g. an XLR can carry mic, line, or AES3).
+ */
+export type SignalType =
+  | "analog-audio-mic"
+  | "analog-audio-line"
+  | "analog-audio-speaker"
+  | "digital-audio-aes3"
+  | "digital-audio-dante"
+  | "digital-audio-avb"
+  | "digital-video-hdmi"
+  | "digital-video-sdi"
+  | "clock-word"
+  | "control-midi";
+
 // =============================================================================
 // Component Types (NetBox-compatible, schema-only)
 // =============================================================================
@@ -243,6 +260,8 @@ export interface InterfaceTemplate {
   poe_type?: PoEType;
   /** Signal direction. Provides the default used when the placed port omits its own. */
   direction?: PortDirection;
+  /** Signal carried by this port (explicit; inferred from type and direction when unset) */
+  signal_type?: SignalType;
 }
 
 /**
@@ -364,6 +383,8 @@ export interface PlacedPort {
   label?: string;
   /** Signal direction override; falls back to the InterfaceTemplate default when unset */
   direction?: PortDirection;
+  /** Signal override; falls back to the template value, then inference, when unset */
+  signal_type?: SignalType;
 }
 
 /**

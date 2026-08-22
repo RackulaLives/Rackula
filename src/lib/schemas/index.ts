@@ -222,6 +222,25 @@ export const InterfacePositionSchema = z.enum(["front", "rear"]);
  */
 export const PortDirectionSchema = z.enum(["input", "output", "bidirectional"]);
 
+/**
+ * Signal type enum - what a port carries, independent of the connector
+ * (spike #1927; #1935). The connector (InterfaceType) describes the plug;
+ * the signal type describes what flows through it (an XLR can carry mic,
+ * line, or AES3). Deliberately starts small; the taxonomy can grow.
+ */
+export const SignalTypeSchema = z.enum([
+  "analog-audio-mic",
+  "analog-audio-line",
+  "analog-audio-speaker",
+  "digital-audio-aes3",
+  "digital-audio-dante",
+  "digital-audio-avb",
+  "digital-video-hdmi",
+  "digital-video-sdi",
+  "clock-word",
+  "control-midi",
+]);
+
 // ============================================================================
 // Container Slot Schemas (v0.6.0)
 // ============================================================================
@@ -302,6 +321,7 @@ export const InterfaceTemplateSchema = z
     poe_mode: PoEModeSchema.optional(),
     poe_type: PoETypeSchema.optional(),
     direction: PortDirectionSchema.optional(),
+    signal_type: SignalTypeSchema.optional(),
   })
   .passthrough();
 
@@ -381,6 +401,7 @@ export const PlacedPortSchema = z
     type: InterfaceTypeSchema,
     label: z.string().max(64).optional(),
     direction: PortDirectionSchema.optional(),
+    signal_type: SignalTypeSchema.optional(),
   })
   .passthrough();
 
@@ -1110,6 +1131,7 @@ export type PoEType = z.infer<typeof PoETypeSchema>;
 export type PoEMode = z.infer<typeof PoEModeSchema>;
 export type InterfacePosition = z.infer<typeof InterfacePositionSchema>;
 export type PortDirection = z.infer<typeof PortDirectionSchema>;
+export type SignalType = z.infer<typeof SignalTypeSchema>;
 export type InterfaceTemplate = z.infer<typeof InterfaceTemplateSchema>;
 export type PowerPort = z.infer<typeof PowerPortSchema>;
 export type PowerOutlet = z.infer<typeof PowerOutletSchema>;
