@@ -13,35 +13,8 @@ import {
   validateConnection,
 } from "$lib/stores/connection.svelte";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
-import type { Connection, InterfaceType, PlacedPort } from "$lib/types";
-import {
-  createTestLayoutStore,
-  createTestDeviceType,
-  createTestInterfaceTemplate,
-} from "./factories";
-
-/**
- * Place a device with the given interface types in a rack and return its id
- * plus the resulting PlacedPort instances (real, store-generated ids).
- */
-function placeDeviceWithPorts(
-  store: ReturnType<typeof getLayoutStore>,
-  rackId: string,
-  slug: string,
-  position: number,
-  interfaceTypes: InterfaceType[],
-): { deviceId: string; ports: PlacedPort[] } {
-  const deviceType = createTestDeviceType({ slug });
-  deviceType.interfaces = interfaceTypes.map((type, i) =>
-    createTestInterfaceTemplate({ name: `port-${i}`, type }),
-  );
-  store.addDeviceTypeRaw(deviceType);
-  store.placeDevice(rackId, slug, position);
-  const device = store.racks
-    .flatMap((r) => r.devices)
-    .find((d) => d.device_type === slug)!;
-  return { deviceId: device.id, ports: device.ports ?? [] };
-}
+import type { Connection } from "$lib/types";
+import { createTestLayoutStore, placeDeviceWithPorts } from "./factories";
 
 /**
  * Narrow an addConnection-style result to its success case, throwing with

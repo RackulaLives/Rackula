@@ -1,0 +1,8 @@
+{
+  "allowList": [
+    {
+      "pathPattern": "\\.position$",
+      "reason": "rail position 3 is converted to internal 1/6U units on load; no coincidental duplicate elsewhere in this fixture unlike the sibling AV fixtures"
+    }
+  ]
+}

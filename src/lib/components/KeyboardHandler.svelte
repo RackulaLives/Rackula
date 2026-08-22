@@ -13,6 +13,7 @@
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
+  import { getConnectionCreationStore } from "$lib/stores/connection-creation.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import {
@@ -25,6 +26,7 @@
 
   const layoutStore = getLayoutStore();
   const placementStore = getPlacementStore();
+  const connectionCreationStore = getConnectionCreationStore();
   const canvasStore = getCanvasStore();
   const toastStore = getToastStore();
 
@@ -83,6 +85,19 @@
     return true;
   }
 
+  /**
+   * Right-click cancels connection-creation mode (#1932) anywhere it is not
+   * already handled by a more specific target. RackDevice's own context menu
+   * handler covers a right-click on a device body or a port (it stops
+   * propagation before this window listener would see it); this covers
+   * right-clicking empty rack space or canvas chrome instead.
+   */
+  function handleContextMenu(event: MouseEvent) {
+    if (!connectionCreationStore.isCreating) return;
+    event.preventDefault();
+    connectionCreationStore.cancelConnection();
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     // Palette shortcut fires even from a text field, and before any other
     // handling. It is the first special-case to run before shouldIgnoreKeyboard.
@@ -106,6 +121,13 @@
     // Ignore if in input field
     if (shouldIgnoreKeyboard(event)) return;
 
+    // Escape cancels connection-creation mode (#1932), mirroring right-click.
+    if (connectionCreationStore.isCreating && event.key === "Escape") {
+      event.preventDefault();
+      connectionCreationStore.cancelConnection();
+      return;
+    }
+
     // Keyboard placement (#106) owns arrow / Tab / Enter / Escape while a device
     // is armed, so it runs before the action registry (which binds arrows to
     // move-device and Escape to clear-selection). It only consumes keys while
@@ -127,4 +149,4 @@
   }
 </script>
 
-<svelte:window onkeydown={handleKeyDown} />
+<svelte:window onkeydown={handleKeyDown} oncontextmenu={handleContextMenu} />

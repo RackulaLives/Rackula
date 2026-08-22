@@ -161,6 +161,21 @@
                   ],
                   "type": "string"
                 },
+                "signal_type": {
+                  "enum": [
+                    "analog-audio-mic",
+                    "analog-audio-line",
+                    "analog-audio-speaker",
+                    "digital-audio-aes3",
+                    "digital-audio-dante",
+                    "digital-audio-avb",
+                    "digital-video-hdmi",
+                    "digital-video-sdi",
+                    "clock-word",
+                    "control-midi"
+                  ],
+                  "type": "string"
+                },
                 "type": {
                   "enum": [
                     "100base-tx",
@@ -641,6 +656,21 @@
                       "maxLength": 64,
                       "type": "string"
                     },
+                    "signal_type": {
+                      "enum": [
+                        "analog-audio-mic",
+                        "analog-audio-line",
+                        "analog-audio-speaker",
+                        "digital-audio-aes3",
+                        "digital-audio-dante",
+                        "digital-audio-avb",
+                        "digital-video-hdmi",
+                        "digital-video-sdi",
+                        "clock-word",
+                        "control-midi"
+                      ],
+                      "type": "string"
+                    },
                     "template_index": {
                       "maximum": 9007199254740991,
                       "minimum": 0,
@@ -936,6 +966,21 @@
                       },
                       "label": {
                         "maxLength": 64,
+                        "type": "string"
+                      },
+                      "signal_type": {
+                        "enum": [
+                          "analog-audio-mic",
+                          "analog-audio-line",
+                          "analog-audio-speaker",
+                          "digital-audio-aes3",
+                          "digital-audio-dante",
+                          "digital-audio-avb",
+                          "digital-video-hdmi",
+                          "digital-video-sdi",
+                          "clock-word",
+                          "control-midi"
+                        ],
                         "type": "string"
                       },
                       "template_index": {

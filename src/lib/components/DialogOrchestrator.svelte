@@ -37,6 +37,7 @@
   import type { ImageStoreMap } from "$lib/types/images";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
+  import { getConnectionCreationStore } from "$lib/stores/connection-creation.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
 
   import {
@@ -92,6 +93,7 @@
   const imageStore = getImageStore();
   const viewportStore = getViewportStore();
   const placementStore = getPlacementStore();
+  const connectionCreationStore = getConnectionCreationStore();
 
   // Dialog state — derived from dialogStore
   let addDeviceFormOpen = $derived(dialogStore.isOpen("addDevice"));
@@ -1021,4 +1023,18 @@
   data-testid="placement-sr-announcer"
 >
   {placementStore.placementAnnouncement ?? ""}
+</div>
+
+<!--
+  Connection-creation outcome SR announcer (#1932).
+  Assertive live region announces mode transitions (started, cancelled,
+  created), mirroring the placement announcer above.
+-->
+<div
+  aria-live="assertive"
+  aria-atomic="true"
+  class="sr-only"
+  data-testid="connection-creation-sr-announcer"
+>
+  {connectionCreationStore.connectionAnnouncement ?? ""}
 </div>
