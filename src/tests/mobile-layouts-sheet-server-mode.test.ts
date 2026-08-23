@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { render, screen } from "@testing-library/svelte";
+import { render, screen, waitFor } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import type { SavedLayoutItem } from "$lib/storage/api";
 
@@ -81,5 +81,36 @@ describe("mobile layouts sheet in server mode", () => {
     expect(loadFromApi).toHaveBeenCalledWith("srv-1", expect.anything());
     expect(ws.tabs.every((t) => !t.unreadable)).toBe(true);
     expect(ws.tabs.length).toBe(tabsBefore);
+  });
+
+  it("refuses to open a corrupted server row", async () => {
+    vi.mocked(listSavedLayouts).mockResolvedValue([
+      item({ name: "Broken Rack", valid: false }),
+    ]);
+    const user = userEvent.setup();
+
+    render(MobileLayoutsSheet, { props: {} });
+    await user.click(await screen.findByText("Broken Rack"));
+
+    expect(loadFromApi).not.toHaveBeenCalled();
+  });
+
+  it("dismisses the sheet before running the replace guard", async () => {
+    vi.mocked(listSavedLayouts).mockResolvedValue([item()]);
+    const user = userEvent.setup();
+    const onclose = vi.fn();
+
+    render(MobileLayoutsSheet, { props: { onclose } });
+    await user.click(await screen.findByText("Closet Rack"));
+
+    await waitFor(() => expect(loadFromApi).toHaveBeenCalled());
+    expect(onclose).toHaveBeenCalled();
+    // Ordering-sensitive: onclose must fire before the guard runs, or the
+    // replace-confirm dialog would be covered by a sheet still closing
+    // (#3151). Comparing call order (not just that both ran) is what catches
+    // a reversed sequence.
+    const closeOrder = onclose.mock.invocationCallOrder[0]!;
+    const loadOrder = vi.mocked(loadFromApi).mock.invocationCallOrder[0]!;
+    expect(closeOrder).toBeLessThan(loadOrder);
   });
 });
