@@ -104,7 +104,7 @@ Closed server rows always render the hatched placeholder thumbnail, because `pre
 
 `src/lib/components/LayoutsLibrary.svelte` and `src/lib/components/mobile/MobileLayoutsSheet.svelte` both select their catalogue source with `getStorageMode()`.
 
-The mobile sheet needs more than a source swap. `activateRow` (`src/lib/components/mobile/MobileLayoutsSheet.svelte:81-88`) sends any row with a `layoutId` to `workspaceStore.openFromLibrary`, and in server mode `loadBodyFn` is null, so that falls through to the unreadable-shell branch (`src/lib/stores/workspace.svelte.ts:222-241`) and opens an empty tab flagged unreadable with no replace guard and no server fetch. Mobile closed-row activation must route through the same `runOpenFileFlow` plus `loadFromApi` path as desktop, with the sheet dismissing only after the guard resolves so the confirm dialog is not hidden behind a closing sheet.
+The mobile sheet needs more than a source swap. `activateRow` (`src/lib/components/mobile/MobileLayoutsSheet.svelte:81-88`) sends any row with a `layoutId` to `workspaceStore.openFromLibrary`, and in server mode `loadBodyFn` is null, so that falls through to the unreadable-shell branch (`src/lib/stores/workspace.svelte.ts:222-241`) and opens an empty tab flagged unreadable with no replace guard and no server fetch. Mobile closed-row activation must route through the same `runOpenFileFlow` plus `loadFromApi` path as desktop, with the sheet dismissing _before_ the guard runs, not after. Dismissing first clears the sheet off screen before the replace-confirm dialog appears; dismissing after would leave the sheet sitting on top of the confirm dialog while the user decides. Pinned by a test in commit `0b16209f`.
 
 ### 4. Actions in server mode
 

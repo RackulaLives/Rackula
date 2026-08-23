@@ -48,12 +48,8 @@
     getServerInstanceLabel,
     loadFromApi,
     PersistenceError,
+    abandonWorkingCopy,
   } from "$lib/storage";
-  // abandonWorkingCopy is deliberately not re-exported from the storage
-  // barrel (#3151): it is a single-caller escape hatch for this panel's
-  // delete flow, and a barrel line nothing else consumes is YAGNI.
-  // eslint-disable-next-line no-restricted-imports -- see comment above
-  import { abandonWorkingCopy } from "$lib/storage/manager.svelte";
   import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
   import type { CatalogueEntry } from "./layouts-library";
 
@@ -316,16 +312,24 @@
 
     // Deleting the open copy must drop the working copy first, or the
     // debounced autosave PUTs it straight back after the DELETE (#3151).
-    if (row.isOpen) abandonWorkingCopy();
+    // abandonWorkingCopy() is global: it only ever concerns the ACTIVE
+    // layout's save timer, session, and base. row.isOpen only means some tab
+    // holds this layout, not that it is the working copy, so a background
+    // tab's row must not trigger it: only the active layout is ever
+    // autosaved, so there is no working copy to drop for a background tab.
+    if (row.isOpen && row.tabId === workspaceStore.activeId)
+      abandonWorkingCopy();
     try {
       await deleteSavedLayout(row.layoutId);
     } catch (error) {
       // A layout the server has never heard of (a brand-new tab, one deleted
       // inside the autosave debounce window, or a zero-rack layout the
-      // autosave effect never PUTs at all) 404s here. abandonWorkingCopy()
-      // above already dropped the working copy, so there is nothing left to
-      // reconcile: finish the same local cleanup as a real delete, with no
-      // error toast (#3151). Every other status is a genuine failure.
+      // autosave effect never PUTs at all) 404s here. For the active tab,
+      // abandonWorkingCopy() above already dropped the working copy; for a
+      // background tab, there was never one to drop, since only the active
+      // layout autosaves. Either way there is nothing left to reconcile:
+      // finish the same local cleanup as a real delete, with no error toast
+      // (#3151). Every other status is a genuine failure.
       if (!(error instanceof PersistenceError && error.statusCode === 404)) {
         toastStore.showToast(`Could not delete "${row.name}"`, "error");
         return;

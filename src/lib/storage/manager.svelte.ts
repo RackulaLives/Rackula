@@ -151,8 +151,12 @@ export function finalizeSuccessfulSave(
   // Keep the server catalogue current without a refetch (#3151). Autosave
   // fires every 2 seconds while editing, so invalidating on save would mean
   // one GET /api/layouts per save. A null newUpdatedAt means the server
-  // returned no new timestamp, so there is nothing to record.
-  if (newUpdatedAt) {
+  // returned no new timestamp, so there is nothing to record. Also gated on
+  // clearDirtyState: a stale save's live layout has already moved on (edits,
+  // an abandon, or a loadFromApi swap), so its name and counts are the wrong
+  // thing to record, and the follow-up save that made it stale will upsert
+  // correctly.
+  if (clearDirtyState && newUpdatedAt) {
     const saved = layoutStore.layout;
     const savedId = saved.metadata?.id;
     if (savedId) {
@@ -557,10 +561,14 @@ export function flushSessionSave(): void {
  * DELETE, and the next reload would reconcile the surviving session as
  * unknown-to-server and restore the layout the user just deleted.
  *
- * Bumping the schedule id marks any settling save stale so its success cannot
- * clear dirty state or re-record a base. A PUT already on the wire can still
- * reach the server; that sub-second window is accepted rather than adding a
- * save barrier.
+ * Bumping the schedule id marks any settling save stale, which suppresses
+ * clearing dirty state and, in turn, re-recording the server-catalogue row
+ * for that save (finalizeSuccessfulSave gates the upsert on clearDirtyState).
+ * It does NOT suppress re-recording the base or re-stamping the working
+ * copy: those still run whenever the stale save's PUT echoes an updatedAt,
+ * independent of clearDirtyState (#2926). A PUT already on the wire can
+ * still reach the server; that sub-second window is accepted rather than
+ * adding a save barrier.
  */
 export function abandonWorkingCopy(): void {
   if (serverSaveTimer) {
@@ -569,6 +577,7 @@ export function abandonWorkingCopy(): void {
   }
   _serverSavePending = false;
   _serverSaveScheduleId++;
+  _saveStatus = "idle";
   cancelSessionSave();
   clearSession();
   setServerBaseUpdatedAt(null);

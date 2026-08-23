@@ -169,6 +169,34 @@ describe("Layouts panel in server mode", () => {
     abandonSpy.mockRestore();
   });
 
+  it("does not drop the working copy when deleting a background tab's row", async () => {
+    // abandonWorkingCopy is global: it clears the active layout's save timer,
+    // session, and base. A background tab's row is open (row.isOpen) but is
+    // not the working copy being autosaved, so deleting it must not touch
+    // the active layout's continuity copy (#3151).
+    vi.mocked(listSavedLayouts).mockResolvedValue([]);
+    const abandonSpy = vi.spyOn(manager, "abandonWorkingCopy");
+    const ws = getWorkspaceStore();
+    const backgroundTabId = ws.activeId;
+    const backgroundLayoutId = ws.activeStore.layout.metadata?.id;
+    ws.openTab(); // opens and activates a second tab; the first becomes background
+    const user = userEvent.setup();
+
+    render(LayoutsLibrary, { props: {} });
+    const row = await screen.findByTestId(`layout-item-${backgroundTabId}`);
+
+    await user.pointer({ keys: "[MouseRight]", target: row });
+    await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
+    await user.click(await screen.findByRole("button", { name: /delete/i }));
+
+    await waitFor(() =>
+      expect(deleteSavedLayout).toHaveBeenCalledWith(backgroundLayoutId),
+    );
+    expect(abandonSpy).not.toHaveBeenCalled();
+
+    abandonSpy.mockRestore();
+  });
+
   it("treats deleting a layout the server has never heard of as already gone", async () => {
     // Reachable for a brand-new tab, a tab closed inside the autosave
     // debounce, or any zero-rack layout (autosave Effect 2 never PUTs one):

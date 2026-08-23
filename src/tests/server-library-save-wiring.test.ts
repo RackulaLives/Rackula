@@ -47,4 +47,19 @@ describe("save wiring to the server catalogue", () => {
 
     expect(upsertServerLibraryItem).not.toHaveBeenCalled();
   });
+
+  it("skips the catalogue update for a stale save even when the server returns a timestamp", () => {
+    // clearDirtyState is false for a settling save whose captured snapshot is
+    // older than the live layout (newer edits, an abandon, or a loadFromApi
+    // swap arrived while it was in flight). The live layout's name and counts
+    // no longer describe what this save actually wrote, so recording them
+    // would corrupt the catalogue row; the follow-up save that made this one
+    // stale will upsert correctly instead.
+    const ws = getWorkspaceStore();
+    ws.openTab(createLayout("Homelab"));
+
+    finalizeSuccessfulSave(false, "2026-08-22T10:00:00.000Z");
+
+    expect(upsertServerLibraryItem).not.toHaveBeenCalled();
+  });
 });
