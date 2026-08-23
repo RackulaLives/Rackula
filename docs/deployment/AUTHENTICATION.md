@@ -893,7 +893,7 @@ Events are written to stdout as structured JSON, compatible with log aggregators
 
 1. If `RACKULA_OIDC_REDIRECT_URI` is unset, confirm your IdP has `RACKULA_BASE_URL` + `/auth/callback` registered, since that is the default Rackula advertises
 2. Verify `RACKULA_OIDC_REDIRECT_URI` matches IdP redirect URI exactly
-3. Check for trailing slashes (should NOT be present): ❌ `/auth/callback/` ✅ `/auth/callback`
+3. Check for trailing slashes. Do not use `/auth/callback/`. Use `/auth/callback`.
 4. Verify protocol matches (both HTTPS or both HTTP)
 5. Update IdP configuration if needed
 6. Restart API after changes
