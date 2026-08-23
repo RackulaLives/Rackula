@@ -36,6 +36,16 @@
     starterRackSummary,
     type StarterTemplate,
   } from "$lib/templates/starter-templates";
+  import {
+    getStorageMode,
+    getApiAvailableState,
+    getServerLibrary,
+    refreshServerLibrary,
+    loadFromApi,
+  } from "$lib/storage";
+  import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
+  import { getToastStore } from "$lib/stores/toast.svelte";
+  import type { CatalogueEntry } from "../layouts-library";
 
   interface Props {
     /** After a fresh layout is opened, ask the parent to add a rack directly. */
@@ -47,18 +57,49 @@
   let { onnewlayout, onclose }: Props = $props();
 
   const workspaceStore = getWorkspaceStore();
+  const toastStore = getToastStore();
+
+  const serverMode = getStorageMode() === "server";
+  const serverLibrary = getServerLibrary();
+
+  // Server mode has no localStorage workspace index, so its catalogue is the
+  // server's list; browser mode keeps the workspace library (#3151).
+  const catalogue = $derived<CatalogueEntry[]>(
+    serverMode
+      ? serverLibrary.items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          rackCount: item.rackCount,
+          deviceCount: item.deviceCount,
+          valid: item.valid,
+        }))
+      : Object.entries(workspaceStore.library).map(([id, entry]) => ({
+          id,
+          name: entry.name,
+        })),
+  );
 
   const rows = $derived(
     buildLayoutRows(
       workspaceStore.tabs,
       workspaceStore.activeId,
-      Object.entries(workspaceStore.library).map(([id, entry]) => ({
-        id,
-        name: entry.name,
-      })),
-      (t) => t.layoutId,
+      catalogue,
+      // Server mode never sets tab.layoutId, and a New-layout tab keeps the id
+      // createLayout generated even after loadFromApi replaces its contents, so
+      // the live body is the only correct identity there (#3151).
+      serverMode ? (t) => t.store.layout.metadata?.id : (t) => t.layoutId,
     ),
   );
+
+  // The sheet mounts when it opens, so mount is the open hook. Re-running when
+  // availability flips true is what makes a recovered server repopulate the
+  // list: effect 3 in the manager only marks the API available, it refills no
+  // list.
+  $effect(() => {
+    if (!serverMode) return;
+    getApiAvailableState();
+    void refreshServerLibrary();
+  });
 
   // The starters loaded so far, from the shared source. Empty until the lazy
   // load resolves and empty again after a failed load, so the "New from
@@ -80,15 +121,39 @@
   }
 
   // Switch to the layout a row represents, then dismiss the sheet. An open row
-  // focuses its tab; a closed row hydrates its persisted body into a new tab.
-  // Both route through the workspace store, which never opens a duplicate tab.
+  // focuses its tab; a closed row hydrates its persisted body into a new tab
+  // (browser mode) or replaces the working copy behind the open-file guard
+  // (server mode, #3151). Both route through the workspace store, which never
+  // opens a duplicate tab.
   function activateRow(row: LayoutRow) {
-    if (row.layoutId) {
-      workspaceStore.openFromLibrary(row.layoutId);
-    } else if (row.tabId) {
+    if (row.isOpen && row.tabId) {
       workspaceStore.switchTo(row.tabId);
+      onclose?.();
+      return;
     }
+    if (!row.layoutId) return;
+    if (!serverMode) {
+      workspaceStore.openFromLibrary(row.layoutId);
+      onclose?.();
+      return;
+    }
+    if (!row.valid) {
+      toastStore.showToast(
+        `"${row.name}" is corrupted and cannot be opened`,
+        "error",
+      );
+      return;
+    }
+    const layoutId = row.layoutId;
+    // Dismiss first, then run the guard: the confirm dialog must not be
+    // covered by a sheet that is still closing.
     onclose?.();
+    runOpenFileFlow(async (guarded) => {
+      await loadFromApi(
+        layoutId,
+        guarded ? { successMessage: "Previous layout kept in Layouts" } : {},
+      );
+    });
   }
 
   // Open a fresh empty layout in its own tab, make it active, then let the
