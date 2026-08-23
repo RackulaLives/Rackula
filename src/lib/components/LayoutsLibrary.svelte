@@ -38,6 +38,23 @@
   import Dialog from "./Dialog.svelte";
   import Button from "./ui/Button.svelte";
   import Tooltip from "./Tooltip.svelte";
+  import {
+    getStorageMode,
+    getApiAvailableState,
+    getServerLibrary,
+    refreshServerLibrary,
+    removeServerLibraryItem,
+    deleteSavedLayout,
+    getServerInstanceLabel,
+    loadFromApi,
+  } from "$lib/storage";
+  // abandonWorkingCopy is deliberately not re-exported from the storage
+  // barrel (#3151): it is a single-caller escape hatch for this panel's
+  // delete flow, and a barrel line nothing else consumes is YAGNI.
+  // eslint-disable-next-line no-restricted-imports -- see comment above
+  import { abandonWorkingCopy } from "$lib/storage/manager.svelte";
+  import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
+  import type { CatalogueEntry } from "./layouts-library";
 
   interface Props {
     /** Create a new, empty layout in a new tab. */
@@ -60,17 +77,47 @@
     onnewlayout?.();
   }
 
+  const serverMode = getStorageMode() === "server";
+  const serverLibrary = getServerLibrary();
+
+  // Server mode has no localStorage workspace index, so its catalogue is the
+  // server's list; browser mode keeps the workspace library (#3151).
+  const catalogue = $derived<CatalogueEntry[]>(
+    serverMode
+      ? serverLibrary.items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          rackCount: item.rackCount,
+          deviceCount: item.deviceCount,
+          valid: item.valid,
+        }))
+      : Object.entries(workspaceStore.library).map(([id, entry]) => ({
+          id,
+          name: entry.name,
+        })),
+  );
+
   const rows = $derived(
     buildLayoutRows(
       workspaceStore.tabs,
       workspaceStore.activeId,
-      Object.entries(workspaceStore.library).map(([id, entry]) => ({
-        id,
-        name: entry.name,
-      })),
-      (t) => t.layoutId,
+      catalogue,
+      // Server mode never sets tab.layoutId, and a New-layout tab keeps the id
+      // createLayout generated even after loadFromApi replaces its contents, so
+      // the live body is the only correct identity there (#3151).
+      serverMode ? (t) => t.store.layout.metadata?.id : (t) => t.layoutId,
     ),
   );
+
+  // The panel is mounted only while its sidebar tab is selected, so mount is
+  // the panel-open hook. Re-running when availability flips true is what makes
+  // a recovered server repopulate the list: effect 3 in the manager only marks
+  // the API available, it refills no list.
+  $effect(() => {
+    if (!serverMode) return;
+    getApiAvailableState();
+    void refreshServerLibrary();
+  });
 
   /** Stable per-row key: the tab id for an open row, the layout id for a closed one. */
   function rowKey(row: LayoutRow): string {
@@ -84,11 +131,30 @@
    * already-open layout never gets a duplicate tab.
    */
   function activateRow(row: LayoutRow) {
-    if (row.layoutId) {
-      workspaceStore.openFromLibrary(row.layoutId);
-    } else if (row.tabId) {
+    if (row.isOpen && row.tabId) {
       workspaceStore.switchTo(row.tabId);
+      return;
     }
+    if (!row.layoutId) return;
+    if (!serverMode) {
+      workspaceStore.openFromLibrary(row.layoutId);
+      return;
+    }
+    if (!row.valid) {
+      toastStore.showToast(
+        `"${row.name}" is corrupted and cannot be opened`,
+        "error",
+      );
+      return;
+    }
+    const layoutId = row.layoutId;
+    // Opening replaces the working copy, the same guard the Open dialog uses.
+    runOpenFileFlow(async (guarded) => {
+      await loadFromApi(
+        layoutId,
+        guarded ? { successMessage: "Previous layout kept in Layouts" } : {},
+      );
+    });
   }
 
   // Cached mini-render previews (#2083). The cache is bounded and session-only.
@@ -223,9 +289,13 @@
     deleteConfirmOpen = true;
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     const row = rowToDelete;
-    if (row) {
+    deleteConfirmOpen = false;
+    rowToDelete = null;
+    if (!row) return;
+
+    if (!serverMode) {
       // Delete removes the layout from the library and closes its tab if open.
       // A closed row deletes by layout id; an open in-session row that never
       // reached the persisted library (no layout id) just closes its tab.
@@ -235,9 +305,25 @@
         workspaceStore.closeTab(row.tabId);
       }
       toastStore.showToast(`Deleted "${row.name}"`, "info");
+      return;
     }
-    deleteConfirmOpen = false;
-    rowToDelete = null;
+
+    if (!row.layoutId) {
+      if (row.tabId) workspaceStore.closeTab(row.tabId);
+      return;
+    }
+
+    // Deleting the open copy must drop the working copy first, or the
+    // debounced autosave PUTs it straight back after the DELETE (#3151).
+    if (row.isOpen) abandonWorkingCopy();
+    try {
+      await deleteSavedLayout(row.layoutId);
+      removeServerLibraryItem(row.layoutId);
+      if (row.tabId) workspaceStore.closeTab(row.tabId);
+      toastStore.showToast(`Deleted "${row.name}"`, "info");
+    } catch {
+      toastStore.showToast(`Could not delete "${row.name}"`, "error");
+    }
   }
 
   function cancelDelete() {
@@ -376,9 +462,13 @@
       {@const previewSvg = previewFor(row)}
       <LayoutContextMenu
         onopen={() => activateRow(row)}
-        onrename={() => openRename(row)}
-        onduplicate={() => duplicateLayout(row)}
-        onexport={onexport ? () => exportLayout(row) : undefined}
+        onrename={serverMode && !row.isOpen ? undefined : () => openRename(row)}
+        onduplicate={serverMode && !row.isOpen
+          ? undefined
+          : () => duplicateLayout(row)}
+        onexport={onexport && !(serverMode && !row.isOpen)
+          ? () => exportLayout(row)
+          : undefined}
         ondelete={() => initiateDelete(row)}
       >
         {#snippet trigger(triggerProps)}
@@ -455,7 +545,17 @@
       </LayoutContextMenu>
     {/each}
 
-    {#if rows.length === 0}
+    {#if serverMode && serverLibrary.status === "unavailable"}
+      <div class="empty-state">
+        <p class="empty-message">Cannot reach {getServerInstanceLabel()}</p>
+        <p class="empty-hint">
+          Your open layout is safe. Retry to list the rest.
+        </p>
+        <Button variant="secondary" onclick={() => void refreshServerLibrary()}>
+          Retry
+        </Button>
+      </div>
+    {:else if rows.length === 0}
       <div class="empty-state">
         <p class="empty-message">No saved layouts</p>
         <p class="empty-hint">Create a layout to get started</p>
