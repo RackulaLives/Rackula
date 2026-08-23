@@ -89,23 +89,30 @@ test.describe("Post-deploy smoke", () => {
     // version.json is emitted at build time and served statically, so it proves
     // the deployed bundle is the one we expect without executing any JS.
     //
-    // Fetched through `page.request`, not the standalone `request` fixture, and
-    // only AFTER a navigation. Cloudflare serves a Managed Challenge to
-    // datacenter IPs across the racku.la zone, and Bot Fight Mode cannot be
-    // skipped by a WAF rule on the Free plan. A bare API request runs no JS, so
-    // it cannot solve the challenge and receives a 403 challenge page --
-    // `response.ok()` is then false and the check reports a healthy deploy as
-    // broken. That is exactly what happened: this workflow failed 79 out of 79
-    // runs from 2026-07-20 onward, including before the August outage.
+    // Fetched from INSIDE the page, not via the `request` fixture or
+    // `page.request`. Cloudflare serves a Managed Challenge to datacenter IPs
+    // across the racku.la zone, and Bot Fight Mode cannot be skipped by a WAF
+    // rule on the Free plan (it does not run on the Ruleset Engine).
     //
-    // Navigating first lets Chromium solve the challenge and earn a clearance
-    // cookie; `page.request` shares the browser context's cookie jar, so the
-    // request that follows carries that clearance and is not challenged.
+    // A bare API request runs no JS, cannot solve the challenge, and receives a
+    // 403 challenge page, so `response.ok()` is false and a healthy deploy is
+    // reported as broken. This workflow failed 79 out of 79 runs from
+    // 2026-07-20 onward for exactly that reason, including before the August
+    // outage.
+    //
+    // `page.request` does not help either, despite sharing the context's cookie
+    // jar: it uses Playwright's own HTTP stack, so its TLS fingerprint differs
+    // from the browser's and Cloudflare rejects the clearance. Verified on CI,
+    // not assumed. Only a fetch issued by the page itself reuses the browser's
+    // network stack, fingerprint and clearance cookie together.
     await page.goto("/");
-    const response = await page.request.get("/version.json");
-    expect(response.ok()).toBe(true);
+    const result = await page.evaluate(async () => {
+      const r = await fetch("/version.json", { cache: "no-store" });
+      return { ok: r.ok, status: r.status, text: await r.text() };
+    });
+    expect(result.ok, `GET /version.json returned ${result.status}`).toBe(true);
 
-    const body = (await response.json()) as {
+    const body = JSON.parse(result.text) as {
       version?: unknown;
       commit?: unknown;
       buildTime?: unknown;
@@ -149,9 +156,17 @@ test.describe("Post-deploy smoke", () => {
     // on every racku.la hostname while the same Worker served the correct value
     // on workers.dev (#3214).
     await page.goto("/");
-    const response = await page.request.get("/");
-    expect(response.ok()).toBe(true);
-    const headers = response.headers();
+    const probe = await page.evaluate(async () => {
+      const r = await fetch("/", { cache: "no-store" });
+      const h: Record<string, string> = {};
+      // Same-origin, so every response header is readable.
+      r.headers.forEach((value, key) => {
+        h[key.toLowerCase()] = value;
+      });
+      return { ok: r.ok, status: r.status, headers: h };
+    });
+    expect(probe.ok, `GET / returned ${probe.status}`).toBe(true);
+    const headers = probe.headers;
 
     const csp = headers["content-security-policy"] ?? "";
     expect(csp).toContain("script-src 'self'");
