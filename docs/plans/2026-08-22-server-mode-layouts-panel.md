@@ -929,18 +929,22 @@ Run: `npx vitest run src/tests/layouts-library-server-mode.test.ts` Expected: FA
 In `src/lib/components/LayoutsLibrary.svelte`, add to the script imports:
 
 ```typescript
+// Storage symbols come from the `$lib/storage` barrel, never deep paths:
+// `no-restricted-imports` (eslint.config.js) enforces that seam for every
+// file outside `src/lib/storage/**`.
 import {
   getStorageMode,
   getApiAvailableState,
-} from "$lib/storage/availability.svelte";
-import {
   getServerLibrary,
   refreshServerLibrary,
   removeServerLibraryItem,
-} from "$lib/storage/server-library.svelte";
-import { abandonWorkingCopy } from "$lib/storage/manager.svelte";
-import { deleteSavedLayout } from "$lib/storage/api";
-import { loadFromApi } from "$lib/storage/load-pipeline";
+  deleteSavedLayout,
+  getServerInstanceLabel,
+  loadFromApi,
+  PersistenceError,
+  suspendServerAutosave,
+  abandonWorkingCopy,
+} from "$lib/storage";
 import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
 import type { CatalogueEntry } from "./layouts-library";
 ```
