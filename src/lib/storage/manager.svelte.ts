@@ -14,6 +14,7 @@ import {
 } from "./api";
 import { saveSession, clearSession } from "./working-copy";
 import { getServerBaseUpdatedAt, setServerBaseUpdatedAt } from "./server-base";
+import { upsertServerLibraryItem } from "./server-library.svelte";
 import { loadFromFile } from "./load-pipeline";
 import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
@@ -146,6 +147,26 @@ export function finalizeSuccessfulSave(
   }
   if (newUpdatedAt) {
     setServerBaseUpdatedAt(newUpdatedAt);
+  }
+  // Keep the server catalogue current without a refetch (#3151). Autosave
+  // fires every 2 seconds while editing, so invalidating on save would mean
+  // one GET /api/layouts per save. A null newUpdatedAt means the server
+  // returned no new timestamp, so there is nothing to record.
+  if (newUpdatedAt) {
+    const saved = layoutStore.layout;
+    const savedId = saved.metadata?.id;
+    if (savedId) {
+      const racks = saved.racks ?? [];
+      upsertServerLibraryItem({
+        id: savedId,
+        name: saved.name,
+        version: saved.version,
+        updatedAt: newUpdatedAt,
+        rackCount: racks.length,
+        deviceCount: racks.reduce((sum, rack) => sum + rack.devices.length, 0),
+        valid: true,
+      });
+    }
   }
   if (clearDirtyState || newUpdatedAt) {
     saveSession(
@@ -526,6 +547,31 @@ export function flushSessionSave(): void {
       getServerBaseUpdatedAt(),
     );
   }
+}
+
+/**
+ * Drop the working copy without saving it (#3151).
+ *
+ * Deleting the layout that is currently open must not leave a live working
+ * copy behind: the debounced autosave would PUT it straight back after the
+ * DELETE, and the next reload would reconcile the surviving session as
+ * unknown-to-server and restore the layout the user just deleted.
+ *
+ * Bumping the schedule id marks any settling save stale so its success cannot
+ * clear dirty state or re-record a base. A PUT already on the wire can still
+ * reach the server; that sub-second window is accepted rather than adding a
+ * save barrier.
+ */
+export function abandonWorkingCopy(): void {
+  if (serverSaveTimer) {
+    clearTimeout(serverSaveTimer);
+    serverSaveTimer = null;
+  }
+  _serverSavePending = false;
+  _serverSaveScheduleId++;
+  cancelSessionSave();
+  clearSession();
+  setServerBaseUpdatedAt(null);
 }
 
 export function initPersistenceEffects(): void {

@@ -120,3 +120,10 @@ export {
   adoptServerCopy,
 } from "./server-opt-in.svelte";
 export type { SwitchResult, ServerCopyInfo } from "./server-opt-in.svelte";
+export {
+  getServerLibrary,
+  refreshServerLibrary,
+  upsertServerLibraryItem,
+  removeServerLibraryItem,
+  type ServerLibraryStatus,
+} from "./server-library.svelte";

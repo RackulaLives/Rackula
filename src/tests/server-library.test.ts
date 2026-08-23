@@ -1,25 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import type { SavedLayoutItem } from "$lib/storage/api";
-
-vi.mock("$lib/storage/api", async () => {
-  const actual =
-    await vi.importActual<typeof import("$lib/storage/api")>(
-      "$lib/storage/api",
-    );
-  return { ...actual, listSavedLayouts: vi.fn() };
-});
-vi.mock("$lib/storage/availability.svelte", async () => {
-  const actual = await vi.importActual<
-    typeof import("$lib/storage/availability.svelte")
-  >("$lib/storage/availability.svelte");
-  return { ...actual, initializePersistence: vi.fn(), isApiAvailable: vi.fn() };
-});
-
-import { listSavedLayouts } from "$lib/storage/api";
-import {
-  initializePersistence,
-  isApiAvailable,
-} from "$lib/storage/availability.svelte";
+import * as api from "$lib/storage/api";
+import * as availability from "$lib/storage/availability.svelte";
 import {
   getServerLibrary,
   refreshServerLibrary,
@@ -44,16 +26,17 @@ function item(overrides: Partial<SavedLayoutItem> = {}): SavedLayoutItem {
 describe("server library store", () => {
   beforeEach(() => {
     resetServerLibrary();
-    vi.mocked(initializePersistence).mockResolvedValue(true);
-    vi.mocked(isApiAvailable).mockReturnValue(true);
+    vi.spyOn(api, "listSavedLayouts");
+    vi.spyOn(availability, "initializePersistence").mockResolvedValue(true);
+    vi.spyOn(availability, "isApiAvailable").mockReturnValue(true);
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("loads the server list and reports ready", async () => {
-    vi.mocked(listSavedLayouts).mockResolvedValue([item()]);
+    vi.mocked(api.listSavedLayouts).mockResolvedValue([item()]);
 
     await refreshServerLibrary();
 
@@ -69,28 +52,28 @@ describe("server library store", () => {
     // that reads it before awaiting initializePersistence() sees false and
     // short-circuits to "unavailable" even though the server is healthy.
     let resolveInit: (value: boolean) => void = () => {};
-    vi.mocked(initializePersistence).mockReturnValue(
+    vi.mocked(availability.initializePersistence).mockReturnValue(
       new Promise<boolean>((r) => {
         resolveInit = r;
       }),
     );
-    vi.mocked(isApiAvailable).mockReturnValue(false);
-    vi.mocked(listSavedLayouts).mockResolvedValue([item()]);
+    vi.mocked(availability.isApiAvailable).mockReturnValue(false);
+    vi.mocked(api.listSavedLayouts).mockResolvedValue([item()]);
 
     const refreshing = refreshServerLibrary();
     // A correct implementation is now suspended on
     // `await initializePersistence()` and has not read isApiAvailable() yet.
     // Flip it true and resolve the health check before awaiting completion.
-    vi.mocked(isApiAvailable).mockReturnValue(true);
+    vi.mocked(availability.isApiAvailable).mockReturnValue(true);
     resolveInit(true);
     await refreshing;
 
-    expect(initializePersistence).toHaveBeenCalled();
+    expect(availability.initializePersistence).toHaveBeenCalled();
     expect(getServerLibrary().status).toBe("ready");
   });
 
   it("reports unavailable when the API is unreachable", async () => {
-    vi.mocked(isApiAvailable).mockReturnValue(false);
+    vi.mocked(availability.isApiAvailable).mockReturnValue(false);
 
     await refreshServerLibrary();
 
@@ -98,7 +81,9 @@ describe("server library store", () => {
   });
 
   it("reports unavailable when the fetch throws", async () => {
-    vi.mocked(listSavedLayouts).mockRejectedValue(new Error("network down"));
+    vi.mocked(api.listSavedLayouts).mockRejectedValue(
+      new Error("network down"),
+    );
 
     await refreshServerLibrary();
 
@@ -106,7 +91,7 @@ describe("server library store", () => {
   });
 
   it("replaces an existing item on upsert and appends an unseen one", async () => {
-    vi.mocked(listSavedLayouts).mockResolvedValue([item()]);
+    vi.mocked(api.listSavedLayouts).mockResolvedValue([item()]);
     await refreshServerLibrary();
 
     upsertServerLibraryItem(item({ name: "Renamed" }));
@@ -119,7 +104,7 @@ describe("server library store", () => {
   });
 
   it("drops an item on remove", async () => {
-    vi.mocked(listSavedLayouts).mockResolvedValue([
+    vi.mocked(api.listSavedLayouts).mockResolvedValue([
       item(),
       item({ id: "srv-2" }),
     ]);
@@ -134,7 +119,7 @@ describe("server library store", () => {
     // A GET issued before a save must not drop the row that save added
     // when it resolves afterwards (#3151).
     let resolveList: (items: SavedLayoutItem[]) => void = () => {};
-    vi.mocked(listSavedLayouts).mockReturnValue(
+    vi.mocked(api.listSavedLayouts).mockReturnValue(
       new Promise<SavedLayoutItem[]>((r) => {
         resolveList = r;
       }),
@@ -154,7 +139,7 @@ describe("server library store", () => {
     // calls share one pending GET so the second refresh's start can be
     // observed racing the first's in-flight window.
     let resolveList: (items: SavedLayoutItem[]) => void = () => {};
-    vi.mocked(listSavedLayouts).mockReturnValue(
+    vi.mocked(api.listSavedLayouts).mockReturnValue(
       new Promise<SavedLayoutItem[]>((r) => {
         resolveList = r;
       }),
