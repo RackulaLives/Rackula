@@ -657,6 +657,11 @@ export async function createApp(
 
     app.get("/auth/login", authLoginRouteHandler);
     app.get("/auth/callback", authCallbackRouteHandler);
+    // Better Auth's own callback path, for deployments whose IdP is registered
+    // against it. nginx strips the /api prefix before the request reaches us,
+    // so the bare form is the one that needs an explicit route; the /api form
+    // is already covered by the Better Auth wildcard below. See #3140.
+    app.get("/auth/oauth2/callback/oidc", authCallbackRouteHandler);
     app.get("/auth/check", authCheckRouteHandler);
     app.post("/auth/logout", authLogoutRouteHandler);
 

@@ -6,6 +6,17 @@ import type { EnvMap } from "../security";
 import { logger } from "../logger";
 
 const DEFAULT_BASE_URL = "http://localhost:3000";
+/**
+ * Callback path appended to RACKULA_BASE_URL when RACKULA_OIDC_REDIRECT_URI is
+ * unset. This is the path the deployment docs tell users to register with their
+ * IdP, and the only OIDC callback Rackula routes and exempts from the auth gate.
+ *
+ * Without this default, Better Auth falls back to its own convention,
+ * {baseURL}/api/auth/oauth2/callback/oidc, which the auth gate blocks. The IdP
+ * callback then bounces to the login route, which re-initiates OIDC, and the
+ * browser loops until ERR_TOO_MANY_REDIRECTS. See #3140.
+ */
+const DEFAULT_OIDC_CALLBACK_PATH = "/auth/callback";
 const DEFAULT_AUTH_SESSION_COOKIE_NAME = "rackula_auth_session";
 const DEFAULT_OIDC_SCOPES = ["openid", "profile", "email"];
 const OIDC_DISCOVERY_PATH = "/.well-known/openid-configuration";
@@ -378,7 +389,7 @@ function createOidcUserInfoResolver(options: {
  * - RACKULA_OIDC_DISCOVERY_URL: Explicit OIDC discovery document URL (optional override)
  * - RACKULA_OIDC_CLIENT_ID: OAuth client ID
  * - RACKULA_OIDC_CLIENT_SECRET: OAuth client secret
- * - RACKULA_OIDC_REDIRECT_URI: OAuth callback URL (optional)
+ * - RACKULA_OIDC_REDIRECT_URI: OAuth callback URL (optional, defaults to RACKULA_BASE_URL + /auth/callback)
  * - RACKULA_OIDC_SCOPES: Optional scopes (comma or space-separated), defaults to openid profile email
  * - RACKULA_BASE_URL: Base URL for callback construction (defaults to http://localhost:3000)
  */
@@ -398,6 +409,9 @@ export function createAuth(secret: string, env: EnvMap = process.env) {
     readEnv(env, "RACKULA_AUTH_SESSION_COOKIE_NAME") ||
     DEFAULT_AUTH_SESSION_COOKIE_NAME;
   const baseURL = readEnv(env, "RACKULA_BASE_URL") || DEFAULT_BASE_URL;
+  // A trailing slash would yield "https://host//auth/callback", which an IdP
+  // treats as a different URI than the one the operator registered.
+  const defaultOidcRedirectUri = `${baseURL.replace(/\/+$/, "")}${DEFAULT_OIDC_CALLBACK_PATH}`;
   const authSessionCookieSecure =
     parseOptionalBoolean(readEnv(env, "RACKULA_AUTH_SESSION_COOKIE_SECURE")) ??
     env.NODE_ENV === "production";
@@ -431,7 +445,9 @@ export function createAuth(secret: string, env: EnvMap = process.env) {
             discoveryUrl: oidcDiscoveryUrl,
             scopes: oidcScopes,
             pkce: true,
-            redirectURI: readEnv(env, "RACKULA_OIDC_REDIRECT_URI"),
+            redirectURI:
+              readEnv(env, "RACKULA_OIDC_REDIRECT_URI") ??
+              defaultOidcRedirectUri,
             getUserInfo: createOidcUserInfoResolver({
               discoveryUrl: oidcDiscoveryUrl,
               clientId: oidcClientId,

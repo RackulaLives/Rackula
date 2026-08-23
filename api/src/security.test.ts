@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { Hono } from "hono";
 import { createHmac } from "node:crypto";
 import { createApp } from "./app";
+import { RATE_LIMIT_EXEMPT_PATHS } from "./security/middleware";
 import {
+  AUTH_PUBLIC_PATHS,
   clearInvalidatedAuthSessions,
   createSignedAuthSessionToken,
   createWriteAuthMiddleware,
@@ -529,6 +531,62 @@ describe("authentication gate", () => {
 
     const callback = await app.request("/auth/callback");
     expect(callback.status).toBe(501);
+  });
+
+  // #3140: Better Auth's generic-oauth plugin advertises
+  // {baseURL}/api/auth/oauth2/callback/oidc as its default redirect URI. The
+  // auth gate used to intercept that path and bounce it to the login route,
+  // which re-initiated OIDC and looped until ERR_TOO_MANY_REDIRECTS. 501 here
+  // proves the gate let the request through to the route handler, which then
+  // reports the OIDC provider as unconfigured for this env.
+  it("keeps Better Auth's own OAuth callback path reachable when auth is enabled", async () => {
+    const app = await createApp(buildAuthEnabledEnv());
+
+    for (const path of [
+      "/auth/oauth2/callback/oidc",
+      "/api/auth/oauth2/callback/oidc",
+    ]) {
+      const response = await app.request(path);
+      expect(response.status).not.toBe(302);
+      expect(response.status).not.toBe(401);
+      expect(response.headers.get("location")).toBeNull();
+    }
+
+    // The bare path routes to Rackula's callback wrapper, which reports the
+    // provider as unconfigured for this env. The /api form reaches Better Auth
+    // directly and 404s here because no OIDC credentials means no plugin.
+    // Either way the gate did not intercept.
+    expect((await app.request("/auth/oauth2/callback/oidc")).status).toBe(501);
+    expect((await app.request("/api/auth/oauth2/callback/oidc")).status).toBe(
+      404,
+    );
+  });
+
+  it("exempts the OAuth callback paths from the auth gate and rate limiting", () => {
+    for (const path of [
+      "/auth/oauth2/callback/oidc",
+      "/api/auth/oauth2/callback/oidc",
+    ]) {
+      expect(AUTH_PUBLIC_PATHS.has(path)).toBe(true);
+      expect(RATE_LIMIT_EXEMPT_PATHS.has(path)).toBe(true);
+    }
+  });
+
+  // The unroutable-callback guard must key off the path, not off the presence
+  // of code/state query params, or ordinary deep links carrying those names
+  // would start returning 400 instead of redirecting to login.
+  it("fails loudly on an unroutable OAuth callback but still redirects ordinary paths", async () => {
+    const app = await createApp(buildAuthEnabledEnv());
+
+    const unknownProvider = await app.request(
+      "/auth/oauth2/callback/not-a-provider?code=x&state=y",
+    );
+    expect(unknownProvider.status).toBe(400);
+    expect(unknownProvider.headers.get("location")).toBeNull();
+
+    const deepLink = await app.request("/dashboard?code=x&state=y");
+    expect(deepLink.status).toBe(302);
+    expect(deepLink.headers.get("location")).toContain("/auth/login");
   });
 
   it("refreshes auth cookies with secure defaults on auth check", async () => {

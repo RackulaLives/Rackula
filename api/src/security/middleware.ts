@@ -21,6 +21,14 @@ const _AUTH_PUBLIC_PATHS = new Set([
   "/api/auth/callback",
   "/api/auth/check",
   "/api/auth/logout",
+  // Better Auth's generic-oauth plugin routes its callback at
+  // {basePath}/oauth2/callback/{providerId}, and advertises that URI to the IdP
+  // whenever RACKULA_OIDC_REDIRECT_URI points at it. The bare form is what the
+  // API sees after nginx strips the /api prefix
+  // (deploy/nginx.conf.template). Both must bypass the gate: the callback is
+  // what creates the session, so requiring one here loops the browser. See #3140.
+  "/auth/oauth2/callback/oidc",
+  "/api/auth/oauth2/callback/oidc",
 ]);
 /** Immutable set of paths exempt from auth. */
 export const AUTH_PUBLIC_PATHS: ReadonlySet<string> = _AUTH_PUBLIC_PATHS;
@@ -29,7 +37,10 @@ export const AUTH_PUBLIC_PATHS: ReadonlySet<string> = _AUTH_PUBLIC_PATHS;
  * Paths exempt from rate limiting. This is {@link AUTH_PUBLIC_PATHS} minus the
  * login-initiation routes: those must stay throttled so an attacker cannot
  * flood OIDC login initiations (state/PKCE generation, Set-Cookie, upstream
- * IdP work). The callback/check/logout routes remain exempt.
+ * IdP work). The callback/check/logout routes remain exempt, including the
+ * oauth2 callback paths: Better Auth validates the signed state cookie before
+ * any upstream discovery fetch, so an unauthenticated flood costs one signature
+ * verification and generates no IdP traffic.
  */
 const _RATE_LIMIT_EXEMPT_PATHS = new Set(
   [..._AUTH_PUBLIC_PATHS].filter(
@@ -39,6 +50,12 @@ const _RATE_LIMIT_EXEMPT_PATHS = new Set(
 export const RATE_LIMIT_EXEMPT_PATHS: ReadonlySet<string> =
   _RATE_LIMIT_EXEMPT_PATHS;
 const API_ROUTE_PREFIXES = ["/api", "/layouts", "/assets"];
+/**
+ * Better Auth's generic-oauth callback shape, with and without the /api prefix
+ * that nginx strips. Used to turn a misrouted OAuth callback into a legible
+ * error instead of a redirect loop. See #3140.
+ */
+const OAUTH_CALLBACK_PATH_PATTERN = /^\/(?:api\/)?auth\/oauth2\/callback\//;
 
 function timingSafeTokenCompare(
   presentedToken: string,
@@ -136,6 +153,28 @@ export function createAuthGateMiddleware(
         await next();
         return;
       }
+    }
+
+    // An OAuth callback reaching this point is always a misconfiguration: the
+    // redirect URI the IdP was handed is not a path Rackula serves. Redirecting
+    // it to login re-initiates OIDC, the IdP silently re-approves, and the
+    // browser loops until ERR_TOO_MANY_REDIRECTS. Fail loudly instead, naming
+    // the setting to fix. Matching on the path rather than on code/state query
+    // params keeps ordinary deep links carrying those names unaffected. See #3140.
+    if (OAUTH_CALLBACK_PATH_PATTERN.test(pathname)) {
+      safeLogAuthEvent("auth.session.invalid", c.req.raw, {
+        reason:
+          "OAuth callback received on an unrouted path; check that RACKULA_OIDC_REDIRECT_URI matches the redirect URI registered with your identity provider",
+      });
+
+      return c.json(
+        {
+          error: "Bad Request",
+          message:
+            "OAuth callback received on a path Rackula does not serve. Verify RACKULA_OIDC_REDIRECT_URI and the redirect URI registered with your identity provider.",
+        },
+        400,
+      );
     }
 
     safeLogAuthEvent("auth.session.invalid", c.req.raw, {
