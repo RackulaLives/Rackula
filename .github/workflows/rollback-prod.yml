@@ -69,6 +69,7 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version: "22"
+          cache: "npm"
 
       - name: Deploy the target version
         env:
@@ -78,9 +79,30 @@ jobs:
           npx --yes "wrangler@${WRANGLER_VERSION}" versions deploy \
             "${{ inputs.version_id }}@100%" --yes
 
+      # The verification toolchain is installed AFTER the traffic mutation, on
+      # purpose. A registry or Playwright-download outage during an incident must
+      # not be able to block the rollback itself; it can only leave the rollback
+      # unverified and the run red, which is the failure mode you want at 3am.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-chromium-
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Verify the live host in a browser
         # Through the browser, because count.racku.la is challenged from CI and
-        # curl cannot solve a JS challenge (see deploy-prod.yml).
+        # curl cannot solve a JS challenge (see deploy-prod.yml). That also rules
+        # out scripts/smoke-headers.sh here: it is curl-based and only ever runs
+        # against the workers.dev preview URL, which a rollback does not create.
+        # deploy-smoke.spec.ts carries the same security-header assertions by
+        # value, so the rollback keeps that guarantee.
         #
         # Version/commit are intentionally not asserted here: we are deliberately
         # serving something other than the newest release. The boot, render and
@@ -88,6 +110,14 @@ jobs:
         env:
           SMOKE_TEST_URL: https://count.racku.la
         run: npm run test:e2e:smoke
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: rollback-prod-smoke-report
+          path: playwright-report/
+          retention-days: 7
 
       - name: Summary
         if: always()

@@ -16,7 +16,7 @@ Cloudflare API tokens scoped to Workers Scripts edit cannot be restricted to a s
 
 ## Token class 1: Cloudflare API deploy tokens
 
-Used by the deploy workflows to publish the Worker (`wrangler versions upload`, `versions deploy`, `triggers deploy` in `deploy-prod.yml` and `rollback-prod.yml`; `wrangler deploy` in #2134 once dev lands).
+Used by the deploy workflows to publish the Worker. `deploy-prod.yml` runs `wrangler versions upload`, `versions deploy` and `triggers deploy`. `rollback-prod.yml` runs `versions deploy` only, so the Workers Routes scope in the table below is exercised by `deploy-prod.yml` alone. #2134 adds `wrangler deploy` once dev lands.
 
 ### Storage
 

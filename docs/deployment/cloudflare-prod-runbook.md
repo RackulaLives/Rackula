@@ -37,10 +37,16 @@ gh workflow run rollback-prod.yml -f version_id=<uuid> -f reason="..."
 
 If a deploy is currently running, cancel it first. Both workflows share the `prod-traffic` concurrency group with `cancel-in-progress: false`, so a rollback started mid-deploy sits queued rather than running -- exactly when you least want to wait. That grouping is deliberate: without it the two race, and a deploy that finishes after your rollback re-promotes the build you just rolled back.
 
+The deploy runs as the `promote-prod` job inside a Release run: `deploy-prod.yml` is `workflow_call`-only, so it has no run of its own and `gh run list --workflow=deploy-prod.yml` only ever shows pre-cutover history. Query `release.yml` instead, and confirm the run before killing it.
+
 ```bash
-gh run list --workflow=deploy-prod.yml --limit 1     # is one in flight?
-gh run cancel <run-id>
+RUN_ID="$(gh run list --workflow=release.yml --status=in_progress \
+  --json databaseId --jq '.[0].databaseId // empty')"
+[ -n "$RUN_ID" ] && gh run view "$RUN_ID"     # confirm this is the one
+[ -n "$RUN_ID" ] && gh run cancel "$RUN_ID"
 ```
+
+An empty `RUN_ID` means nothing is deploying and both lines no-op, so this is safe to paste blind. A release parked at the `promote-gate` approval reports `waiting`, not `in_progress`; it is harmless until someone approves it, so it is deliberately not matched here.
 
 Cancelling a deploy is safe. It promotes traffic only after its smoke passes, so a cancelled run either had not shifted traffic yet, or had already finished doing so and the rollback supersedes it either way.
 
