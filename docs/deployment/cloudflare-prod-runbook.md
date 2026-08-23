@@ -35,6 +35,15 @@ npx wrangler@4.124.0 versions list --name rackula-prod   # find the id
 gh workflow run rollback-prod.yml -f version_id=<uuid> -f reason="..."
 ```
 
+**If a deploy is currently running, cancel it first.** Both workflows share the `prod-traffic` concurrency group with `cancel-in-progress: false`, so a rollback started mid-deploy sits queued rather than running -- exactly when you least want to wait. That grouping is deliberate: without it the two race, and a deploy that finishes after your rollback re-promotes the build you just rolled back.
+
+```bash
+gh run list --workflow=deploy-prod.yml --limit 1     # is one in flight?
+gh run cancel <run-id>
+```
+
+Cancelling a deploy is safe. It promotes traffic only after its smoke passes, so a cancelled run either had not shifted traffic yet, or had already finished doing so and the rollback supersedes it either way.
+
 Cloudflare retains the last 100 versions. The previous version id is also in every Deploy Prod run summary.
 
 There is **no VPS fallback.** The epic design spec assumed the old prod container would stay running as a DNS-level rollback; that origin stopped answering in August 2026 (#3167), which is what forced this cutover. Rolling back means deploying an earlier Worker version.
