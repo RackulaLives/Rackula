@@ -676,12 +676,15 @@ describe("OIDC integration", () => {
     try {
       const app = await createApp(
         buildOidcEnv({
-          RACKULA_OIDC_REDIRECT_URI: "https://rack.example.com/custom/callback",
+          // A served path that differs from the derived default, so this asserts
+          // precedence without implying arbitrary paths are routable.
+          RACKULA_OIDC_REDIRECT_URI:
+            "https://rack.example.com/api/auth/callback",
         }),
       );
 
       expect(await readAdvertisedRedirectUri(app)).toBe(
-        "https://rack.example.com/custom/callback",
+        "https://rack.example.com/api/auth/callback",
       );
     } finally {
       mock.restore();

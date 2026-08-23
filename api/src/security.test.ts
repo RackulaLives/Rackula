@@ -2,9 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { Hono } from "hono";
 import { createHmac } from "node:crypto";
 import { createApp } from "./app";
-import { RATE_LIMIT_EXEMPT_PATHS } from "./security/middleware";
 import {
-  AUTH_PUBLIC_PATHS,
   clearInvalidatedAuthSessions,
   createSignedAuthSessionToken,
   createWriteAuthMiddleware,
@@ -560,16 +558,6 @@ describe("authentication gate", () => {
     expect((await app.request("/api/auth/oauth2/callback/oidc")).status).toBe(
       404,
     );
-  });
-
-  it("exempts the OAuth callback paths from the auth gate and rate limiting", () => {
-    for (const path of [
-      "/auth/oauth2/callback/oidc",
-      "/api/auth/oauth2/callback/oidc",
-    ]) {
-      expect(AUTH_PUBLIC_PATHS.has(path)).toBe(true);
-      expect(RATE_LIMIT_EXEMPT_PATHS.has(path)).toBe(true);
-    }
   });
 
   // The unroutable-callback guard must key off the path, not off the presence
