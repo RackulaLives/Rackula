@@ -66,9 +66,43 @@ FAILS=0
 fail() { echo "FAIL: $*" >&2; FAILS=$((FAILS + 1)); }
 pass() { echo "ok: $*"; }
 
+# Cloudflare serves a Managed Challenge to datacenter IPs, including GitHub
+# runners, on every path of the racku.la zone. A JS challenge cannot be solved
+# by curl, so without this header every assertion below sees a 403 challenge
+# page instead of the app. A WAF custom rule skips the challenge for requests
+# carrying RACKULA_SMOKE_TOKEN; CI supplies it from a GitHub secret.
+#
+# Absent locally (a residential IP is not challenged) and absent in forks, where
+# the secret does not exist. In both cases the header is simply not sent.
+SMOKE_HEADER=()
+if [ -n "${RACKULA_SMOKE_TOKEN:-}" ]; then
+  SMOKE_HEADER=(-H "X-Rackula-Smoke: ${RACKULA_SMOKE_TOKEN}")
+fi
+
 # Retry the whole request: a freshly promoted version can 5xx for a beat.
-fetch() { curl -sS --max-time 30 --retry 3 --retry-delay 2 "$@"; }
+#
+# The ${arr[@]+"${arr[@]}"} form is required, not stylistic: under `set -u`,
+# bash 3.2 (which macOS still ships) treats "${arr[@]}" on an EMPTY array as an
+# unbound variable and aborts. Plain "${SMOKE_HEADER[@]}" therefore works in CI
+# on bash 5 and breaks every local run without the token.
+fetch() {
+  curl -sS --max-time 30 --retry 3 --retry-delay 2 \
+    ${SMOKE_HEADER[@]+"${SMOKE_HEADER[@]}"} "$@"
+}
 headers_of() { fetch -I "$1" | tr -d '\r'; }
+
+# Fail loudly rather than silently reporting a challenge page as a broken deploy.
+challenge_guard() {
+  local mitigated
+  mitigated="$(headers_of "$BASE_URL/" | grep -i '^cf-mitigated:' || true)"
+  if [ -n "$mitigated" ]; then
+    echo "FAIL: Cloudflare is challenging this client ($mitigated)." >&2
+    echo "      Every assertion below would report a challenge page as a broken deploy." >&2
+    echo "      Set RACKULA_SMOKE_TOKEN to a value the WAF skip rule accepts." >&2
+    exit 1
+  fi
+}
+challenge_guard
 
 # --- 1. shell ------------------------------------------------------------
 code="$(fetch -o /dev/null -w '%{http_code}' "$BASE_URL/")"

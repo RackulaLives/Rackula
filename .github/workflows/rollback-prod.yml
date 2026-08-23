@@ -82,6 +82,8 @@ jobs:
         # Version/commit are intentionally not asserted: we are deliberately
         # serving something other than the newest release. The header, content
         # type and SPA-fallback checks still have to hold.
+        env:
+          RACKULA_SMOKE_TOKEN: ${{ secrets.RACKULA_SMOKE_TOKEN }}
         run: scripts/smoke-headers.sh https://count.racku.la --live
 
       - name: Summary

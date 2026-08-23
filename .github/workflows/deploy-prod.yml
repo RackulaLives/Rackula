@@ -148,7 +148,12 @@ jobs:
           echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
           echo "uploaded $version_id -> $preview_url"
 
+      # The preview URL is on workers.dev, outside the racku.la zone, so it is
+      # not challenged. The token is passed anyway so the same invocation works
+      # against both surfaces.
       - name: Smoke headers and content types against the preview URL
+        env:
+          RACKULA_SMOKE_TOKEN: ${{ secrets.RACKULA_SMOKE_TOKEN }}
         run: |
           scripts/smoke-headers.sh "${{ steps.upload.outputs.preview_url }}" \
             --expect-version "${{ inputs.version }}" \
@@ -167,6 +172,7 @@ jobs:
       - name: Browser smoke against the preview URL
         env:
           SMOKE_TEST_URL: ${{ steps.upload.outputs.preview_url }}
+          RACKULA_SMOKE_TOKEN: ${{ secrets.RACKULA_SMOKE_TOKEN }}
         run: npm run test:e2e:smoke
 
       # Everything above is fail-closed. Only now does traffic move.
@@ -186,7 +192,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx --yes "wrangler@${WRANGLER_VERSION}" triggers deploy
 
+      # count.racku.la IS inside the zone, so without the token this step is
+      # challenged and would fail every release.
       - name: Verify the live host
+        env:
+          RACKULA_SMOKE_TOKEN: ${{ secrets.RACKULA_SMOKE_TOKEN }}
         run: |
           scripts/smoke-headers.sh https://count.racku.la --live \
             --expect-version "${{ inputs.version }}" \
@@ -195,6 +205,7 @@ jobs:
       - name: Browser smoke against the live host
         env:
           SMOKE_TEST_URL: https://count.racku.la
+          RACKULA_SMOKE_TOKEN: ${{ secrets.RACKULA_SMOKE_TOKEN }}
         run: npm run test:e2e:smoke
 
       - name: Upload Playwright report

@@ -93,24 +93,15 @@ jobs:
       # export. d.racku.la sits behind Access and the smoke config
       # (playwright.smoke.config.ts) applies them as request headers; without
       # them the dev leg hits the login wall instead of the app (#2346).
-      # TEMPORARY (#2029 investigation): the prod leg fails on the version.json
-      # assertion while the same request succeeds from a developer machine.
-      # Print what the runner actually receives before the browser suite runs.
-      # Remove once the cause is known.
-      - name: Diagnose version.json from the runner
-        run: |
-          echo "--- runner egress IP ---"
-          curl -sS -m 15 https://api.ipify.org || true; echo
-          echo "--- GET ${SMOKE_TEST_URL}/version.json ---"
-          curl -sS -m 20 -i "${SMOKE_TEST_URL}/version.json" | head -30 || true
-          echo "--- status only, 3 attempts ---"
-          for i in 1 2 3; do
-            curl -sS -m 20 -o /dev/null -w "  attempt $i: %{http_code}\n" "${SMOKE_TEST_URL}/version.json" || true
-          done
-          echo "--- root for comparison ---"
-          curl -sS -m 20 -o /dev/null -w "  GET /: %{http_code}\n" "${SMOKE_TEST_URL}/" || true
-
+      # RACKULA_SMOKE_TOKEN is required, not optional: Cloudflare serves a
+      # Managed Challenge to datacenter IPs across the zone, and Playwright's
+      # `request` fixture runs no JS so it cannot solve one. Without the token
+      # the version.json assertion sees a 403 challenge page. This is why every
+      # run of this workflow failed from 2026-07-20 until #2029 -- 79 runs, zero
+      # successes, predating the August outage entirely.
       - name: Browser smoke test against deployed app
+        env:
+          RACKULA_SMOKE_TOKEN: ${{ secrets.RACKULA_SMOKE_TOKEN }}
         run: npm run test:e2e:smoke
 
       - name: Upload Playwright report
