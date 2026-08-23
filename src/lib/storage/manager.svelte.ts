@@ -185,10 +185,15 @@ export function getStorageChipState() {
  */
 export interface CompletedSaveContext {
   /**
-   * The snapshot this save actually sent. The catalogue row is built from it,
-   * never from the live layout: loadFromApi replaces the working copy without
+   * The snapshot this save actually sent, which doubles as the identity of the
+   * working copy it belongs to (metadata.id). The catalogue row is built from
+   * it, never from the live layout, and the id is what finalization compares
+   * against the live layout: loadFromApi replaces the working copy without
    * bumping the schedule id, so the live layout at finalize time can be a
-   * different layout entirely.
+   * different layout entirely. Every store ingress guarantees a metadata.id
+   * (loadLayout mints one when the data has none), and saveLayoutToServer
+   * refuses a layout without one, so a save that reaches finalization always
+   * has an id to compare.
    */
   layout: Layout;
   /**
@@ -205,21 +210,37 @@ export interface CompletedSaveContext {
  * leaves the layout in the same state as a manual one.
  *
  * Always (server is healthy): resets the consecutive-failure counter, marks the
- * API available, and dismisses any lingering error toast. Also always, when
- * newUpdatedAt is present: records the server echo as the new base and
- * re-stamps the working copy with it, independent of clearDirtyState. A save
- * finalized "stale" still reached the server under this echo, so the base must
- * advance immediately, or a reconcile before the follow-up save fires sees
- * false divergence against this tab's own write and can discard newer local
- * edits (#2926).
+ * API available, and dismisses any lingering error toast.
  *
- * When clearDirtyState is true (the default): also sets status to "saved",
- * marks the layout clean, and cancels the pending session debounce.
+ * What is written back locally depends on which working copy is live when the
+ * save settles, because the server base and the session slot are both single,
+ * global slots that belong to whichever copy is open now:
  *
- * The one case where nothing at all is written back is an abandoned save: the
- * working copy this save belongs to was dropped while its PUT was in flight,
- * so re-stamping the base or the session would resurrect state the user just
- * deleted. See {@link abandonWorkingCopy}.
+ * - Still the same layout, save finalized "stale" (clearDirtyState false,
+ *   newer edits arrived while the PUT was in flight): the base still advances
+ *   and the session is re-stamped with it, independent of clearDirtyState. The
+ *   echo is this tab's own write against the layout that is still open, so the
+ *   base must advance immediately, or a reconcile before the follow-up save
+ *   fires sees false divergence against it and can discard newer local edits
+ *   (#2926). Only the dirty flag and the session debounce are preserved for
+ *   that follow-up save.
+ * - The working copy was replaced (loadFromApi opened a different layout, or a
+ *   reset swapped one in): dirty state, the base, and the session are all left
+ *   alone. Loading does not bump the schedule id, so such a save can still be
+ *   "current" by schedule id, but its echo describes a layout that is no longer
+ *   open. Applying it would mark the new copy clean, hand its next save the
+ *   wrong optimistic-concurrency timestamp, and write its session under a base
+ *   that was never its own (#3151). The catalogue upsert is deliberately
+ *   outside this guard: the PUT did reach the server, so the row for the layout
+ *   it wrote is correct and is still recorded.
+ * - The working copy was abandoned (deleted while the PUT was in flight):
+ *   nothing at all is written back, the catalogue row included, since
+ *   re-stamping the base or the session would resurrect state the user just
+ *   deleted. See {@link abandonWorkingCopy}.
+ *
+ * When clearDirtyState is true (the default) and the working copy is still the
+ * one that was saved: also sets status to "saved", marks the layout clean, and
+ * cancels the pending session debounce.
  *
  * @param clearDirtyState Pass false for a stale debounced save whose captured
  *   snapshot is older than the live layout (newer unsaved edits arrived while the
@@ -227,8 +248,12 @@ export interface CompletedSaveContext {
  *   the follow-up save so unload warnings and recovery data survive.
  * @param newUpdatedAt The server-echoed updatedAt from this save's PUT response.
  *   Becomes the base threaded into subsequent PUTs and stamped onto the copy.
- * @param completed Identity of the save being finalized. Required for the
- *   catalogue upsert, which has nothing to record without the saved snapshot.
+ * @param completed Identity of the save being finalized: the snapshot it sent
+ *   and the abandon generation it captured. Required for the catalogue upsert,
+ *   which has nothing to record without the saved snapshot, and for the
+ *   replaced-working-copy and abandoned checks, which have no identity to
+ *   compare without it. Omitted by callers with no scheduling phase (tests
+ *   calling finalize directly); both checks then treat the save as current.
  */
 export function finalizeSuccessfulSave(
   clearDirtyState = true,
@@ -253,32 +278,24 @@ export function finalizeSuccessfulSave(
   ) {
     return;
   }
-  if (clearDirtyState) {
-    _saveStatus = "saved";
-    layoutStore.markClean();
-    cancelSessionSave();
-  }
-  if (newUpdatedAt) {
-    setServerBaseUpdatedAt(newUpdatedAt);
-  }
   // Keep the server catalogue current without a refetch (#3151). Autosave
   // fires every 2 seconds while editing, so invalidating on save would mean
   // one GET /api/layouts per save. A null newUpdatedAt means the server
   // returned no new timestamp, so there is nothing to record. Also gated on
-  // clearDirtyState: a stale save's live layout has already moved on (edits,
-  // an abandon, or a loadFromApi swap), so its name and counts are the wrong
-  // thing to record, and the follow-up save that made it stale will upsert
-  // correctly. The row is built from the snapshot this save sent, not from the
-  // live layout: a loadFromApi swap replaces the working copy without bumping
-  // the schedule id, so a save that is still "current" by schedule id can
-  // finalize against a layout it never wrote.
+  // clearDirtyState: a stale save's live layout has already moved on, so its
+  // name and counts are the wrong thing to record, and the follow-up save that
+  // made it stale will upsert correctly. Recorded before the working-copy
+  // check below and from the snapshot this save sent, not from the live
+  // layout: a save that finalizes against a copy that replaced its own still
+  // wrote the layout it captured, so that row is correct and belongs in the
+  // catalogue even though nothing may be written back locally.
+  const savedLayoutId = completed?.layout.metadata?.id;
   if (clearDirtyState && newUpdatedAt && completed) {
     const saved = completed.layout;
-    const savedId = saved.metadata?.id;
-    if (savedId) {
+    if (savedLayoutId) {
       const racks = saved.racks ?? [];
       upsertServerLibraryItem({
-        id: savedId,
+        id: savedLayoutId,
         name: saved.name,
         version: saved.version,
         updatedAt: newUpdatedAt,
@@ -287,6 +304,26 @@ export function finalizeSuccessfulSave(
         valid: true,
       });
     }
+  }
+  // Everything below writes into state that belongs to whichever working copy
+  // is open now: the dirty flag, the single global server base, and the single
+  // session slot. A save whose layout is no longer the open one must write
+  // none of it (#3151). This is not the stale case, which is about newer edits
+  // to the SAME layout and must still advance the base (#2926): loading a
+  // different layout leaves the schedule id untouched, so the swap is only
+  // visible by comparing identities. A save with no identity to compare (no
+  // completed context, or a snapshot with no metadata.id) counts as current,
+  // matching the abandon check above.
+  if (savedLayoutId && savedLayoutId !== layoutStore.layout.metadata?.id) {
+    return;
+  }
+  if (clearDirtyState) {
+    _saveStatus = "saved";
+    layoutStore.markClean();
+    cancelSessionSave();
+  }
+  if (newUpdatedAt) {
+    setServerBaseUpdatedAt(newUpdatedAt);
   }
   if (clearDirtyState || newUpdatedAt) {
     saveSession(
