@@ -6,7 +6,7 @@ This is the operational runbook for rotating and revoking the two classes of Clo
 
 The prod surface is live (#2029). Account: `GarethLand`, id `f8606884a913456ec07bf4ccbf136abc`. Zone `racku.la`, id `ecc485cd0dd1c5fe05e803f83632d721`. Worker `rackula-prod`, `workers.dev` subdomain `gvns`.
 
-The **dev** half of #2675 is still outstanding: no `rackula-dev` Worker and no R2 bucket yet. When it lands, extend the inventory below rather than rewriting it, and record whether dev gets its own token copy or shares the prod one (Cloudflare cannot scope a Workers Scripts token to a single Worker, so both carry the same blast radius either way; see the account-wide risk note below).
+The dev half of #2675 is still outstanding: no `rackula-dev` Worker and no R2 bucket yet. When it lands, extend the inventory below rather than rewriting it, and record whether dev gets its own token copy or shares the prod one (Cloudflare cannot scope a Workers Scripts token to a single Worker, so both carry the same blast radius either way; see the account-wide risk note below).
 
 The Cloudflare Access service token pair (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`) already exists; its section below is accurate today.
 
@@ -22,7 +22,7 @@ Used by the deploy workflows to publish the Worker (`wrangler versions upload`, 
 
 - Secret names: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, following the Wrangler convention so no extra env plumbing is needed. `deploy-prod.yml` and `rollback-prod.yml` read both.
 - Storage tier: repository-level GitHub Actions secrets, matching how `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` are stored. Environment-scoped secrets were considered and not used: `deploy-prod.yml` deliberately carries no `environment:` binding, because `promote-gate` in `release.yml` already binds the protected `prod` environment and a second binding would prompt the same reviewer twice in one run. The approval gate is therefore upstream of the token, not around it.
-- **Minimum scope for the prod token** (three permissions, verified against the deploy path):
+- Minimum scope for the prod token (three permissions, verified against the deploy path):
 
   | Scope | Permission | Needed for |
   | --- | --- | --- |
@@ -30,9 +30,9 @@ Used by the deploy workflows to publish the Worker (`wrangler versions upload`, 
   | Zone (`racku.la` only) | Workers Routes: **Edit** | `triggers deploy` maintaining the `count.racku.la/*` route |
   | Zone (`racku.la` only) | Zone: **Read** | resolving `zone_name: "racku.la"` to a zone id |
 
-  Deliberately **not** granted, versus the set Cloudflare's Workers Builds template auto-generates: R2 Storage and KV Storage (prod is assets-only with zero bindings -- the dev Worker will need R2, mint that separately rather than widening this token), Account Settings: Read (only needed to resolve the account when it is not supplied, and `CLOUDFLARE_ACCOUNT_ID` is passed explicitly), and User Details / Memberships: Read (used by `wrangler whoami`, not by deploys).
+  Deliberately not granted, versus the set Cloudflare's Workers Builds template auto-generates: R2 Storage and KV Storage (prod is assets-only with zero bindings -- the dev Worker will need R2, mint that separately rather than widening this token), Account Settings: Read (only needed to resolve the account when it is not supplied, and `CLOUDFLARE_ACCOUNT_ID` is passed explicitly), and User Details / Memberships: Read (used by `wrangler whoami`, not by deploys).
 
-  No DNS permission is required. The Custom Domain attach path would have needed DNS: Edit, but `count.racku.la` is bound with a Workers **route** instead, so the token never touches DNS records.
+  No DNS permission is required. The Custom Domain attach path would have needed DNS: Edit, but `count.racku.la` is bound with a Workers route instead, so the token never touches DNS records.
 
 ### Who can rotate
 

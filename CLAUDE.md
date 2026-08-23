@@ -558,7 +558,7 @@ Deploys when a version tag is pushed:
 /release              # Auto-computes next CalVer version, tags, and pushes
 ```
 
-Prod is an assets-only Cloudflare Worker (`wrangler.jsonc` at the repo root): no `main`, no bindings, no API. It serves the static bundle in browser-storage mode and holds no user data. Static-asset requests are unmetered only while there is no Worker script on the hot path, so **do not add a `main` to `rackula-prod`**.
+Prod is an assets-only Cloudflare Worker (`wrangler.jsonc` at the repo root): no `main`, no bindings, no API. It serves the static bundle in browser-storage mode and holds no user data. Static-asset requests are unmetered only while there is no Worker script on the hot path, so do not add a `main` to `rackula-prod`.
 
 Each release: `wrangler versions upload` -> full fail-closed smoke against the per-version preview URL (`scripts/smoke-headers.sh` plus the Playwright deploy smoke) -> `wrangler versions deploy` -> re-check the live host. A bad build never takes traffic. Rollback is the `Rollback Prod` workflow, which takes a Worker version id and bypasses the release approval gate.
 
