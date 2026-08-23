@@ -18,22 +18,13 @@ const cfAccessHeaders =
       }
     : undefined;
 
-// Cloudflare serves a Managed Challenge to datacenter IPs, including GitHub
-// runners, across the racku.la zone. A browser navigation survives it because
-// Chromium executes the challenge and earns clearance, but the `request`
-// fixture runs no JS, so API assertions saw a 403 challenge page instead of the
-// app. That is why the prod soak leg failed 79 out of 79 runs from 2026-07-20
-// onwards, including before the August outage.
-//
-// A WAF custom rule skips the challenge for requests carrying this token.
-// Absent locally (residential IPs are not challenged) and absent in forks.
-const smokeToken = process.env.RACKULA_SMOKE_TOKEN;
-const smokeHeaders = smokeToken ? { "X-Rackula-Smoke": smokeToken } : undefined;
-
-const extraHTTPHeaders =
-  cfAccessHeaders || smokeHeaders
-    ? { ...(cfAccessHeaders ?? {}), ...(smokeHeaders ?? {}) }
-    : undefined;
+// On Cloudflare's bot challenge: datacenter IPs, GitHub runners included, are
+// served a Managed Challenge across the racku.la zone, and Bot Fight Mode
+// cannot be skipped by a WAF rule on the Free plan (it does not run on the
+// Ruleset Engine, so Skip has no effect). There is deliberately no bypass
+// header here. Deploy-mode specs navigate first, so Chromium solves the
+// challenge, then use `page.request`, which shares the browser context's
+// clearance cookie. See the comments in deploy-smoke.spec.ts.
 
 /**
  * Playwright configuration for smoke tests.
@@ -85,7 +76,7 @@ export default defineConfig({
     baseURL: smokeTestUrl || "http://localhost:4173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-    ...(extraHTTPHeaders ? { extraHTTPHeaders } : {}),
+    ...(cfAccessHeaders ? { extraHTTPHeaders: cfAccessHeaders } : {}),
   },
   projects: [
     {

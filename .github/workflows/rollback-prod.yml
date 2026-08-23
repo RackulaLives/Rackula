@@ -78,13 +78,16 @@ jobs:
           npx --yes "wrangler@${WRANGLER_VERSION}" versions deploy \
             "${{ inputs.version_id }}@100%" --yes
 
-      - name: Verify the live host
-        # Version/commit are intentionally not asserted: we are deliberately
-        # serving something other than the newest release. The header, content
-        # type and SPA-fallback checks still have to hold.
+      - name: Verify the live host in a browser
+        # Through the browser, because count.racku.la is challenged from CI and
+        # curl cannot solve a JS challenge (see deploy-prod.yml).
+        #
+        # Version/commit are intentionally not asserted here: we are deliberately
+        # serving something other than the newest release. The boot, render and
+        # header checks still have to hold.
         env:
-          RACKULA_SMOKE_TOKEN: ${{ secrets.RACKULA_SMOKE_TOKEN }}
-        run: scripts/smoke-headers.sh https://count.racku.la --live
+          SMOKE_TEST_URL: https://count.racku.la
+        run: npm run test:e2e:smoke
 
       - name: Summary
         if: always()

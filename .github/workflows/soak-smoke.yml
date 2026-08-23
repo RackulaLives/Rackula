@@ -93,15 +93,13 @@ jobs:
       # export. d.racku.la sits behind Access and the smoke config
       # (playwright.smoke.config.ts) applies them as request headers; without
       # them the dev leg hits the login wall instead of the app (#2346).
-      # RACKULA_SMOKE_TOKEN is required, not optional: Cloudflare serves a
-      # Managed Challenge to datacenter IPs across the zone, and Playwright's
-      # `request` fixture runs no JS so it cannot solve one. Without the token
-      # the version.json assertion sees a 403 challenge page. This is why every
-      # run of this workflow failed from 2026-07-20 until #2029 -- 79 runs, zero
-      # successes, predating the August outage entirely.
+      # Cloudflare serves a Managed Challenge to datacenter IPs across the zone.
+      # The specs navigate first so Chromium solves it, then use `page.request`,
+      # which inherits the clearance cookie. Before that fix a bare API request
+      # saw a 403 challenge page, which is why every run of this workflow failed
+      # from 2026-07-20 until #2029 -- 79 runs, zero successes, predating the
+      # August outage entirely.
       - name: Browser smoke test against deployed app
-        env:
-          RACKULA_SMOKE_TOKEN: ${{ secrets.RACKULA_SMOKE_TOKEN }}
         run: npm run test:e2e:smoke
 
       - name: Upload Playwright report
