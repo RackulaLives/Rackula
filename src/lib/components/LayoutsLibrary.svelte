@@ -47,6 +47,7 @@
     deleteSavedLayout,
     getServerInstanceLabel,
     loadFromApi,
+    PersistenceError,
   } from "$lib/storage";
   // abandonWorkingCopy is deliberately not re-exported from the storage
   // barrel (#3151): it is a single-caller escape hatch for this panel's
@@ -318,12 +319,21 @@
     if (row.isOpen) abandonWorkingCopy();
     try {
       await deleteSavedLayout(row.layoutId);
-      removeServerLibraryItem(row.layoutId);
-      if (row.tabId) workspaceStore.closeTab(row.tabId);
-      toastStore.showToast(`Deleted "${row.name}"`, "info");
-    } catch {
-      toastStore.showToast(`Could not delete "${row.name}"`, "error");
+    } catch (error) {
+      // A layout the server has never heard of (a brand-new tab, one deleted
+      // inside the autosave debounce window, or a zero-rack layout the
+      // autosave effect never PUTs at all) 404s here. abandonWorkingCopy()
+      // above already dropped the working copy, so there is nothing left to
+      // reconcile: finish the same local cleanup as a real delete, with no
+      // error toast (#3151). Every other status is a genuine failure.
+      if (!(error instanceof PersistenceError && error.statusCode === 404)) {
+        toastStore.showToast(`Could not delete "${row.name}"`, "error");
+        return;
+      }
     }
+    removeServerLibraryItem(row.layoutId);
+    if (row.tabId) workspaceStore.closeTab(row.tabId);
+    toastStore.showToast(`Deleted "${row.name}"`, "info");
   }
 
   function cancelDelete() {
