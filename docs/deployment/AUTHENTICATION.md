@@ -66,6 +66,7 @@ When auth is enabled (`oidc` or `local`), the following routes remain publicly a
 | --- | --- |
 | `/auth/login`, `/auth/callback`, `/auth/check`, `/auth/logout` | Browser-facing auth flow |
 | `/api/auth/login`, `/api/auth/callback`, `/api/auth/check`, `/api/auth/logout` | API compatibility auth routes |
+| `/auth/oauth2/callback/oidc`, `/api/auth/oauth2/callback/oidc` | Better Auth's own OIDC callback path, served for deployments whose IdP is registered against it |
 | `/health`, `/api/health` | Container and API health checks |
 
 All other routes require a valid session. Unauthenticated requests are handled differently depending on the route type:
@@ -89,6 +90,9 @@ If you deploy Rackula behind Nginx auth_request, keep this contract consistent:
   - `GET /api/auth/callback`
   - `GET /api/auth/check`
   - `POST /api/auth/logout`
+- Better Auth's own OIDC callback path (served, but not the default; see Required: RACKULA_BASE_URL):
+  - `GET /auth/oauth2/callback/oidc`
+  - `GET /api/auth/oauth2/callback/oidc`
 - Internal auth probe contract:
   - `204` = authenticated
   - `401` = unauthenticated
@@ -614,6 +618,7 @@ Rackula includes IP-based rate-limiting on API routes, with separate limits for 
 - `/health` and `/api/health`
 - `/version` and `/api/version`
 - `/auth/login`, `/auth/callback`, `/auth/check`, `/auth/logout` and their `/api/` equivalents
+- `/auth/oauth2/callback/oidc` and its `/api/` equivalent
 
 **Tuning guidance:**
 
@@ -712,13 +717,15 @@ Set `RACKULA_BASE_URL` to the external URL that browsers use to reach Rackula. T
 RACKULA_BASE_URL=https://rack.example.com
 ```
 
-If you need the OIDC callback URL to differ from `RACKULA_BASE_URL + /auth/callback`, set `RACKULA_OIDC_REDIRECT_URI` explicitly:
+`RACKULA_OIDC_REDIRECT_URI` is optional. When it is not set, the callback URL is `RACKULA_BASE_URL` + `/auth/callback`, which is the URL to register with your IdP. Set it only to override that:
 
 ```yaml
 RACKULA_OIDC_REDIRECT_URI=https://rack.example.com/auth/callback
 ```
 
 The redirect URI must exactly match the URI registered in your IdP (no trailing slash, same protocol, same host).
+
+Releases up to and including v26.7.0 did not apply this default: with `RACKULA_OIDC_REDIRECT_URI` unset they advertised `RACKULA_BASE_URL` + `/api/auth/oauth2/callback/oidc` instead, which produced a login loop. See "Login loops with ERR_TOO_MANY_REDIRECTS" under Troubleshooting.
 
 ### Caddy Configuration
 
@@ -884,11 +891,34 @@ Events are written to stdout as structured JSON, compatible with log aggregators
 
 **Resolution:**
 
-1. Verify `RACKULA_OIDC_REDIRECT_URI` matches IdP redirect URI exactly
-2. Check for trailing slashes (should NOT be present): ❌ `/auth/callback/` ✅ `/auth/callback`
-3. Verify protocol matches (both HTTPS or both HTTP)
-4. Update IdP configuration if needed
-5. Restart API after changes
+1. If `RACKULA_OIDC_REDIRECT_URI` is unset, confirm your IdP has `RACKULA_BASE_URL` + `/auth/callback` registered, since that is the default Rackula advertises
+2. Verify `RACKULA_OIDC_REDIRECT_URI` matches IdP redirect URI exactly
+3. Check for trailing slashes. Do not use `/auth/callback/`. Use `/auth/callback`.
+4. Verify protocol matches (both HTTPS or both HTTP)
+5. Update IdP configuration if needed
+6. Restart API after changes
+
+### Login loops with ERR_TOO_MANY_REDIRECTS
+
+**Symptoms:**
+
+- Authentication at the IdP succeeds, then the browser bounces between the callback and the login page until it gives up with `ERR_TOO_MANY_REDIRECTS`
+- API logs repeat `auth.session.invalid` with `reason="missing or invalid session cookie"`
+- The IdP's state cookie is present in the browser, but no `rackula_auth_session` cookie is ever set
+
+**Cause:**
+
+- The redirect URI the IdP sends the browser to is not a path Rackula serves. The callback is bounced to the login route, which re-initiates OIDC, and the IdP silently re-approves the already-authenticated user.
+- On releases up to and including v26.7.0, leaving `RACKULA_OIDC_REDIRECT_URI` unset caused this: Rackula advertised `RACKULA_BASE_URL` + `/api/auth/oauth2/callback/oidc`, a path it did not route.
+
+**Resolution:**
+
+1. Upgrade to a release that applies the documented default, or set `RACKULA_OIDC_REDIRECT_URI` explicitly
+2. Register `https://<your-rackula-host>/auth/callback` as the redirect URI in your IdP, replacing any `/api/auth/oauth2/callback/oidc` entry
+3. Confirm `RACKULA_BASE_URL` is the external URL browsers use, with no trailing slash
+4. Restart the API after changes
+
+On current releases this failure returns a `400` naming `RACKULA_OIDC_REDIRECT_URI` rather than looping, so check the API response body if login fails.
 
 ### Sessions expire immediately after login
 

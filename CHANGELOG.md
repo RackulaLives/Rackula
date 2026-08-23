@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- OIDC login no longer loops until the browser reports `ERR_TOO_MANY_REDIRECTS`. `RACKULA_OIDC_REDIRECT_URI` was documented as defaulting to `RACKULA_BASE_URL` + `/auth/callback`, but that default was never applied, so Rackula advertised a callback path it did not serve and the identity provider's callback was bounced back to the login route (#3140, PR #3215)
+- An OAuth callback arriving on a path Rackula does not serve now returns a 400 naming `RACKULA_OIDC_REDIRECT_URI`, instead of redirecting to login and looping (PR #3215)
+- Better Auth's own callback path, `/api/auth/oauth2/callback/oidc`, is served for deployments whose identity provider is already registered against it (PR #3215)
+- The API warns at startup when `RACKULA_OIDC_REDIRECT_URI` names a path it does not serve, listing the paths that are served (PR #3215)
+
+### Changed
+
+- Upgrade action for OIDC deployments: with `RACKULA_OIDC_REDIRECT_URI` unset, Rackula now advertises `RACKULA_BASE_URL` + `/auth/callback` to the identity provider instead of `/api/auth/oauth2/callback/oidc`. If OIDC login was working for you without that variable set, register `https://<your-host>/auth/callback` in your identity provider before upgrading, or pin the old path by setting `RACKULA_OIDC_REDIRECT_URI` explicitly (#3140, PR #3215)
+
 ## [26.7.0] - 2026-07-18
 
 Rackula now warns you before anything destructive, shows clear feedback while you place devices, and lets you save straight from the command palette. Behind the scenes, sign-in and file handling are more secure and the app is more stable overall.
@@ -63,8 +76,6 @@ Rackula now warns you before anything destructive, shows clear feedback while yo
 - Brand pack contribution guide added, simplifying pack registration (PR #3044)
 - Design docs written ahead of implementation: UI friction and consistency review (PR #2985), resize and bay corrections spec (#2820, PR #2826), interaction feedback cluster plan (PR #2866), e2e suite recovery plan (PR #2860)
 - Dependency updates across svelte, hono, wrangler, @cloudflare/vitest-pool-workers, eslint and vitest tooling, GitHub Actions, and the production/development-dependency groups, including nanoid 6.0.0 and fuse.js 7.5.0 (PR #3053), spanning PR #2817 through PR #3054 (~35 PRs)
-
-## [Unreleased]
 
 ## [26.6.6] - 2026-06-30
 

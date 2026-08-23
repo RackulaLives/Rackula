@@ -121,7 +121,10 @@ RACKULA_AUTH_SESSION_SECRET=your-generated-secret
 RACKULA_OIDC_ISSUER=https://your-idp.example.com/
 RACKULA_OIDC_CLIENT_ID=rackula-web
 RACKULA_OIDC_CLIENT_SECRET=your-client-secret
-RACKULA_OIDC_REDIRECT_URI=https://your-rackula.example.com/auth/callback
+
+# Optional. Defaults to RACKULA_BASE_URL + /auth/callback, which is the URL to
+# register with your identity provider. Set this only to override that default.
+# RACKULA_OIDC_REDIRECT_URI=https://your-rackula.example.com/auth/callback
 ```
 
 See `.env.example` for all available configuration options.
