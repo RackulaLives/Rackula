@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import type { SavedLayoutItem } from "$lib/storage/api";
 import * as api from "$lib/storage/api";
 import * as availability from "$lib/storage/availability.svelte";
 import {
@@ -9,19 +8,7 @@ import {
   removeServerLibraryItem,
   resetServerLibrary,
 } from "$lib/storage/server-library.svelte";
-
-function item(overrides: Partial<SavedLayoutItem> = {}): SavedLayoutItem {
-  return {
-    id: "srv-1",
-    name: "Homelab",
-    version: "26.7.0",
-    updatedAt: "2026-08-01T00:00:00.000Z",
-    rackCount: 1,
-    deviceCount: 2,
-    valid: true,
-    ...overrides,
-  };
-}
+import { createTestSavedLayoutItem as item } from "./factories";
 
 describe("server library store", () => {
   beforeEach(() => {

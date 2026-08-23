@@ -28,7 +28,7 @@ import {
   type LayoutArchiveEntry,
 } from "$lib/utils/archive";
 import { generateId } from "$lib/utils/device";
-import type { LayoutMetadata } from "$lib/types";
+import type { Layout, LayoutMetadata } from "$lib/types";
 import { persistenceDebug } from "$lib/utils/debug";
 
 export type SaveStatus =
@@ -55,6 +55,14 @@ let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 // transient availability flip with no new edit) must NOT bump the id, or it
 // falsely invalidates an in-flight save that never lost any edits (#2936).
 let _serverSaveScheduleId = 0;
+
+// Bumped by abandonWorkingCopy(). A save captures the generation when it is
+// scheduled; if the generation has moved on by the time the PUT settles, that
+// save belongs to a working copy the user has since dropped, so its success
+// must write nothing back locally (#3151). The schedule id cannot express this
+// on its own: it only suppresses the dirty/clean reset, while the base and
+// session writes are deliberately independent of it (#2926).
+let _abandonGeneration = 0;
 
 // After a durable save the pending session debounce must be cancelled, or it
 // resurrects the cleared session copy and triggers a false unload warning
@@ -105,6 +113,29 @@ export function getStorageChipState() {
 }
 
 /**
+ * What a completed server save knows about itself (#3151).
+ *
+ * Both save paths build this when the save is scheduled and thread it through
+ * to {@link finalizeSuccessfulSave}, so finalization never has to read global
+ * state that may have moved on while the PUT was in flight.
+ */
+export interface CompletedSaveContext {
+  /**
+   * The snapshot this save actually sent. The catalogue row is built from it,
+   * never from the live layout: loadFromApi replaces the working copy without
+   * bumping the schedule id, so the live layout at finalize time can be a
+   * different layout entirely.
+   */
+  layout: Layout;
+  /**
+   * The abandon generation captured when this save was scheduled. Omitted only
+   * by callers with no scheduling phase (tests calling finalize directly); an
+   * omitted value counts as "not abandoned".
+   */
+  abandonGeneration?: number;
+}
+
+/**
  * Shared success epilogue for a durable server save, called by both the manual
  * (handleSaveToServer) and debounced auto-save paths so a successful auto-save
  * leaves the layout in the same state as a manual one.
@@ -121,16 +152,24 @@ export function getStorageChipState() {
  * When clearDirtyState is true (the default): also sets status to "saved",
  * marks the layout clean, and cancels the pending session debounce.
  *
+ * The one case where nothing at all is written back is an abandoned save: the
+ * working copy this save belongs to was dropped while its PUT was in flight,
+ * so re-stamping the base or the session would resurrect state the user just
+ * deleted. See {@link abandonWorkingCopy}.
+ *
  * @param clearDirtyState Pass false for a stale debounced save whose captured
  *   snapshot is older than the live layout (newer unsaved edits arrived while the
  *   save was in flight). The dirty flag and session state are then preserved for
  *   the follow-up save so unload warnings and recovery data survive.
  * @param newUpdatedAt The server-echoed updatedAt from this save's PUT response.
  *   Becomes the base threaded into subsequent PUTs and stamped onto the copy.
+ * @param completed Identity of the save being finalized. Required for the
+ *   catalogue upsert, which has nothing to record without the saved snapshot.
  */
 export function finalizeSuccessfulSave(
   clearDirtyState = true,
   newUpdatedAt: string | null = null,
+  completed: CompletedSaveContext | null = null,
 ): void {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
@@ -139,6 +178,16 @@ export function finalizeSuccessfulSave(
   if (_errorToastId) {
     toastStore.dismissToast(_errorToastId);
     _errorToastId = undefined;
+  }
+  // Server health above is a fact regardless of what happened locally, so it
+  // is recorded first. Everything below writes state back for a working copy
+  // that no longer exists once this save has been abandoned, so an abandoned
+  // save stops here (#3151).
+  if (
+    completed?.abandonGeneration !== undefined &&
+    completed.abandonGeneration !== _abandonGeneration
+  ) {
+    return;
   }
   if (clearDirtyState) {
     _saveStatus = "saved";
@@ -155,9 +204,12 @@ export function finalizeSuccessfulSave(
   // clearDirtyState: a stale save's live layout has already moved on (edits,
   // an abandon, or a loadFromApi swap), so its name and counts are the wrong
   // thing to record, and the follow-up save that made it stale will upsert
-  // correctly.
-  if (clearDirtyState && newUpdatedAt) {
-    const saved = layoutStore.layout;
+  // correctly. The row is built from the snapshot this save sent, not from the
+  // live layout: a loadFromApi swap replaces the working copy without bumping
+  // the schedule id, so a save that is still "current" by schedule id can
+  // finalize against a layout it never wrote.
+  if (clearDirtyState && newUpdatedAt && completed) {
+    const saved = completed.layout;
     const savedId = saved.metadata?.id;
     if (savedId) {
       const racks = saved.racks ?? [];
@@ -296,6 +348,7 @@ export async function handleSaveToServer(isManual = false): Promise<boolean> {
   const toastStore = getToastStore();
   try {
     const scheduleId = ++_serverSaveScheduleId;
+    const abandonGeneration = _abandonGeneration;
     _saveStatus = "saving";
     if (serverSaveTimer) {
       clearTimeout(serverSaveTimer);
@@ -312,6 +365,7 @@ export async function handleSaveToServer(isManual = false): Promise<boolean> {
     finalizeSuccessfulSave(
       scheduleId === _serverSaveScheduleId,
       result.updatedAt,
+      { layout: snapshot, abandonGeneration },
     );
     if (isManual) {
       toastStore.showToast("Layout saved", "success", 3000);
@@ -554,23 +608,21 @@ export function flushSessionSave(): void {
 }
 
 /**
- * Drop the working copy without saving it (#3151).
+ * Stop server autosave for the active working copy, without dropping it
+ * (#3151).
  *
- * Deleting the layout that is currently open must not leave a live working
- * copy behind: the debounced autosave would PUT it straight back after the
- * DELETE, and the next reload would reconcile the surviving session as
- * unknown-to-server and restore the layout the user just deleted.
+ * Cancels the pending debounce, marks any settling save stale, and clears the
+ * "saving" status. Nothing durable is touched: the session copy and the server
+ * base survive, so the next edit re-arms autosave against the same base as
+ * before.
  *
- * Bumping the schedule id marks any settling save stale, which suppresses
- * clearing dirty state and, in turn, re-recording the server-catalogue row
- * for that save (finalizeSuccessfulSave gates the upsert on clearDirtyState).
- * It does NOT suppress re-recording the base or re-stamping the working
- * copy: those still run whenever the stale save's PUT echoes an updatedAt,
- * independent of clearDirtyState (#2926). A PUT already on the wire can
- * still reach the server; that sub-second window is accepted rather than
- * adding a save barrier.
+ * This is the half of {@link abandonWorkingCopy} that is safe to run before a
+ * DELETE. Deleting the open layout must stop autosave first, or the debounce
+ * PUTs the layout straight back once the DELETE lands, but it must not destroy
+ * local state until the layout is actually gone: a DELETE that fails leaves the
+ * layout on the server, and the working copy is still its local copy.
  */
-export function abandonWorkingCopy(): void {
+export function suspendServerAutosave(): void {
   if (serverSaveTimer) {
     clearTimeout(serverSaveTimer);
     serverSaveTimer = null;
@@ -578,6 +630,36 @@ export function abandonWorkingCopy(): void {
   _serverSavePending = false;
   _serverSaveScheduleId++;
   _saveStatus = "idle";
+}
+
+/**
+ * Drop the working copy without saving it (#3151).
+ *
+ * Deleting the layout that is currently open must not leave a live working
+ * copy behind: the debounced autosave would PUT it straight back after the
+ * DELETE, and the next reload would reconcile the surviving session as
+ * unknown-to-server and restore the layout the user just deleted. Callers run
+ * {@link suspendServerAutosave} before the DELETE and this only once the
+ * layout is actually gone.
+ *
+ * Two guards, because they suppress different things. Bumping the schedule id
+ * (via suspendServerAutosave) marks any settling save stale, which suppresses
+ * clearing dirty state and re-recording the server-catalogue row. That alone
+ * is not enough: recording the base and re-stamping the working copy run
+ * whenever the PUT echoes an updatedAt, independent of clearDirtyState
+ * (#2926), so a settling save would write a fresh session copy of the layout
+ * that was just abandoned, and the next reload would reconcile it as
+ * unknown-to-server. Bumping the abandon generation is what stops that: a save
+ * that captured an older generation writes nothing back at all.
+ *
+ * What remains accepted is server-side, not local: a PUT already on the wire
+ * still reaches the server, and if it lands after the DELETE the server
+ * re-creates the row. Closing that needs a save barrier (awaiting the in-flight
+ * PUT before issuing the DELETE), which is not what this function does.
+ */
+export function abandonWorkingCopy(): void {
+  suspendServerAutosave();
+  _abandonGeneration++;
   cancelSessionSave();
   clearSession();
   setServerBaseUpdatedAt(null);
@@ -649,6 +731,7 @@ export function initPersistenceEffects(): void {
     // edit during the in-flight save) bumps it and marks that earlier save's
     // success stale, since the live layout now has edits it did not persist.
     const scheduleId = ++_serverSaveScheduleId;
+    const abandonGeneration = _abandonGeneration;
     const snapshot = structuredClone($state.snapshot(layout));
     const imagesSnapshot = getImageStore().getUserImages();
     _serverSavePending = true;
@@ -670,6 +753,7 @@ export function initPersistenceEffects(): void {
         finalizeSuccessfulSave(
           scheduleId === _serverSaveScheduleId,
           result.updatedAt,
+          { layout: snapshot, abandonGeneration },
         );
       } catch (e) {
         persistenceDebug.api("Auto-save failed: %O", e);

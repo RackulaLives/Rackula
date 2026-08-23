@@ -503,8 +503,12 @@ export async function refreshServerLibrary(): Promise<void> {
   const sequence = ++fetchSequence;
   status = "loading";
   fetchInFlight = true;
-  pendingUpserts = [];
-  pendingRemovals = [];
+  // Deliberately not resetting pendingUpserts/pendingRemovals here: an
+  // overlapping refresh (this call starting before an earlier one's GET has
+  // resolved) must not wipe mutations that earlier fetch's window already
+  // queued. The sequence-guarded `finally` below clears them once the
+  // winning fetch actually lands, which also covers the normal
+  // non-overlapping case.
 
   try {
     await initializePersistence();
@@ -663,9 +667,15 @@ Then, inside `finalizeSuccessfulSave`, immediately after the existing `if (newUp
 // Keep the server catalogue current without a refetch (#3151). Autosave
 // fires every 2 seconds while editing, so invalidating on save would mean
 // one GET /api/layouts per save. A null newUpdatedAt means the server
-// returned no new timestamp, so there is nothing to record.
-if (newUpdatedAt) {
-  const saved = layoutStore.layout;
+// returned no new timestamp, so there is nothing to record. Also gated on
+// clearDirtyState: a stale save's live layout has already moved on (edits,
+// an abandon, or a loadFromApi swap), so recording it would corrupt the row,
+// and the follow-up save that made this one stale will upsert correctly.
+// The row is built from the snapshot this save sent, threaded in through
+// `completed`, not from the live layout: loadFromApi replaces the working
+// copy without bumping the schedule id.
+if (clearDirtyState && newUpdatedAt && completed) {
+  const saved = completed.layout;
   const savedId = saved.metadata?.id;
   if (savedId) {
     const racks = saved.racks ?? [];
@@ -696,25 +706,34 @@ Add this exported function next to `flushSessionSave`:
 
 ```typescript
 /**
- * Drop the working copy without saving it (#3151).
- *
- * Deleting the layout that is currently open must not leave a live working
- * copy behind: the debounced autosave would PUT it straight back after the
- * DELETE, and the next reload would reconcile the surviving session as
- * unknown-to-server and restore the layout the user just deleted.
- *
- * Bumping the schedule id marks any settling save stale so its success cannot
- * clear dirty state or re-record a base. A PUT already on the wire can still
- * reach the server; that sub-second window is accepted rather than adding a
- * save barrier.
+ * Stop server autosave for the active working copy, without dropping it. Safe
+ * to run before a DELETE: nothing durable is touched, so a DELETE that fails
+ * leaves the session and the base as they were.
  */
-export function abandonWorkingCopy(): void {
+export function suspendServerAutosave(): void {
   if (serverSaveTimer) {
     clearTimeout(serverSaveTimer);
     serverSaveTimer = null;
   }
   _serverSavePending = false;
   _serverSaveScheduleId++;
+  _saveStatus = "idle";
+}
+
+/**
+ * Drop the working copy without saving it (#3151). Runs only once the DELETE
+ * has actually landed.
+ *
+ * Two guards. The schedule id (bumped by suspendServerAutosave) marks a
+ * settling save stale, which suppresses the dirty reset and the catalogue
+ * upsert. The abandon generation is what stops the rest: recording the base
+ * and re-stamping the session run on newUpdatedAt alone, independent of
+ * clearDirtyState (#2926), so without it a settling save would write a fresh
+ * working copy of the layout that was just deleted.
+ */
+export function abandonWorkingCopy(): void {
+  suspendServerAutosave();
+  _abandonGeneration++;
   cancelSessionSave();
   clearSession();
   setServerBaseUpdatedAt(null);
@@ -1029,17 +1048,27 @@ async function confirmDelete() {
     return;
   }
 
-  // Deleting the open copy must drop the working copy first, or the
-  // debounced autosave PUTs it straight back after the DELETE (#3151).
-  if (row.isOpen) abandonWorkingCopy();
+  // Deleting the open copy must stop autosave first, or the debounced save
+  // PUTs the layout straight back after the DELETE (#3151). The working copy
+  // itself is dropped only once the layout is actually gone: a DELETE that
+  // fails leaves it on the server, still backed by this local copy.
+  const isWorkingCopy = row.isOpen && row.tabId === workspaceStore.activeId;
+  if (isWorkingCopy) suspendServerAutosave();
   try {
     await deleteSavedLayout(row.layoutId);
-    removeServerLibraryItem(row.layoutId);
-    if (row.tabId) workspaceStore.closeTab(row.tabId);
-    toastStore.showToast(`Deleted "${row.name}"`, "info");
-  } catch {
-    toastStore.showToast(`Could not delete "${row.name}"`, "error");
+  } catch (error) {
+    // A 404 means the server never had it, so fall through to the same local
+    // cleanup. Every other status is a genuine failure: the layout is still
+    // there, so nothing local may be destroyed.
+    if (!(error instanceof PersistenceError && error.statusCode === 404)) {
+      toastStore.showToast(`Could not delete "${row.name}"`, "error");
+      return;
+    }
   }
+  if (isWorkingCopy) abandonWorkingCopy();
+  removeServerLibraryItem(row.layoutId);
+  if (row.tabId) workspaceStore.closeTab(row.tabId);
+  toastStore.showToast(`Deleted "${row.name}"`, "info");
 }
 ```
 

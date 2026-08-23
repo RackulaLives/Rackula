@@ -51,7 +51,9 @@ export {
   type SaveStatus,
   isSessionSavePending,
   isServerSavePending,
+  suspendServerAutosave,
   abandonWorkingCopy,
+  type CompletedSaveContext,
 } from "./manager.svelte";
 export { shouldWarnBeforeUnload, type UnloadRiskState } from "./unload-risk";
 export { getServerBaseUpdatedAt, setServerBaseUpdatedAt } from "./server-base";

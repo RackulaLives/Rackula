@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
-import type { SavedLayoutItem } from "$lib/storage/api";
 
 vi.mock("$lib/storage/availability.svelte", async () => {
   const actual = await vi.importActual<
@@ -35,19 +34,7 @@ import {
   resetWorkspaceStore,
 } from "$lib/stores/workspace.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
-
-function item(overrides: Partial<SavedLayoutItem> = {}): SavedLayoutItem {
-  return {
-    id: "srv-1",
-    name: "Closet Rack",
-    version: "26.7.0",
-    updatedAt: "2026-08-01T00:00:00.000Z",
-    rackCount: 1,
-    deviceCount: 2,
-    valid: true,
-    ...overrides,
-  };
-}
+import { createTestSavedLayoutItem as item } from "./factories";
 
 describe("mobile layouts sheet in server mode", () => {
   beforeEach(() => {
@@ -80,6 +67,9 @@ describe("mobile layouts sheet in server mode", () => {
 
     expect(loadFromApi).toHaveBeenCalledWith("srv-1", expect.anything());
     expect(ws.tabs.every((t) => !t.unreadable)).toBe(true);
+    // Server mode is single-working-copy: loading a server layout replaces the
+    // working copy in place rather than adding a tab, so the tab count is
+    // unchanged by the open (#3151).
     expect(ws.tabs.length).toBe(tabsBefore);
   });
 
@@ -112,5 +102,21 @@ describe("mobile layouts sheet in server mode", () => {
     const closeOrder = onclose.mock.invocationCallOrder[0]!;
     const loadOrder = vi.mocked(loadFromApi).mock.invocationCallOrder[0]!;
     expect(closeOrder).toBeLessThan(loadOrder);
+  });
+
+  it("shows an unavailable notice with a retry instead of looking empty", async () => {
+    // A failed catalogue fetch must not read as "no saved layouts": without a
+    // state of its own, mobile users cannot tell an outage from an empty
+    // library, and have no way to retry (#3151).
+    vi.mocked(listSavedLayouts).mockRejectedValue(new Error("down"));
+    const user = userEvent.setup();
+
+    render(MobileLayoutsSheet, { props: {} });
+
+    expect(await screen.findByText(/cannot reach/i)).toBeInTheDocument();
+    vi.mocked(listSavedLayouts).mockResolvedValue([item()]);
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+
+    expect(await screen.findByText("Closet Rack")).toBeInTheDocument();
   });
 });

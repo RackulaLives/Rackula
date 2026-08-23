@@ -48,6 +48,7 @@
     getServerInstanceLabel,
     loadFromApi,
     PersistenceError,
+    suspendServerAutosave,
     abandonWorkingCopy,
   } from "$lib/storage";
   import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
@@ -310,31 +311,38 @@
       return;
     }
 
-    // Deleting the open copy must drop the working copy first, or the
-    // debounced autosave PUTs it straight back after the DELETE (#3151).
-    // abandonWorkingCopy() is global: it only ever concerns the ACTIVE
-    // layout's save timer, session, and base. row.isOpen only means some tab
-    // holds this layout, not that it is the working copy, so a background
-    // tab's row must not trigger it: only the active layout is ever
-    // autosaved, so there is no working copy to drop for a background tab.
-    if (row.isOpen && row.tabId === workspaceStore.activeId)
-      abandonWorkingCopy();
+    // Deleting the open copy must stop autosave first, or the debounced
+    // autosave PUTs the layout straight back after the DELETE (#3151). The
+    // working copy itself is dropped only once the layout is actually gone,
+    // below: suspending is non-destructive, abandoning is not, and a DELETE
+    // that fails leaves the layout on the server with the working copy still
+    // its local copy.
+    //
+    // Both verbs are global: they only ever concern the ACTIVE layout's save
+    // timer, session, and base. row.isOpen only means some tab holds this
+    // layout, not that it is the working copy, so a background tab's row must
+    // trigger neither: only the active layout is ever autosaved, so there is
+    // no working copy to suspend or drop for a background tab.
+    const isWorkingCopy = row.isOpen && row.tabId === workspaceStore.activeId;
+    if (isWorkingCopy) suspendServerAutosave();
     try {
       await deleteSavedLayout(row.layoutId);
     } catch (error) {
       // A layout the server has never heard of (a brand-new tab, one deleted
       // inside the autosave debounce window, or a zero-rack layout the
-      // autosave effect never PUTs at all) 404s here. For the active tab,
-      // abandonWorkingCopy() above already dropped the working copy; for a
-      // background tab, there was never one to drop, since only the active
-      // layout autosaves. Either way there is nothing left to reconcile:
-      // finish the same local cleanup as a real delete, with no error toast
-      // (#3151). Every other status is a genuine failure.
+      // autosave effect never PUTs at all) 404s here. The layout is gone
+      // either way, so there is nothing left to reconcile: fall through to the
+      // same local cleanup as a real delete, with no error toast (#3151).
+      // Every other status is a genuine failure: the layout still exists on
+      // the server, so the session copy and the server base must survive
+      // untouched. Autosave stays suspended until the next edit re-arms it,
+      // which then PUTs against the intact base like any ordinary update.
       if (!(error instanceof PersistenceError && error.statusCode === 404)) {
         toastStore.showToast(`Could not delete "${row.name}"`, "error");
         return;
       }
     }
+    if (isWorkingCopy) abandonWorkingCopy();
     removeServerLibraryItem(row.layoutId);
     if (row.tabId) workspaceStore.closeTab(row.tabId);
     toastStore.showToast(`Deleted "${row.name}"`, "info");

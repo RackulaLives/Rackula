@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
-import type { SavedLayoutItem } from "$lib/storage/api";
 
 vi.mock("$lib/storage/availability.svelte", async () => {
   const actual = await vi.importActual<
@@ -43,29 +42,33 @@ import {
   resetWorkspaceStore,
 } from "$lib/stores/workspace.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
-// Spied on (not vi.mock'd) so the real abandonWorkingCopy runs: Finding 3
-// needs to observe call order against the real deleteSavedLayout mock, not
-// replace the function under test.
+import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
+import {
+  getServerBaseUpdatedAt,
+  setServerBaseUpdatedAt,
+} from "$lib/storage/server-base";
+import {
+  saveSession,
+  clearSession,
+  loadSessionWithTimestamp,
+} from "$lib/storage/working-copy";
+import {
+  createTestSavedLayoutItem as item,
+  createTestLayout,
+} from "./factories";
+// Spied on (not vi.mock'd) so the real suspend/abandon pair runs: the delete
+// flow's ordering is observed against the real deleteSavedLayout mock, not
+// replaced by stubs.
 import * as manager from "$lib/storage/manager.svelte";
-
-function item(overrides: Partial<SavedLayoutItem> = {}): SavedLayoutItem {
-  return {
-    id: "srv-1",
-    name: "Closet Rack",
-    version: "26.7.0",
-    updatedAt: "2026-08-01T00:00:00.000Z",
-    rackCount: 1,
-    deviceCount: 2,
-    valid: true,
-    ...overrides,
-  };
-}
 
 describe("Layouts panel in server mode", () => {
   beforeEach(() => {
     resetHistoryStore();
     resetWorkspaceStore();
     resetServerLibrary();
+    resetToastStore();
+    setServerBaseUpdatedAt(null);
+    clearSession();
     vi.clearAllMocks();
   });
 
@@ -133,8 +136,9 @@ describe("Layouts panel in server mode", () => {
     expect(deleteSavedLayout).toHaveBeenCalledWith("srv-1");
   });
 
-  it("drops the working copy before deleting the currently open row", async () => {
+  it("suspends autosave before the delete and drops the working copy after it", async () => {
     vi.mocked(listSavedLayouts).mockResolvedValue([]);
+    const suspendSpy = vi.spyOn(manager, "suspendServerAutosave");
     const abandonSpy = vi.spyOn(manager, "abandonWorkingCopy");
     const ws = getWorkspaceStore();
     const openTabId = ws.activeId;
@@ -151,14 +155,19 @@ describe("Layouts panel in server mode", () => {
     await waitFor(() =>
       expect(deleteSavedLayout).toHaveBeenCalledWith(openLayoutId),
     );
+    expect(suspendSpy).toHaveBeenCalled();
     expect(abandonSpy).toHaveBeenCalled();
-    // Ordering-sensitive: abandonWorkingCopy must run before the DELETE, or
-    // the debounced autosave can PUT the layout straight back after it
-    // lands (#3151).
+    // Ordering-sensitive in both directions (#3151). Autosave must be
+    // suspended before the DELETE, or the debounced save can PUT the layout
+    // straight back after it lands. The working copy must be dropped only
+    // after it, or a DELETE that fails destroys local state for a layout that
+    // still exists on the server.
+    const suspendOrder = suspendSpy.mock.invocationCallOrder[0]!;
     const abandonOrder = abandonSpy.mock.invocationCallOrder[0]!;
     const deleteOrder =
       vi.mocked(deleteSavedLayout).mock.invocationCallOrder[0]!;
-    expect(abandonOrder).toBeLessThan(deleteOrder);
+    expect(suspendOrder).toBeLessThan(deleteOrder);
+    expect(abandonOrder).toBeGreaterThan(deleteOrder);
     // closeTab never leaves the workspace empty; it replaces the closed tab
     // with a fresh one, so assert the original tab id is gone rather than
     // asserting an empty tab list.
@@ -166,6 +175,7 @@ describe("Layouts panel in server mode", () => {
       expect(ws.tabs.some((t) => t.id === openTabId)).toBe(false),
     );
 
+    suspendSpy.mockRestore();
     abandonSpy.mockRestore();
   });
 
@@ -175,6 +185,7 @@ describe("Layouts panel in server mode", () => {
     // not the working copy being autosaved, so deleting it must not touch
     // the active layout's continuity copy (#3151).
     vi.mocked(listSavedLayouts).mockResolvedValue([]);
+    const suspendSpy = vi.spyOn(manager, "suspendServerAutosave");
     const abandonSpy = vi.spyOn(manager, "abandonWorkingCopy");
     const ws = getWorkspaceStore();
     const backgroundTabId = ws.activeId;
@@ -192,8 +203,10 @@ describe("Layouts panel in server mode", () => {
     await waitFor(() =>
       expect(deleteSavedLayout).toHaveBeenCalledWith(backgroundLayoutId),
     );
+    expect(suspendSpy).not.toHaveBeenCalled();
     expect(abandonSpy).not.toHaveBeenCalled();
 
+    suspendSpy.mockRestore();
     abandonSpy.mockRestore();
   });
 
@@ -221,7 +234,63 @@ describe("Layouts panel in server mode", () => {
       expect(ws.tabs.some((t) => t.id === openTabId)).toBe(false),
     );
     // ...and the 404 is treated as already-deleted, not surfaced as a failure.
-    expect(screen.queryByText(/could not delete/i)).not.toBeInTheDocument();
+    expect(
+      getToastStore().toasts.some((t) => /could not delete/i.test(t.message)),
+    ).toBe(false);
+  });
+
+  it("keeps the working copy and the server base when the delete fails", async () => {
+    // The DELETE failed, so the layout still exists on the server and the
+    // working copy is still its local copy. Dropping the session and nulling
+    // the base would lose the offline continuity copy and make the next edit
+    // PUT with no base, which is the unknown-to-server shape rather than an
+    // ordinary update (#3151).
+    vi.mocked(listSavedLayouts).mockResolvedValue([]);
+    vi.mocked(deleteSavedLayout).mockRejectedValue(
+      new PersistenceError("Server error", 503),
+    );
+    const ws = getWorkspaceStore();
+    const openTabId = ws.activeId;
+    // A real, schema-valid working copy: the session is only recoverable if
+    // it round-trips through the same schema gate a reload reads it with.
+    ws.clearThenLoad(
+      ws.activeId,
+      createTestLayout({
+        name: "Homelab",
+        metadata: {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "Homelab",
+          schema_version: "1.0",
+        },
+      }),
+    );
+    setServerBaseUpdatedAt("2026-08-01T00:00:00.000Z");
+    saveSession(
+      ws.activeStore.layout,
+      { changesSinceExport: 1, hasEverExported: false },
+      "2026-08-01T00:00:00.000Z",
+    );
+    const user = userEvent.setup();
+
+    render(LayoutsLibrary, { props: {} });
+    const row = await screen.findByTestId(`layout-item-${openTabId}`);
+
+    await user.pointer({ keys: "[MouseRight]", target: row });
+    await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
+    await user.click(await screen.findByRole("button", { name: /delete/i }));
+
+    await waitFor(() => expect(deleteSavedLayout).toHaveBeenCalled());
+    // The panel renders no toast host, so the failure is asserted on the
+    // toast store rather than on the DOM.
+    await waitFor(() =>
+      expect(
+        getToastStore().toasts.some((t) => /could not delete/i.test(t.message)),
+      ).toBe(true),
+    );
+    expect(getServerBaseUpdatedAt()).toBe("2026-08-01T00:00:00.000Z");
+    expect(loadSessionWithTimestamp()).not.toBeNull();
+    // The layout is still on the server, so its tab stays open.
+    expect(ws.tabs.some((t) => t.id === openTabId)).toBe(true);
   });
 
   it("shows an unavailable notice instead of an empty list when the server is down", async () => {

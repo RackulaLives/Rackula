@@ -10,6 +10,7 @@ import {
   createTestLayout,
   createTestRack,
   createTestDevice,
+  createTestCatalogueEntry,
 } from "./factories";
 import {
   buildLayoutRows,
@@ -22,10 +23,9 @@ import {
 function entriesFrom(
   library: Readonly<Record<string, { name: string }>>,
 ): CatalogueEntry[] {
-  return Object.entries(library).map(([id, entry]) => ({
-    id,
-    name: entry.name,
-  }));
+  return Object.entries(library).map(([id, entry]) =>
+    createTestCatalogueEntry({ id, name: entry.name }),
+  );
 }
 
 /** Browser-mode open-id resolution: the tab record owns the identity. */
@@ -194,7 +194,9 @@ describe("buildLayoutRows", () => {
     // record has no layoutId, because no server load path sets one.
     ws.clearThenLoad(ws.activeId, createLayout("Homelab"));
     const openId = ws.activeStore.layout.metadata?.id ?? "";
-    const catalogue = [{ id: openId, name: "Homelab" }];
+    const catalogue = [
+      createTestCatalogueEntry({ id: openId, name: "Homelab" }),
+    ];
 
     const rows = buildLayoutRows(
       ws.tabs,
@@ -211,14 +213,14 @@ describe("buildLayoutRows", () => {
   it("carries counts and validity from catalogue entries onto closed rows", () => {
     const ws = getWorkspaceStore();
     const catalogue = [
-      {
+      createTestCatalogueEntry({
         id: "srv-1",
         name: "Closet",
         rackCount: 3,
         deviceCount: 11,
         valid: true,
-      },
-      { id: "srv-2", name: "Broken", valid: false },
+      }),
+      createTestCatalogueEntry({ id: "srv-2", name: "Broken", valid: false }),
     ];
 
     const rows = buildLayoutRows(
@@ -240,7 +242,7 @@ describe("buildLayoutRows", () => {
     const rows = buildLayoutRows(
       ws.tabs,
       ws.activeId,
-      [{ id: "local-1", name: "Local" }],
+      [createTestCatalogueEntry({ id: "local-1", name: "Local" })],
       (t) => t.layoutId,
     );
 

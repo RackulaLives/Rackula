@@ -16,6 +16,11 @@
   load failure leaves it absent. Choosing a starter opens it in a new tab through
   the same id-regeneration path as desktop, then dismisses the sheet.
 
+  In server mode the list comes from the server catalogue rather than the
+  browser workspace library, and a failed catalogue fetch renders the same
+  offline notice and Retry the desktop panel shows, so an outage never reads as
+  an empty library (#3151).
+
   Indicators are never colour-only (WCAG 1.4.1): each row pairs a state dot with
   a text label (Active / Open / Closed), and the active row carries
   aria-selected.
@@ -41,6 +46,7 @@
     getApiAvailableState,
     getServerLibrary,
     refreshServerLibrary,
+    getServerInstanceLabel,
     loadFromApi,
   } from "$lib/storage";
   import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
@@ -271,6 +277,26 @@
       </button>
     {/each}
   </div>
+
+  <!-- Mirrors the desktop panel's offline notice (#3151): a failed catalogue
+       fetch must not read as "no saved layouts". Sits outside the listbox so
+       the list keeps only option children. -->
+  {#if serverMode && serverLibrary.status === "unavailable"}
+    <div class="server-unavailable">
+      <p class="unavailable-message">Cannot reach {getServerInstanceLabel()}</p>
+      <p class="unavailable-hint">
+        Your open layout is safe. Retry to list the rest.
+      </p>
+      <button
+        type="button"
+        class="retry"
+        onclick={() => void refreshServerLibrary()}
+        data-testid="mobile-server-retry"
+      >
+        Retry
+      </button>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -512,6 +538,62 @@
   .starter-meta {
     font-size: var(--font-size-xs);
     color: var(--colour-text-muted);
+  }
+
+  /* Server-unavailable notice. Centred like the desktop empty state, with a
+     full-width Retry sized to the shared touch target. */
+  .server-unavailable {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-3);
+    text-align: center;
+  }
+
+  .unavailable-message {
+    margin: 0;
+    font-size: var(--font-size-base);
+    color: var(--colour-text);
+  }
+
+  .unavailable-hint {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--colour-text-muted);
+  }
+
+  .retry {
+    width: 100%;
+    min-height: var(--touch-target-min);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+    color: var(--colour-text);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .retry:hover {
+    background: var(--colour-surface-hover);
+    border-color: var(--colour-text-muted);
+  }
+
+  .retry:active {
+    background: var(--colour-surface-hover);
+    scale: 0.98;
+  }
+
+  .retry:focus-visible {
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: 2px;
   }
 
   @media (prefers-reduced-motion: reduce) {
