@@ -2,8 +2,9 @@ name: Build Images
 
 # Reusable workflow: build and push ONLY immutable Docker tags (:vX.Y.Z).
 # No :latest and no :year_month tags are pushed here. Those are applied later
-# by the promote stage, by digest. Mirrors the build/scan jobs from
-# deploy-prod.yml, changed only for the immutable-tag policy plus digest outputs.
+# by the promote stage, by digest. This workflow owns the release-time image
+# build and Trivy scan outright; deploy-prod.yml no longer touches Docker at all
+# now that prod is a Cloudflare Worker serving static assets (#2029).
 #
 # Each image (frontend, persist, api) builds linux/amd64 and linux/arm64 as
 # separate per-arch jobs, amd64 on ubuntu-latest and arm64 on the native

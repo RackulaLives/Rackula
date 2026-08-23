@@ -1,9 +1,25 @@
 name: Deploy Prod
 
-# Reusable workflow: deploys an already-built, already-scanned release to the
-# prod VPS and runs a post-deploy smoke test. Called by the release orchestrator
-# during the promote stage. The orchestrator validates the tag and passes the
-# tag/version inputs; this workflow no longer triggers independently on tag push.
+# Reusable workflow: builds the released tag and publishes count.racku.la to
+# Cloudflare Workers Static Assets. Called by the release orchestrator during
+# the promote stage; the orchestrator validates the tag and passes tag/version.
+#
+# Prod is an ASSETS-ONLY Worker (see wrangler.jsonc): no `main`, no bindings, no
+# API. The frontend runs in browser-storage mode and keeps nothing server-side.
+#
+# Deploy order every release (#2029):
+#   1. build the tag, generate the CF-only artifacts
+#   2. `wrangler versions upload`   -> a per-version preview URL, no traffic
+#   3. FULL fail-closed smoke against that preview URL
+#   4. `wrangler versions deploy`   -> shifts 100% of traffic
+#   5. light re-check of the live host
+# A bad build therefore never takes traffic. No percentage rollouts: Cloudflare
+# documents a mixed-version hazard where HTML from one version references hashed
+# assets that only exist in another, and version affinity needs a request header
+# browsers do not send.
+#
+# Rollback: .github/workflows/rollback-prod.yml (`wrangler versions deploy <id>`),
+# which does not traverse this workflow's approval gate.
 
 on:
   workflow_call:
@@ -14,115 +30,124 @@ on:
       version:
         required: true
         type: string
+    # Reusable workflows do NOT inherit secrets from the caller. Without this
+    # block (and `secrets: inherit` on the caller in release.yml) the Cloudflare
+    # credentials resolve to empty strings and every wrangler call fails.
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
 
 concurrency:
   group: deploy-prod-${{ inputs.tag }}
   cancel-in-progress: false
 
+env:
+  # Pinned rather than added to root devDependencies: every other job would pay
+  # the install cost, and this workflow runs a handful of times a month.
+  WRANGLER_VERSION: "4.124.0"
+
 jobs:
   deploy:
-    runs-on: [self-hosted, vps-rackula]
-    timeout-minutes: 20
+    name: "Deploy to Cloudflare Workers"
+    # No `environment:` here. promote-gate in release.yml already binds the
+    # protected `prod` environment; binding it again would prompt the same
+    # reviewer twice in one run.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: read
 
     steps:
+      # .git must be present (fetch-depth 0) so vite's getGitInfo() populates
+      # version.json.commit. The Docker build ships commit="" because
+      # .dockerignore strips .git; the CF build deliberately does not.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-          sparse-checkout: |
-            docker-compose.yml
-          sparse-checkout-cone-mode: false
-
-      - name: Sync docker-compose.yml to prod
-        run: |
-          cp docker-compose.yml /opt/rackula/rackula-app/docker-compose.yml
-          # Ensure RACKULA_PORT is set (localhost only - Caddy handles external traffic)
-          # Uses grep+echo pattern to avoid overwriting other env vars
-          ENV_FILE=/opt/rackula/rackula-app/.env
-          touch "$ENV_FILE"
-          grep -q '^RACKULA_PORT=' "$ENV_FILE" || echo "RACKULA_PORT=127.0.0.1:8080" >> "$ENV_FILE"
-
-      - name: Deploy to prod
-        run: |
-          cd /opt/rackula/rackula-app
-          # Stop old container if exists (name changed from rackula-app to rackula)
-          docker stop rackula-app 2>/dev/null && docker rm rackula-app 2>/dev/null || true
-          docker compose pull
-          docker compose up -d --remove-orphans
-          # Prune the image the new pull just superseded (now dangling);
-          # running containers keep their tagged images. Prevents disk fill.
-          docker image prune -f
-
-  smoke-test:
-    needs: [deploy]
-    runs-on: [self-hosted, vps-rackula]
-    timeout-minutes: 10
-    permissions:
-      contents: read
-
-    steps:
-      # Fast curl gate: fails immediately if the server is unreachable, before we
-      # spend time spinning up a browser.
-      - name: Verify deployment responds
-        run: |
-          sleep 5
-          curl -sf --retry 5 --retry-delay 3 https://count.racku.la
-
-      - name: Verify live frontend version
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          # Public prod (count.racku.la) serves the static frontend only — it has
-          # no API/persistence backend by design (no user-data storage), so
-          # /api/version intentionally returns 503 "Persistence API unavailable".
-          # We therefore verify the live FRONTEND version here. The published API
-          # image version is validated separately by the verify-version-alignment
-          # job, which runs the image in an ephemeral container.
-          #
-          # The browser smoke test below checks version.json is well-formed; this
-          # step additionally asserts it matches the released tag.
-          #
-          # Extract .version from JSON without depending on jq being installed
-          # on the self-hosted runner.
-          extract_version() {
-            grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' \
-              | head -n1 \
-              | sed 's/.*:[[:space:]]*"\([^"]*\)".*/\1/'
-          }
-          fe="$(curl -sf --retry 5 --retry-delay 3 https://count.racku.la/version.json | extract_version)"
-          echo "frontend=${fe} expected=${VERSION}"
-          [ "$fe" = "$VERSION" ] || { echo "::error::Live frontend version '${fe}' != '${VERSION}'"; exit 1; }
-          echo "✓ Live frontend reports ${VERSION}"
-
-      # The deploy job runs a sparse checkout on this same self-hosted runner and
-      # leaves the shared workspace in sparse mode. actions/checkout does not clear
-      # an existing sparse cone when the sparse-checkout input is omitted, so the
-      # full tree (package-lock.json, e2e specs) would be missing here. Wipe the
-      # workspace before checkout so the full tree is restored cleanly (mirrors
-      # deploy-dev's root fix for #2327).
-      - name: Clean stale workspace from the deploy job
-        run: |
-          if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
-            find "$GITHUB_WORKSPACE" -mindepth 1 -delete
-          fi
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.tag }}
+          fetch-depth: 0
           persist-credentials: false
 
-      # No cache: "npm" here. The npm cache lookup runs before checkout settles
-      # and hard-errors ("Dependencies lock file is not found", #2327) if a stale
-      # workspace ever slips through. The clean-workspace step above is the root
-      # fix; dropping the cache removes the fragile lockfile-hash dependency.
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version: "22"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Resolve expected commit
+        id: expected
+        # Short format, matching what vite writes into version.json.
+        run: echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build production bundle
+        # VITE_ENV pinned explicitly to match the gated Docker build. #2032
+        # guards this env against drift.
+        env:
+          VITE_ENV: production
+        run: npm run build
+
+      - name: Generate Cloudflare-only artifacts
+        # _headers and .assetsignore are emitted into dist/ here and never
+        # committed to static/: publicDir copies static/ verbatim into EVERY
+        # dist, which would leak them into the Docker/LXC self-host images.
+        run: |
+          node scripts/gen-headers.mjs prod --out dist/_headers
+          node scripts/gen-headers.mjs --assetsignore dist/.assetsignore
+          echo "--- dist/_headers ---"
+          cat dist/_headers
+
+      - name: Strip login.html from the prod artifact
+        # Removed here, NOT by branching vite's rollupOptions.input, which would
+        # fork the gated artifact and risk stripping login.html from the
+        # self-host builds where it is required. Prod has no auth backend, and
+        # Workers' default html_handling would otherwise serve the form at
+        # /login. Afterwards /login resolves to the SPA shell.
+        run: |
+          test -f dist/login.html || { echo "::error::dist/login.html missing - the self-host artifact would be broken"; exit 1; }
+          rm -f dist/login.html
+
+      - name: Assert artifact integrity before upload
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+          EXPECTED_COMMIT: ${{ steps.expected.outputs.commit }}
+        run: |
+          set -euo pipefail
+          # config.js ships from publicDir in every dist. A regression here would
+          # surface only as a blocked-script console error under SPA fallback
+          # plus nosniff, so assert it before it can reach traffic.
+          grep -q 'storage: *"browser"' dist/config.js \
+            || { echo "::error::dist/config.js is not in browser storage mode"; exit 1; }
+          grep -q "\"version\": *\"${EXPECTED_VERSION}\"" dist/version.json \
+            || { echo "::error::version.json != ${EXPECTED_VERSION}"; cat dist/version.json; exit 1; }
+          grep -q "\"commit\": *\"${EXPECTED_COMMIT}\"" dist/version.json \
+            || { echo "::error::version.json commit != ${EXPECTED_COMMIT}"; cat dist/version.json; exit 1; }
+          echo "artifact OK: ${EXPECTED_VERSION} @ ${EXPECTED_COMMIT}"
+
+      - name: Upload version (no traffic)
+        id: upload
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@${WRANGLER_VERSION}" versions upload 2>&1 | tee upload.log
+          version_id="$(grep -oE 'Worker Version ID: [0-9a-f-]+' upload.log | tail -1 | awk '{print $NF}')"
+          preview_url="$(grep -oE 'Version Preview URL: https://[^[:space:]]+' upload.log | tail -1 | awk '{print $NF}')"
+          [ -n "$version_id" ] || { echo "::error::could not parse Worker Version ID"; exit 1; }
+          [ -n "$preview_url" ] || { echo "::error::could not parse Version Preview URL (is preview_urls enabled?)"; exit 1; }
+          echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
+          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "uploaded $version_id -> $preview_url"
+
+      - name: Smoke headers and content types against the preview URL
+        run: |
+          scripts/smoke-headers.sh "${{ steps.upload.outputs.preview_url }}" \
+            --expect-version "${{ inputs.version }}" \
+            --expect-commit "${{ steps.expected.outputs.commit }}"
 
       - name: Cache Playwright browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -132,11 +157,37 @@ jobs:
           restore-keys: playwright-${{ runner.os }}-chromium-
 
       - name: Install Playwright chromium
-        # --with-deps installs OS libraries via apt and needs root; fall back to a
-        # plain browser install when the self-hosted runner already has them.
-        run: npx playwright install --with-deps chromium || npx playwright install chromium
+        run: npx playwright install --with-deps chromium
 
-      - name: Browser smoke test against deployed app
+      - name: Browser smoke against the preview URL
+        env:
+          SMOKE_TEST_URL: ${{ steps.upload.outputs.preview_url }}
+        run: npm run test:e2e:smoke
+
+      # Everything above is fail-closed. Only now does traffic move.
+      - name: Promote version to 100% of traffic
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes "wrangler@${WRANGLER_VERSION}" versions deploy \
+            "${{ steps.upload.outputs.version_id }}@100%" --yes
+
+      # `versions deploy` does not apply trigger changes. If wrangler.jsonc's
+      # routes ever change, this is what lands them.
+      - name: Apply triggers (routes)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes "wrangler@${WRANGLER_VERSION}" triggers deploy
+
+      - name: Verify the live host
+        run: |
+          scripts/smoke-headers.sh https://count.racku.la --live \
+            --expect-version "${{ inputs.version }}" \
+            --expect-commit "${{ steps.expected.outputs.commit }}"
+
+      - name: Browser smoke against the live host
         env:
           SMOKE_TEST_URL: https://count.racku.la
         run: npm run test:e2e:smoke
@@ -148,3 +199,17 @@ jobs:
           name: deploy-prod-smoke-report
           path: playwright-report/
           retention-days: 7
+
+      - name: Record the deployed version
+        if: always()
+        run: |
+          {
+            echo "### Prod deploy"
+            echo ""
+            echo "- tag: \`${{ inputs.tag }}\`"
+            echo "- version: \`${{ inputs.version }}\` @ \`${{ steps.expected.outputs.commit }}\`"
+            echo "- Worker version id: \`${{ steps.upload.outputs.version_id }}\`"
+            echo "- preview: ${{ steps.upload.outputs.preview_url }}"
+            echo ""
+            echo "Rollback: run the \`Rollback Prod\` workflow with the previous version id."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -470,17 +470,27 @@ jobs:
         run: |
           gh release edit "$TAG" --prerelease=false --latest=true
 
-  # PROMOTE: deploy the promoted release to the prod VPS and smoke-test it. Needs
-  # promote-docker so prod pulls the freshly promoted :latest digests.
+  # PROMOTE: publish the released tag to Cloudflare Workers Static Assets and
+  # smoke-test it (#2029). Prod no longer pulls Docker images, so the dependency
+  # is promote-github rather than promote-docker: prod must not go live until the
+  # GitHub release is marked latest, otherwise a failed promotion leaves prod
+  # serving a build the release still calls a prerelease.
+  #
+  # This keeps the Docker coupling transitively and deliberately: promote-github
+  # itself needs promote-docker, so a release whose images failed to promote
+  # still cannot go live.
   promote-prod:
     name: "Promote to prod"
-    needs: [validate, promote-gate, promote-docker]
+    needs: [validate, promote-gate, promote-github]
     permissions:
       contents: read
     uses: ./.github/workflows/deploy-prod.yml
     with:
       tag: ${{ needs.validate.outputs.tag }}
       version: ${{ needs.validate.outputs.version }}
+    # Reusable workflows do not inherit secrets. Without this the Cloudflare
+    # credentials arrive empty and every wrangler call fails.
+    secrets: inherit
 
   # On any failure or cancellation, summarise the failed jobs and open/update a
   # `CI Alert` issue. Read-only except for issues:write.

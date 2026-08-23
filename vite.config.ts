@@ -138,9 +138,10 @@ function emitVersionJson(info: {
 }
 
 export default defineConfig(() => ({
-  // VITE_BASE_PATH env var allows different base paths per deployment:
-  // - GitHub Pages: /Rackula/ (set in workflow)
-  // - Docker/local: / (default)
+  // VITE_BASE_PATH env var allows different base paths per deployment.
+  // Every current target serves from the root: Cloudflare Workers Static
+  // Assets (count.racku.la), Docker/LXC self-host, and local dev. The override
+  // exists for sub-path hosting; nothing sets it today.
   base: process.env.VITE_BASE_PATH || "/",
   publicDir: "static",
   plugins: [

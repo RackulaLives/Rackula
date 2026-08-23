@@ -119,6 +119,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The CF `_headers` generator must not drift from the nginx source of
+      # truth it transcribes. `--check` diffs it against
+      # deploy/security-headers.conf in both directions. It shipped in #3092
+      # with no callers; this is the caller.
+      - name: Check Cloudflare header generator parity
+        run: node scripts/gen-headers.mjs --check
+
       - name: Run linter
         run: npm run lint
 

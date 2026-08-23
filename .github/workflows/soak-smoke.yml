@@ -13,10 +13,12 @@ name: Soak Smoke
 # whole run failed), so the streak query above is a straightforward read of
 # the "conclusion" column with no per-job digging required. See issue #2676.
 #
-# count.racku.la is public today (no CF Access token needed); d.racku.la sits
-# behind Cloudflare Access and authenticates via the same service-token
-# secrets deploy-dev.yml uses (CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET,
-# added by #2346).
+# count.racku.la is public (confirmed by #3094: prod stays public; M017 brings
+# its own OAuth later) and is served from Cloudflare Workers Static Assets as of
+# #2029, so it needs no CF Access token. d.racku.la sits behind Cloudflare Access
+# and authenticates via the same service-token secrets deploy-dev.yml uses
+# (CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET, added by #2346); its leg is
+# commented out until #2134 moves dev onto Workers.
 
 on:
   schedule:
@@ -45,8 +47,16 @@ jobs:
         target:
           - name: prod
             url: https://count.racku.la
-          - name: dev
-            url: https://d.racku.la
+          # TODO(#2134): restore the dev leg when d.racku.la moves to Workers.
+          # It is removed, not left failing, on purpose. A run's conclusion spans
+          # both legs (fail-fast is off, but either leg failing fails the run),
+          # so while d.racku.la is down every run would be red. That destroys the
+          # two things this workflow exists for: the 7-day green streak that
+          # gates #1986, and an alert anyone still trusts. A permanently-red
+          # check is what got this workflow muted during the August 2026 outage
+          # (#3167) - it failed correctly for three days and was then disabled.
+          # - name: dev
+          #   url: https://d.racku.la
     env:
       SMOKE_TEST_URL: ${{ matrix.target.url }}
     steps:

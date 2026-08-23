@@ -93,7 +93,7 @@ We deleted **78 low-value test files** (57% reduction) that tested implementatio
 The dev environment auto-deploys on every push to `main`:
 
 ```
-Push to main → Lint → Test → Build → Deploy to GitHub Pages
+Push to main → Build images → Deploy to d.racku.la (VPS/Docker)
 ```
 
 Use it to:
