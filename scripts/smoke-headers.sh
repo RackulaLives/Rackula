@@ -46,8 +46,15 @@ EXPECT_COMMIT=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --live) LIVE=1; shift ;;
-    --expect-version) EXPECT_VERSION="${2:-}"; shift 2 ;;
-    --expect-commit) EXPECT_COMMIT="${2:-}"; shift 2 ;;
+    --expect-version|--expect-commit)
+      # `shift 2` with only one argument left fails under `set -u`-less bash and
+      # loops forever; reject explicitly so a malformed CI invocation is loud.
+      [ $# -ge 2 ] || { echo "error: $1 requires a value" >&2; exit 2; }
+      case "$1" in
+        --expect-version) EXPECT_VERSION="$2" ;;
+        --expect-commit)  EXPECT_COMMIT="$2" ;;
+      esac
+      shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done

@@ -4,6 +4,15 @@ name: Rollback Prod
 # through release.yml, whose promote-gate waits on a human approval that may sit
 # unanswered for hours. During an incident the whole point is not to queue.
 #
+# This rolls back the WORKER VERSION only. Routes are trigger state, not version
+# state, so `versions deploy` leaves count.racku.la attached and serving - just an
+# older build. That is the intended behaviour for a bad release.
+#
+# It is NOT the way to undo the cutover itself. Detaching the hostname means
+# removing the `routes` entry from wrangler.jsonc and running
+# `wrangler triggers deploy`, which hands count.racku.la back to whatever the
+# origin DNS record points at. See docs/deployment/cloudflare-prod-runbook.md.
+#
 # Cloudflare retains the last 100 versions, so any recent release is reachable.
 # List candidates with:
 #   npx wrangler@4.124.0 versions list --name rackula-prod
@@ -25,10 +34,12 @@ on:
         required: false
         type: string
 
-# Its own group: a rollback must never queue behind an in-flight deploy of the
-# build it is rolling back.
+# Shared with deploy-prod.yml: both mutate which version serves 100% of prod
+# traffic. Without a shared group a rollback and an in-flight deploy race, and
+# the deploy can re-promote the very build being rolled back. To roll back
+# during a deploy, cancel the deploy run first.
 concurrency:
-  group: rollback-prod
+  group: prod-traffic
   cancel-in-progress: false
 
 env:

@@ -39,6 +39,21 @@ Cloudflare retains the last 100 versions. The previous version id is also in eve
 
 There is **no VPS fallback.** The epic design spec assumed the old prod container would stay running as a DNS-level rollback; that origin stopped answering in August 2026 (#3167), which is what forced this cutover. Rolling back means deploying an earlier Worker version.
 
+### Rolling back a release vs undoing the cutover
+
+Two different operations, easy to conflate:
+
+|  | Bad release | Bad cutover |
+| --- | --- | --- |
+| Symptom | count.racku.la serves a broken build | Workers hosting itself is wrong for prod |
+| Action | `Rollback Prod` workflow with a version id | Remove the `routes` entry from `wrangler.jsonc`, then `wrangler triggers deploy` |
+| Effect | Hostname stays attached, serves an older build | Hostname detaches; requests fall back to whatever the `count.racku.la` DNS record points at |
+| Automated | Yes | No, deliberately |
+
+Routes are _trigger_ state, not _version_ state, so `wrangler versions deploy` never touches them. That is why the rollback workflow leaves the site attached and simply serving an older build, which is what you want for a bad release.
+
+Detaching only helps if the origin behind that DNS record is healthy. At cutover it was not -- it had been returning 522 for three weeks -- so detaching would have restored the outage, not fixed anything.
+
 ## How the hostname is attached
 
 `count.racku.la` is bound with a **Workers route**, not a Custom Domain:

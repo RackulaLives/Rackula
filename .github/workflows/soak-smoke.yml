@@ -83,16 +83,17 @@ jobs:
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
 
-      # d.racku.la sits behind Cloudflare Access. The CF_ACCESS_* env vars are
-      # inherited by the smoke config (playwright.smoke.config.ts) and applied
-      # as headers on every request; without them the dev leg would hit the
-      # login wall instead of the app (#2346). count.racku.la is public today
-      # (#3094 tracks the pending Access decision), so the secrets are simply
-      # unused on the prod leg.
+      # No CF_ACCESS_* here: count.racku.la is public (#3094, decided), and the
+      # only target in the matrix today is prod. Handing Access service-token
+      # credentials to a public target would put them in the environment of a
+      # job that has no use for them.
+      #
+      # TODO(#2134): when the dev leg is restored, scope these to that target
+      # only - e.g. a per-target matrix flag gating the env, not a job-wide
+      # export. d.racku.la sits behind Access and the smoke config
+      # (playwright.smoke.config.ts) applies them as request headers; without
+      # them the dev leg hits the login wall instead of the app (#2346).
       - name: Browser smoke test against deployed app
-        env:
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: npm run test:e2e:smoke
 
       - name: Upload Playwright report

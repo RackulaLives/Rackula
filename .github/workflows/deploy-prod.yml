@@ -39,8 +39,13 @@ on:
       CLOUDFLARE_ACCOUNT_ID:
         required: true
 
+# Shared with rollback-prod.yml: both mutate which version serves 100% of prod
+# traffic, so they must serialize. Not keyed on the tag - two different tags
+# promoting concurrently is exactly the race worth preventing. If a rollback is
+# needed while a deploy is running, cancel the deploy run first; the deploy is
+# fail-closed and promotes only after its smoke passes, so cancelling it is safe.
 concurrency:
-  group: deploy-prod-${{ inputs.tag }}
+  group: prod-traffic
   cancel-in-progress: false
 
 env:

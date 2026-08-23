@@ -29,7 +29,15 @@
   // record and edge certificate (the dead VPS origin returned 522), so a route
   // intercepts ahead of the origin with no DNS change, no delete-then-attach
   // NXDOMAIN window (the zone SOA minimum is 1800s), and no certificate wait.
-  // Rollback is removing this entry and redeploying.
+  //
+  // Two distinct rollbacks, do not conflate them:
+  //   - Bad RELEASE -> roll the Worker version back (rollback-prod.yml). The
+  //     route is untouched; count.racku.la keeps serving, just an older build.
+  //   - Bad CUTOVER -> remove this entry and `wrangler triggers deploy`, which
+  //     detaches the hostname and returns it to the origin DNS record. Only
+  //     meaningful if that origin is healthy, which it was not at cutover.
+  // rollback-prod.yml implements the first. The second is a manual step in
+  // docs/deployment/cloudflare-prod-runbook.md.
   "routes": [{ "pattern": "count.racku.la/*", "zone_name": "racku.la" }],
 
   // One public surface. preview_urls stays on so `wrangler versions upload`

@@ -85,8 +85,8 @@ We deleted **78 low-value test files** (57% reduction) that tested implementatio
 | Environment | URL | Purpose |
 | --- | --- | --- |
 | **Local** | `localhost:5173` | Development with HMR (`npm run dev`) |
-| **Dev** | https://dev.racku.la | Preview production builds before release |
-| **Prod** | https://app.racku.la | Live production environment |
+| **Dev** | https://d.racku.la | Preview production builds before release (behind Cloudflare Access) |
+| **Prod** | https://count.racku.la | Live production environment (Cloudflare Workers Static Assets) |
 
 ### Dev Environment
 
