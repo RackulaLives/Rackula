@@ -64,7 +64,11 @@
     buildLayoutRows(
       workspaceStore.tabs,
       workspaceStore.activeId,
-      workspaceStore.library,
+      Object.entries(workspaceStore.library).map(([id, entry]) => ({
+        id,
+        name: entry.name,
+      })),
+      (t) => t.layoutId,
     ),
   );
 

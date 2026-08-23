@@ -8,10 +8,25 @@
  * carry the catalogue name and no counts (no body is loaded until opened).
  */
 
-import type { WorkspaceTab, LibraryLayout } from "$lib/stores/workspace.svelte";
+import type { WorkspaceTab } from "$lib/stores/workspace.svelte";
 
 /** Placeholder shown when a layout has no name yet. */
 export const UNTITLED_LAYOUT_NAME = "Untitled layout";
+
+/**
+ * One catalogue row's source data, independent of where the catalogue came
+ * from: the browser workspace index or the server's layout list (#3151).
+ */
+export interface CatalogueEntry {
+  id: string;
+  name: string;
+  /** Rack count, when the source knows it. The server list supplies it. */
+  rackCount?: number;
+  /** Device count, when the source knows it. The server list supplies it. */
+  deviceCount?: number;
+  /** False when the stored YAML is corrupted. Server catalogue only. */
+  valid?: boolean;
+}
 
 /** A single row in the Layouts library list. */
 export interface LayoutRow {
@@ -32,25 +47,38 @@ export interface LayoutRow {
   rackCount: number;
   /** Total devices across all racks. Zero for a closed row (body not loaded). */
   deviceCount: number;
+  /** False only for a corrupted server layout, which cannot be opened. */
+  valid: boolean;
 }
 
 /**
- * Build the library row list from the open tabs and the library catalogue.
+ * Build the library row list from the open tabs and a catalogue of saved
+ * layouts.
  *
  * Open layouts come first, in tab order, so the panel and the tab strip stay in
- * sync; closed layouts (in the library with no open tab) follow. An open
- * layout that is also in the library renders once, as an open row, never as a
+ * sync; closed layouts (in the catalogue with no open tab) follow. An open
+ * layout that is also in the catalogue renders once, as an open row, never as a
  * duplicate closed row. The active tab is flagged so the UI can highlight it
  * (paired with text, never colour-only).
+ *
+ * `resolveOpenId` says how a tab names the catalogue entry it holds, because
+ * the two modes differ (#3151). Browser mode passes `t => t.layoutId`: a
+ * lazily-restored shell has no loaded body, so the tab record is the only
+ * identity available. Server mode passes `t => t.store.layout.metadata?.id`:
+ * no server load path sets `tab.layoutId`, and reading the live body means a
+ * tab whose contents were replaced resolves to the layout it now holds rather
+ * than a stale id.
  */
 export function buildLayoutRows(
   tabs: readonly WorkspaceTab[],
   activeId: string,
-  library: Readonly<Record<string, LibraryLayout>>,
+  catalogue: readonly CatalogueEntry[],
+  resolveOpenId: (tab: WorkspaceTab) => string | undefined,
 ): LayoutRow[] {
   const openLayoutIds = new Set<string>();
   const openRows: LayoutRow[] = tabs.map((tab) => {
-    if (tab.layoutId) openLayoutIds.add(tab.layoutId);
+    const openId = resolveOpenId(tab);
+    if (openId) openLayoutIds.add(openId);
     const { layout } = tab.store;
     const racks = layout.racks ?? [];
     const deviceCount = racks.reduce(
@@ -59,25 +87,27 @@ export function buildLayoutRows(
     );
     return {
       tabId: tab.id,
-      layoutId: tab.layoutId ?? null,
+      layoutId: openId ?? null,
       name: layout.name.trim() || UNTITLED_LAYOUT_NAME,
       isActive: tab.id === activeId,
       isOpen: true,
       rackCount: racks.length,
       deviceCount,
+      valid: true,
     };
   });
 
-  const closedRows: LayoutRow[] = Object.entries(library)
-    .filter(([id]) => !openLayoutIds.has(id))
-    .map(([id, entry]) => ({
+  const closedRows: LayoutRow[] = catalogue
+    .filter((entry) => !openLayoutIds.has(entry.id))
+    .map((entry) => ({
       tabId: null,
-      layoutId: id,
+      layoutId: entry.id,
       name: entry.name.trim() || UNTITLED_LAYOUT_NAME,
       isActive: false,
       isOpen: false,
-      rackCount: 0,
-      deviceCount: 0,
+      rackCount: entry.rackCount ?? 0,
+      deviceCount: entry.deviceCount ?? 0,
+      valid: entry.valid ?? true,
     }));
 
   return [...openRows, ...closedRows];
