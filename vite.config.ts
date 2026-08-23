@@ -138,10 +138,17 @@ function emitVersionJson(info: {
 }
 
 export default defineConfig(() => ({
-  // VITE_BASE_PATH env var allows different base paths per deployment.
-  // Every current target serves from the root: Cloudflare Workers Static
-  // Assets (count.racku.la), Docker/LXC self-host, and local dev. The override
-  // exists for sub-path hosting; nothing sets it today.
+  // Every deployment target serves from the root: Cloudflare Workers Static
+  // Assets (count.racku.la), Docker/LXC self-host, and local dev. Nothing sets
+  // VITE_BASE_PATH today.
+  //
+  // Sub-path hosting is NOT supported, despite this override existing. Vite
+  // rewrites the URLs it generates, but index.html and login.html also carry
+  // root-absolute references it leaves alone -- /config.js and the favicons --
+  // so under a non-root base the bundle would load from the sub-path while the
+  // runtime config was still fetched from the domain root, and the app would
+  // boot without its storage mode. Making those base-aware is a prerequisite
+  // for ever using this.
   base: process.env.VITE_BASE_PATH || "/",
   publicDir: "static",
   plugins: [
