@@ -71,6 +71,19 @@ const SURFACES = {
 // docs/research/spike-2620-static-assets.md) for no benefit.
 const CACHE_RULES = [
   ["/assets/*", [["Cache-Control", "public, max-age=31536000, immutable"]]],
+  // version.json is the deploy oracle: the post-deploy smoke reads it to prove
+  // which build is live, so a stale copy defeats the check. It is 93 bytes and
+  // read a handful of times a day, so there is nothing to gain by caching it.
+  //
+  // Caveat, verified rather than assumed: this does NOT stop conditional
+  // requests. Workers Static Assets still emits an ETag and still answers
+  // If-None-Match with a 304 regardless of the Cache-Control value in
+  // `_headers` -- that handling sits in the asset server, ahead of these
+  // headers. A client that sends If-None-Match therefore still gets a bodiless
+  // 304, which would fail Playwright's `response.ok()` (true only for 200-299).
+  // If a smoke ever needs to defeat that, it must cache-bust the URL; the
+  // header alone cannot.
+  ["/version.json", [["Cache-Control", "no-store"]]],
 ];
 
 // Files that must exist in the assets directory so Workers parses them, but must
