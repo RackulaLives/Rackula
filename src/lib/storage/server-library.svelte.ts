@@ -66,8 +66,12 @@ export async function refreshServerLibrary(): Promise<void> {
   const sequence = ++fetchSequence;
   status = "loading";
   fetchInFlight = true;
-  pendingUpserts = [];
-  pendingRemovals = [];
+  // Deliberately not resetting pendingUpserts/pendingRemovals here: an
+  // overlapping refresh (this call starting before an earlier one's GET has
+  // resolved) must not wipe mutations that earlier fetch's window already
+  // queued. The sequence-guarded `finally` below clears them once the
+  // winning fetch actually lands, which also covers the normal
+  // non-overlapping case.
 
   try {
     await initializePersistence();

@@ -61,14 +61,32 @@ describe("server library store", () => {
     expect(getServerLibrary().items.map((i) => i.id)).toEqual(["srv-1"]);
   });
 
-  it("waits for the health check before reading availability", async () => {
+  it("reads availability only after the health check resolves", async () => {
     // The panel can mount before the first health check resolves; reading
     // availability early would mark a healthy server unavailable (#3151).
+    // isApiAvailable mirrors the real store's pre-check state (apiAvailable
+    // === null -> false) until the health check settles, so a regression
+    // that reads it before awaiting initializePersistence() sees false and
+    // short-circuits to "unavailable" even though the server is healthy.
+    let resolveInit: (value: boolean) => void = () => {};
+    vi.mocked(initializePersistence).mockReturnValue(
+      new Promise<boolean>((r) => {
+        resolveInit = r;
+      }),
+    );
+    vi.mocked(isApiAvailable).mockReturnValue(false);
     vi.mocked(listSavedLayouts).mockResolvedValue([item()]);
 
-    await refreshServerLibrary();
+    const refreshing = refreshServerLibrary();
+    // A correct implementation is now suspended on
+    // `await initializePersistence()` and has not read isApiAvailable() yet.
+    // Flip it true and resolve the health check before awaiting completion.
+    vi.mocked(isApiAvailable).mockReturnValue(true);
+    resolveInit(true);
+    await refreshing;
 
     expect(initializePersistence).toHaveBeenCalled();
+    expect(getServerLibrary().status).toBe("ready");
   });
 
   it("reports unavailable when the API is unreachable", async () => {
@@ -126,6 +144,27 @@ describe("server library store", () => {
     upsertServerLibraryItem(item({ id: "srv-new", name: "Created" }));
     resolveList([item()]);
     await inFlight;
+
+    expect(getServerLibrary().items.map((i) => i.id)).toContain("srv-new");
+  });
+
+  it("keeps a pending upsert when a second refresh starts before the first settles", async () => {
+    // Overlapping refreshes must not wipe the pending-mutation queue
+    // collected while an earlier fetch is still in flight (#3151). Both
+    // calls share one pending GET so the second refresh's start can be
+    // observed racing the first's in-flight window.
+    let resolveList: (items: SavedLayoutItem[]) => void = () => {};
+    vi.mocked(listSavedLayouts).mockReturnValue(
+      new Promise<SavedLayoutItem[]>((r) => {
+        resolveList = r;
+      }),
+    );
+
+    const first = refreshServerLibrary();
+    upsertServerLibraryItem(item({ id: "srv-new", name: "Created" }));
+    const second = refreshServerLibrary();
+    resolveList([item()]);
+    await Promise.all([first, second]);
 
     expect(getServerLibrary().items.map((i) => i.id)).toContain("srv-new");
   });
