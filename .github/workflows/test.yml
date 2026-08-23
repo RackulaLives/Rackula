@@ -165,11 +165,20 @@ jobs:
   # Org PRs use the e2e-trusted environment (auto-runs); fork PRs use
   # e2e-approval, which requires ggfevans to review and approve before any
   # untrusted code executes on the homelab runner.
+  #
+  # Opt-in: this tier runs only when the repository variable E2E_SELF_HOSTED is
+  # set to 'true'. An unset variable evaluates to false, so the default is to
+  # skip. Set it to 'true' once a runner carrying the e2e label is registered.
+  # Reason: with no such runner online the job is never picked up, so it queues
+  # until the 24 hour dispatch timeout and then reports a false red on every
+  # open PR. That is not merge-blocking (continue-on-error below), but it leaves
+  # each PR at mergeStateStatus UNSTABLE, which blocks --auto merge.
   e2e-self-hosted:
     name: e2e (self-hosted full suite)
     needs: [validate, detect]
-    # Fail open on detect; still gate on validate succeeding and PR context.
-    if: ${{ !cancelled() && needs.validate.result == 'success' && github.event_name == 'pull_request' && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') }}
+    # Fail open on detect; still gate on validate succeeding, PR context, and
+    # the E2E_SELF_HOSTED opt-in described above.
+    if: ${{ !cancelled() && needs.validate.result == 'success' && github.event_name == 'pull_request' && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') && vars.E2E_SELF_HOSTED == 'true' }}
     # Advisory, not merge-blocking. Per spike #1994 the self-hosted tier is
     # *additive* to the GH-hosted chromium smoke (the validate job), which stays
     # the hard gate. This job runs on a single homelab VM (one runner, one host)
