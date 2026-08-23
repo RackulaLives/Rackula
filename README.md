@@ -135,16 +135,6 @@ This project was built using AI-assisted development with Claude. I told it what
 
 Built for the [r/homelab](https://reddit.com/r/homelab) and [r/selfhosted](https://reddit.com/r/selfhosted) communities. Colours from [Dracula Theme](https://draculatheme.com/). Device data from [NetBox devicetype-library](https://github.com/netbox-community/devicetype-library). See [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md) for full credits.
 
-## Star History
-
-<a href="https://star-history.com/#RackulaLives/Rackula&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=RackulaLives/Rackula&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=RackulaLives/Rackula&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=RackulaLives/Rackula&type=Date" />
-  </picture>
-</a>
-
 ## Licence
 
 [MIT](LICENSE) Copyright &copy; 2025-2026 Gareth Evans
