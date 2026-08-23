@@ -26,6 +26,7 @@ vi.mock("$lib/storage/api", async () => {
     ...actual,
     listSavedLayouts: vi.fn(),
     deleteSavedLayout: vi.fn(async () => undefined),
+    saveLayoutToServer: vi.fn(),
   };
 });
 
@@ -33,6 +34,7 @@ import LayoutsLibrary from "$lib/components/LayoutsLibrary.svelte";
 import {
   listSavedLayouts,
   deleteSavedLayout,
+  saveLayoutToServer,
   PersistenceError,
 } from "$lib/storage/api";
 import { loadFromApi } from "$lib/storage/load-pipeline";
@@ -67,6 +69,7 @@ describe("Layouts panel in server mode", () => {
     resetWorkspaceStore();
     resetServerLibrary();
     resetToastStore();
+    manager.resetPersistenceManager();
     setServerBaseUpdatedAt(null);
     clearSession();
     vi.clearAllMocks();
@@ -177,6 +180,79 @@ describe("Layouts panel in server mode", () => {
 
     suspendSpy.mockRestore();
     abandonSpy.mockRestore();
+  });
+
+  it("waits for an in-flight save to settle before issuing the delete", async () => {
+    // suspendServerAutosave() cancels a save that has not started yet; it
+    // cannot cancel a PUT already on the wire. A PUT that reaches the server
+    // after the DELETE re-creates the layout, so the panel reports a clean
+    // deletion and the layout comes back on the next refresh or in another
+    // browser session. The delete must drain the in-flight save first (#3151).
+    vi.mocked(listSavedLayouts).mockResolvedValue([]);
+    let settle!: (result: { id: string; updatedAt: string }) => void;
+    vi.mocked(saveLayoutToServer).mockReturnValue(
+      new Promise((resolve) => {
+        settle = resolve;
+      }),
+    );
+    const ws = getWorkspaceStore();
+    const openTabId = ws.activeId;
+    const openLayoutId = ws.activeStore.layout.metadata?.id;
+    const user = userEvent.setup();
+
+    render(LayoutsLibrary, { props: {} });
+    const row = await screen.findByTestId(`layout-item-${openTabId}`);
+
+    // A save is on the wire when the user confirms the delete.
+    const inFlight = manager.handleSaveToServer();
+
+    await user.pointer({ keys: "[MouseRight]", target: row });
+    await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
+    await user.click(await screen.findByRole("button", { name: /delete/i }));
+
+    // Still on the wire: the DELETE must not have been issued yet, or the PUT
+    // lands behind it and resurrects the layout server-side.
+    expect(deleteSavedLayout).not.toHaveBeenCalled();
+
+    settle({ id: "srv-1", updatedAt: "2026-08-22T10:00:00.000Z" });
+    await inFlight;
+
+    await waitFor(() =>
+      expect(deleteSavedLayout).toHaveBeenCalledWith(openLayoutId),
+    );
+  });
+
+  it("still deletes when the in-flight save fails", async () => {
+    // The barrier only needs the request to be finished. A failed PUT cannot
+    // re-create anything on the server, so a rejected save must release the
+    // delete rather than strand it behind a promise that never resolves.
+    vi.mocked(listSavedLayouts).mockResolvedValue([]);
+    let fail!: (error: Error) => void;
+    vi.mocked(saveLayoutToServer).mockReturnValue(
+      new Promise((_resolve, reject) => {
+        fail = reject;
+      }),
+    );
+    const ws = getWorkspaceStore();
+    const openTabId = ws.activeId;
+    const openLayoutId = ws.activeStore.layout.metadata?.id;
+    const user = userEvent.setup();
+
+    render(LayoutsLibrary, { props: {} });
+    const row = await screen.findByTestId(`layout-item-${openTabId}`);
+
+    const inFlight = manager.handleSaveToServer();
+
+    await user.pointer({ keys: "[MouseRight]", target: row });
+    await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
+    await user.click(await screen.findByRole("button", { name: /delete/i }));
+
+    fail(new PersistenceError("Server error", 503));
+    await inFlight;
+
+    await waitFor(() =>
+      expect(deleteSavedLayout).toHaveBeenCalledWith(openLayoutId),
+    );
   });
 
   it("does not drop the working copy when deleting a background tab's row", async () => {

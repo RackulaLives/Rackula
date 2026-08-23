@@ -64,6 +64,70 @@ let _serverSaveScheduleId = 0;
 // session writes are deliberately independent of it (#2926).
 let _abandonGeneration = 0;
 
+// Server saves whose request is outstanding right now. Both save paths
+// register theirs here for as long as it is in flight, so a delete can drain
+// them before issuing its DELETE (#3151). A list rather than a single promise:
+// a manual save can start while a debounced one is still settling, and
+// draining only the newer of the two would leave the older PUT free to land
+// after the DELETE and re-create the layout on the server. Entries never
+// reject; see trackInFlightSave. Plain, like the timer variables above:
+// nothing reads this in a reactive context, so it is not $state.
+let inFlightServerSaves: Promise<void>[] = [];
+
+// Upper bound on how long a delete waits for an in-flight save. Each request
+// saveLayoutToServer makes is already bounded (AbortSignal.timeout), but one
+// save can make several of them (the YAML PUT, then one per reconciled asset),
+// so the total is only bounded in principle. This caps the barrier so a slow
+// save degrades to the old behaviour rather than hanging the delete.
+const SAVE_BARRIER_TIMEOUT_MS = 15000;
+
+/**
+ * Register an outstanding server save so {@link awaitInFlightSave} can drain
+ * it, returning the caller's own promise unchanged so its result and its
+ * rejection still belong to the caller.
+ */
+function trackInFlightSave<T>(save: Promise<T>): Promise<T> {
+  // The tracked copy settles on both outcomes: the barrier only needs the
+  // request to be finished, and a rejecting entry would surface as an
+  // unhandled rejection with no one left to catch it.
+  const settled = save.then(
+    () => undefined,
+    () => undefined,
+  );
+  inFlightServerSaves.push(settled);
+  void settled.then(() => {
+    inFlightServerSaves = inFlightServerSaves.filter((s) => s !== settled);
+  });
+  return save;
+}
+
+/**
+ * Resolve once no server save is on the wire (#3151).
+ *
+ * The save barrier a delete awaits between suspending autosave and issuing its
+ * DELETE. {@link suspendServerAutosave} stops a save that has not started yet,
+ * but a PUT already awaiting its response cannot be recalled: if it lands after
+ * the DELETE, the server re-creates the layout the user just deleted, and the
+ * client has already reported a clean deletion. Suspend first and drain second,
+ * or a fresh save can be scheduled while the barrier waits.
+ *
+ * Resolves immediately when nothing is in flight, and never rejects: a save
+ * that fails is not the barrier's problem, since a failed PUT cannot re-create
+ * anything. The wait is capped at {@link SAVE_BARRIER_TIMEOUT_MS} so an
+ * unusually slow save cannot hang the delete indefinitely.
+ */
+export function awaitInFlightSave(): Promise<void> {
+  if (inFlightServerSaves.length === 0) return Promise.resolve();
+  const drained = Promise.all(inFlightServerSaves);
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, SAVE_BARRIER_TIMEOUT_MS);
+    void drained.then(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
 // After a durable save the pending session debounce must be cancelled, or it
 // resurrects the cleared session copy and triggers a false unload warning
 function cancelSessionSave(): void {
@@ -357,10 +421,8 @@ export async function handleSaveToServer(isManual = false): Promise<boolean> {
     }
     const snapshot = structuredClone($state.snapshot(layoutStore.layout));
     const imagesSnapshot = getImageStore().getUserImages();
-    const result = await saveLayoutToServer(
-      snapshot,
-      imagesSnapshot,
-      getServerBaseUpdatedAt(),
+    const result = await trackInFlightSave(
+      saveLayoutToServer(snapshot, imagesSnapshot, getServerBaseUpdatedAt()),
     );
     finalizeSuccessfulSave(
       scheduleId === _serverSaveScheduleId,
@@ -621,6 +683,10 @@ export function flushSessionSave(): void {
  * PUTs the layout straight back once the DELETE lands, but it must not destroy
  * local state until the layout is actually gone: a DELETE that fails leaves the
  * layout on the server, and the working copy is still its local copy.
+ *
+ * Stopping autosave only prevents a save that has not started. A save already
+ * in flight is drained separately, by {@link awaitInFlightSave}, which the
+ * delete flow awaits after this and before its DELETE.
  */
 export function suspendServerAutosave(): void {
   if (serverSaveTimer) {
@@ -652,10 +718,10 @@ export function suspendServerAutosave(): void {
  * unknown-to-server. Bumping the abandon generation is what stops that: a save
  * that captured an older generation writes nothing back at all.
  *
- * What remains accepted is server-side, not local: a PUT already on the wire
+ * A PUT already on the wire is a separate problem, and a server-side one: it
  * still reaches the server, and if it lands after the DELETE the server
- * re-creates the row. Closing that needs a save barrier (awaiting the in-flight
- * PUT before issuing the DELETE), which is not what this function does.
+ * re-creates the row. That is closed by {@link awaitInFlightSave}, which the
+ * delete flow drains before issuing its DELETE, not by anything here.
  */
 export function abandonWorkingCopy(): void {
   suspendServerAutosave();
@@ -743,10 +809,12 @@ export function initPersistenceEffects(): void {
       _serverSavePending = false;
       _saveStatus = "saving";
       try {
-        const result = await saveLayoutToServer(
-          snapshot,
-          imagesSnapshot,
-          getServerBaseUpdatedAt(),
+        const result = await trackInFlightSave(
+          saveLayoutToServer(
+            snapshot,
+            imagesSnapshot,
+            getServerBaseUpdatedAt(),
+          ),
         );
         // Only clear dirty/session state if no newer save was scheduled while
         // this one was in flight; otherwise newer unsaved edits exist.
@@ -822,4 +890,14 @@ export function resetPersistenceManager(): void {
   }
   _serverSavePending = false;
   _sessionSavePending = false;
+  // Both counters are monotonic, and production always captures the live value
+  // rather than assuming a starting point. A test that hardcodes an expected
+  // generation would otherwise silently take the abandoned-save early return
+  // in finalizeSuccessfulSave and read as a passing no-op, so reset them with
+  // the rest of the module state. The in-flight set goes too: a save left
+  // outstanding by one test must not make the next test's delete barrier wait
+  // on it (#3151).
+  _serverSaveScheduleId = 0;
+  _abandonGeneration = 0;
+  inFlightServerSaves = [];
 }

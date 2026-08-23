@@ -52,6 +52,7 @@ export {
   isSessionSavePending,
   isServerSavePending,
   suspendServerAutosave,
+  awaitInFlightSave,
   abandonWorkingCopy,
   type CompletedSaveContext,
 } from "./manager.svelte";

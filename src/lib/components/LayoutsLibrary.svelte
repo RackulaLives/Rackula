@@ -49,6 +49,7 @@
     loadFromApi,
     PersistenceError,
     suspendServerAutosave,
+    awaitInFlightSave,
     abandonWorkingCopy,
   } from "$lib/storage";
   import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
@@ -325,6 +326,17 @@
     // no working copy to suspend or drop for a background tab.
     const isWorkingCopy = row.isOpen && row.tabId === workspaceStore.activeId;
     if (isWorkingCopy) suspendServerAutosave();
+    // Suspending only stops a save that has not started. A PUT already on the
+    // wire cannot be recalled, and if it lands after the DELETE the server
+    // re-creates the layout, so drain it before deleting (#3151). Order
+    // matters: suspend first, then drain, or the autosave debounce can
+    // schedule a fresh save while the barrier is waiting.
+    //
+    // Ungated, unlike the two verbs above. Draining writes nothing, so it
+    // needs no working-copy check, and a background tab's row can still have a
+    // PUT in flight from when it was active: the save that was already on the
+    // wire when the user switched tabs outlives the switch.
+    await awaitInFlightSave();
     try {
       await deleteSavedLayout(row.layoutId);
     } catch (error) {
