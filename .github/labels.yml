@@ -229,10 +229,6 @@
   color: "B60205"
   description: "Automated CI/CD failure alerts"
 
-- name: code-health
-  color: "0E8A16"
-  description: "Rolling code health metrics report"
-
 - name: dependencies
   color: "0366d6"
   description: "Pull requests that update a dependency file"

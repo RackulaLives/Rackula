@@ -10,6 +10,7 @@
     inferDirection,
     inferSignalType,
     getSignalLabel,
+    deriveGender,
   } from "$lib/utils/port-utils";
 
   // Get reactive tooltip state from store
@@ -81,6 +82,21 @@
     return signal ? getSignalLabel(signal) : null;
   }
 
+  const GENDER_LABELS = {
+    male: "Male",
+    female: "Female",
+  } as const;
+
+  // Connector gender is computed, never stored (spike #1927). Undefined for
+  // connectors whose convention is ambiguous or whose direction is unresolved;
+  // null hides the row.
+  function getGenderLabel(port: InterfaceTemplate): string | null {
+    const direction =
+      port.direction ?? inferDirection(port.type, port.mgmt_only);
+    const gender = deriveGender(port.type, direction);
+    return gender ? GENDER_LABELS[gender] : null;
+  }
+
   // Get PoE label
   function getPoELabel(
     poeMode?: "pd" | "pse",
@@ -110,6 +126,9 @@
     {/if}
     {#if getSignalTypeLabel(port)}
       <div class="port-tooltip-signal">{getSignalTypeLabel(port)}</div>
+    {/if}
+    {#if genderLabel}
+      <div class="port-tooltip-gender">{genderLabel}</div>
     {/if}
     {#if port.mgmt_only}
       <div class="port-tooltip-badge mgmt">Management Only</div>
@@ -167,7 +186,8 @@
   }
 
   .port-tooltip-direction,
-  .port-tooltip-signal {
+  .port-tooltip-signal,
+  .port-tooltip-gender {
     color: var(--colour-text-muted-inverse, rgba(255, 255, 255, 0.7));
     font-size: var(--font-size-xs);
   }
