@@ -293,10 +293,19 @@ E2E coverage in CI has three layers (spike #1994):
 | Tier | Runner | Browsers | When | Approval |
 | --- | --- | --- | --- | --- |
 | Baseline | `ubuntu-latest` | chromium smoke | Every PR (`validate` job) | None |
-| Trusted | `ci-runner` | full suite | Main-repo PRs (auto) | None |
-| Approval | `ci-runner` | full suite | Fork PRs | `ggfevans` gate |
+| Trusted | `self-hosted, e2e` | full suite | Main-repo PRs, only while `E2E_SELF_HOSTED` is `true` | None |
+| Approval | `self-hosted, e2e` | full suite | Fork PRs, only while `E2E_SELF_HOSTED` is `true` | `ggfevans` gate |
 
-The baseline chromium smoke runs on GitHub-hosted runners for all PRs. The `e2e-self-hosted` job runs the full browser suite on the self-hosted `ci-runner` only after the baseline passes (`needs: validate`). The job selects its environment from the PR source:
+The baseline chromium smoke runs on GitHub-hosted runners for all PRs. The `e2e-self-hosted` job runs the full browser suite on the self-hosted e2e runner only after the baseline passes (`needs: validate`).
+
+The self-hosted tier is opt-in. The job carries `&& vars.E2E_SELF_HOSTED == 'true'` in its `if:`, so it is skipped whenever that repository variable is unset or not `true`. An unlabelled or absent runner previously left the job queued until it hit a 24 hour timeout, which showed as a failing check on every PR even though the tier is advisory. Skipping is the safe default.
+
+To turn the tier back on:
+
+1. Register a self-hosted runner that advertises both the `self-hosted` and `e2e` labels. The job declares `runs-on: [self-hosted, e2e]`, so a runner missing the `e2e` label will never pick it up.
+2. Set the repository variable `E2E_SELF_HOSTED` to `true` under Settings > Secrets and variables > Actions > Variables.
+
+To turn it off again, unset the variable or set it to anything other than `true`. The job selects its environment from the PR source:
 
 ```yaml
 environment: ${{ github.event.pull_request.head.repo.full_name == 'RackulaLives/Rackula' && 'e2e-trusted' || 'e2e-approval' }}
@@ -308,7 +317,8 @@ Maintainer prerequisites (one-time, in repo settings):
 
 - GitHub Environment `e2e-trusted`: no required reviewers and no deployment branch policy. Org PRs run from feature branches (and `pull_request` refs are not branch names), so restricting this environment to `main` would block the trusted tier for every PR.
 - GitHub Environment `e2e-approval`: `ggfevans` as the required reviewer, no branch restriction (fork PRs run from arbitrary branches).
-- Self-hosted runner online advertising the `ci-runner` label.
+- Self-hosted runner online advertising both the `self-hosted` and `e2e` labels, matching the job's `runs-on: [self-hosted, e2e]`.
+- Repository variable `E2E_SELF_HOSTED` set to `true`. Without it the tier stays skipped.
 
 ### iOS Safari Testing
 
