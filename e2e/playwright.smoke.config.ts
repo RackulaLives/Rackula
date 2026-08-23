@@ -18,6 +18,14 @@ const cfAccessHeaders =
       }
     : undefined;
 
+// On Cloudflare's bot challenge: datacenter IPs, GitHub runners included, are
+// served a Managed Challenge across the racku.la zone, and Bot Fight Mode
+// cannot be skipped by a WAF rule on the Free plan (it does not run on the
+// Ruleset Engine, so Skip has no effect). There is deliberately no bypass
+// header here. Deploy-mode specs navigate first, so Chromium solves the
+// challenge, then use `page.request`, which shares the browser context's
+// clearance cookie. See the comments in deploy-smoke.spec.ts.
+
 /**
  * Playwright configuration for smoke tests.
  *

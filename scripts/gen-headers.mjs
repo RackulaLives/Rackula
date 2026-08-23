@@ -9,13 +9,15 @@
 // Usage:
 //   node scripts/gen-headers.mjs <prod|dev>              print _headers to stdout
 //   node scripts/gen-headers.mjs <prod|dev> --out <file>  write _headers to a file
+//   node scripts/gen-headers.mjs --assetsignore <file>    write the .assetsignore
 //   node scripts/gen-headers.mjs --check                  verify values against
 //                                                          deploy/security-headers.conf
 //
-// Consumers: the future #2029 (prod) and #2134 (dev) wrangler deploy steps call
-// this generator to produce the CF `_headers` artifact; the future CF half of
-// scripts/check-header-parity.sh (#2032) diffs its output. Neither consumer
-// exists yet, so this script has no callers wired in.
+// Consumers: the prod wrangler deploy step (.github/workflows/deploy-prod.yml,
+// #2029) calls this to produce the CF `_headers` and `.assetsignore` artifacts;
+// the dev cutover (#2134) will call it with the `dev` surface. `--check` runs in
+// the validate job (.github/workflows/test.yml) so the generator cannot silently
+// drift from deploy/security-headers.conf.
 //
 // Carved out of #2029 by #3092. No credentials required; independent of #2675.
 
@@ -54,6 +56,55 @@ const SURFACES = {
   },
 };
 
+// Cache split, transcribed from deploy/nginx.conf.template (`location /assets/`
+// sets `expires 1y` + `Cache-Control "public, immutable"`). These live OUTSIDE
+// buildHeaders() on purpose: runCheck() diffs buildHeaders() against the
+// add_header directives in deploy/security-headers.conf, and Cache-Control is
+// not one of them. Putting cache rules in buildHeaders() would break that parity
+// check in both directions.
+//
+// There is deliberately no Cache-Control on `/*`. Cloudflare's default for static
+// assets is `public, max-age=0, must-revalidate` plus an ETag, which is already
+// revalidate-on-every-request and therefore safe for the SPA shell and
+// version.json. Emitting our own `/*` value would raise a precedence question
+// against the `/assets/*` rule below (an open item in
+// docs/research/spike-2620-static-assets.md) for no benefit.
+const CACHE_RULES = [
+  ["/assets/*", [["Cache-Control", "public, max-age=31536000, immutable"]]],
+  // version.json is the deploy oracle: the post-deploy smoke reads it to prove
+  // which build is live, so a stale copy defeats the check. It is 93 bytes and
+  // read a handful of times a day, so there is nothing to gain by caching it.
+  //
+  // Caveat, verified rather than assumed: this does NOT stop conditional
+  // requests. Workers Static Assets still emits an ETag and still answers
+  // If-None-Match with a 304 regardless of the Cache-Control value in
+  // `_headers` -- that handling sits in the asset server, ahead of these
+  // headers. A client that sends If-None-Match therefore still gets a bodiless
+  // 304, which would fail Playwright's `response.ok()` (true only for 200-299).
+  // If a smoke ever needs to defeat that, it must cache-bust the URL; the
+  // header alone cannot.
+  ["/version.json", [["Cache-Control", "no-store"]]],
+];
+
+// Files that must exist in the assets directory so Workers parses them, but must
+// never be fetchable. `_headers` and `.assetsignore` are Workers metadata.
+// `.DS_Store` and `.claude/` are belt-and-braces: publicDir copies static/
+// verbatim, and both are gitignored (`.claude/settings.local.json` via the
+// user-global ignore file), so they are invisible to `git status` yet still reach
+// dist/ in a hand-run build from a working tree.
+const ASSETSIGNORE_ENTRIES = [
+  "_headers",
+  ".assetsignore",
+  ".DS_Store",
+  "**/.DS_Store",
+  ".claude",
+  ".claude/**",
+];
+
+function renderAssetsIgnore() {
+  return ASSETSIGNORE_ENTRIES.join("\n") + "\n";
+}
+
 function buildHeaders(surfaceName) {
   const surface = SURFACES[surfaceName];
   if (!surface) {
@@ -77,6 +128,12 @@ function renderHeadersFile(surfaceName) {
   const lines = ["/*"];
   for (const [name, value] of buildHeaders(surfaceName)) {
     lines.push(`  ${name}: ${value}`);
+  }
+  for (const [pattern, headers] of CACHE_RULES) {
+    lines.push("", pattern);
+    for (const [name, value] of headers) {
+      lines.push(`  ${name}: ${value}`);
+    }
   }
   return lines.join("\n") + "\n";
 }
@@ -169,6 +226,7 @@ function printUsage() {
   console.error(
     "usage: node scripts/gen-headers.mjs <prod|dev> [--out <file>]",
   );
+  console.error("       node scripts/gen-headers.mjs --assetsignore <file>");
   console.error("       node scripts/gen-headers.mjs --check");
 }
 
@@ -177,6 +235,17 @@ function main() {
 
   if (args[0] === "--check") {
     process.exit(runCheck());
+  }
+
+  if (args[0] === "--assetsignore") {
+    const target = args[1];
+    if (!target) {
+      console.error("error: --assetsignore requires a file path");
+      printUsage();
+      process.exit(2);
+    }
+    writeFileSync(target, renderAssetsIgnore());
+    return;
   }
 
   const surfaceName = args[0];

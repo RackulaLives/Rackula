@@ -3,8 +3,9 @@ name: Rebuild Images (OS patch)
 # Proactively refresh OS packages in the published rolling image tags between
 # releases. Rebuilds the latest release's source with a busted apk-upgrade layer
 # cache (APK_CACHEBUST), republishes only the rolling tags (latest / persist /
-# api latest), and rescans. Complements deploy-prod.yml, which only patches at
-# release time. Does NOT deploy to prod.
+# api latest), and rescans. Complements build-images.yml, which only builds at
+# release time. Does NOT deploy to prod (and could not: prod is a Cloudflare
+# Worker serving static assets and pulls no images, #2029).
 
 on:
   workflow_dispatch:
@@ -106,7 +107,7 @@ jobs:
           # Full no-cache rebuild: guarantees apk upgrade re-fetches current Alpine
           # secfixes regardless of whether the resolved release tag's Dockerfile
           # carries the APK_CACHEBUST arg, and avoids sharing (and racing on)
-          # deploy-prod's release buildcache.
+          # build-images' release buildcache.
           no-cache: true
           build-args: |
             VITE_ENV=production
@@ -256,6 +257,6 @@ jobs:
         uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
         with:
           sarif_file: trivy-results.sarif
-          # Match deploy-prod/trivy categories so a rebuild refreshes the same
+          # Match build-images/trivy categories so a rebuild refreshes the same
           # alert set instead of creating duplicates.
           category: trivy-${{ env.IMAGE_CATEGORY }}

@@ -85,13 +85,34 @@ test.describe("Post-deploy smoke", () => {
     ).toHaveLength(0);
   });
 
-  test("version endpoint reports a well-formed build", async ({ request }) => {
+  test("version endpoint reports a well-formed build", async ({ page }) => {
     // version.json is emitted at build time and served statically, so it proves
     // the deployed bundle is the one we expect without executing any JS.
-    const response = await request.get("/version.json");
-    expect(response.ok()).toBe(true);
+    //
+    // Fetched from INSIDE the page, not via the `request` fixture or
+    // `page.request`. Cloudflare serves a Managed Challenge to datacenter IPs
+    // across the racku.la zone, and Bot Fight Mode cannot be skipped by a WAF
+    // rule on the Free plan (it does not run on the Ruleset Engine).
+    //
+    // A bare API request runs no JS, cannot solve the challenge, and receives a
+    // 403 challenge page, so `response.ok()` is false and a healthy deploy is
+    // reported as broken. This workflow failed 79 out of 79 runs from
+    // 2026-07-20 onward for exactly that reason, including before the August
+    // outage.
+    //
+    // `page.request` does not help either, despite sharing the context's cookie
+    // jar: it uses Playwright's own HTTP stack, so its TLS fingerprint differs
+    // from the browser's and Cloudflare rejects the clearance. Verified on CI,
+    // not assumed. Only a fetch issued by the page itself reuses the browser's
+    // network stack, fingerprint and clearance cookie together.
+    await page.goto("/");
+    const result = await page.evaluate(async () => {
+      const r = await fetch("/version.json", { cache: "no-store" });
+      return { ok: r.ok, status: r.status, text: await r.text() };
+    });
+    expect(result.ok, `GET /version.json returned ${result.status}`).toBe(true);
 
-    const body = (await response.json()) as {
+    const body = JSON.parse(result.text) as {
       version?: unknown;
       commit?: unknown;
       buildTime?: unknown;
@@ -107,5 +128,64 @@ test.describe("Post-deploy smoke", () => {
     // buildTime is an ISO timestamp; a valid parse guards against truncated or
     // placeholder values slipping through.
     expect(Date.parse(body.buildTime as string)).not.toBeNaN();
+
+    // When the deploy workflow tells us which build it just promoted, assert
+    // that this is the one actually being served. Without this the check only
+    // proves *a* build is live, not the right one -- a deploy that silently
+    // failed to promote would still pass. The commit is the real discriminator:
+    // a re-deploy of the same tag shares its version but not its commit.
+    // Absent for the scheduled soak, which has no expectation to compare to.
+    const expectedVersion = process.env.EXPECT_VERSION;
+    if (expectedVersion) {
+      expect(body.version).toBe(expectedVersion);
+    }
+    const expectedCommit = process.env.EXPECT_COMMIT;
+    if (expectedCommit) {
+      expect(body.commit).toBe(expectedCommit);
+    }
+  });
+
+  test("security headers are present by value on the deployed origin", async ({
+    page,
+  }) => {
+    // Verifies headers on the LIVE origin, which a curl-based check cannot do
+    // from CI (see the challenge note above). This is not redundant with the
+    // curl smoke that runs against the preview URL: that surface is on
+    // workers.dev and cannot observe zone-level interference. Exactly that bit
+    // mattered once already -- a zone setting was rewriting HSTS to max-age=0
+    // on every racku.la hostname while the same Worker served the correct value
+    // on workers.dev (#3214).
+    await page.goto("/");
+    const probe = await page.evaluate(async () => {
+      const r = await fetch("/", { cache: "no-store" });
+      const h: Record<string, string> = {};
+      // Same-origin, so every response header is readable.
+      r.headers.forEach((value, key) => {
+        h[key.toLowerCase()] = value;
+      });
+      return { ok: r.ok, status: r.status, headers: h };
+    });
+    expect(probe.ok, `GET / returned ${probe.status}`).toBe(true);
+    const headers = probe.headers;
+
+    const csp = headers["content-security-policy"] ?? "";
+    expect(csp).toContain("script-src 'self'");
+    // The whole point of the policy: no inline script execution. Asserted on
+    // the script-src directive specifically, since style-src legitimately
+    // carries 'unsafe-inline' for Svelte's scoped styles.
+    const scriptSrc = csp
+      .split(";")
+      .find((d) => d.trim().startsWith("script-src"));
+    expect(scriptSrc ?? "").not.toContain("unsafe-inline");
+
+    expect(headers["x-content-type-options"]).toBe("nosniff");
+    expect(headers["x-frame-options"]).toBe("SAMEORIGIN");
+    expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+
+    // Deployed surfaces are HTTPS, so HSTS must be both present and non-zero.
+    // `max-age=0` is what a zone-level override looked like in #3214.
+    const hsts = headers["strict-transport-security"] ?? "";
+    expect(hsts).toMatch(/max-age=\d+/);
+    expect(hsts).not.toMatch(/max-age=0\b/);
   });
 });

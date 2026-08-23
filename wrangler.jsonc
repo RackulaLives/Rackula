@@ -1,0 +1,49 @@
+{
+  // Cloudflare Workers Static Assets config for production (count.racku.la).
+  //
+  // ASSETS-ONLY: there is deliberately NO `main`. Prod serves a no-API static
+  // bundle (config.js pins `storage: "browser"`), and static-asset requests are
+  // unmetered ONLY while no Worker script sits on the hot path. Adding `main`
+  // would meter every request against the Workers free-tier limit. This is a
+  // standing invariant, not a bootstrap detail: it constrains #2030 (analytics)
+  // and #2031 (preview deploys). See docs/research/spike-2620-static-assets.md.
+  //
+  // The dev surface is a SEPARATE Worker with its own config (api/wrangler.jsonc,
+  // #2626/#2134): it does have a `main`, an R2 binding and Cloudflare Access.
+  // Do not merge the two.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rackula-prod",
+
+  // Pinned workerd baseline. Bump deliberately.
+  "compatibility_date": "2026-08-01",
+
+  // `_headers` and `.assetsignore` are generated into dist/ by the deploy step
+  // (scripts/gen-headers.mjs), never committed to static/ -- publicDir copies
+  // static/ verbatim into EVERY dist, including the Docker/LXC self-host builds.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+  },
+
+  // A route, not a custom_domain. count.racku.la already had a healthy proxied
+  // record and edge certificate (the dead VPS origin returned 522), so a route
+  // intercepts ahead of the origin with no DNS change, no delete-then-attach
+  // NXDOMAIN window (the zone SOA minimum is 1800s), and no certificate wait.
+  //
+  // Two distinct rollbacks, do not conflate them:
+  //   - Bad RELEASE -> roll the Worker version back (rollback-prod.yml). The
+  //     route is untouched; count.racku.la keeps serving, just an older build.
+  //   - Bad CUTOVER -> remove this entry and `wrangler triggers deploy`, which
+  //     detaches the hostname and returns it to the origin DNS record. Only
+  //     meaningful if that origin is healthy, which it was not at cutover.
+  // rollback-prod.yml implements the first. The second is a manual step in
+  // docs/deployment/cloudflare-prod-runbook.md.
+  "routes": [{ "pattern": "count.racku.la/*", "zone_name": "racku.la" }],
+
+  // One public surface. preview_urls stays on so `wrangler versions upload`
+  // yields a per-version URL for the pre-promotion smoke in deploy-prod.yml.
+  "workers_dev": false,
+  "preview_urls": true,
+
+  "observability": { "enabled": true },
+}

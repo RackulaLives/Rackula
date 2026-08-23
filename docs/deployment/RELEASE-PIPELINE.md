@@ -21,7 +21,7 @@ Previously a tag push published `latest` everywhere (Docker `:latest`, GitHub la
    - A maintainer approves the `prod` Environment (single approval choke point).
    - Docker: retag the gated digest to `:latest` and `:YY.M` (by digest, never a rebuild).
    - GitHub: `gh release edit <tag> --prerelease=false --latest=true`.
-   - Prod: deploy the VPS and run the post-deploy smoke test.
+   - Prod: upload the build as a new Cloudflare Worker version, smoke it on the per-version preview URL, and only then shift traffic to it.
 
 ## Operator actions
 
@@ -77,7 +77,7 @@ Do not add an entry to unblock a release without that discussion first. If a fix
 
 `smoke-test` in `deploy-dev.yml` runs the deployed app through Playwright once the dev deploy completes. It needs a Cloudflare Access service token (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`) because d.racku.la sits behind Cloudflare Access; without it every request only reaches the login wall (#2346). Rather than let those requests fail (or silently no-op inside a job that still reports success), a preceding `check-cf-access` job checks secret availability and publishes it as an output. `smoke-test` has a job-level `if:` on that output, so when the token is unavailable the job's conclusion is `skipped`, visibly distinct from a passed run in the Actions summary, and the gate step also emits an `::notice::` and a `$GITHUB_STEP_SUMMARY` line explaining why. This does not change when the smoke test is skipped, only how the skip is reported.
 
-`smoke-test` in `deploy-prod.yml` has no equivalent skip: it runs on the trusted self-hosted path during promote, count.racku.la is not behind Cloudflare Access, and the required secrets are always present there.
+`deploy-prod.yml` needs no equivalent skip: count.racku.la is public (#3094) and the Cloudflare credentials are always present during promote. Its smoke is fail-closed and runs twice, first against the per-version preview URL before any traffic moves, then against the live host. It runs on `ubuntu-latest`; prod left the self-hosted runner with #2029.
 
 ## Upgrade-gate baseline
 
