@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
-## [26.8.0] - 2026-08-23
+## [26.8.0] - 2026-08-25
 
 Rackula can now model how your gear is actually wired. Ports carry direction, signal type and connector gender, connections are drawn between them on the canvas, and the device library understands pro audio and AV connectors. This release also moves production hosting to Cloudflare, retiring the server that took count.racku.la offline in August.
 
@@ -46,6 +46,10 @@ Rackula can now model how your gear is actually wired. Ports carry direction, si
 - Release pipeline is idempotent on re-run (#2709, PR #3082)
 - Trivy gates fixable HIGH and CRITICAL findings (#2720, PR #3084)
 - Cable model retired, with a cables-to-connections migration (PR #3119)
+- Upgrade-corpus fixtures allow the migration version stamp, so bumping the app version no longer fails the corpus test (PR #3228)
+- postcss pinned above CVE-2026-73646 in the api image, which also clears the nanoid advisories it pulled in (PR #3228)
+- community-scripts helpers are sourced from ProxmoxVE, after ProxmoxVED moved its engine to community-scripts/core and dropped misc/ (PR #3228)
+- Dependency updates across svelte, hono, wrangler, better-auth, jose, dompurify, eslint and vitest tooling, GitHub Actions, and the production/development-dependency groups, spanning PR #3123 through PR #3225 (~63 PRs)
 
 ## [26.7.0] - 2026-07-18
 
