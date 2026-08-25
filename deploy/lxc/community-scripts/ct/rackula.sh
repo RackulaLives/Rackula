@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVED/main/misc/build.func)
-# build.func is sourced unpinned from ProxmoxVED@main by convention (every
+source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/build.func)
+# build.func is sourced unpinned from ProxmoxVE@main by convention (every
 # community-scripts app does this; the branch is community-scripts-controlled).
 # An upstream compromise would run as root during CT creation. Accepted as a
 # residual supply-chain risk rather than pinned, to stay aligned with the
 # ecosystem norm. See issue #2943.
 # Copyright (c) 2021-2026 community-scripts ORG
 # Author: gVNS (ggfevans)
-# License: MIT | https://github.com/community-scripts/ProxmoxVED/raw/main/LICENSE
+# License: MIT | https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
 # Source: https://github.com/RackulaLives/Rackula
 
 APP="Rackula"

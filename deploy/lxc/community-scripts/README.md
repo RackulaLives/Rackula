@@ -32,4 +32,6 @@ In short: canonical = upstream + dev override. When syncing, carry every other c
 
 ## URL note: ProxmoxVE vs ProxmoxVED
 
-The `build.func` source line and the License URL point at `ProxmoxVED` (the dev/testing repo), matching the re-submission target. When a script is promoted from ProxmoxVED to the production `ProxmoxVE` repo, those two URLs flip to `ProxmoxVE`.
+The `build.func` source line and the License URL point at `ProxmoxVE`. Rackula was promoted from the `ProxmoxVED` dev/testing repo to the production `ProxmoxVE` repo, and those two URLs flipped with it. New scripts still start life in ProxmoxVED and flip on promotion.
+
+ProxmoxVED has since moved its engine out into `community-scripts/core` and dropped `misc/` entirely, so `ProxmoxVED/main/misc/build.func` and `misc/install.func` now 404. ProxmoxVE still serves both. Anything here that fetches framework helpers must target ProxmoxVE, including `scripts/lxc-smoke-test.sh`, whose release gate broke on the old URL.
