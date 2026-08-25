@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## RACKULA LIVES
+
+For three weeks in August count.racku.la was unreachable. That was not an outage. That was a dormancy. Vampires do this. It is extremely well documented and I am not going to argue about it here.
+
+It came back on Cloudflare, with no origin server left to die. The old one is gone. I do not want to talk about the old one.
+
 ## [26.8.0] - 2026-08-25
 
 Rackula can now model how your gear is actually wired. Ports carry direction, signal type and connector gender, connections are drawn between them on the canvas, and the device library understands pro audio and AV connectors. This release also moves production hosting to Cloudflare, retiring the server that took count.racku.la offline in August.
