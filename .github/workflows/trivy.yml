@@ -67,7 +67,7 @@ jobs:
 
       - name: Upload SARIF to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-${{ matrix.target.category }}
@@ -132,7 +132,7 @@ jobs:
 
       - name: Upload SARIF to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         with:
           sarif_file: trivy-results.sarif
           # Match build-images' category so on-demand runs refresh the

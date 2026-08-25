@@ -3,6 +3,10 @@
     {
       "pathPattern": "\\.position$",
       "reason": "rail position 3 is converted to internal 1/6U units on load; no coincidental duplicate elsewhere in this fixture unlike the sibling AV fixtures"
+    },
+    {
+      "pathPattern": "\\.version$",
+      "reason": "position 3 falls in the pre-0.7.0 heuristic band, so needsPositionMigration stamps the current app version over the declared 26.7.0"
     }
   ]
 }
