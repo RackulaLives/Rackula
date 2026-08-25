@@ -431,10 +431,27 @@ run_install() {
   # No errexit/nounset: the framework runs install.sh without them and install.sh
   # self-manages via catch_errors. app/APPLICATION are framework vars its motd/cleanup
   # tail references; provide them so the tail does not trip on an unset value.
+  #
+  # SSH_ROOT/PASSWORD/SSH_AUTHORIZED_KEY are the same deal, for the motd_ssh and
+  # customize calls at the end of rackula-install.sh. build.func exports them for
+  # real installs; we source install.func directly, so nothing sets them here.
+  # They are only unset-fatal because core.func's silent-command wrapper restores
+  # error handling with `set -Eeuo pipefail`, switching on nounset that
+  # catch_errors deliberately left off (STRICT_UNSET defaults to 0).
+  #
+  # Values are chosen so the framework tail cannot sabotage the smoke run:
+  #   SSH_ROOT=no             skips the sshd_config edit + `systemctl restart sshd`,
+  #                           which would drop the SSH session driving this test.
+  #   SSH_AUTHORIZED_KEY=""   upstream's own default; a value here would overwrite
+  #                           /root/.ssh/authorized_keys and lock us out mid-run.
+  #   PASSWORD=smoke          non-empty, so customize() skips the getty autologin
+  #                           override. That block is framework console setup, not
+  #                           Rackula behaviour, and is not what this gate tests.
   body="
     set -o pipefail
     export FUNCTIONS_FILE_PATH=\"\$(cat /root/install.func)\"
     export app=rackula APPLICATION=Rackula tz=\"\${tz:-Etc/UTC}\"
+    export SSH_ROOT=no PASSWORD=smoke SSH_AUTHORIZED_KEY=
     ${pre}
     bash /root/rackula-install.sh
   "
