@@ -96,6 +96,10 @@ To add yourself to this list, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Contributors who made merged pull requests in each release. For the full contributors table, see above.
 
+### v26.8.0
+
+- @githappens: feat: derive connector gender for display (compute-only) (#3121, #3120, #3087)
+
 ### v26.7.0
 
 - No external contributors in this release

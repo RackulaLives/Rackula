@@ -38,7 +38,11 @@ BRIDGE="vmbr0"
 TEMPLATE=""
 KEEP=0
 SENTINEL_PREFIX="rackula-smoke-"
-COMMUNITY_SCRIPTS_URL="https://raw.githubusercontent.com/community-scripts/ProxmoxVED/main"
+# Rackula was promoted from the ProxmoxVED dev repo to the production ProxmoxVE
+# repo, so the framework helpers come from ProxmoxVE now. ProxmoxVED has since
+# moved its engine out to community-scripts/core and dropped misc/ entirely, so
+# the old URL 404s.
+COMMUNITY_SCRIPTS_URL="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -399,8 +403,9 @@ stage_ct() {
     echo "DRY-RUN curl $COMMUNITY_SCRIPTS_URL/misc/install.func -> $TMPD/install.func" >&2
     : >"$TMPD/install.func"
   else
-    curl -fsSL "$COMMUNITY_SCRIPTS_URL/misc/install.func" -o "$TMPD/install.func" ||
-      die "failed to fetch install.func"
+    curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors \
+      "$COMMUNITY_SCRIPTS_URL/misc/install.func" -o "$TMPD/install.func" ||
+      die "failed to fetch install.func from $COMMUNITY_SCRIPTS_URL/misc/install.func"
   fi
   ct_exec "$id" 'apt-get update -qq && apt-get install -y -qq curl ca-certificates tar >/dev/null' ||
     die "failed to install base tools in CT $id"
@@ -426,10 +431,27 @@ run_install() {
   # No errexit/nounset: the framework runs install.sh without them and install.sh
   # self-manages via catch_errors. app/APPLICATION are framework vars its motd/cleanup
   # tail references; provide them so the tail does not trip on an unset value.
+  #
+  # SSH_ROOT/PASSWORD/SSH_AUTHORIZED_KEY are the same deal, for the motd_ssh and
+  # customize calls at the end of rackula-install.sh. build.func exports them for
+  # real installs; we source install.func directly, so nothing sets them here.
+  # They are only unset-fatal because core.func's silent-command wrapper restores
+  # error handling with `set -Eeuo pipefail`, switching on nounset that
+  # catch_errors deliberately left off (STRICT_UNSET defaults to 0).
+  #
+  # Values are chosen so the framework tail cannot sabotage the smoke run:
+  #   SSH_ROOT=no             skips the sshd_config edit + `systemctl restart sshd`,
+  #                           which would drop the SSH session driving this test.
+  #   SSH_AUTHORIZED_KEY=""   upstream's own default; a value here would overwrite
+  #                           /root/.ssh/authorized_keys and lock us out mid-run.
+  #   PASSWORD=smoke          non-empty, so customize() skips the getty autologin
+  #                           override. That block is framework console setup, not
+  #                           Rackula behaviour, and is not what this gate tests.
   body="
     set -o pipefail
     export FUNCTIONS_FILE_PATH=\"\$(cat /root/install.func)\"
     export app=rackula APPLICATION=Rackula tz=\"\${tz:-Etc/UTC}\"
+    export SSH_ROOT=no PASSWORD=smoke SSH_AUTHORIZED_KEY=
     ${pre}
     bash /root/rackula-install.sh
   "

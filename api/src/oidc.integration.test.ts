@@ -274,6 +274,18 @@ describe("OIDC integration", () => {
     );
   }
 
+  async function readAdvertisedRedirectUri(
+    app: Awaited<ReturnType<typeof createApp>>,
+  ): Promise<string> {
+    const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
+    expect(loginResponse.status).toBe(302);
+    const redirectUri = new URL(
+      loginResponse.headers.get("location")!,
+    ).searchParams.get("redirect_uri");
+    expect(redirectUri).not.toBeNull();
+    return redirectUri!;
+  }
+
   // Runs the login -> callback flow and asserts the callback rejected the ID
   // token: it redirects with user_info_is_missing and sets no session cookie.
   // Shared by the algorithm-pinning regression tests.
@@ -575,6 +587,150 @@ describe("OIDC integration", () => {
         },
       });
       expect(replayResponse.status).toBe(401);
+    } finally {
+      mock.restore();
+    }
+  });
+  it("advertises the documented default callback URI when RACKULA_OIDC_REDIRECT_URI is unset", async () => {
+    const mock = await installMockOidcFetch();
+    try {
+      const app = await createApp(
+        buildOidcEnv({ RACKULA_OIDC_REDIRECT_URI: undefined }),
+      );
+      const redirectUri = await readAdvertisedRedirectUri(app);
+
+      expect(redirectUri).toBe("https://rack.example.com/auth/callback");
+      // Better Auth's own default is ${baseURL}/api/auth/oauth2/callback/oidc,
+      // a path the auth gate blocks and nginx rewrites out of reach (#3140).
+      expect(redirectUri).not.toContain("/oauth2/callback/");
+    } finally {
+      mock.restore();
+    }
+  });
+
+  it("completes the OIDC flow at the callback URI it advertised when RACKULA_OIDC_REDIRECT_URI is unset", async () => {
+    const mock = await installMockOidcFetch();
+    try {
+      const app = await createApp(
+        buildOidcEnv({ RACKULA_OIDC_REDIRECT_URI: undefined }),
+      );
+
+      const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
+      expect(loginResponse.status).toBe(302);
+      const authorizationUrl = new URL(loginResponse.headers.get("location")!);
+      const state = authorizationUrl.searchParams.get("state");
+      expect(state).not.toBeNull();
+      const loginCookieHeader = cookieHeaderFromSetCookies(
+        readSetCookies(loginResponse.headers),
+      );
+
+      // Follow the redirect URI Rackula actually handed the IdP, the way a
+      // browser would, instead of assuming a callback path. Hardcoding
+      // "/auth/callback" here is what hid #3140 from this suite.
+      const advertisedPath = new URL(
+        authorizationUrl.searchParams.get("redirect_uri")!,
+      ).pathname;
+      const callbackResponse = await app.request(
+        `${advertisedPath}?code=entra-code&state=${encodeURIComponent(state!)}`,
+        {
+          headers: {
+            Cookie: loginCookieHeader,
+          },
+        },
+      );
+
+      expect(callbackResponse.status).toBe(302);
+      expect(callbackResponse.headers.get("location")).not.toContain(
+        "/auth/login",
+      );
+      expect(
+        readSetCookies(callbackResponse.headers).some((cookie) =>
+          cookie.includes("rackula_auth_session="),
+        ),
+      ).toBe(true);
+    } finally {
+      mock.restore();
+    }
+  });
+
+  it("strips a trailing slash from RACKULA_BASE_URL when deriving the callback URI", async () => {
+    const mock = await installMockOidcFetch();
+    try {
+      const app = await createApp(
+        buildOidcEnv({
+          RACKULA_BASE_URL: "https://rack.example.com/",
+          RACKULA_OIDC_REDIRECT_URI: undefined,
+        }),
+      );
+
+      expect(await readAdvertisedRedirectUri(app)).toBe(
+        "https://rack.example.com/auth/callback",
+      );
+    } finally {
+      mock.restore();
+    }
+  });
+
+  it("keeps an explicit RACKULA_OIDC_REDIRECT_URI authoritative", async () => {
+    const mock = await installMockOidcFetch();
+    try {
+      const app = await createApp(
+        buildOidcEnv({
+          // A served path that differs from the derived default, so this asserts
+          // precedence without implying arbitrary paths are routable.
+          RACKULA_OIDC_REDIRECT_URI:
+            "https://rack.example.com/api/auth/callback",
+        }),
+      );
+
+      expect(await readAdvertisedRedirectUri(app)).toBe(
+        "https://rack.example.com/api/auth/callback",
+      );
+    } finally {
+      mock.restore();
+    }
+  });
+
+  it("serves Better Auth's own callback path when the IdP is configured to use it", async () => {
+    const mock = await installMockOidcFetch();
+    try {
+      const app = await createApp(
+        buildOidcEnv({
+          RACKULA_OIDC_REDIRECT_URI:
+            "https://rack.example.com/api/auth/oauth2/callback/oidc",
+        }),
+      );
+
+      const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
+      expect(loginResponse.status).toBe(302);
+      const state = new URL(
+        loginResponse.headers.get("location")!,
+      ).searchParams.get("state");
+      expect(state).not.toBeNull();
+      const loginCookieHeader = cookieHeaderFromSetCookies(
+        readSetCookies(loginResponse.headers),
+      );
+
+      // The bare path is what the API sees after nginx strips the /api prefix
+      // (deploy/nginx.conf.template:216).
+      const callbackResponse = await app.request(
+        `/auth/oauth2/callback/oidc?code=entra-code&state=${encodeURIComponent(state!)}`,
+        {
+          headers: {
+            Cookie: loginCookieHeader,
+          },
+        },
+      );
+
+      expect(callbackResponse.status).toBe(302);
+      expect(callbackResponse.headers.get("location")).not.toContain(
+        "/auth/login",
+      );
+      expect(
+        readSetCookies(callbackResponse.headers).some((cookie) =>
+          cookie.includes("rackula_auth_session="),
+        ),
+      ).toBe(true);
     } finally {
       mock.restore();
     }

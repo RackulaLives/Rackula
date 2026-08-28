@@ -4,6 +4,61 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [26.8.0] - 2026-08-25
+
+### RACKULA LIVES
+
+For three weeks in August count.racku.la was unreachable. That was not an outage. That was a dormancy. Vampires do this. It is extremely well documented and I am not going to argue about it here.
+
+It came back on Cloudflare, with no origin server left to die. The old one is gone. I do not want to talk about the old one.
+
+### This release
+
+Rackula can now model how your gear is actually wired. Ports carry direction, signal type and connector gender, connections are drawn between them on the canvas, and the device library understands pro audio and AV connectors. This release also moves production hosting to Cloudflare, retiring the server that took count.racku.la offline in August.
+
+### Added
+
+- Connections replace cables. Create a connection between two ports on the canvas, see it drawn as a path, and undo it like any other edit. Connections survive save and load with stable port identity, and are removed automatically when a device is deleted (#369, PR #3113; PR #3116; PR #3118; #639, PR #3114; PR #3115)
+- Ports carry direction, inferred from the interface type where it is not set explicitly (#1930, PR #3111)
+- Ports carry an optional signal type, inferred from the connector and direction (PR #3120)
+- Connector gender is shown for connectors where the convention is unambiguous: XLR by direction per AES14, Speakon always male. DMX XLR is deliberately left blank, since DMX512 reverses the XLR convention (#1944, PR #3121)
+- Pro audio and AV interface types: XLR, TRS, ADAT, MIDI, BNC, DB25, plus the remaining AV types, an AV category, and port colour tokens (PR #3087; #1929, PR #3109)
+- Starter library AV devices carry interface data (PR #3110)
+
+### Changed
+
+- Production is served from Cloudflare Workers Static Assets instead of a VPS. No API, no server-side storage, and no origin server to fall over (#2029, PR #3216)
+- Upgrade action for OIDC deployments: with `RACKULA_OIDC_REDIRECT_URI` unset, Rackula now advertises `RACKULA_BASE_URL` + `/auth/callback` to the identity provider instead of `/api/auth/oauth2/callback/oidc`. If OIDC login was working for you without that variable set, register `https://<your-host>/auth/callback` in your identity provider before upgrading, or pin the old path by setting `RACKULA_OIDC_REDIRECT_URI` explicitly (#3140, PR #3215)
+
+### Fixed
+
+- OIDC login no longer loops until the browser reports `ERR_TOO_MANY_REDIRECTS`. `RACKULA_OIDC_REDIRECT_URI` was documented as defaulting to `RACKULA_BASE_URL` + `/auth/callback`, but that default was never applied, so Rackula advertised a callback path it did not serve and the identity provider's callback was bounced back to the login route (#3140, PR #3215)
+- An OAuth callback arriving on a path Rackula does not serve now returns a 400 naming `RACKULA_OIDC_REDIRECT_URI`, instead of redirecting to login and looping (PR #3215)
+- Better Auth's own callback path, `/api/auth/oauth2/callback/oidc`, is served for deployments whose identity provider is already registered against it (PR #3215)
+- The API warns at startup when `RACKULA_OIDC_REDIRECT_URI` names a path it does not serve, listing the paths that are served (PR #3215)
+- Container-child devices announce their hierarchy to screen readers (#2890, PR #3105)
+- Dragged devices no longer snap to the origin under reduced-motion (#2883, PR #3104)
+- NetBox import writes device definitions and image manifest entries (PR #3106)
+- Undo, redo and restore-from-file are gated under read-only mode (#2804, PR #3079)
+- Muted device colours meet WCAG AA against the label token (#3016, PR #3070)
+- Roving tabindex re-anchors when virtualised palette rows unmount (#3015, PR #3071)
+- `management` accepted as an interface type (#3085, PR #3103, PR #3107)
+- New-layout confirm guard is storage-mode aware (#2801, PR #3080)
+- Toasts clear on sheet open, exempting undo affordances (#3030, PR #3073)
+
+### Technical
+
+- Scheduled soak-smoke against production, and a rollback workflow that bypasses the release approval gate (PR #3098, PR #3216)
+- The self-hosted e2e tier is opt-in, so a missing runner label no longer fails every PR after a 24 hour queue (PR #3207)
+- arm64 Docker images build on native arm64 runners (PR #3083)
+- Release pipeline is idempotent on re-run (#2709, PR #3082)
+- Trivy gates fixable HIGH and CRITICAL findings (#2720, PR #3084)
+- Cable model retired, with a cables-to-connections migration (PR #3119)
+- Upgrade-corpus fixtures allow the migration version stamp, so bumping the app version no longer fails the corpus test (PR #3228)
+- postcss pinned above CVE-2026-73646 in the api image, which also clears the nanoid advisories it pulled in (PR #3228)
+- community-scripts helpers are sourced from ProxmoxVE, after ProxmoxVED moved its engine to community-scripts/core and dropped misc/ (PR #3228)
+- Dependency updates across svelte, hono, wrangler, better-auth, jose, dompurify, eslint and vitest tooling, GitHub Actions, and the production/development-dependency groups, spanning PR #3123 through PR #3225 (~63 PRs)
+
 ## [26.7.0] - 2026-07-18
 
 Rackula now warns you before anything destructive, shows clear feedback while you place devices, and lets you save straight from the command palette. Behind the scenes, sign-in and file handling are more secure and the app is more stable overall.
@@ -63,8 +118,6 @@ Rackula now warns you before anything destructive, shows clear feedback while yo
 - Brand pack contribution guide added, simplifying pack registration (PR #3044)
 - Design docs written ahead of implementation: UI friction and consistency review (PR #2985), resize and bay corrections spec (#2820, PR #2826), interaction feedback cluster plan (PR #2866), e2e suite recovery plan (PR #2860)
 - Dependency updates across svelte, hono, wrangler, @cloudflare/vitest-pool-workers, eslint and vitest tooling, GitHub Actions, and the production/development-dependency groups, including nanoid 6.0.0 and fuse.js 7.5.0 (PR #3053), spanning PR #2817 through PR #3054 (~35 PRs)
-
-## [Unreleased]
 
 ## [26.6.6] - 2026-06-30
 

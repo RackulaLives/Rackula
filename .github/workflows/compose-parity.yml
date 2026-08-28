@@ -7,7 +7,6 @@ on:
       - "deploy/docker-compose.persist.yml"
       - "scripts/check-compose-persist-parity.sh"
       - ".github/workflows/deploy-dev.yml"
-      - ".github/workflows/deploy-prod.yml"
       - ".github/workflows/test.yml"
       - "README.md"
       - ".env.example"

@@ -38,6 +38,8 @@ function createTestApp(config: {
   app.post("/api/auth/login", (c) => c.json({ login: true }));
   app.get("/auth/callback", (c) => c.json({ callback: true }));
   app.get("/api/auth/callback", (c) => c.json({ callback: true }));
+  app.get("/auth/oauth2/callback/oidc", (c) => c.json({ callback: true }));
+  app.get("/api/auth/oauth2/callback/oidc", (c) => c.json({ callback: true }));
   app.get("/layouts", (c) => c.json({ layouts: [] }));
   app.get("/layouts/:id", (c) => c.json({ id: c.req.param("id") }));
   app.put("/layouts/:id", (c) => c.json({ updated: c.req.param("id") }));
@@ -221,6 +223,19 @@ describe("createRateLimitMiddleware", () => {
       headers: { "x-real-ip": "1.2.3.4" },
     });
     expect(res2.status).toBe(200);
+
+    // Better Auth's own callback path is exempt on the same grounds (#3140):
+    // throttling it would lock out logins, and the signed state cookie is
+    // validated before any upstream identity-provider request.
+    for (const path of [
+      "/auth/oauth2/callback/oidc",
+      "/api/auth/oauth2/callback/oidc",
+    ]) {
+      const oauthRes = await app.request(path, {
+        headers: { "x-real-ip": "1.2.3.4" },
+      });
+      expect(oauthRes.status).toBe(200);
+    }
   });
 
   it("throttles GET /auth/login (login initiation is no longer exempt)", async () => {

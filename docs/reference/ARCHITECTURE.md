@@ -155,23 +155,25 @@ No legacy support or migration code. Features are implemented as if they're the 
 │                                                  │           │
 │                                                  ▼           │
 │                                        ┌─────────────────┐   │
-│                                        │  GitHub Pages   │   │
-│                                        │  dev.racku.la   │   │
+│                                        │   VPS (Docker)  │   │
+│                                        │   d.racku.la    │   │
 │                                        └─────────────────┘   │
 │                                                              │
 │   Git tag v* ───────────────────────────────────────────────│
 │         │                                                    │
 │         ▼                                                    │
 │   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐   │
-│   │Docker Build │────▶│  Push to    │────▶│  VPS Pull   │   │
-│   │             │     │   ghcr.io   │     │  & Deploy   │   │
+│   │   Build     │────▶│  Upload     │────▶│ Smoke the   │   │
+│   │   the tag   │     │  version    │     │ preview URL │   │
 │   └─────────────┘     └─────────────┘     └─────────────┘   │
 │                                                  │           │
 │                                                  ▼           │
 │                                        ┌─────────────────┐   │
-│                                        │   VPS (Docker)  │   │
-│                                        │  app.racku.la   │   │
+│                                        │ CF Workers      │   │
+│                                        │ count.racku.la  │   │
 │                                        └─────────────────┘   │
+│                                                              │
+│   (Docker images still build for self-host, via ghcr.io.)    │
 └─────────────────────────────────────────────────────────────┘
 ```
 

@@ -1,9 +1,12 @@
 name: Trivy Security Scan
 
 # On-demand Trivy vulnerability scan that complements the release-time scan
-# in deploy-prod.yml. Lets us re-scan published images and the current repo
-# state without cutting a release. Image categories match deploy-prod's scan
+# in build-images.yml. Lets us re-scan published images and the current repo
+# state without cutting a release. Image categories match build-images' scan
 # so findings refresh the same alert set instead of stacking duplicates.
+#
+# deploy-prod.yml no longer builds or scans images: prod is a Cloudflare Worker
+# serving static assets (#2029). Docker images are a self-host artifact only.
 
 on:
   workflow_dispatch:
@@ -64,7 +67,7 @@ jobs:
 
       - name: Upload SARIF to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-${{ matrix.target.category }}
@@ -129,9 +132,9 @@ jobs:
 
       - name: Upload SARIF to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         with:
           sarif_file: trivy-results.sarif
-          # Match deploy-prod's category so on-demand runs refresh the
+          # Match build-images' category so on-demand runs refresh the
           # release-time alert set rather than creating duplicates.
           category: trivy-${{ env.IMAGE_CATEGORY }}

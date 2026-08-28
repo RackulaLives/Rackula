@@ -155,7 +155,13 @@ fi
 
 echo "Fetching merged PRs since $PREV_DATE..." >&2
 
+# --limit is REQUIRED, not cosmetic: `gh pr list` defaults to 30 results. A
+# release with more merged PRs than that silently drops contributors, and
+# dependabot alone can fill the window (v26.8.0 had 103 merged PRs, 56 of them
+# dependabot, which pushed three human-authored feature PRs out of the result
+# and erased their author from the acknowledgements).
 PR_DATA=$(gh pr list --state merged --search "merged:>=${PREV_DATE}" \
+  --limit 1000 \
   --json number,title,author \
   --jq '.[] | "\(.number)\t\(.title)\t\(.author.login)"' 2>/dev/null) || {
   echo "WARNING: Failed to fetch PR data from GitHub. Skipping contributor acknowledgements." >&2

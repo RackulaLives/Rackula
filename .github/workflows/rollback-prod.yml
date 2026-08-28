@@ -1,0 +1,133 @@
+name: Rollback Prod
+
+# Manual rollback for count.racku.la. Deliberately standalone: it does NOT go
+# through release.yml, whose promote-gate waits on a human approval that may sit
+# unanswered for hours. During an incident the whole point is not to queue.
+#
+# This rolls back the WORKER VERSION only. Routes are trigger state, not version
+# state, so `versions deploy` leaves count.racku.la attached and serving - just an
+# older build. That is the intended behaviour for a bad release.
+#
+# It is NOT the way to undo the cutover itself. Detaching the hostname means
+# removing the `routes` entry from wrangler.jsonc and running
+# `wrangler triggers deploy`, which hands count.racku.la back to whatever the
+# origin DNS record points at. See docs/deployment/cloudflare-prod-runbook.md.
+#
+# Cloudflare retains the last 100 versions, so any recent release is reachable.
+# List candidates with:
+#   npx wrangler@4.124.0 versions list --name rackula-prod
+# or read the "Worker version id" line in a previous Deploy Prod run summary.
+#
+# This is the ONLY rollback path. The old VPS-DNS fallback documented in the
+# epic design is dead: that origin stopped answering in August 2026 (issue
+# #3167), which is what forced the Cloudflare cutover in the first place.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_id:
+        description: "Worker version id to roll back to (uuid from `wrangler versions list`)"
+        required: true
+        type: string
+      reason:
+        description: "Why (recorded in the run summary)"
+        required: false
+        type: string
+
+# Shared with deploy-prod.yml: both mutate which version serves 100% of prod
+# traffic. Without a shared group a rollback and an in-flight deploy race, and
+# the deploy can re-promote the very build being rolled back. To roll back
+# during a deploy, cancel the deploy run first.
+concurrency:
+  group: prod-traffic
+  cancel-in-progress: false
+
+env:
+  WRANGLER_VERSION: "4.124.0"
+
+jobs:
+  rollback:
+    name: "Roll back count.racku.la"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate the version id
+        env:
+          VERSION_ID: ${{ inputs.version_id }}
+        run: |
+          echo "$VERSION_ID" | grep -qE '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' \
+            || { echo "::error::'$VERSION_ID' is not a version uuid"; exit 1; }
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Deploy the target version
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes "wrangler@${WRANGLER_VERSION}" versions deploy \
+            "${{ inputs.version_id }}@100%" --yes
+
+      # The verification toolchain is installed AFTER the traffic mutation, on
+      # purpose. A registry or Playwright-download outage during an incident must
+      # not be able to block the rollback itself; it can only leave the rollback
+      # unverified and the run red, which is the failure mode you want at 3am.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-chromium-
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify the live host in a browser
+        # Through the browser, because count.racku.la is challenged from CI and
+        # curl cannot solve a JS challenge (see deploy-prod.yml). That also rules
+        # out scripts/smoke-headers.sh here: it is curl-based and only ever runs
+        # against the workers.dev preview URL, which a rollback does not create.
+        # deploy-smoke.spec.ts carries the same security-header assertions by
+        # value, so the rollback keeps that guarantee.
+        #
+        # Version/commit are intentionally not asserted here: we are deliberately
+        # serving something other than the newest release. The boot, render and
+        # header checks still have to hold.
+        env:
+          SMOKE_TEST_URL: https://count.racku.la
+        run: npm run test:e2e:smoke
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: rollback-prod-smoke-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Prod rollback"
+            echo ""
+            echo "- rolled back to: \`${{ inputs.version_id }}\`"
+            echo "- reason: ${{ inputs.reason || '(none given)' }}"
+            echo ""
+            echo "count.racku.la now serves that version. The next tagged release"
+            echo "will move it forward again, so land a fix or revert the tag."
+          } >> "$GITHUB_STEP_SUMMARY"

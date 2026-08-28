@@ -41,10 +41,10 @@ Homelabbers planning rack layouts. Desktop browser users for creation/editing, m
 
 Rackula supports two deployment modes:
 
-| Mode        | Backend  | Persistence            | Use Case                   |
-| ----------- | -------- | ---------------------- | -------------------------- |
-| **Static**  | None     | File download/upload   | GitHub Pages, simple hosts |
-| **Persist** | Hono/Bun | API server (save/load) | Self-hosted Docker         |
+| Mode | Backend | Persistence | Use Case |
+| --- | --- | --- | --- |
+| **Static** | None | File download/upload | Cloudflare Workers, static hosts |
+| **Persist** | Hono/Bun | API server (save/load) | Self-hosted Docker |
 
 In static mode, Rackula is a pure client-side SPA with no network dependencies. In persist mode, an optional API server provides layout storage, authentication, and multi-device sync.
 

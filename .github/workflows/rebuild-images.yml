@@ -3,8 +3,9 @@ name: Rebuild Images (OS patch)
 # Proactively refresh OS packages in the published rolling image tags between
 # releases. Rebuilds the latest release's source with a busted apk-upgrade layer
 # cache (APK_CACHEBUST), republishes only the rolling tags (latest / persist /
-# api latest), and rescans. Complements deploy-prod.yml, which only patches at
-# release time. Does NOT deploy to prod.
+# api latest), and rescans. Complements build-images.yml, which only builds at
+# release time. Does NOT deploy to prod (and could not: prod is a Cloudflare
+# Worker serving static assets and pulls no images, #2029).
 
 on:
   workflow_dispatch:
@@ -86,7 +87,7 @@ jobs:
           cache-image: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -106,7 +107,7 @@ jobs:
           # Full no-cache rebuild: guarantees apk upgrade re-fetches current Alpine
           # secfixes regardless of whether the resolved release tag's Dockerfile
           # carries the APK_CACHEBUST arg, and avoids sharing (and racing on)
-          # deploy-prod's release buildcache.
+          # build-images' release buildcache.
           no-cache: true
           build-args: |
             VITE_ENV=production
@@ -134,7 +135,7 @@ jobs:
           cache-image: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -179,7 +180,7 @@ jobs:
           cache-image: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -253,9 +254,9 @@ jobs:
 
       - name: Upload scan results
         if: always()
-        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         with:
           sarif_file: trivy-results.sarif
-          # Match deploy-prod/trivy categories so a rebuild refreshes the same
+          # Match build-images/trivy categories so a rebuild refreshes the same
           # alert set instead of creating duplicates.
           category: trivy-${{ env.IMAGE_CATEGORY }}

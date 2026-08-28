@@ -53,6 +53,7 @@ The `/release` skill will:
 - `M002 -- LXC Release & Stability` (in progress)
 - `M003 -- Data Format & Interop` (next)
 - `M004 -- Type Safety, Decomposition & Stability` (planned)
+- `M018 - cloudflare migration` (in progress: prod is on Workers; dev cutover and VPS decommission remain)
 
 ---
 
@@ -532,10 +533,10 @@ Core rule: if there is even a small chance a skill applies, invoke it via the Sk
 
 Two environments with different deployment triggers:
 
-| Environment | URL            | Trigger        | Infrastructure |
-| ----------- | -------------- | -------------- | -------------- |
-| **Dev**     | d.racku.la     | Push to `main` | VPS (Docker)   |
-| **Prod**    | count.racku.la | Git tag `v*`   | VPS (Docker)   |
+| Environment | URL | Trigger | Infrastructure |
+| --- | --- | --- | --- |
+| **Dev** | d.racku.la | Push to `main` | VPS (Docker) |
+| **Prod** | count.racku.la | Git tag `v*` | Cloudflare Workers Static Assets |
 
 ### Dev Deployment
 
@@ -557,9 +558,15 @@ Deploys when a version tag is pushed:
 /release              # Auto-computes next CalVer version, tags, and pushes
 ```
 
+Prod is an assets-only Cloudflare Worker (`wrangler.jsonc` at the repo root): no `main`, no bindings, no API. It serves the static bundle in browser-storage mode and holds no user data. Static-asset requests are unmetered only while there is no Worker script on the hot path, so do not add a `main` to `rackula-prod`.
+
+Each release: `wrangler versions upload` -> full fail-closed smoke against the per-version preview URL (`scripts/smoke-headers.sh` plus the Playwright deploy smoke) -> `wrangler versions deploy` -> `wrangler triggers deploy` -> re-check the live host. A bad build never takes traffic. `versions deploy` shifts traffic but does not apply route changes, so `triggers deploy` is the step that lands any edit to `wrangler.jsonc`'s `routes`. Rollback is the `Rollback Prod` workflow, which takes a Worker version id and bypasses the release approval gate; it runs `versions deploy` only, so it never touches routes.
+
+Security headers come from `scripts/gen-headers.mjs`, which transcribes `deploy/security-headers.conf` by value and is parity-checked in CI. They are generated into `dist/` at deploy time and never committed to `static/`, which would leak them into the self-host images.
+
 ### Workflow
 
 1. Develop locally (`npm run dev`)
 2. Push to `main` → auto-deploys to d.racku.la
 3. Test on dev environment
-4. Tag release → auto-deploys to count.racku.la
+4. Tag release → approve the promote gate → deploys to count.racku.la (Cloudflare Workers)

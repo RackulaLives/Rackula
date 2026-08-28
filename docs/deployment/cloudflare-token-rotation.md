@@ -2,17 +2,13 @@
 
 This is the operational runbook for rotating and revoking the two classes of Cloudflare credentials the Cloudflare migration (epic #1984, milestone M018) uses: Cloudflare API deploy tokens and Cloudflare Access service tokens. Follow it as-is during a scheduled rotation or a suspected compromise. It does not explain how the migration works; see `docs/plans/2026-06-29-cloudflare-migration-plan.md` for that.
 
-## Status: placeholders pending #2675
+## Status
 
-Issue #2675 has not run yet. No Cloudflare API deploy token exists, and `CLOUDFLARE_ACCOUNT_ID` is not set anywhere. This runbook documents the rotation procedure against the planned inventory so the procedure exists before the tokens do. Wherever a name below is not yet fixed, it is written as an angle-bracket placeholder, for example `<CF_API_TOKEN_NAME_TBD>`.
+The prod surface is live (#2029). Account: `GarethLand`, id `f8606884a913456ec07bf4ccbf136abc`. Zone `racku.la`, id `ecc485cd0dd1c5fe05e803f83632d721`. Worker `rackula-prod`, `workers.dev` subdomain `gvns`.
 
-When #2675 mints the real tokens, it must:
+The dev half of #2675 is still outstanding: no `rackula-dev` Worker and no R2 bucket yet. When it lands, extend the inventory below rather than rewriting it, and record whether dev gets its own token copy or shares the prod one (Cloudflare cannot scope a Workers Scripts token to a single Worker, so both carry the same blast radius either way; see the account-wide risk note below).
 
-- Replace every `<..._TBD>` placeholder below with the actual GitHub secret name it used.
-- Confirm or correct the token scope, storage environment, and whether dev and prod share one account-wide token or hold separate copies of an identically-scoped token (Cloudflare cannot scope a Workers Scripts token to a single Worker, so the two copies would carry the same blast radius either way; see the account-wide risk note below).
-- Link this file from the deploy docs #2675 produces.
-
-The Cloudflare Access service token pair (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`) already exists and is not a placeholder; its section below is accurate today.
+The Cloudflare Access service token pair (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`) already exists; its section below is accurate today.
 
 ## Account-wide risk: read this before rotating anything
 
@@ -20,13 +16,23 @@ Cloudflare API tokens scoped to Workers Scripts edit cannot be restricted to a s
 
 ## Token class 1: Cloudflare API deploy tokens
 
-Used by the deploy workflows to publish the Worker and manage R2 bindings (`wrangler deploy` / `wrangler versions upload` in #2134 and #2029).
+Used by the deploy workflows to publish the Worker. `deploy-prod.yml` runs `wrangler versions upload`, `versions deploy` and `triggers deploy`. `rollback-prod.yml` runs `versions deploy` only, so the Workers Routes scope in the table below is exercised by `deploy-prod.yml` alone. #2134 adds `wrangler deploy` once dev lands.
 
 ### Storage
 
-- Secret names (planned, per the migration plan and #2675's acceptance criteria): `<CF_API_TOKEN_NAME_TBD>` (expected to follow the Wrangler convention `CLOUDFLARE_API_TOKEN`) and `<CF_ACCOUNT_ID_NAME_TBD>` (expected `CLOUDFLARE_ACCOUNT_ID`).
-- Storage tier is not yet fixed: #2675 must decide between repository-level GitHub Actions secrets (visible to every workflow, matching how `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` are stored today) and GitHub Environment secrets scoped to `dev` and/or `prod` (both environments already exist in repo settings, alongside `e2e-approval` and `e2e-trusted`, which are not deploy-token holders). Environment scoping buys GitHub-side protection rules (required reviewers) even though Cloudflare itself cannot scope the token below account-wide; #2675 should record which tier it chose and this file should be updated to match.
-- Scope (per #2675 AC): Workers Scripts edit, R2 read/write, account-wide. No narrower scope is available from Cloudflare for this permission set.
+- Secret names: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, following the Wrangler convention so no extra env plumbing is needed. `deploy-prod.yml` and `rollback-prod.yml` read both.
+- Storage tier: repository-level GitHub Actions secrets, matching how `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` are stored. Environment-scoped secrets were considered and not used: `deploy-prod.yml` deliberately carries no `environment:` binding, because `promote-gate` in `release.yml` already binds the protected `prod` environment and a second binding would prompt the same reviewer twice in one run. The approval gate is therefore upstream of the token, not around it.
+- Minimum scope for the prod token (three permissions, verified against the deploy path):
+
+  | Scope | Permission | Needed for |
+  | --- | --- | --- |
+  | Account | Workers Scripts: **Edit** | `versions upload` / `versions deploy`, including static-asset upload |
+  | Zone (`racku.la` only) | Workers Routes: **Edit** | `triggers deploy` maintaining the `count.racku.la/*` route |
+  | Zone (`racku.la` only) | Zone: **Read** | resolving `zone_name: "racku.la"` to a zone id |
+
+  Deliberately not granted, versus the set Cloudflare's Workers Builds template auto-generates: R2 Storage and KV Storage (prod is assets-only with zero bindings -- the dev Worker will need R2, mint that separately rather than widening this token), Account Settings: Read (only needed to resolve the account when it is not supplied, and `CLOUDFLARE_ACCOUNT_ID` is passed explicitly), and User Details / Memberships: Read (used by `wrangler whoami`, not by deploys).
+
+  No DNS permission is required. The Custom Domain attach path would have needed DNS: Edit, but `count.racku.la` is bound with a Workers route instead, so the token never touches DNS records.
 
 ### Who can rotate
 
@@ -38,9 +44,9 @@ Every 90 days, or immediately on suspected compromise. Cloudflare account API to
 
 ### Rotation procedure
 
-1. In the Cloudflare dashboard, go to My Profile > API Tokens > Create Token. Recreate the same scope as the token being replaced (Workers Scripts edit, R2 read/write, account-wide). Do not reuse the old token's name; append a date suffix so the audit log distinguishes them.
+1. In the Cloudflare dashboard, go to My Profile > API Tokens > Create Token. Recreate the same scope as the token being replaced (see the scope table above; for prod that is Workers Scripts: Edit, plus Workers Routes: Edit and Zone: Read on `racku.la`). Do not reuse the old token's name; append a date suffix so the audit log distinguishes them.
 2. Copy the new token value immediately; Cloudflare shows it once.
-3. Update `<CF_API_TOKEN_NAME_TBD>` with the new value everywhere it is stored: check Settings > Secrets and variables > Actions for a repository secret, and check Settings > Environments > `dev` and > `prod` for environment secrets, and update every copy you find. Do not stop at the first one; a copy left on the old value is a copy still trusting a token you are about to revoke. Confirm `<CF_ACCOUNT_ID_NAME_TBD>` is still correct in each location; it does not usually need to change.
+3. Update `CLOUDFLARE_API_TOKEN` with the new value everywhere it is stored: check Settings > Secrets and variables > Actions for a repository secret, and check Settings > Environments > `dev` and > `prod` for environment secrets, and update every copy you find. Do not stop at the first one; a copy left on the old value is a copy still trusting a token you are about to revoke. Confirm `CLOUDFLARE_ACCOUNT_ID` is still correct in each location; it does not usually need to change.
 4. Trigger a `workflow_dispatch` run of `Deploy Dev` (Actions > Deploy Dev > Run workflow) and confirm the `deploy` job succeeds against d.racku.la. For a prod-side rotation, trigger the equivalent verification path once #2029 lands (`deploy-prod.yml` is currently a `workflow_call`-only reusable workflow invoked by the release orchestrator; confirm with a real release promote or with whatever manual dispatch path #2029 adds).
 5. Once the new token has verified deploy success, return to the Cloudflare dashboard and revoke the old token (API Tokens > find the old entry > Roll or Delete).
 6. Note the rotation date and who performed it somewhere durable (a comment on the tracking issue is sufficient); there is no in-repo rotation log to update.
