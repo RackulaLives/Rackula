@@ -34,7 +34,12 @@ import type {
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import type { NetBoxDeviceType } from "$lib/utils/netbox-import";
 import type { Command, CommandType } from "$lib/stores/commands/types";
-import type { LibraryEntry, BrowserLaunch } from "$lib/storage";
+import type {
+  LibraryEntry,
+  BrowserLaunch,
+  SavedLayoutItem,
+} from "$lib/storage";
+import type { CatalogueEntry } from "$lib/components/layouts-library";
 import { toInternalUnits } from "$lib/utils/position";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
@@ -680,6 +685,46 @@ export function createTestRestoreBrowserLaunch(
       library: { "layout-1": createTestLibraryEntry() },
     },
     loadBody: vi.fn(),
+    ...overrides,
+  };
+}
+
+// =============================================================================
+// Layouts Catalogue Factories (#3151)
+// =============================================================================
+
+/**
+ * Creates a test SavedLayoutItem: one row of the server catalogue as
+ * GET /api/layouts returns it.
+ */
+export function createTestSavedLayoutItem(
+  overrides: Partial<SavedLayoutItem> = {},
+): SavedLayoutItem {
+  return {
+    id: "srv-1",
+    name: "Closet Rack",
+    version: "26.7.0",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    rackCount: 1,
+    deviceCount: 2,
+    valid: true,
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a test CatalogueEntry: the shape the Layouts panel and the mobile
+ * sheet feed into buildLayoutRows, from either the server catalogue or the
+ * browser workspace library. Counts and validity are optional in the type
+ * (the browser library knows neither), so pass them only where the test needs
+ * them.
+ */
+export function createTestCatalogueEntry(
+  overrides: Partial<CatalogueEntry> = {},
+): CatalogueEntry {
+  return {
+    id: "layout-1",
+    name: "Test layout",
     ...overrides,
   };
 }

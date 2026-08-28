@@ -364,8 +364,9 @@
       const localSession = loadSessionWithTimestamp();
 
       // No local session: open straight to the canvas empty state. The server
-      // library is reachable through the sidebar Layouts tab and the app menu;
-      // there is no blocking modal while the health check resolves.
+      // library is listed in the sidebar Layouts tab, which fetches it on open
+      // (#3151), and is also reachable through the app menu; there is no
+      // blocking modal while the health check resolves.
       // Reset layout to clear any stale hasStarted flag from a previous session (#1326)
       if (!localSession) {
         layoutStore.resetLayout();

@@ -51,6 +51,10 @@ export {
   type SaveStatus,
   isSessionSavePending,
   isServerSavePending,
+  suspendServerAutosave,
+  awaitInFlightSave,
+  abandonWorkingCopy,
+  type CompletedSaveContext,
 } from "./manager.svelte";
 export { shouldWarnBeforeUnload, type UnloadRiskState } from "./unload-risk";
 export { getServerBaseUpdatedAt, setServerBaseUpdatedAt } from "./server-base";
@@ -120,3 +124,9 @@ export {
   adoptServerCopy,
 } from "./server-opt-in.svelte";
 export type { SwitchResult, ServerCopyInfo } from "./server-opt-in.svelte";
+export {
+  getServerLibrary,
+  refreshServerLibrary,
+  removeServerLibraryItem,
+  type ServerLibraryStatus,
+} from "./server-library.svelte";

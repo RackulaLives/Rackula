@@ -16,6 +16,11 @@
   load failure leaves it absent. Choosing a starter opens it in a new tab through
   the same id-regeneration path as desktop, then dismisses the sheet.
 
+  In server mode the list comes from the server catalogue rather than the
+  browser workspace library, and a failed catalogue fetch renders the same
+  offline notice and Retry the desktop panel shows, so an outage never reads as
+  an empty library (#3151).
+
   Indicators are never colour-only (WCAG 1.4.1): each row pairs a state dot with
   a text label (Active / Open / Closed), and the active row carries
   aria-selected.
@@ -36,6 +41,17 @@
     starterRackSummary,
     type StarterTemplate,
   } from "$lib/templates/starter-templates";
+  import {
+    getStorageMode,
+    getApiAvailableState,
+    getServerLibrary,
+    refreshServerLibrary,
+    getServerInstanceLabel,
+    loadFromApi,
+  } from "$lib/storage";
+  import { runOpenFileFlow } from "$lib/actions/open-file-trigger";
+  import { getToastStore } from "$lib/stores/toast.svelte";
+  import type { CatalogueEntry } from "../layouts-library";
 
   interface Props {
     /** After a fresh layout is opened, ask the parent to add a rack directly. */
@@ -47,14 +63,49 @@
   let { onnewlayout, onclose }: Props = $props();
 
   const workspaceStore = getWorkspaceStore();
+  const toastStore = getToastStore();
+
+  const serverMode = getStorageMode() === "server";
+  const serverLibrary = getServerLibrary();
+
+  // Server mode has no localStorage workspace index, so its catalogue is the
+  // server's list; browser mode keeps the workspace library (#3151).
+  const catalogue = $derived<CatalogueEntry[]>(
+    serverMode
+      ? serverLibrary.items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          rackCount: item.rackCount,
+          deviceCount: item.deviceCount,
+          valid: item.valid,
+        }))
+      : Object.entries(workspaceStore.library).map(([id, entry]) => ({
+          id,
+          name: entry.name,
+        })),
+  );
 
   const rows = $derived(
     buildLayoutRows(
       workspaceStore.tabs,
       workspaceStore.activeId,
-      workspaceStore.library,
+      catalogue,
+      // Server mode never sets tab.layoutId, and a New-layout tab keeps the id
+      // createLayout generated even after loadFromApi replaces its contents, so
+      // the live body is the only correct identity there (#3151).
+      serverMode ? (t) => t.store.layout.metadata?.id : (t) => t.layoutId,
     ),
   );
+
+  // The sheet mounts when it opens, so mount is the open hook. Re-running when
+  // availability flips true is what makes a recovered server repopulate the
+  // list: effect 3 in the manager only marks the API available, it refills no
+  // list.
+  $effect(() => {
+    if (!serverMode) return;
+    getApiAvailableState();
+    void refreshServerLibrary();
+  });
 
   // The starters loaded so far, from the shared source. Empty until the lazy
   // load resolves and empty again after a failed load, so the "New from
@@ -76,15 +127,39 @@
   }
 
   // Switch to the layout a row represents, then dismiss the sheet. An open row
-  // focuses its tab; a closed row hydrates its persisted body into a new tab.
-  // Both route through the workspace store, which never opens a duplicate tab.
+  // focuses its tab; a closed row hydrates its persisted body into a new tab
+  // (browser mode) or replaces the working copy behind the open-file guard
+  // (server mode, #3151). Both route through the workspace store, which never
+  // opens a duplicate tab.
   function activateRow(row: LayoutRow) {
-    if (row.layoutId) {
-      workspaceStore.openFromLibrary(row.layoutId);
-    } else if (row.tabId) {
+    if (row.isOpen && row.tabId) {
       workspaceStore.switchTo(row.tabId);
+      onclose?.();
+      return;
     }
+    if (!row.layoutId) return;
+    if (!serverMode) {
+      workspaceStore.openFromLibrary(row.layoutId);
+      onclose?.();
+      return;
+    }
+    if (!row.valid) {
+      toastStore.showToast(
+        `"${row.name}" is corrupted and cannot be opened`,
+        "error",
+      );
+      return;
+    }
+    const layoutId = row.layoutId;
+    // Dismiss first, then run the guard: the confirm dialog must not be
+    // covered by a sheet that is still closing.
     onclose?.();
+    runOpenFileFlow(async (guarded) => {
+      await loadFromApi(
+        layoutId,
+        guarded ? { successMessage: "Previous layout kept in Layouts" } : {},
+      );
+    });
   }
 
   // Open a fresh empty layout in its own tab, make it active, then let the
@@ -202,6 +277,26 @@
       </button>
     {/each}
   </div>
+
+  <!-- Mirrors the desktop panel's offline notice (#3151): a failed catalogue
+       fetch must not read as "no saved layouts". Sits outside the listbox so
+       the list keeps only option children. -->
+  {#if serverMode && serverLibrary.status === "unavailable"}
+    <div class="server-unavailable">
+      <p class="unavailable-message">Cannot reach {getServerInstanceLabel()}</p>
+      <p class="unavailable-hint">
+        Your open layout is safe. Retry to list the rest.
+      </p>
+      <button
+        type="button"
+        class="retry"
+        onclick={() => void refreshServerLibrary()}
+        data-testid="mobile-server-retry"
+      >
+        Retry
+      </button>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -443,6 +538,62 @@
   .starter-meta {
     font-size: var(--font-size-xs);
     color: var(--colour-text-muted);
+  }
+
+  /* Server-unavailable notice. Centred like the desktop empty state, with a
+     full-width Retry sized to the shared touch target. */
+  .server-unavailable {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-3);
+    text-align: center;
+  }
+
+  .unavailable-message {
+    margin: 0;
+    font-size: var(--font-size-base);
+    color: var(--colour-text);
+  }
+
+  .unavailable-hint {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--colour-text-muted);
+  }
+
+  .retry {
+    width: 100%;
+    min-height: var(--touch-target-min);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+    color: var(--colour-text);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .retry:hover {
+    background: var(--colour-surface-hover);
+    border-color: var(--colour-text-muted);
+  }
+
+  .retry:active {
+    background: var(--colour-surface-hover);
+    scale: 0.98;
+  }
+
+  .retry:focus-visible {
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: 2px;
   }
 
   @media (prefers-reduced-motion: reduce) {
