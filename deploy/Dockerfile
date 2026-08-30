@@ -39,7 +39,7 @@ ARG APK_CACHEBUST=0
 USER root
 RUN echo "apk-cachebust=${APK_CACHEBUST}" && \
     apk upgrade --no-cache && \
-    apk add --no-cache --upgrade "libssl3>=3.5.7-r0" "libcrypto3>=3.5.7-r0" "libexpat>=2.8.1-r0" "c-ares>=1.34.8-r0"
+    apk add --no-cache --upgrade "libssl3>=3.5.7-r0" "libcrypto3>=3.5.8-r0" "libexpat>=2.8.1-r0" "c-ares>=1.34.8-r0"
 USER nginx
 
 # OCI labels
