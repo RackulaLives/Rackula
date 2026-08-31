@@ -201,7 +201,7 @@ jobs:
 
       - name: Run security triage
         if: steps.gate.outputs.has_alerts == 'true'
-        uses: anthropics/claude-code-action@dcb57747bfceeaa1fa72638cae52295d1d853d4a # v1
+        uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1
         # Pass the OAuth token both as the action input and as the env var the
         # underlying Claude CLI reads, so auth binds regardless of whether this
         # pinned action version exposes the claude_code_oauth_token input.
