@@ -22,7 +22,7 @@
     "postcss": "^8.5.18"
   },
   "dependencies": {
-    "@node-rs/argon2": "^2.1.0",
+    "@node-rs/argon2": "^2.2.0",
     "better-auth": "^1.6.29",
     "hono": "^4.13.4",
     "jose": "^6.2.10",
