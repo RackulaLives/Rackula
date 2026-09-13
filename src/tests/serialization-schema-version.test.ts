@@ -108,12 +108,12 @@ describe("schema_version in serialized YAML", () => {
 });
 
 describe("schema_version in a generated archive", () => {
-  it("writes the entry metadata stamp into the archive YAML", async () => {
+  it("restamps a prior-release stamp in supplied entry metadata", async () => {
     const blob = await createMultiLayoutArchive([
       {
         layout: layoutWith(metadata()),
         images: new Map() as ImageStoreMap,
-        metadata: metadata(SCHEMA_VERSION),
+        metadata: metadata(PRIOR_RELEASE_STAMP),
       },
     ]);
 
@@ -147,6 +147,13 @@ describe("schemaVersionForWrite", () => {
   it("stamps SCHEMA_VERSION over an older, absent, empty, or malformed stamp", () => {
     for (const stamp of [PRIOR_RELEASE_STAMP, undefined, "", "not-a-version"]) {
       expect(schemaVersionForWrite(stamp), String(stamp)).toBe(SCHEMA_VERSION);
+    }
+  });
+
+  it("does not keep a malformed stamp even when its numeric prefix is newer", () => {
+    const newer = newerMinorStamp();
+    for (const stamp of [`${newer}x`, `${newer}-beta`, `${newer}.0`]) {
+      expect(schemaVersionForWrite(stamp), stamp).toBe(SCHEMA_VERSION);
     }
   });
 });
