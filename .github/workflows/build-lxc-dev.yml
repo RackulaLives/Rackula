@@ -95,7 +95,10 @@ jobs:
           # musl) in one production install, so the bundled node_modules runs on both
           # architectures. --production keeps devDependencies out of the tarball. The
           # runtime loader selects the binary by file presence, not the os/cpu manifest.
-          bun install --frozen-lockfile --production --cpu='*' --os=linux
+          # better-auth declares vitest as an optional peer, and Bun installs optional
+          # peers present in the lockfile, so --production alone still ships the
+          # dev-only vitest/vite tree. --omit=peer drops it (#3279).
+          bun install --frozen-lockfile --production --omit=peer --cpu='*' --os=linux
 
           # Fail the build if either native binary is missing.
           test -f node_modules/@node-rs/argon2-linux-x64-gnu/argon2.linux-x64-gnu.node
