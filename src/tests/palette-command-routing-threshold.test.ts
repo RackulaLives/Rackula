@@ -30,6 +30,7 @@ const ctx: ActionEnabledContext = {
   hasRacks: true,
   canMoveDeviceSlot: false,
   mode: "server",
+  readOnly: false,
 };
 
 const commands = getPaletteSearchCommands(ctx);
