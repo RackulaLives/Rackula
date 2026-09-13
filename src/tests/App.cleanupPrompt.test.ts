@@ -305,8 +305,16 @@ describe("App cleanup prompt flow", { retry: 2, timeout: 30000 }, () => {
     expect(
       await screen.findByRole("dialog", { name: "Clean Up Device Library" }),
     ).toBeInTheDocument();
+    // bits-ui unmounts a closed dialog after its exit animation frame, as in
+    // a real browser, so wait for the Settings dialog to go, then confirm its
+    // teardown left the cleanup dialog open.
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "Settings" }),
+      ).not.toBeInTheDocument();
+    });
     expect(
-      screen.queryByRole("dialog", { name: "Settings" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("dialog", { name: "Clean Up Device Library" }),
+    ).toBeInTheDocument();
   });
 });
