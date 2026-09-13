@@ -21,11 +21,16 @@ import { findDeviceType } from "$lib/utils/device-lookup";
 import { effectiveFace } from "./effective-face";
 
 /**
- * Check if a placed device is a container child
- * Container children have container_id set and are excluded from rack-level collision
+ * Check if a placed device is a container child.
+ *
+ * A falsy container_id (undefined or "") means rack-level, matching the
+ * convention used across the write/migration paths (#2699, #2759). A prior-
+ * release rack-level device can serialize container_id as "", and a strict
+ * `!== undefined` check would misclassify it as a container child, wrongly
+ * excluding it from rack-level collision (#3076).
  */
 export function isContainerChild(device: PlacedDevice): boolean {
-  return device.container_id !== undefined;
+  return Boolean(device.container_id);
 }
 
 /**

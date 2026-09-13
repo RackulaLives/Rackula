@@ -92,6 +92,12 @@ describe("isContainerChild", () => {
     expect(rackDevice.container_id).toBeUndefined();
     expect(isContainerChild(rackDevice)).toBe(false);
   });
+
+  it("returns false when container_id is an empty string (#3076)", () => {
+    // A prior-release rack-level device can serialize container_id as "".
+    const rackDevice = createTestDevice({ position: 5, container_id: "" });
+    expect(isContainerChild(rackDevice)).toBe(false);
+  });
 });
 
 // =============================================================================
@@ -139,6 +145,34 @@ describe("Container devices at rack level", () => {
     expect(
       canPlaceDevice(rack, [serverType, containerType], 4, toInternalUnits(8)),
     ).toBe(false);
+  });
+
+  it("a device with an empty-string container_id participates in rack-level collision (#3076)", () => {
+    // A prior-release rack-level device can serialize container_id as "".
+    const serverType = createTestDeviceType({ slug: "server-1u", u_height: 1 });
+    const rack = createTestRack({
+      height: 42,
+      devices: [
+        createTestDevice({
+          device_type: "server-1u",
+          position: 10,
+          container_id: "",
+        }),
+      ],
+    });
+
+    expect(canPlaceDevice(rack, [serverType], 1, toInternalUnits(10))).toBe(
+      false,
+    );
+
+    const collisions = findCollisions(
+      rack,
+      [serverType],
+      1,
+      toInternalUnits(10),
+    );
+    // eslint-disable-next-line no-restricted-syntax -- Testing collision count (exactly 1: the rack-level device)
+    expect(collisions).toHaveLength(1);
   });
 });
 

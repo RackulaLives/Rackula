@@ -194,6 +194,28 @@ describe("toMinimalLayout", () => {
     expect(dt!.x).toBe("s"); // server -> s
   });
 
+  it("encodes a device with an empty-string container_id as rack-level, not a child (#3076)", () => {
+    // A prior-release rack-level device can serialize container_id as "".
+    const deviceType = createTestDeviceType({ slug: "server" });
+    const device = createTestDevice({
+      device_type: "server",
+      position: 5,
+      container_id: "",
+    });
+
+    const layout = createTestLayout({
+      racks: [createTestRack({ devices: [device] })],
+      device_types: [deviceType],
+    });
+
+    const minimal = toMinimalLayout(layout);
+    const encoded = minimal.rs[0].d[0];
+
+    expect(encoded.ci).toBeUndefined();
+    expect(encoded.si).toBeUndefined();
+    expect(encoded.p).toBe(5);
+  });
+
   it("includes optional device name when set", () => {
     const deviceType = createTestDeviceType({ slug: "server" });
     const device = createTestDevice({

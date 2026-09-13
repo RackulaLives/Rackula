@@ -127,8 +127,11 @@ function orderPlacedDeviceFields(
   if (device.device_bay !== undefined) ordered.device_bay = device.device_bay;
 
   // --- Container Child Placement ---
-  if (device.container_id !== undefined)
-    ordered.container_id = device.container_id;
+  // A falsy container_id (undefined or "") means rack-level (#2699, #2759).
+  // Omit it rather than round-tripping a meaningless empty string, so a
+  // resave normalizes away any lingering value from prior-release data
+  // (#3076).
+  if (device.container_id) ordered.container_id = device.container_id;
   if (device.slot_id !== undefined) ordered.slot_id = device.slot_id;
 
   // --- Auto-Created Placement ---
