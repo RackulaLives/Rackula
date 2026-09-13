@@ -79,6 +79,24 @@ export function compareVersions(a: string, b: string): number {
 }
 
 /**
+ * The schema_version a writer stamps on a saved layout (#3108).
+ *
+ * A layout re-saved after load and migration is in the current format, so an
+ * older, absent, empty, or malformed stamp becomes SCHEMA_VERSION. A newer stamp
+ * is kept: unknown fields round-trip on save, so a layout from a newer same-MAJOR
+ * app still carries that format's additions, and restamping it down would
+ * misdescribe the file. A newer MAJOR never reaches a writer because every read
+ * door rejects it (assertSchemaVersionSupported).
+ *
+ * @param current - The layout's metadata.schema_version, if any.
+ */
+export function schemaVersionForWrite(current: string | undefined): string {
+  return current !== undefined && compareVersions(current, SCHEMA_VERSION) > 0
+    ? current
+    : SCHEMA_VERSION;
+}
+
+/**
  * Check if a layout needs position migration.
  * Uses two checks (belt and suspenders):
  * 1. Version < 0.7.0 (when internal units were introduced)

@@ -16,6 +16,7 @@ import { listSavedLayouts, loadSavedLayout } from "$lib/storage/api";
 import { resetToastStore } from "$lib/stores/toast.svelte";
 import { resetImageStore } from "$lib/stores/images.svelte";
 import { createMultiLayoutArchive } from "$lib/utils/archive";
+import { SCHEMA_VERSION } from "$lib/schemas/migrations";
 import { createTestLayout, createTestRack } from "./factories";
 import type { ImageStoreMap } from "$lib/types/images";
 
@@ -94,6 +95,25 @@ describe("handleExportAll", () => {
       getLayoutStore().addRack("Rack", 42);
       await handleExportAll();
       expect(mockedList).not.toHaveBeenCalled();
+    });
+
+    it("stamps the bundled layout with the current SCHEMA_VERSION", async () => {
+      // A layout loaded from a prior release keeps its old stamp in the store,
+      // but the backup is written now, so it carries the current format (#3108).
+      getLayoutStore().loadLayout(
+        createTestLayout({
+          metadata: {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Homelab",
+            schema_version: "1.0",
+          },
+        }),
+      );
+
+      await handleExportAll();
+
+      const entries = mockedBuild.mock.calls[0]![0];
+      expect(entries[0]!.metadata?.schema_version).toBe(SCHEMA_VERSION);
     });
   });
 

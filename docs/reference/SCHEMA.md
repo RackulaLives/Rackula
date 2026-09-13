@@ -27,12 +27,12 @@ This is the contract for how the layout format evolves and how readers behave ac
 
 | Field | Meaning | Authoritative for |
 | --- | --- | --- |
-| `metadata.schema_version` | Data-format version, `MAJOR.MINOR` (current `1.0`) | Load / reject decisions. This is the only field a reader consults to decide loadability. |
+| `metadata.schema_version` | Data-format version, `MAJOR.MINOR` (current value: `SCHEMA_VERSION` in `src/lib/schemas/migrations.ts`) | Load / reject decisions. This is the only field a reader consults to decide loadability. |
 | `version` (top-level) | App version that wrote or last-migrated the file (provenance) | The existing pre-0.7.0 position migration only. Nothing new keys off it. It is not renamed. |
 
 Rules:
 
-- Every writer must emit `schema_version` (it defaults to `"1.0"` on save). A serializer test must assert that saved output always contains it, so a future writer cannot omit it and let a newer file masquerade as 1.0. This assertion is not yet in the suite; it is tracked with the reject-newer-major gate (#2205).
+- Every writer must emit `schema_version`. Writers stamp `SCHEMA_VERSION`, but keep a newer same-MAJOR stamp so a resave from an older build does not misdescribe round-tripped additive data (#3108). A serializer test must assert that saved output always contains it, so a future writer cannot omit it and let a newer file masquerade as 1.0. This assertion is not yet in the suite; it is tracked with the reject-newer-major gate (#2205).
 - On read, an absent `schema_version` in a YAML layout file is treated as `1.0` (every YAML file predating versioning is 1.0 by construction). This defaulting is scoped to the YAML parser, is a read-side allowance only, and is never produced on write. Payloads that carry no version marker by design (share-links) are not covered by this default.
 
 ### Reader rule (compatibility)

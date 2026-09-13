@@ -14,6 +14,7 @@ import {
   assertSchemaVersionSupported,
   type LayoutZod,
 } from "$lib/schemas";
+import { schemaVersionForWrite } from "$lib/schemas/migrations";
 import { adaptLegacyLayout } from "$lib/storage";
 import { layoutDebug, importDebug } from "$lib/utils/debug";
 import {
@@ -120,14 +121,14 @@ export async function serializeLayoutToYaml(
 ): Promise<string> {
   warnDuplicateDeviceIds(layout);
 
-  // Build the metadata header only when an id is present, with the same fallback
-  // name/schema_version defaults this path has always used.
+  // Build the metadata header only when an id is present. The name falls back to
+  // the layout name; schema_version is stamped for write (#3108).
   const metadata: LayoutMetadata | undefined =
     layout.metadata?.id != null
       ? {
           id: layout.metadata.id,
           name: layout.metadata.name ?? layout.name,
-          schema_version: layout.metadata.schema_version || "1.0",
+          schema_version: schemaVersionForWrite(layout.metadata.schema_version),
           description: layout.metadata.description,
         }
       : undefined;
@@ -153,7 +154,7 @@ export async function serializeLayoutToYaml(
  * metadata:
  *   id: 550e8400-e29b-41d4-a716-446655440000
  *   name: My Homelab
- *   schema_version: "1.0"
+ *   schema_version: "<SCHEMA_VERSION>"
  *   description: "Basement setup for home automation"
  *
  * version: "0.7.0"

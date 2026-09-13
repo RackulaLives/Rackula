@@ -30,6 +30,7 @@ import {
 } from "./yaml";
 import { encodeUserImagesToYaml } from "./image-encoding";
 import { generateId } from "./device";
+import { schemaVersionForWrite } from "$lib/schemas/migrations";
 import { buildFolderName, buildYamlFilename } from "./folder-structure";
 import {
   isPlacementKey,
@@ -153,7 +154,7 @@ async function addLayoutFolderToZip(
   const layoutMetadata: LayoutMetadata = metadata ?? {
     id: layout.metadata?.id ?? generateId(),
     name: layout.metadata?.name ?? layout.name,
-    schema_version: layout.metadata?.schema_version ?? "1.0",
+    schema_version: schemaVersionForWrite(layout.metadata?.schema_version),
     description: layout.metadata?.description,
   };
 
