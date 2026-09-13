@@ -72,32 +72,38 @@ jobs:
               echo "ERROR: slug '$SLUG' is invalid: must not contain '..'"
               exit 1
             fi
+            if [[ "$SLUG" == *.lock ]]; then
+              echo "ERROR: slug '$SLUG' is invalid: must not end with '.lock', which git refs disallow"
+              exit 1
+            fi
           fi
 
-          # Derive a safe, deterministic git branch identifier from vendor:
-          # lowercase, collapse runs of non-alphanumerics to a single hyphen,
-          # trim leading and trailing hyphens. The vendor validation above
-          # guarantees this is never empty (vendor always starts and ends
-          # with an alphanumeric).
-          #
-          # Two different vendor names can collapse to the same slug (e.g.
-          # the real devicetype-library folders "ALLNET" and "Allnet" both
-          # become "allnet"), which would make unrelated vendors share one
-          # branch and PR. A short sha256 hash of the raw vendor is appended
-          # to keep the id both readable and collision-free, and it stays
-          # deterministic: the same vendor always hashes to the same id.
-          VENDOR_SLUG=$(echo "$VENDOR" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
-          VENDOR_HASH=$(printf '%s' "$VENDOR" | sha256sum | cut -c1-8)
-          VENDOR_ID="${VENDOR_SLUG}-${VENDOR_HASH}"
+          # The branch identity must equal the import script's output identity:
+          # two runs that write to the same brand pack file must land on the
+          # same branch, so a real conflict surfaces as an ordinary git merge
+          # conflict instead of two branches silently disagreeing about the
+          # same file. scripts/import-netbox-devices.ts (brandPackFilePath)
+          # writes to src/lib/data/brandPacks/<vendor.toLowerCase()>.ts, so
+          # VENDOR_KEY reproduces that exact transform: lowercase only, no
+          # punctuation collapsing. Git branch names cannot contain a literal
+          # space, so space is mapped to a hyphen; every other character in
+          # the vendor allowlist (. _ & - and alphanumerics) is a valid git
+          # ref character and is left untouched.
+          VENDOR_KEY=$(printf '%s' "$VENDOR" | tr 'A-Z ' 'a-z-')
 
-          # A single-device import (--slug) gets its own branch per device, so
-          # concurrent imports for the same vendor don't combine into one PR.
-          # An --all import keeps the existing vendor-level branch.
+          # The device part of the branch is the slug verbatim: it is already
+          # restricted to [A-Za-z0-9._-], starts and ends alphanumeric, has no
+          # "..", and (checked above) does not end in ".lock", so it is a safe
+          # git ref component as-is. It is not lowercased or normalised, so
+          # differently-punctuated slugs such as "foo.bar" and "foo-bar" name
+          # different devices and get different branches, matching the fact
+          # that they are different NetBox device slugs. A single-device
+          # import (--slug) gets its own branch per device; an --all import
+          # keeps the vendor-level branch.
           if [ -n "$SLUG" ]; then
-            DEVICE_SLUG=$(echo "$SLUG" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
-            BRANCH_NAME="${VENDOR_ID}-${DEVICE_SLUG}"
+            BRANCH_NAME="${VENDOR_KEY}-${SLUG}"
           else
-            BRANCH_NAME="${VENDOR_ID}-devices"
+            BRANCH_NAME="${VENDOR_KEY}-devices"
           fi
           echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
 
