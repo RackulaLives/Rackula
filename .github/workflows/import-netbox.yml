@@ -17,6 +17,15 @@ on:
         type: boolean
         default: true
 
+# This is a rare, maintainer-dispatched workflow, so a single global group
+# serialises every run regardless of vendor or slug, keeping raw inputs out
+# of the concurrency key. cancel-in-progress is false: an in-flight import
+# should finish (or fail on its own) rather than be cancelled by the next
+# dispatch.
+concurrency:
+  group: import-netbox
+  cancel-in-progress: false
+
 jobs:
   import:
     runs-on: ubuntu-latest
