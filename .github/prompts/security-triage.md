@@ -95,7 +95,7 @@ For a gated finding you judge a false positive:
      --jq '.[] | select((((.title // "") + " " + (.body // "")) | contains("<CVE-id>")) or any((.files // [])[]; .path == ".trivyignore")) | "#\(.number) \(.title)"'
    ```
 
-   If an unexpired entry or an open PR already covers the CVE, go to step 4 and link it in the dismissal comment.
+   If an unexpired entry on `main` already covers the CVE, the gate already ignores it: dismiss under Step 4a with a comment that cites the entry and the discussion link in its comment, and open no PR. If an open PR already adds the entry, confirm its URL with `gh pr view <number> --json url -q .url`, open no duplicate, and go to step 4 with that URL.
 
 2. If a fixed version can be adopted with a small change (a dependency bump or override, an apk pin, a base image bump), make that change under Step 4b instead of adding an ignore entry. Ignore entries are only for findings with no adoptable fix.
 3. Otherwise add one entry to `.trivyignore`, with the comments on their own lines above it:
@@ -110,7 +110,7 @@ For a gated finding you judge a false positive:
 
    Commit the entry on branch `fix/security-<alert-number>` and open a DRAFT PR as in Step 4b, items 4 to 7. Title: `security: add .trivyignore entry for <CVE-id> (alert #<number>)`. The body must also state the images affected, the expiry date, and that merging the PR is what lets the release gate pass.
 
-4. Dismiss the alert (Step 4a) only after the PR URL is confirmed, and end the comment with that URL. If the PR could not be opened, leave the alert open and report it.
+4. Dismiss the alert (Step 4a) only after a PR URL is confirmed, either the PR you opened or the existing one from step 1, and end the comment with that URL. If the PR could not be opened, leave the alert open and report it.
 
 Accepted risk is a maintainer decision, not a triage outcome. Never dismiss a real finding as `won't fix`. If a real gated finding has no adoptable fix, handle it under Step 4b and leave the alert open. That draft PR may propose a `.trivyignore` entry in the format above, and the maintainer who merges it accepts the risk.
 
@@ -126,4 +126,4 @@ Accepted risk is a maintainer decision, not a triage outcome. Never dismiss a re
 
 ## Report
 
-At the end, summarize what you did: how many net-new findings, how many dismissed as false positives, how many draft PRs opened (with their URLs, noting which add a `.trivyignore` entry), and how many skipped due to the cap. For every real finding and every dismissed release-gated finding, confirm its draft PR exists and include the URL. If you pushed a branch but could not open its PR, say so explicitly and loudly: that is a bug, not a completed triage.
+At the end, summarize what you did: how many net-new findings, how many dismissed as false positives, how many draft PRs opened (with their URLs, noting which add a `.trivyignore` entry), and how many skipped due to the cap. For every real finding and every dismissed release-gated finding, confirm its draft PR exists and include the URL, or name the unexpired `.trivyignore` entry that already covered it. If you pushed a branch but could not open its PR, say so explicitly and loudly: that is a bug, not a completed triage.

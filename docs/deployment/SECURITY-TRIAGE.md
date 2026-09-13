@@ -30,11 +30,11 @@ The release gate (`scan-images` in `.github/workflows/build-images.yml`) reads o
 
 For a Trivy alert in a container-image category (`trivy-ghcr.io-*`, covering the app, persist, and api images) that triage judges a false positive, the playbook:
 
-1. Links the existing decision instead of opening a PR when an unexpired `.trivyignore` entry or an open PR already covers the CVE.
+1. Checks for existing coverage. If an unexpired `.trivyignore` entry on `main` covers the CVE, it dismisses with a comment citing that entry and opens no PR. If an open PR already adds the entry, it reuses that PR's URL instead of opening a duplicate.
 2. Prefers a fix when a small change can adopt one (a dependency bump or override, an apk pin, a base image bump). Ignore entries are only for findings with no adoptable fix.
 3. Otherwise adds one `.trivyignore` entry: the CVE id with an `exp:` date 90 days out, a comment with the reason, and the alert URL as the discussion link.
 4. Commits the change to `fix/security-<alert-number>` and opens a draft PR, so the existing safety-net step also covers it.
-5. Dismisses the alert only once the PR exists, with a comment that links the PR.
+5. Dismisses the alert only once a PR exists, its own or the existing one, with a comment that links the PR.
 
 Filesystem findings (`trivy-filesystem-*`) are not scanned by the release gate and get no entry.
 
