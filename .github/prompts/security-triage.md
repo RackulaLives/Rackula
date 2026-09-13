@@ -84,7 +84,7 @@ Two things to get right for these:
 
 The release gate (`scan-images` in `.github/workflows/build-images.yml`) runs Trivy fail-closed on every release image and reads only `.trivyignore`. It never reads Code Scanning alert state, so a dismissed alert still fails the next release (#3231).
 
-This applies to a Trivy alert whose `most_recent_instance.category` starts with `trivy-ghcr.io-` (the app, persist, and api images). Filesystem categories (`trivy-filesystem-app`, `trivy-filesystem-api`) are not gated: Step 4a alone covers those.
+This applies to a Trivy alert whose `most_recent_instance.category` starts with `trivy-ghcr.io-` (the app, persist, and api images). On `main` these come from scans of the rolling `latest`, `persist`, and api `latest` tags, which hold the last release's images: `rebuild-images.yml` rebuilds them from the latest release tag with OS packages refreshed. The next release gate scans the same contents unless `main` has changed that package since, so treat a finding here as one the gate will enforce. Triage never sees the release scans themselves, which run on tag refs. Filesystem categories (`trivy-filesystem-app`, `trivy-filesystem-api`) are not gated: Step 4a alone covers those.
 
 For a gated finding you judge a false positive:
 
@@ -92,7 +92,7 @@ For a gated finding you judge a false positive:
 
    ```bash
    gh pr list --state open --label security --limit 100 --json number,title,body,files \
-     --jq '.[] | select(((.title + " " + .body) | contains("<CVE-id>")) or any(.files[]; .path == ".trivyignore")) | "#\(.number) \(.title)"'
+     --jq '.[] | select((((.title // "") + " " + (.body // "")) | contains("<CVE-id>")) or any((.files // [])[]; .path == ".trivyignore")) | "#\(.number) \(.title)"'
    ```
 
    If an unexpired entry or an open PR already covers the CVE, go to step 4 and link it in the dismissal comment.

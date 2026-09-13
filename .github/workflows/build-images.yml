@@ -548,7 +548,13 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             .trivyignore
+            scripts/check-trivyignore.sh
           sparse-checkout-cone-mode: false
+
+      # Trivy accepts a bare id, so fail closed on any entry that lacks a
+      # reason, an https:// link, or an exp: date (#3231).
+      - name: Check .trivyignore entry format
+        run: bash scripts/check-trivyignore.sh .trivyignore
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0

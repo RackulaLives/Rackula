@@ -72,6 +72,8 @@ Every entry requires:
 - a comment explaining why it is unfixable upstream or an accepted risk
 - a link to the accepted-risk discussion (the Code Scanning alert, or an issue or PR) that recorded the decision
 
+`scripts/check-trivyignore.sh` enforces this: `scan-images` runs it before the scan and the `validate` PR check runs it too, so an entry without a reason, an `https://` link, or an `exp:` date fails. The comment lines must sit directly above their entry.
+
 After its `exp:` date, Trivy stops applying an entry and the gate fails on that CVE again, so accepted risk is re-reviewed instead of carried forward. Trivy also skips an entry whose date does not parse, which fails closed the same way.
 
 Do not add an entry to unblock a release without that discussion first. If a fix becomes available upstream, remove the entry rather than leaving it stale; the weekly `trivy.yml` scan and the monthly `rebuild-images.yml` OS-patch rescan will keep surfacing it as a reminder if you don't.

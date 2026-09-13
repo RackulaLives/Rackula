@@ -110,6 +110,9 @@ jobs:
       - name: Check self-host header and build-env parity
         run: bash scripts/check-header-parity.sh
 
+      - name: Check .trivyignore entry format
+        run: bash scripts/check-trivyignore.sh .trivyignore
+
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:

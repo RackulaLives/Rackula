@@ -19,11 +19,15 @@
 #   - a link to the accepted-risk discussion (the Code Scanning alert, or a
 #     GitHub issue or PR) that recorded the decision
 #
-# Put the comments on their own lines above the entry:
+# Put the comments on their own lines directly above the entry, with no blank
+# or bare "#" line in between:
 #
 #   # <package> in the <image> image: <reason>
 #   # https://github.com/RackulaLives/Rackula/security/code-scanning/<number>
 #   CVE-YYYY-NNNNN exp:YYYY-MM-DD
+#
+# scripts/check-trivyignore.sh enforces this format before the release scan,
+# so an entry without a reason, link, or exp: date fails the gate.
 #
 # Trivy stops applying an entry after its exp: date, or if the date does not
 # parse, so the gate fails on that CVE again until the entry is re-reviewed
