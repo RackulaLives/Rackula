@@ -42,12 +42,12 @@ The repo already excludes `scripts/**` from CodeQL (dev tooling that does fetch 
 
 ## Step 4a: False positive -> dismiss
 
-If the finding is not real, dismiss it with a clear reason:
+If the finding is not real, dismiss it with a clear reason. Write the comment (280 characters max) to a file outside the checkout with the Write tool, then pass it with `-F dismissed_comment=@<file>`, so the shell never parses alert-derived text:
 
 ```bash
 gh api --method PATCH "/repos/{owner}/{repo}/code-scanning/alerts/<NUMBER>" \
   -f state=dismissed -f dismissed_reason="false positive" \
-  -f dismissed_comment="<why this is not exploitable here, 280 characters max>"
+  -F dismissed_comment=@/tmp/dismiss-<NUMBER>.txt
 ```
 
 For a Trivy container-image finding, dismissing is not enough: the release gate still fails on it. Follow "Release-gated image findings" below before you dismiss.
@@ -60,13 +60,13 @@ If the finding is real:
 2. If the fix is small and clear (a dependency bump, an input-validation guard, an encoding call), implement it directly with minimal, targeted edits. Do not refactor or touch unrelated code.
 3. If the fix is not straightforward, do not guess at code. Instead write a triage document to `docs/security-triage/<alert-number>-<rule-id-slug>.md` describing the finding, your analysis, and a concrete suggested fix (with a before/after code example), so a human can finish it.
 4. Commit, push the branch, and open a DRAFT PR against `main`. Title: `security: triage <rule-id> in <file> (alert #<number>)`.
-5. The PR body must include: the tool, severity, your confidence, the file, the alert URL, your triage reasoning, and the suggested fix (or the implemented fix if you made one).
+5. The PR body must include: the tool, severity, your confidence, the file, the alert URL, your triage reasoning, and the suggested fix (or the implemented fix if you made one). Write it to a file outside the checkout and pass it with `--body-file`, as in Step 4a.
 6. Label the PR `security` and `automated`.
 7. Verify the PR exists before moving on: run `gh pr view <branch> --json url -q .url`. If it returns nothing, `gh pr create` did not succeed: retry it. A real finding is not handled until its draft PR exists and you have its URL. Pushing the branch is not enough.
 
 ```bash
 gh pr create --draft --base main --head <branch> \
-  --title "..." --body "..." --label security --label automated
+  --title "..." --body-file /tmp/pr-body-<number>.md --label security --label automated
 ```
 
 A workflow safety-net step opens a draft PR for any orphaned `fix/security-*` branch as a backstop, but do not rely on it: open and confirm the PR yourself.
@@ -88,7 +88,15 @@ This applies to a Trivy alert whose `most_recent_instance.category` starts with 
 
 For a gated finding you judge a false positive:
 
-1. Check for an existing decision: `grep -n '<CVE-id>' .trivyignore`, and `gh pr list --state open --search "<CVE-id> in:title"`. If an unexpired entry or an open PR already covers the CVE, go to step 4 and link it in the dismissal comment.
+1. Check for an existing decision. Look for an entry with `grep -nF '<CVE-id>' .trivyignore`. Then list open `security` PRs that name the CVE in their title or body, or that change `.trivyignore`, and run `gh pr diff <number>` on any that change `.trivyignore` to see whether they add this CVE. Safety-net PRs name only the alert number, so their diff is the only place the CVE appears.
+
+   ```bash
+   gh pr list --state open --label security --limit 100 --json number,title,body,files \
+     --jq '.[] | select(((.title + " " + .body) | contains("<CVE-id>")) or any(.files[]; .path == ".trivyignore")) | "#\(.number) \(.title)"'
+   ```
+
+   If an unexpired entry or an open PR already covers the CVE, go to step 4 and link it in the dismissal comment.
+
 2. If a fixed version can be adopted with a small change (a dependency bump or override, an apk pin, a base image bump), make that change under Step 4b instead of adding an ignore entry. Ignore entries are only for findings with no adoptable fix.
 3. Otherwise add one entry to `.trivyignore`, with the comments on their own lines above it:
 
