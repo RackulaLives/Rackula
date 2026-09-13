@@ -17,6 +17,7 @@ import {
   createAddRackCommand,
   createDeleteRackCommand,
   createUpdateRackCommand,
+  createRemoveConnectionCommand,
   createBatchCommand,
   type Command,
   type RackGroupCommandStore,
@@ -27,6 +28,7 @@ import {
 } from "./rack-actions";
 import { getCommandStoreAdapter } from "./command-adapters";
 import { bindCommandToRack } from "./recorded-rack-actions";
+import { findConnectionsForDevices } from "./recorded-device-type-actions";
 import {
   planBayedInsert,
   planRowAfterRemoval,
@@ -1034,7 +1036,24 @@ export function removeRackFromBay(
   //    command restores its membership.
   commands.push(createDeleteRackCommand(rack, [], rackAdapter));
 
-  const batch = createBatchCommand("Remove rack from bay", commands);
+  // Deleting the rack destroys its devices' ports, so remove the connections
+  // that reference them in the same undo step (#3122, same pattern as #639).
+  const connectionAdapter = getCommandStoreAdapter(ctx);
+  const connectionCommands: Command[] = findConnectionsForDevices(
+    ctx,
+    rack.devices.map((device) => ({ rackId, device })),
+  ).map((connection) =>
+    createRemoveConnectionCommand(
+      connection,
+      connectionAdapter,
+      `Remove connection ${connection.label ?? connection.id}`,
+    ),
+  );
+
+  const batch = createBatchCommand("Remove rack from bay", [
+    ...connectionCommands,
+    ...commands,
+  ]);
   history.execute(batch);
   ctx.markDirty();
 
@@ -1120,9 +1139,27 @@ export function deleteBayedGroup(
     }
   }
 
+  // Deleting the member racks destroys their devices' ports, so remove the
+  // connections that reference them in the same undo step (#3122, same
+  // pattern as #639). One lookup across every member removes a connection
+  // between two members once.
+  const connectionAdapter = getCommandStoreAdapter(ctx);
+  const connectionCommands: Command[] = findConnectionsForDevices(
+    ctx,
+    layout.racks
+      .filter((r) => group.rack_ids.includes(r.id))
+      .flatMap((r) => r.devices.map((device) => ({ rackId: r.id, device }))),
+  ).map((connection) =>
+    createRemoveConnectionCommand(
+      connection,
+      connectionAdapter,
+      `Remove connection ${connection.label ?? connection.id}`,
+    ),
+  );
+
   const batch = createBatchCommand(
     `Delete bayed group "${group.name ?? "Bayed Rack"}"`,
-    commands,
+    [...connectionCommands, ...commands],
   );
   history.execute(batch);
   ctx.markDirty();
