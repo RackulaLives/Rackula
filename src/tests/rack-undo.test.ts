@@ -13,7 +13,9 @@ import { getHistoryStore, resetHistoryStore } from "$lib/stores/history.svelte";
 import { updateRackRecorded } from "$lib/stores/layout/recorded-rack-actions";
 import type { LayoutStateAccess } from "$lib/stores/layout/types";
 import {
+  createTestConnection,
   createTestDeviceType,
+  createTestInterfaceTemplate,
   createTestLayout,
   createTestRack,
 } from "./factories";
@@ -546,6 +548,122 @@ describe("Rack Add/Delete Undo/Redo", () => {
       store.redo(); // Redo add rack3
       expect(store.racks.length).toBe(initialRackCount + 2);
       expect(store.getRackById(rack3!.id)).toBeDefined();
+    });
+  });
+
+  describe("connection cleanup on rack clear and delete (#3122)", () => {
+    const ALL_CONNECTION_IDS = [
+      "conn-a-internal",
+      "conn-a-to-b",
+      "conn-b-internal",
+    ];
+
+    /**
+     * Two racks with two devices each. Connections: one inside rack A, one
+     * from rack A to rack B, and one inside rack B.
+     */
+    function setupConnectedRacks() {
+      const store = getLayoutStore();
+      const rackA = store.addRack("Rack A", 42)!;
+      const rackB = store.addRack("Rack B", 42)!;
+
+      const deviceType = createTestDeviceType({ slug: "test-switch" });
+      deviceType.interfaces = [
+        createTestInterfaceTemplate({ name: "port-0" }),
+        createTestInterfaceTemplate({ name: "port-1" }),
+      ];
+      store.addDeviceTypeRaw(deviceType);
+      for (const rack of [rackA, rackB]) {
+        store.placeDevice(rack.id, deviceType.slug, 5);
+        store.placeDevice(rack.id, deviceType.slug, 10);
+      }
+      const [a1, a2] = store.getRackById(rackA.id)!.devices;
+      const [b1, b2] = store.getRackById(rackB.id)!.devices;
+
+      store.addConnectionRaw(
+        createTestConnection({
+          id: "conn-a-internal",
+          a_port_id: a1!.ports![0]!.id,
+          b_port_id: a2!.ports![0]!.id,
+        }),
+      );
+      store.addConnectionRaw(
+        createTestConnection({
+          id: "conn-a-to-b",
+          a_port_id: a1!.ports![1]!.id,
+          b_port_id: b1!.ports![1]!.id,
+        }),
+      );
+      store.addConnectionRaw(
+        createTestConnection({
+          id: "conn-b-internal",
+          a_port_id: b1!.ports![0]!.id,
+          b_port_id: b2!.ports![0]!.id,
+        }),
+      );
+      store.clearHistory();
+
+      return { store, rackA, rackADeviceIds: [a1!.id, a2!.id] };
+    }
+
+    function connectionIds(store: ReturnType<typeof getLayoutStore>) {
+      return (store.layout.connections ?? []).map((c) => c.id).sort();
+    }
+
+    it("clearing a rack removes its devices' connections and one undo restores both", () => {
+      const { store, rackA, rackADeviceIds } = setupConnectedRacks();
+
+      store.clearRackRecorded(rackA.id);
+
+      expect(store.getRackById(rackA.id)!.devices).toEqual([]);
+      expect(connectionIds(store)).toEqual(["conn-b-internal"]);
+
+      store.undo();
+
+      expect(store.getRackById(rackA.id)!.devices.map((d) => d.id)).toEqual(
+        rackADeviceIds,
+      );
+      expect(connectionIds(store)).toEqual(ALL_CONNECTION_IDS);
+
+      store.redo();
+
+      expect(store.getRackById(rackA.id)!.devices).toEqual([]);
+      expect(connectionIds(store)).toEqual(["conn-b-internal"]);
+    });
+
+    it("deleting a rack removes its devices' connections and one undo restores both", () => {
+      const { store, rackA, rackADeviceIds } = setupConnectedRacks();
+
+      store.deleteRack(rackA.id);
+
+      expect(store.getRackById(rackA.id)).toBeUndefined();
+      expect(connectionIds(store)).toEqual(["conn-b-internal"]);
+
+      store.undo();
+
+      expect(store.getRackById(rackA.id)!.devices.map((d) => d.id)).toEqual(
+        rackADeviceIds,
+      );
+      expect(connectionIds(store)).toEqual(ALL_CONNECTION_IDS);
+
+      store.redo();
+
+      expect(store.getRackById(rackA.id)).toBeUndefined();
+      expect(connectionIds(store)).toEqual(["conn-b-internal"]);
+    });
+
+    it("keeps connections between devices in other racks unchanged", () => {
+      const { store, rackA } = setupConnectedRacks();
+      const survivor = {
+        ...store.layout.connections!.find((c) => c.id === "conn-b-internal")!,
+      };
+
+      store.clearRackRecorded(rackA.id);
+      expect(store.layout.connections).toEqual([survivor]);
+
+      store.undo();
+      store.deleteRack(rackA.id);
+      expect(store.layout.connections).toEqual([survivor]);
     });
   });
 });

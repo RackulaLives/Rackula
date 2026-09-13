@@ -14,12 +14,15 @@ import { generateRackId } from "$lib/utils/rack";
 import {
   createAddRackCommand,
   createDeleteRackCommand,
+  createRemoveConnectionCommand,
   createBatchCommand,
   createCreateRackGroupCommand,
   type Command,
   type RackLifecycleCommandStore,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
+import { getCommandStoreAdapter } from "./command-adapters";
+import { findConnectionsForDevices } from "./recorded-device-type-actions";
 import {
   buildRowReindexCommands,
   getRackGroupCommandAdapter,
@@ -484,7 +487,29 @@ export function deleteRack(ctx: LayoutStateAccess, id: string): void {
   // Use recorded action for undo/redo support
   const history = ctx.getHistory();
   const adapter = getRackLifecycleCommandAdapter(ctx);
-  const command = createDeleteRackCommand(rack, affectedGroups, adapter);
+  const deleteCommand = createDeleteRackCommand(rack, affectedGroups, adapter);
+
+  // Deleting the rack destroys its devices' ports, so remove the connections
+  // that reference them in the same undo step (#3122, same pattern as #639).
+  const connectionAdapter = getCommandStoreAdapter(ctx);
+  const connectionCommands: Command[] = findConnectionsForDevices(
+    ctx,
+    rack.devices.map((device) => ({ rackId: id, device })),
+  ).map((connection) =>
+    createRemoveConnectionCommand(
+      connection,
+      connectionAdapter,
+      `Remove connection ${connection.label ?? connection.id}`,
+    ),
+  );
+
+  const command =
+    connectionCommands.length > 0
+      ? createBatchCommand(deleteCommand.description, [
+          ...connectionCommands,
+          deleteCommand,
+        ])
+      : deleteCommand;
   history.execute(command);
   ctx.markDirty();
 }
