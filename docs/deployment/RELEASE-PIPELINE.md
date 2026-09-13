@@ -25,7 +25,7 @@ Previously a tag push published `latest` everywhere (Docker `:latest`, GitHub la
 
 ## Operator actions
 
-Cutting a release (use the `/release` skill, which computes the CalVer version, updates CHANGELOG.md, tags, and pushes). After the tag is pushed:
+Cutting a release (use the `/release` skill, which computes the CalVer version, updates CHANGELOG.md, tags, and pushes). Before tagging, resolve any open Security Triage PRs that change `.trivyignore` (see [Before tagging](#before-tagging)). After the tag is pushed:
 
 1. Watch the run: `gh run watch` or the Actions tab. Stage and gate run automatically.
 2. When gates pass, the `prod` Environment requests approval. Review the gate results, then approve to promote. Until you approve, the release stays a prerelease and nothing is live on `latest`.
@@ -68,10 +68,39 @@ Findings still upload to the Security tab (`Upload scan results` runs with `if: 
 Every entry requires:
 
 - the CVE id
+- an `exp:YYYY-MM-DD` expiry on the same line, 90 days out by default
 - a comment explaining why it is unfixable upstream or an accepted risk
-- a link to the accepted-risk discussion (issue or PR) that recorded the decision
+- a link to the accepted-risk discussion (the Code Scanning alert, or an issue or PR) that recorded the decision
+
+After its `exp:` date, Trivy stops applying an entry and the gate fails on that CVE again, so accepted risk is re-reviewed instead of carried forward. Trivy also skips an entry whose date does not parse, which fails closed the same way.
 
 Do not add an entry to unblock a release without that discussion first. If a fix becomes available upstream, remove the entry rather than leaving it stale; the weekly `trivy.yml` scan and the monthly `rebuild-images.yml` OS-patch rescan will keep surfacing it as a reminder if you don't.
+
+### Dismissals do not unblock the gate
+
+The gate reads only `.trivyignore`, never Code Scanning alert state. Dismissing an alert in the Security tab, as a false positive or as `won't fix`, does not stop that CVE from failing a release. v26.8.0 was blocked this way by an alert dismissed a week earlier (#3231).
+
+When Security Triage dismisses a container-image finding, it first opens a draft PR on `fix/security-<alert-number>` that adds the `.trivyignore` entry, and the dismissal comment links that PR. Merging the PR is the decision that lets the gate pass. See [Release-gated image findings](SECURITY-TRIAGE.md#release-gated-image-findings). If you dismiss a release image alert yourself, add the entry in a PR as well.
+
+### Before tagging
+
+List open triage PRs that change `.trivyignore`:
+
+```bash
+gh pr list --label security --label automated --state open --json number,title,files \
+  --jq '.[] | select(any(.files[]; .path == ".trivyignore")) | "#\(.number) \(.title)"'
+```
+
+Decide each one before you tag: merge it to accept the entry, or close it and fix the finding. The gate reads `.trivyignore` at the tag, so an entry merged after tagging does not apply to that release.
+
+### Finding the alert behind a failed scan
+
+Image scans run against the tag ref, and their alerts are recorded there under a per-version category such as `trivy-ghcr.io-rackulalives-rackula-api-26.8.0`. The alerts API lists the default branch unless you pass a `ref`, so these alerts are missing from a plain listing, and Security Triage (which works on `main`) never sees them. Query the tag ref with `state=all`, which also returns dismissed alerts:
+
+```bash
+gh api "repos/RackulaLives/Rackula/code-scanning/alerts?ref=refs/tags/<tag>&tool_name=Trivy&state=all&per_page=100" \
+  --jq '.[] | "\(.number) \(.state) \(.rule.id) \(.most_recent_instance.category)"'
+```
 
 ## Smoke test visibility
 

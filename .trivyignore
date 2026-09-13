@@ -6,13 +6,29 @@
 # image blocks promote. This file is the only sanctioned escape hatch, and
 # only for findings that are unfixable upstream or an accepted risk.
 #
+# The gate reads only this file, never Code Scanning alert state, so
+# dismissing an alert in the Security tab does not unblock it (#3231). When
+# Security Triage dismisses a release image finding, it opens a draft PR on
+# fix/security-<alert-number> that adds the entry here. Merging that PR is
+# the decision that lets the gate pass. Triage never commits to main.
+#
 # Every entry below must have:
 #   - the CVE id
+#   - an exp:YYYY-MM-DD expiry on the same line (90 days by default)
 #   - a comment explaining why it is unfixable or accepted
-#   - a link to the accepted-risk discussion (GitHub issue or PR) that
-#     recorded the decision
+#   - a link to the accepted-risk discussion (the Code Scanning alert, or a
+#     GitHub issue or PR) that recorded the decision
 #
-# Do not add an entry to unblock a release without that discussion. If a fix
-# becomes available upstream, remove the entry instead of leaving it stale.
+# Put the comments on their own lines above the entry:
+#
+#   # <package> in the <image> image: <reason>
+#   # https://github.com/RackulaLives/Rackula/security/code-scanning/<number>
+#   CVE-YYYY-NNNNN exp:YYYY-MM-DD
+#
+# Trivy stops applying an entry after its exp: date, or if the date does not
+# parse, so the gate fails on that CVE again until the entry is re-reviewed
+# and renewed or removed. Do not add an entry to unblock a release without
+# that discussion. If a fix becomes available upstream, remove the entry
+# instead of leaving it stale.
 #
 # No active entries at this time.
