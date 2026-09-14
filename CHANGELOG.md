@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [26.9.0] - 2026-09-13
+
+### I DID A LOT, ACTUALLY
+
+People are saying there are no new features this month, like I sat in the crypt and did nothing. I merged twenty-four dependency updates. I made a field required. You have no idea what it takes to keep a castle this clean. You leave one cobweb up and the villagers are at the gate with torches, and then it's a whole thing.
+
+### This release
+
+A maintenance release. The Docker images and LXC tarball stop shipping test tooling, the app and API pick up patched js-yaml and hono, server-mode layouts appear in the Layouts panel, and clearing or deleting a rack no longer leaves orphaned connections.
+
+### Changed
+
+- Saved layouts record the current schema version (`schema_version: "1.1"`) instead of a hardcoded `1.0`, so files with 1.1-only content such as `xlr-3` ports describe themselves correctly (#3108, PR #3280)
+
+### Fixed
+
+- Server-mode layouts returned by the API are listed in the Layouts panel (#3151, PR #3217)
+- Clearing or deleting a rack removes the connections that referenced its devices, instead of leaving them orphaned (#3122, PR #3275)
+
+### Security
+
+- The API Docker image and the LXC tarball no longer ship vitest, vite and their dependency tree, which better-auth pulled in as an optional peer (#3205, PR #3274; #3279, PR #3281)
+- The API resolves patched hono (4.13.7). A stale override had pinned 4.12.27, which has known CVEs (#3278, PR #3283)
+- js-yaml 4.3.2 fixes a denial-of-service in YAML parsing (CVE-2026-84375), for layout files parsed in the app and in the API (PR #3270, PR #3248)
+- Docker images are rebuilt on current Alpine packages, clearing util-linux CVE-2026-53612 and CVE-2026-53613 in the web image
+
+### Technical
+
+- A v26.9.0 upgrade-corpus fixture covers the 1.1 schema stamp, signal-typed ports and a slotted container
+- `main` requires a pull request and a passing `validate` check, which now always reports, including on docs-only PRs (#3230, PR #3288)
+- Security Triage dismissals of release image findings open a draft PR adding the `.trivyignore` entry, since the release gate reads only that file (#3231, PR #3276)
+- The type checker enforces the read-only lock: every command availability check must supply the read-only state (#2496, PR #3272)
+- The NetBox import workflow passes inputs as arguments rather than shell text, tightens vendor and slug validation, and uses collision-free branch names (#1283, PR #3273)
+- An empty `container_id` is treated as rack-level consistently across read paths (#3076, PR #3277)
+- Two App dialog tests wait for the bits-ui unmount, fixing unit failures under happy-dom 20.12 (#3219, PR #3282)
+- Dependency updates across hono, jose, js-yaml, wrangler, eslint, typescript-eslint, tsx, @types/node, GitHub Actions, and the production and development dependency groups (24 PRs, PR #3236 through PR #3270)
+
 ## [26.8.0] - 2026-08-25
 
 ### RACKULA LIVES
