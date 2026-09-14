@@ -156,4 +156,10 @@ describe("schemaVersionForWrite", () => {
       expect(schemaVersionForWrite(stamp), stamp).toBe(SCHEMA_VERSION);
     }
   });
+
+  it("restamps a newer-MAJOR stamp instead of keeping it", () => {
+    const [major] = SCHEMA_VERSION.split(".").map(Number);
+
+    expect(schemaVersionForWrite(`${major! + 1}.0`)).toBe(SCHEMA_VERSION);
+  });
 });
