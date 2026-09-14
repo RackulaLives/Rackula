@@ -72,7 +72,7 @@ Every entry requires:
 - a comment explaining why it is unfixable upstream or an accepted risk
 - a link to the accepted-risk discussion (the Code Scanning alert, or an issue or PR) that recorded the decision
 
-`scripts/check-trivyignore.sh` enforces this: `scan-images` runs it before the scan and the `validate` PR check runs it too. An entry fails if its first field is not a CVE or GHSA id, if its `exp:` date is missing or not a real date, or if the comment lines directly above it lack a reason or a link to a Code Scanning alert, issue, or PR in this repository.
+`scripts/check-trivyignore.sh` enforces this: `scan-images` runs it before the scan and the `validate` PR check runs it too. An entry fails if its first field is not a CVE or GHSA id, if its `exp:` date is missing or not a real date, or if the comment lines directly above it lack a reason line in the form `# <package> in the <image> image: <reason>` or a link to a Code Scanning alert, issue, or PR in this repository.
 
 After its `exp:` date, Trivy stops applying an entry and the gate fails on that CVE again, so accepted risk is re-reviewed instead of carried forward. Trivy also skips an entry whose date does not parse, which fails closed the same way.
 

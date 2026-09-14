@@ -4,16 +4,20 @@
 # unblock the release gate in build-images.yml.
 #
 # Every active entry must start with a CVE or GHSA id, carry an exp:YYYY-MM-DD
-# field with a real calendar date, and sit directly under a comment block with
-# a reason line and a link to a Code Scanning alert, issue, or PR in
-# RackulaLives/Rackula. A blank line or a bare "#" line ends a comment block.
+# field with a real calendar date, and sit directly under a comment block that
+# holds both of these lines:
+#   # <package> in the <image> image: <reason>   ("images:" for several)
+#   # https://github.com/RackulaLives/Rackula/<security/code-scanning, issues, or pull>/<number>
+# Other comment lines in the block are allowed. A blank line or a bare "#" line
+# ends a comment block.
 #
 # Usage: scripts/check-trivyignore.sh [file]   (default: .trivyignore)
 set -euo pipefail
 
 file="${1:-.trivyignore}"
 id_re='^(CVE-[0-9]{4}-[0-9]{4,}|GHSA(-[23456789cfghjmpqrvwx]{4}){3})$'
-link_re='https://github\.com/RackulaLives/Rackula/(security/code-scanning|issues|pull)/[0-9]+'
+reason_re='^#[[:space:]]+[^[:space:]]+ in the [^:]+ images?: [^[:space:]]'
+link_re='(^|[[:space:]])https://github\.com/RackulaLives/Rackula/(security/code-scanning|issues|pull)/[0-9]+([?#[:space:]]|$)'
 errors=0
 n=0
 has_link=0
@@ -38,7 +42,11 @@ while IFS= read -r raw || [[ -n "$raw" ]]; do
     has_link=0
     has_reason=0
   elif [[ "$line" == \#* ]]; then
-    if [[ "$line" =~ $link_re ]]; then has_link=1; else has_reason=1; fi
+    if [[ "$line" =~ $link_re ]]; then
+      has_link=1
+    elif [[ "$line" =~ $reason_re ]]; then
+      has_reason=1
+    fi
   else
     if [[ ! "${line%%[[:space:]]*}" =~ $id_re ]]; then
       problem "first field is not a CVE or GHSA id: $line"
@@ -48,8 +56,11 @@ while IFS= read -r raw || [[ -n "$raw" ]]; do
     elif ! real_date "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"; then
       problem "exp: is not a real calendar date: $line"
     fi
-    if [[ "$has_link" -eq 0 || "$has_reason" -eq 0 ]]; then
-      problem "needs a comment block directly above with a reason and a RackulaLives/Rackula alert, issue, or PR link: $line"
+    if [[ "$has_reason" -eq 0 ]]; then
+      problem "no reason line (# <package> in the <image> image: <reason>) directly above: $line"
+    fi
+    if [[ "$has_link" -eq 0 ]]; then
+      problem "no RackulaLives/Rackula alert, issue, or PR link directly above: $line"
     fi
     has_link=0
     has_reason=0
