@@ -30,6 +30,7 @@ import {
 } from "./yaml";
 import { encodeUserImagesToYaml } from "./image-encoding";
 import { generateId } from "./device";
+import { schemaVersionForWrite } from "$lib/schemas/migrations";
 import { buildFolderName, buildYamlFilename } from "./folder-structure";
 import {
   isPlacementKey,
@@ -149,12 +150,17 @@ async function addLayoutFolderToZip(
   images: ImageStoreMap,
   metadata?: LayoutMetadata,
 ): Promise<void> {
-  // Generate or use provided metadata
-  const layoutMetadata: LayoutMetadata = metadata ?? {
+  // Generate or use provided metadata, then stamp it for write so a caller's
+  // stale schema_version never reaches the archive (#3108).
+  const source = metadata ?? {
     id: layout.metadata?.id ?? generateId(),
     name: layout.metadata?.name ?? layout.name,
-    schema_version: layout.metadata?.schema_version ?? "1.0",
+    schema_version: layout.metadata?.schema_version,
     description: layout.metadata?.description,
+  };
+  const layoutMetadata: LayoutMetadata = {
+    ...source,
+    schema_version: schemaVersionForWrite(source.schema_version),
   };
 
   // Build folder name: "{Layout Name}-{UUID}"

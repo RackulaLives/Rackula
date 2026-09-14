@@ -4,6 +4,7 @@
 
 import type { Layout, Rack, FormFactor } from "$lib/types";
 import { VERSION } from "$lib/version";
+import { SCHEMA_VERSION } from "$lib/schemas/migrations";
 import { generateId } from "./device";
 
 /**
@@ -24,7 +25,7 @@ export function createLayout(name: string = "My Layout"): Layout {
     metadata: {
       id: generateId(),
       name,
-      schema_version: "1.0",
+      schema_version: SCHEMA_VERSION,
     },
   };
 }

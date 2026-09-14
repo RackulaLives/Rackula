@@ -78,6 +78,37 @@ export function compareVersions(a: string, b: string): number {
   return 0;
 }
 
+/** A well-formed MAJOR.MINOR schema_version, the only shape a writer keeps. */
+const SCHEMA_VERSION_PATTERN = /^\d+\.\d+$/;
+
+/**
+ * The schema_version a writer stamps on a saved layout (#3108).
+ *
+ * A layout re-saved after load and migration is in the current format, so an
+ * older, absent, or malformed stamp (anything but MAJOR.MINOR digits) becomes
+ * SCHEMA_VERSION. A newer same-MAJOR stamp is kept: unknown fields round-trip
+ * on save, so a layout from a newer same-MAJOR app still carries that format's
+ * additions, and restamping it down would misdescribe the file. The shape check
+ * runs first because compareVersions reads numeric prefixes, so "1.9x" would
+ * otherwise compare as newer.
+ *
+ * A newer MAJOR is restamped too. Every read door rejects one
+ * (assertSchemaVersionSupported), so the body being written is always this
+ * app's format; only a separately supplied stamp, such as archive entry
+ * metadata, can carry it. Restamping instead of throwing keeps the layout
+ * saveable.
+ *
+ * @param current - The layout's metadata.schema_version, if any.
+ */
+export function schemaVersionForWrite(current: string | undefined): string {
+  return current !== undefined &&
+    SCHEMA_VERSION_PATTERN.test(current) &&
+    majorOf(current) === majorOf(SCHEMA_VERSION) &&
+    compareVersions(current, SCHEMA_VERSION) > 0
+    ? current
+    : SCHEMA_VERSION;
+}
+
 /**
  * Check if a layout needs position migration.
  * Uses two checks (belt and suspenders):
