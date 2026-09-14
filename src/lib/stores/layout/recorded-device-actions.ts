@@ -342,8 +342,10 @@ export function moveDeviceRecorded(
   // A move always targets a rack-level position, so a contained device dragged
   // out of its container must shed its container linkage (otherwise it stays
   // excluded from rack-level collision while claiming membership in a container
-  // it no longer sits in). Undo restores the linkage.
-  const hasContainerLinkage = device.container_id !== undefined;
+  // it no longer sits in). Undo restores the linkage. A falsy container_id
+  // (undefined or "") means the device was never really linked to a container
+  // (#2699, #2759), so no detach command is needed (#3076).
+  const hasContainerLinkage = Boolean(device.container_id);
 
   if (hasFaceChange || hasContainerLinkage) {
     const commands: Command[] = [moveCommand];

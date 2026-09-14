@@ -234,6 +234,30 @@ describe("Layout Store", () => {
       store.moveDevice(rack!.id, 0, 10);
       expect(store.isDirty).toBe(true);
     });
+
+    it("does not detach container linkage for an empty-string container_id (#3076)", () => {
+      // A prior-release rack-level device can serialize container_id as "".
+      // It was never really linked to a container, so a move must not run
+      // the detach-container step: the field is left untouched.
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42);
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Test",
+          u_height: 2,
+          category: "server",
+          colour: "#4A90D9",
+        }),
+      );
+      store.placeDevice(rack!.id, deviceType.slug, 5);
+      store.rack.devices[0]!.container_id = "";
+
+      const result = store.moveDevice(rack!.id, 0, 10);
+
+      expect(result).toBe(true);
+      expect(store.rack.devices[0]!.position).toBe(toInternalUnits(10));
+      expect(store.rack.devices[0]!.container_id).toBe("");
+    });
   });
 
   describe("moveDeviceToRack", () => {

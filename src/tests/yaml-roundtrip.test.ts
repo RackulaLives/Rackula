@@ -113,6 +113,41 @@ describe("YAML layout round-trip", () => {
     expect(child?.slot_id).toBe("slot-left");
   });
 
+  it("omits container_id from output when it is an empty string (#3076)", async () => {
+    // A falsy container_id (undefined or "") means rack-level; writing out an
+    // empty string would round-trip meaningless data instead of omitting it.
+    const deviceType = createTestDeviceType({
+      slug: "rack-level-device",
+      u_height: 1,
+    });
+
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({
+          id: "rack-1",
+          devices: [
+            createTestDevice({
+              id: "device-1",
+              device_type: deviceType.slug,
+              position: 10,
+              container_id: "",
+            }),
+          ],
+        }),
+      ],
+      device_types: [deviceType],
+    });
+
+    const yaml = await serializeLayoutToYaml(layout);
+
+    expect(yaml).not.toContain("container_id");
+
+    const restored = await parseLayoutYaml(yaml);
+    const device = restored.racks[0]?.devices.find((d) => d.id === "device-1");
+    expect(device).toBeDefined();
+    expect(device?.container_id).toBeUndefined();
+  });
+
   it("preserves label, ports, and colour_override on a placed device (#2700)", async () => {
     const deviceType = createTestDeviceType({
       slug: "labelled-device",
