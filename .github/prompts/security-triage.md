@@ -88,11 +88,17 @@ This applies to a Trivy alert whose `most_recent_instance.category` starts with 
 
 For a gated finding you judge a false positive:
 
-1. Check for an existing decision. Look for an entry with `grep -nF '<CVE-id>' .trivyignore`. Then list open `security` PRs that name the CVE in their title or body, or that change `.trivyignore`, and run `gh pr diff <number>` on any that change `.trivyignore` to see whether they add this CVE. Safety-net PRs name only the alert number, so their diff is the only place the CVE appears.
+1. Check for an existing decision. Use the id only if it matches `^[A-Za-z0-9-]+$`, as CVE and GHSA ids do, so it holds no regex or shell metacharacters. If it does not, leave the alert open and report it. Match the id as a complete token, since `CVE-2026-1234` is a substring of `CVE-2026-12345`. Look for an active entry whose first field is exactly the id, which also skips comment lines:
+
+   ```bash
+   grep -nE '^[[:space:]]*<CVE-id>([[:space:]]|$)' .trivyignore
+   ```
+
+   Then list open `security` PRs that name the id in their title or body, or that change `.trivyignore`, and run `gh pr diff <number>` on any that change `.trivyignore` to see whether they add an entry for exactly this id. Safety-net PRs name only the alert number, so their diff is the only place the CVE appears.
 
    ```bash
    gh pr list --state open --label security --limit 100 --json number,title,body,files \
-     --jq '.[] | select((((.title // "") + " " + (.body // "")) | contains("<CVE-id>")) or any((.files // [])[]; .path == ".trivyignore")) | "#\(.number) \(.title)"'
+     --jq '.[] | select((((.title // "") + " " + (.body // "")) | test("(^|[^A-Za-z0-9-])<CVE-id>([^A-Za-z0-9-]|$)")) or any((.files // [])[]; .path == ".trivyignore")) | "#\(.number) \(.title)"'
    ```
 
    If an unexpired entry on `main` already covers the CVE, the gate already ignores it: dismiss under Step 4a with a comment that cites the entry and the discussion link in its comment, and open no PR. If an open PR already adds the entry, confirm its URL with `gh pr view <number> --json url -q .url`, open no duplicate, and go to step 4 with that URL.
