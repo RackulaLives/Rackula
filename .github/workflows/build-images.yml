@@ -566,7 +566,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       # Trivy accepts a bare id, so fail closed on any entry that lacks a
-      # reason, an https:// link, or an exp: date (#3231).
+      # valid id, a reason, a discussion link, or a real exp: date (#3231).
       - name: Check .trivyignore entry format
         run: bash .pipeline/scripts/check-trivyignore.sh .trivyignore
 

@@ -13,11 +13,11 @@
 # the decision that lets the gate pass. Triage never commits to main.
 #
 # Every entry below must have:
-#   - the CVE id
+#   - the CVE id, or the GHSA id for an advisory without one
 #   - an exp:YYYY-MM-DD expiry on the same line (90 days by default)
 #   - a comment explaining why it is unfixable or accepted
-#   - a link to the accepted-risk discussion (the Code Scanning alert, or a
-#     GitHub issue or PR) that recorded the decision
+#   - a link to the accepted-risk discussion (the Code Scanning alert, or an
+#     issue or PR in this repository) that recorded the decision
 #
 # Put the comments on their own lines directly above the entry, with no blank
 # or bare "#" line in between:
