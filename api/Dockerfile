@@ -6,7 +6,10 @@ FROM oven/bun:1.3.10-alpine AS base
 FROM base AS deps
 WORKDIR /app
 COPY package.json bun.lock* ./
-RUN bun install --frozen-lockfile --production
+# better-auth declares vitest as an optional peer, and Bun installs optional
+# peers present in the lockfile, so --production alone ships the dev-only
+# vitest/vite tree. --omit=peer drops it (#3205).
+RUN bun install --frozen-lockfile --production --omit=peer
 
 # Production image
 FROM base AS runner
