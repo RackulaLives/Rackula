@@ -1,19 +1,11 @@
 name: Test
 
 on:
+  # No paths-ignore: validate is a required check on main, and a workflow skipped
+  # by a path filter never reports it, so docs-only PRs would wait forever. The
+  # changes job below decides whether the suite needs to run (#3230).
   pull_request:
     branches: [main]
-    # Skip the suite for non-code-only PRs. A PR runs CI unless ALL its changed
-    # files match here, so mixed docs+code PRs still run. workflow_dispatch and
-    # workflow_call ignore path filters, so manual/reusable runs are unaffected.
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "LICENSE"
-      - ".editorconfig"
-      - ".gitattributes"
-      - ".vscode/**"
-      - ".github/ISSUE_TEMPLATE/**"
   workflow_dispatch:
   workflow_call:
 
@@ -22,6 +14,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Skip the suite for PRs that only touch non-code files. A PR runs the suite
+  # unless ALL its changed files (rename sources included) match the docs
+  # patterns, so mixed docs+code PRs still run. A job skipped by its `if`
+  # reports success, so the required validate check still reports on docs-only
+  # PRs. Fail closed: an API error, or a file list shorter than the PR's
+  # changed_files count (the files API caps at 3000), counts as a code change.
+  # workflow_dispatch and workflow_call have no PR, so they always run.
+  changes:
+    name: detect code changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PR_NUMBER" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          is_docs() {
+            case "$1" in
+              *.md | docs/* | LICENSE | .editorconfig | .gitattributes | .vscode/* | .github/ISSUE_TEMPLATE/*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+          expected=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.changed_files')
+          gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" \
+            --jq '.[] | [.filename, (.previous_filename // "")] | @tsv' > "$RUNNER_TEMP/files.tsv"
+          listed=$(wc -l < "$RUNNER_TEMP/files.tsv" | tr -d ' ')
+          code=false
+          if ! [[ "$expected" =~ ^[0-9]+$ ]] || [ "$listed" -eq 0 ] || [ "$listed" -lt "$expected" ]; then
+            code=true
+          fi
+          while IFS=$'\t' read -r path prev; do
+            if ! is_docs "$path"; then code=true; fi
+            if [ -n "$prev" ] && ! is_docs "$prev"; then code=true; fi
+          done < "$RUNNER_TEMP/files.tsv"
+          echo "Changed files listed: $listed of $expected; code=$code"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
   # A prettier reformat cannot change behaviour, rendering, or a11y, so when the
   # rackula-format-bot pushes a "chore: prettier auto-format" commit, only the
   # validate gate (which re-runs format:check, the reason the commit re-triggers
@@ -54,10 +94,11 @@ jobs:
 
   api:
     name: api (typecheck + tests)
-    needs: detect
-    # Fail open: skip only on a confirmed autoformat detection. A failed or
-    # cancelled detect job must not silently skip the behaviour tests.
-    if: ${{ !cancelled() && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') }}
+    needs: [changes, detect]
+    # Fail open: skip only on a confirmed docs-only PR or a confirmed autoformat
+    # detection. A failed or cancelled changes or detect job must not silently
+    # skip the behaviour tests.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -98,6 +139,10 @@ jobs:
 
   validate:
     name: validate
+    needs: changes
+    # Fail closed: skip only when changes confirmed a docs-only PR. A failed
+    # changes job still runs the gate.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -319,10 +364,11 @@ jobs:
 
   visual:
     name: visual regression
-    needs: detect
-    # Fail open: skip only on a confirmed autoformat detection. A failed or
-    # cancelled detect job must not silently skip the behaviour tests.
-    if: ${{ !cancelled() && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') }}
+    needs: [changes, detect]
+    # Fail open: skip only on a confirmed docs-only PR or a confirmed autoformat
+    # detection. A failed or cancelled changes or detect job must not silently
+    # skip the behaviour tests.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -366,10 +412,11 @@ jobs:
 
   a11y:
     name: a11y (axe-core)
-    needs: detect
-    # Fail open: skip only on a confirmed autoformat detection. A failed or
-    # cancelled detect job must not silently skip the behaviour tests.
-    if: ${{ !cancelled() && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') }}
+    needs: [changes, detect]
+    # Fail open: skip only on a confirmed docs-only PR or a confirmed autoformat
+    # detection. A failed or cancelled changes or detect job must not silently
+    # skip the behaviour tests.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' && !(needs.detect.result == 'success' && needs.detect.outputs.autoformat == 'true') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
