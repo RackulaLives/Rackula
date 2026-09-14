@@ -6,13 +6,34 @@
 # image blocks promote. This file is the only sanctioned escape hatch, and
 # only for findings that are unfixable upstream or an accepted risk.
 #
-# Every entry below must have:
-#   - the CVE id
-#   - a comment explaining why it is unfixable or accepted
-#   - a link to the accepted-risk discussion (GitHub issue or PR) that
-#     recorded the decision
+# The gate reads only this file, never Code Scanning alert state, so
+# dismissing an alert in the Security tab does not unblock it (#3231). When
+# Security Triage dismisses a release image finding that no entry here or
+# open PR already covers, it opens a draft PR on fix/security-<alert-number>
+# that adds the entry. Merging that PR is the decision that lets the gate
+# pass. Triage never commits to main.
 #
-# Do not add an entry to unblock a release without that discussion. If a fix
-# becomes available upstream, remove the entry instead of leaving it stale.
+# Every entry below must have:
+#   - the CVE id, or the GHSA id for an advisory without one
+#   - an exp:YYYY-MM-DD expiry on the same line (90 days by default)
+#   - a comment explaining why it is unfixable or accepted
+#   - a link to the accepted-risk discussion (the Code Scanning alert, or an
+#     issue or PR in this repository) that recorded the decision
+#
+# Put the comments on their own lines directly above the entry, with no blank
+# or bare "#" line in between:
+#
+#   # <package> in the <image> image: <reason>
+#   # https://github.com/RackulaLives/Rackula/security/code-scanning/<number>
+#   CVE-YYYY-NNNNN exp:YYYY-MM-DD
+#
+# scripts/check-trivyignore.sh enforces this format before the release scan,
+# so an entry without a reason, link, or exp: date fails the gate.
+#
+# Trivy stops applying an entry after its exp: date, or if the date does not
+# parse, so the gate fails on that CVE again until the entry is re-reviewed
+# and renewed or removed. Do not add an entry to unblock a release without
+# that discussion. If a fix becomes available upstream, remove the entry
+# instead of leaving it stale.
 #
 # No active entries at this time.
