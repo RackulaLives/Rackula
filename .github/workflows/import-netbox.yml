@@ -26,6 +26,11 @@ concurrency:
   group: import-netbox
   cancel-in-progress: false
 
+# No default token permissions at the workflow level; the import job below
+# declares exactly the two scopes it needs (contents: write, pull-requests:
+# write) in its own permissions: block.
+permissions: {}
+
 jobs:
   import:
     runs-on: ubuntu-latest
@@ -71,8 +76,8 @@ jobs:
             echo "ERROR: vendor '$VENDOR' is invalid: must not contain '..'"
             exit 1
           fi
-          if [[ "$VENDOR" == *.lock ]]; then
-            echo "ERROR: vendor '$VENDOR' is invalid: must not end with '.lock', which git refs disallow"
+          if [[ "${VENDOR,,}" == *.lock ]]; then
+            echo "ERROR: vendor '$VENDOR' is invalid: must not end with '.lock' (case-insensitive), which git refs disallow"
             exit 1
           fi
 
@@ -87,8 +92,8 @@ jobs:
               echo "ERROR: slug '$SLUG' is invalid: must not contain '..'"
               exit 1
             fi
-            if [[ "$SLUG" == *.lock ]]; then
-              echo "ERROR: slug '$SLUG' is invalid: must not end with '.lock', which git refs disallow"
+            if [[ "${SLUG,,}" == *.lock ]]; then
+              echo "ERROR: slug '$SLUG' is invalid: must not end with '.lock' (case-insensitive), which git refs disallow"
               exit 1
             fi
           fi
