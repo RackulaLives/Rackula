@@ -169,10 +169,10 @@ export interface ActionEnabledContext {
   canMoveDeviceSlot: boolean;
   /**
    * Whether the layout is in read-only mode (presentation safety valve). When
-   * true, all mutation verbs are disabled regardless of selection state. Omit
-   * or set to false for normal edit mode.
+   * true, all mutation verbs are disabled regardless of selection state. Set
+   * to false for normal edit mode.
    */
-  readOnly?: boolean;
+  readOnly: boolean;
 }
 
 /**
