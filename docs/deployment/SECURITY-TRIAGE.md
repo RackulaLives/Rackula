@@ -11,7 +11,7 @@ It authenticates with a Claude subscription OAuth token, so it bills against a P
 3. A cheap gate step (`actions/github-script`) polls the Code Scanning API for net-new open alerts from the triggering tool, then sets `has_alerts`. If the scan produced no net-new alerts, the gate returns `false` and every later step (checkout, git config, Claude) is skipped, so no action is invoked and no subscription usage is spent. See [The alert gate](#the-alert-gate).
 4. When `has_alerts` is `true`, Claude Code (run by `anthropics/claude-code-action`) reads `.github/prompts/security-triage.md` and follows it.
 5. It queries the GitHub Code Scanning API for net-new open alerts from that scan (up to 5 per run), reading the affected code for context.
-6. For false positives: it dismisses the alert via the Code Scanning API with an explanation. For a container-image finding, which the release gate enforces, it first opens a draft PR that adds a `.trivyignore` entry, then links that PR in the dismissal. See [Release-gated image findings](#release-gated-image-findings).
+6. For false positives: it dismisses the alert via the Code Scanning API with an explanation. For a container-image finding, which the release gate enforces, it first makes sure the gate is covered: it cites an unexpired `.trivyignore` entry, reuses an open PR that adds one, or opens a draft PR that adds one, and links that in the dismissal. See [Release-gated image findings](#release-gated-image-findings).
 7. For real findings: it opens a draft PR on a branch `fix/security-<alert-number>` with the triage reasoning and a suggested or implemented fix, labelled `security` and `automated`.
 
 ## The alert gate

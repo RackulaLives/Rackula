@@ -82,7 +82,7 @@ Do not add an entry to unblock a release without that discussion first. If a fix
 
 The gate reads only `.trivyignore`, never Code Scanning alert state. Dismissing an alert in the Security tab, as a false positive or as `won't fix`, does not stop that CVE from failing a release. v26.8.0 was blocked this way by an alert dismissed a week earlier (#3231).
 
-When Security Triage dismisses a container-image finding, it first opens a draft PR on `fix/security-<alert-number>` that adds the `.trivyignore` entry, and the dismissal comment links that PR. Merging the PR is the decision that lets the gate pass. See [Release-gated image findings](SECURITY-TRIAGE.md#release-gated-image-findings). If you dismiss a release image alert yourself, add the entry in a PR as well.
+When Security Triage dismisses a container-image finding, the dismissal comment links what covers the CVE at the gate. If an unexpired `.trivyignore` entry for that exact id is already on `main`, triage cites it and opens no PR. If an open PR already adds the entry, triage reuses that PR. Otherwise it first opens a draft PR on `fix/security-<alert-number>` that adds the entry, and merging that PR is the decision that lets the gate pass. See [Release-gated image findings](SECURITY-TRIAGE.md#release-gated-image-findings). If you dismiss a release image alert yourself, add the entry in a PR as well.
 
 ### Before tagging
 

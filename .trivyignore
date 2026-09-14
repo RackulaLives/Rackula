@@ -8,9 +8,10 @@
 #
 # The gate reads only this file, never Code Scanning alert state, so
 # dismissing an alert in the Security tab does not unblock it (#3231). When
-# Security Triage dismisses a release image finding, it opens a draft PR on
-# fix/security-<alert-number> that adds the entry here. Merging that PR is
-# the decision that lets the gate pass. Triage never commits to main.
+# Security Triage dismisses a release image finding that no entry here or
+# open PR already covers, it opens a draft PR on fix/security-<alert-number>
+# that adds the entry. Merging that PR is the decision that lets the gate
+# pass. Triage never commits to main.
 #
 # Every entry below must have:
 #   - the CVE id, or the GHSA id for an advisory without one
