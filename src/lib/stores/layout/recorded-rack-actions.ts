@@ -10,12 +10,14 @@ import type { Rack } from "$lib/types";
 import {
   createUpdateRackCommand,
   createClearRackCommand,
+  createRemoveConnectionCommand,
   createBatchCommand,
   type Command,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
 import { getCommandStoreAdapter } from "./command-adapters";
 import { getTargetRack, getRackById } from "./rack-actions";
+import { findConnectionsForDevices } from "./recorded-device-type-actions";
 
 /**
  * Bind a command to a specific rack. The raw mutators behind rack commands
@@ -164,11 +166,33 @@ export function clearRackRecorded(
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
-  const command = bindCommandToRack(
+  const clearCommand = bindCommandToRack(
     ctx,
     targetRack.id,
     createClearRackCommand(devices, adapter),
   );
+
+  // Clearing destroys the devices' ports, so remove the connections that
+  // reference them in the same undo step (#3122, same pattern as #639).
+  // Connection commands key off connection id and need no rack binding.
+  const connectionCommands: Command[] = findConnectionsForDevices(
+    ctx,
+    devices.map((device) => ({ rackId: targetRack.id, device })),
+  ).map((connection) =>
+    createRemoveConnectionCommand(
+      connection,
+      adapter,
+      `Remove connection ${connection.label ?? connection.id}`,
+    ),
+  );
+
+  const command =
+    connectionCommands.length > 0
+      ? createBatchCommand(clearCommand.description, [
+          ...connectionCommands,
+          clearCommand,
+        ])
+      : clearCommand;
   history.execute(command);
   ctx.markDirty();
 }
