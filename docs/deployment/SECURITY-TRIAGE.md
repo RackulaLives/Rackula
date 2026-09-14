@@ -11,7 +11,7 @@ It authenticates with a Claude subscription OAuth token, so it bills against a P
 3. A cheap gate step (`actions/github-script`) polls the Code Scanning API for net-new open alerts from the triggering tool, then sets `has_alerts`. If the scan produced no net-new alerts, the gate returns `false` and every later step (checkout, git config, Claude) is skipped, so no action is invoked and no subscription usage is spent. See [The alert gate](#the-alert-gate).
 4. When `has_alerts` is `true`, Claude Code (run by `anthropics/claude-code-action`) reads `.github/prompts/security-triage.md` and follows it.
 5. It queries the GitHub Code Scanning API for net-new open alerts from that scan (up to 5 per run), reading the affected code for context.
-6. For false positives: it dismisses the alert via the Code Scanning API with an explanation.
+6. For false positives: it dismisses the alert via the Code Scanning API with an explanation. For a container-image finding, which the release gate enforces, it first makes sure the gate is covered: it cites an unexpired `.trivyignore` entry, reuses an open PR that adds one, or opens a draft PR that adds one, and links that in the dismissal. See [Release-gated image findings](#release-gated-image-findings).
 7. For real findings: it opens a draft PR on a branch `fix/security-<alert-number>` with the triage reasoning and a suggested or implemented fix, labelled `security` and `automated`.
 
 ## The alert gate
@@ -23,6 +23,24 @@ The gate keeps the expensive Claude invocation off the critical path of every pu
 - Polls in steps of roughly 30 seconds up to a total of about 90 seconds (the budget the old fixed `sleep 90` spent), because GitHub turns uploaded SARIF into alerts asynchronously. It polls the whole budget before deciding rather than stopping at the first alert, so a scan's alerts have time to finish landing and Claude is not started against a partially-processed set.
 - On a manual `workflow_dispatch` there is no scan start time, so the gate does not wait or time-filter: any currently-open alert for the tool counts (matching the dry-run behaviour of the playbook).
 - Fails secure: if the Code Scanning API errors persistently, the gate sets `has_alerts=true` so real findings are never silently skipped.
+
+## Release-gated image findings
+
+The release gate (`scan-images` in `.github/workflows/build-images.yml`) reads only `.trivyignore`, never Code Scanning alert state. A dismissal alone leaves the CVE able to fail the next release, which is how v26.8.0 was blocked (#3231).
+
+For a Trivy alert in a container-image category (`trivy-ghcr.io-*`, covering the app, persist, and api images) that triage judges a false positive, the playbook:
+
+1. Checks for existing coverage. If an unexpired `.trivyignore` entry on `main` covers the CVE, it dismisses with a comment citing that entry and opens no PR. If an open PR already adds the entry, it reuses that PR's URL instead of opening a duplicate.
+2. Prefers a fix when a small change can adopt one (a dependency bump or override, an apk pin, a base image bump). Ignore entries are only for findings with no adoptable fix.
+3. Otherwise adds one `.trivyignore` entry: the CVE id with an `exp:` date 90 days out, a comment with the reason, and the alert URL as the discussion link.
+4. Commits the change to `fix/security-<alert-number>` and opens a draft PR, so the existing safety-net step also covers it.
+5. Dismisses the alert only once a PR exists, its own or the existing one, with a comment that links the PR.
+
+Filesystem findings (`trivy-filesystem-*`) are not scanned by the release gate and get no entry.
+
+The 90-day expiry covers about three releases at the current, roughly monthly cadence. After it, Trivy stops applying the entry and the gate fails closed until a maintainer renews or removes it.
+
+Triage never commits to `main`, and it never dismisses a real finding as `won't fix`: accepted risk is a maintainer decision. A real finding with no adoptable fix stays open on the normal draft-PR path, and that PR may propose the ignore entry. Either way, the maintainer who merges the `.trivyignore` PR makes the decision that lets the gate pass.
 
 ## The secure-coding skill
 
@@ -83,6 +101,8 @@ For each draft PR:
 1. Read the triage analysis in the PR description.
 2. If you agree, finish or accept the fix on the same branch, mark the PR ready, and merge.
 3. If you disagree, close the PR with a comment explaining why.
+
+For a PR that adds a `.trivyignore` entry, check that the reason holds for every release image the CVE appears in, since the entry suppresses it in all of them. Merging it lets the release gate pass. If you close it instead, reopen the alert if you disagree with the dismissal; the gate fails on that CVE until it is fixed or an entry is merged. Resolve these PRs before tagging a release (see [Before tagging](RELEASE-PIPELINE.md#before-tagging)).
 
 ## Tuning
 

@@ -550,6 +550,26 @@ jobs:
             .trivyignore
           sparse-checkout-cone-mode: false
 
+      # The format check is pipeline code, not release data, so it comes from
+      # this workflow's own commit rather than the tag: a re-dispatch from main
+      # for an older tag still runs the current check. github.workflow_sha is
+      # the caller's commit, and a local ./ reusable workflow is loaded from
+      # that same commit.
+      - name: Checkout .trivyignore format check
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .pipeline
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/check-trivyignore.sh
+          sparse-checkout-cone-mode: false
+
+      # Trivy accepts a bare id, so fail closed on any entry that lacks a
+      # valid id, a reason, a discussion link, or a real exp: date (#3231).
+      - name: Check .trivyignore entry format
+        run: bash .pipeline/scripts/check-trivyignore.sh .trivyignore
+
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
