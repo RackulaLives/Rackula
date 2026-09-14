@@ -1,0 +1,157 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
+metadata:
+  id: 0b9f6c2e-4d1a-4e8b-9a37-5c2d8e1f7a26
+  name: Representative Lab
+  schema_version: "1.1"
+version: 26.9.0
+name: Representative Lab
+racks:
+  - id: rack-a
+    name: Rack A
+    height: 12
+    width: 19
+    depth_mm: 1000
+    base_weight: 0
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: dev-chassis
+        device_type: blade-chassis-4u
+        position: 6
+        face: front
+      - id: dev-blade
+        device_type: blade-server-half
+        position: 0
+        face: front
+        container_id: dev-chassis
+        slot_id: slot-left
+      - id: dev-audio
+        device_type: audio-interface-1u
+        position: 30
+        face: front
+        ports:
+          - id: port-mic-in
+            template_name: Mic In
+            template_index: 0
+            type: xlr-3
+            direction: input
+          - id: port-aes-out
+            template_name: AES Out
+            template_index: 1
+            type: xlr-3
+            direction: output
+            signal_type: digital-audio-aes3
+      - id: dev-switch
+        device_type: switch-24p-1u
+        position: 60
+        face: front
+        ports:
+          - id: port-sw-eth0
+            template_name: eth0
+            template_index: 0
+            type: 1000base-t
+          - id: port-sw-eth1
+            template_name: eth1
+            template_index: 1
+            type: 1000base-t
+  - id: rack-b
+    name: Rack B
+    height: 12
+    width: 19
+    depth_mm: 1000
+    base_weight: 0
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 1
+    devices:
+      - id: dev-router
+        device_type: router-1u
+        position: 6
+        face: front
+        ports:
+          - id: port-rt-wan0
+            template_name: wan0
+            template_index: 0
+            type: 1000base-t
+device_types:
+  - slug: switch-24p-1u
+    manufacturer: Acme
+    model: Switch 24P
+    u_height: 1
+    colour: "#336699"
+    category: network
+    interfaces:
+      - name: eth0
+        type: 1000base-t
+      - name: eth1
+        type: 1000base-t
+  - slug: router-1u
+    manufacturer: Acme
+    model: Router 1U
+    u_height: 1
+    colour: "#7B6BA8"
+    category: network
+    interfaces:
+      - name: wan0
+        type: 1000base-t
+  - slug: audio-interface-1u
+    manufacturer: Acme Audio
+    model: Interface 1U
+    u_height: 1
+    colour: "#8BE9FD"
+    category: av-media
+    interfaces:
+      - name: Mic In
+        type: xlr-3
+        direction: input
+        signal_type: analog-audio-mic
+      - name: AES Out
+        type: xlr-3
+        direction: output
+        signal_type: digital-audio-aes3
+  - slug: blade-chassis-4u
+    manufacturer: Acme
+    model: Blade Chassis 4U
+    u_height: 4
+    colour: "#4A90D9"
+    category: server
+    slots:
+      - id: slot-left
+        name: Left
+        position:
+          row: 0
+          col: 0
+        width_fraction: 0.5
+      - id: slot-right
+        name: Right
+        position:
+          row: 0
+          col: 1
+        width_fraction: 0.5
+  - slug: blade-server-half
+    manufacturer: Acme
+    model: Blade Server
+    u_height: 1
+    slot_width: 1
+    colour: "#4A90D9"
+    category: server
+settings:
+  display_mode: label
+  show_labels_on_images: false
+rack_groups:
+  - id: group-bayed
+    name: Bayed Pair
+    rack_ids:
+      - rack-a
+      - rack-b
+    layout_preset: bayed
+connections:
+  - id: conn-uplink
+    a_port_id: port-sw-eth0
+    b_port_id: port-rt-wan0
+    label: uplink
