@@ -74,9 +74,11 @@ function convertDevices(devices: PlacedDevice[]): MinimalDevice[] {
     // Encode as a child only when the parent carrier actually resolves in this
     // same array AND a slot is set. An orphaned child (dangling container_id,
     // or parent in another rack) falls back to a rack-level encoding so its
-    // human-U position is preserved instead of leaking a raw 0-index.
-    const parentIndex =
-      d.container_id !== undefined ? indexById.get(d.container_id) : undefined;
+    // human-U position is preserved instead of leaking a raw 0-index. A falsy
+    // container_id (undefined or "") means rack-level (#2699, #2759, #3076).
+    const parentIndex = d.container_id
+      ? indexById.get(d.container_id)
+      : undefined;
     const isChild = parentIndex !== undefined && d.slot_id !== undefined;
     return {
       t: d.device_type,

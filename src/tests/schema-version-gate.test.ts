@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { serializeLayoutToYaml, parseLayoutYaml } from "$lib/utils/yaml";
+import {
+  serializeLayoutToYaml,
+  parseLayoutYaml,
+  parseYaml,
+  serializeToYaml,
+} from "$lib/utils/yaml";
 import { createTestLayout, createTestRack } from "./factories";
 import { generateId } from "$lib/utils/device";
 import type { Layout } from "$lib/types";
@@ -13,7 +18,7 @@ import type { Layout } from "$lib/types";
  * validation ingress (parseLayoutYaml / LayoutSchema). Same-MAJOR (any MINOR)
  * loads; older MAJOR continues to migrate; absent schema_version reads as 1.0.
  */
-function yamlWithSchemaVersion(
+async function yamlWithSchemaVersion(
   schema_version: string | undefined,
 ): Promise<string> {
   const layout: Layout = createTestLayout({
@@ -27,7 +32,16 @@ function yamlWithSchemaVersion(
             schema_version,
           },
   });
-  return serializeLayoutToYaml(layout);
+  // The writer stamps SCHEMA_VERSION over an older or newer-MAJOR stamp
+  // (#3108), so put the stamp under test into the saved document directly:
+  // these tests exercise the reader gate, not the writer.
+  const doc = await parseYaml<{ metadata?: { schema_version?: string } }>(
+    await serializeLayoutToYaml(layout),
+  );
+  if (doc.metadata && schema_version !== undefined) {
+    doc.metadata.schema_version = schema_version;
+  }
+  return serializeToYaml(doc);
 }
 
 describe("schema_version reject-newer-major gate (#2205)", () => {

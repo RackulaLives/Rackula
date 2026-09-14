@@ -160,6 +160,7 @@ describe("actions registry", () => {
         hasRacks: true,
         mode: "browser" as const,
         canMoveDeviceSlot: false,
+        readOnly: false,
       };
       const disabledCtx = { ...enabledCtx, isDeviceSelected: false };
       expect(dup?.enabledWhen?.(enabledCtx)).toBe(true);
@@ -178,6 +179,7 @@ describe("actions registry", () => {
         hasRacks: false,
         mode: "browser" as const,
         canMoveDeviceSlot: false,
+        readOnly: false,
       };
       expect(undo?.enabledWhen?.({ ...base, canUndo: true })).toBe(true);
       expect(undo?.enabledWhen?.(base)).toBe(false);
@@ -247,6 +249,7 @@ describe("actions registry", () => {
       hasRacks: false,
       mode: "browser" as const,
       canMoveDeviceSlot: false,
+      readOnly: false,
     };
 
     it("gates share on rack presence", () => {

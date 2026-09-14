@@ -15,6 +15,7 @@ const baseCtx: ActionEnabledContext = {
   hasRacks: true,
   mode: "browser",
   canMoveDeviceSlot: false,
+  readOnly: false,
 };
 
 function ids(ctx: ActionEnabledContext): string[] {

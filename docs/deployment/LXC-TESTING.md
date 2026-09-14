@@ -113,8 +113,10 @@ If you need to assemble the tarball locally (e.g. for offline CT testing):
 VITE_ENV=production npm ci && npm run build
 
 # 2. Install API production dependencies with cross-platform native binaries
+# --omit=peer drops the vitest/vite tree that ships as an optional peer of
+# better-auth
 cd api
-bun install --frozen-lockfile --production --cpu='*' --os=linux
+bun install --frozen-lockfile --production --omit=peer --cpu='*' --os=linux
 
 # 3. Verify argon2 native binaries are present for both architectures
 test -f node_modules/@node-rs/argon2-linux-x64-gnu/argon2.linux-x64-gnu.node \

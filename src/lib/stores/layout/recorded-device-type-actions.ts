@@ -88,7 +88,9 @@ export function findConnectionsForDevices(
 ): Connection[] {
   const layout = ctx.getLayout();
   const connections = layout.connections;
-  if (!connections || connections.length === 0) return [];
+  // Array.isArray, not truthiness: untrusted input can reach loadLayout with a
+  // truthy non-array `connections` (e.g. `{}`), which must not throw (#3090).
+  if (!Array.isArray(connections) || connections.length === 0) return [];
   const portIds = new Set(
     placedDevices.flatMap((p) => (p.device.ports ?? []).map((port) => port.id)),
   );

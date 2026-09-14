@@ -28,6 +28,7 @@ import {
   type LayoutArchiveEntry,
 } from "$lib/utils/archive";
 import { generateId } from "$lib/utils/device";
+import { schemaVersionForWrite } from "$lib/schemas/migrations";
 import type { Layout, LayoutMetadata } from "$lib/types";
 import { persistenceDebug } from "$lib/utils/debug";
 
@@ -521,7 +522,7 @@ function resolveLayoutMetadata(layout: {
   return {
     id: layout.metadata?.id ?? generateId(),
     name: layout.metadata?.name ?? layout.name,
-    schema_version: layout.metadata?.schema_version ?? "1.0",
+    schema_version: schemaVersionForWrite(layout.metadata?.schema_version),
     description: layout.metadata?.description,
   };
 }

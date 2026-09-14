@@ -17,6 +17,20 @@ on:
         type: boolean
         default: true
 
+# This is a rare, maintainer-dispatched workflow, so a single global group
+# serialises every run regardless of vendor or slug, keeping raw inputs out
+# of the concurrency key. cancel-in-progress is false: an in-flight import
+# should finish (or fail on its own) rather than be cancelled by the next
+# dispatch.
+concurrency:
+  group: import-netbox
+  cancel-in-progress: false
+
+# No default token permissions at the workflow level; the import job below
+# declares exactly the two scopes it needs (contents: write, pull-requests:
+# write) in its own permissions: block.
+permissions: {}
+
 jobs:
   import:
     runs-on: ubuntu-latest
@@ -26,6 +40,7 @@ jobs:
 
     steps:
       - name: Validate inputs
+        id: validate
         env:
           VENDOR: ${{ inputs.vendor }}
           SLUG: ${{ inputs.slug }}
@@ -39,21 +54,77 @@ jobs:
               exit 1
               ;;
           esac
-          if ! echo "$VENDOR" | grep -qE '^[A-Za-z0-9._-]+$'; then
-            echo "ERROR: vendor may only contain A-Z a-z 0-9 . _ -"
-            exit 1
-          fi
-
           case "$SLUG" in
             *$'\n'*|*$'\r'*)
               echo "ERROR: slug must not contain newline or CR characters"
               exit 1
               ;;
           esac
-          if [ -n "$SLUG" ] && ! echo "$SLUG" | grep -qE '^[A-Za-z0-9._-]+$'; then
-            echo "ERROR: slug may only contain A-Z a-z 0-9 . _ -"
+
+          # Vendor matches a NetBox devicetype-library folder name and is also
+          # used verbatim in a generated TypeScript identifier
+          # (scripts/import-netbox-devices.ts: `${vendor.toLowerCase()}Devices`),
+          # so it keeps the identifier-safe charset this workflow used before
+          # this PR: letters, digits, . _ -. It must start and end with a
+          # letter or digit, and must not contain "..".
+          VENDOR_RE='^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$'
+          if [[ ! "$VENDOR" =~ $VENDOR_RE ]]; then
+            echo "ERROR: vendor '$VENDOR' is invalid: must start and end with a letter or digit, and contain only letters, digits, and . _ -"
             exit 1
           fi
+          if [[ "$VENDOR" == *".."* ]]; then
+            echo "ERROR: vendor '$VENDOR' is invalid: must not contain '..'"
+            exit 1
+          fi
+          if [[ "${VENDOR,,}" == *.lock ]]; then
+            echo "ERROR: vendor '$VENDOR' is invalid: must not end with '.lock' (case-insensitive), which git refs disallow"
+            exit 1
+          fi
+
+          # Slug is a NetBox device slug: kebab-case, no spaces.
+          SLUG_RE='^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$'
+          if [ -n "$SLUG" ]; then
+            if [[ ! "$SLUG" =~ $SLUG_RE ]]; then
+              echo "ERROR: slug '$SLUG' is invalid: must start and end with a letter or digit, and contain only letters, digits, and . _ -"
+              exit 1
+            fi
+            if [[ "$SLUG" == *".."* ]]; then
+              echo "ERROR: slug '$SLUG' is invalid: must not contain '..'"
+              exit 1
+            fi
+            if [[ "${SLUG,,}" == *.lock ]]; then
+              echo "ERROR: slug '$SLUG' is invalid: must not end with '.lock' (case-insensitive), which git refs disallow"
+              exit 1
+            fi
+          fi
+
+          # The branch identity must equal the import script's output identity:
+          # two runs that write to the same brand pack file must land on the
+          # same branch, so a real conflict surfaces as an ordinary git merge
+          # conflict instead of two branches silently disagreeing about the
+          # same file. scripts/import-netbox-devices.ts (brandPackFilePath)
+          # writes to src/lib/data/brandPacks/<vendor.toLowerCase()>.ts, so
+          # VENDOR_KEY reproduces that exact transform: lowercase only. The
+          # vendor charset above never contains a space, so no further
+          # encoding is needed to make it a valid git ref component.
+          VENDOR_KEY=$(printf '%s' "$VENDOR" | tr '[:upper:]' '[:lower:]')
+
+          # A dedicated path segment for the run kind keeps the branch
+          # unambiguous: "all" (the literal --all run) can never collide with
+          # "device-<slug>" (a single-device run), unlike a shared
+          # "<vendor>-devices" suffix, which a device literally named
+          # "devices" would also produce. The slug is used verbatim, not
+          # lowercased or normalised, since it is already restricted to
+          # [A-Za-z0-9._-], starts and ends alphanumeric, and (checked above)
+          # has no ".." and no trailing ".lock". A single-device import
+          # (--slug) gets its own branch per device; an --all import keeps
+          # the vendor-level branch.
+          if [ -n "$SLUG" ]; then
+            BRANCH_NAME="${VENDOR_KEY}/device-${SLUG}"
+          else
+            BRANCH_NAME="${VENDOR_KEY}/all"
+          fi
+          echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -72,21 +143,22 @@ jobs:
         env:
           VENDOR: ${{ inputs.vendor }}
           SLUG: ${{ inputs.slug }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          FLAGS="--vendor $VENDOR"
+          ARGS=(--vendor "$VENDOR")
 
           if [ -n "$SLUG" ]; then
-            FLAGS="$FLAGS --slug $SLUG"
+            ARGS+=(--slug "$SLUG")
           else
-            FLAGS="$FLAGS --all"
+            ARGS+=(--all)
           fi
 
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
-            FLAGS="$FLAGS --dry-run"
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS+=(--dry-run)
           fi
 
-          echo "Running: npx tsx scripts/import-netbox-devices.ts $FLAGS"
-          npx tsx scripts/import-netbox-devices.ts $FLAGS
+          echo "Running: npx tsx scripts/import-netbox-devices.ts ${ARGS[*]}"
+          npx tsx scripts/import-netbox-devices.ts "${ARGS[@]}"
 
       - name: Process images
         if: inputs.dry_run == false
@@ -127,5 +199,5 @@ jobs:
 
             ---
             🤖 Generated by NetBox Import Action
-          branch: import/${{ env.VENDOR }}-devices
+          branch: import/${{ steps.validate.outputs.branch_name }}
           labels: feature,area:devices

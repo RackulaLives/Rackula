@@ -38,7 +38,9 @@ jobs:
 
       - name: Install API production deps (build-lxc parity)
         working-directory: api
-        run: bun install --frozen-lockfile --production --cpu='*' --os=linux
+        # --omit=peer drops the vitest/vite tree that ships as an optional peer
+        # of better-auth (#3279).
+        run: bun install --frozen-lockfile --production --omit=peer --cpu='*' --os=linux
 
       - name: Assert both argon2 binaries are bundled
         working-directory: api

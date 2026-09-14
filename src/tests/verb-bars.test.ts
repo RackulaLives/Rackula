@@ -24,6 +24,7 @@ const deviceCtx: ActionEnabledContext = {
   hasRacks: true,
   mode: "browser",
   canMoveDeviceSlot: false,
+  readOnly: false,
 };
 
 /** A fully-capable context with rack selected. */
@@ -36,6 +37,7 @@ const rackCtx: ActionEnabledContext = {
   hasRacks: true,
   mode: "browser",
   canMoveDeviceSlot: false,
+  readOnly: false,
 };
 
 /** No selection. */
@@ -48,6 +50,7 @@ const emptyCtx: ActionEnabledContext = {
   hasRacks: true,
   mode: "browser",
   canMoveDeviceSlot: false,
+  readOnly: false,
 };
 
 describe("verb-bars projection", () => {
@@ -330,18 +333,6 @@ describe("verb-bars projection", () => {
         readOnly: false,
       };
       const result = getSelectionVerbsWithState(readWriteCtx);
-      for (const verb of result) {
-        expect(verb.disabled).toBe(false);
-      }
-    });
-
-    it("all device mutation verbs are enabled when readOnly is omitted", () => {
-      // Backward-compatibility: omitting readOnly is identical to false.
-      const ctxWithSlot: ActionEnabledContext = {
-        ...deviceCtx,
-        canMoveDeviceSlot: true,
-      };
-      const result = getSelectionVerbsWithState(ctxWithSlot);
       for (const verb of result) {
         expect(verb.disabled).toBe(false);
       }
