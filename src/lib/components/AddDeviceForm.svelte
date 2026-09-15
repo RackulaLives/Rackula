@@ -66,6 +66,15 @@
     }
   }
 
+  // Rack width the crop frame is shaped for: the active rack when the device
+  // fits it, otherwise the device's own width.
+  function getCropRackWidth(option: RackWidthOption): number {
+    const fits = optionToRackWidths(option);
+    if (activeRackWidth === 10) return fits.includes(10) ? 10 : 19;
+    if (option === "10") return 10;
+    return activeRackWidth ?? 19;
+  }
+
   // Form state
   let name = $state("");
   let height = $state(1);
@@ -339,6 +348,9 @@
         face="front"
         currentImage={frontImage}
         deviceName={name}
+        uHeight={height}
+        rackWidth={getCropRackWidth(rackWidthOption)}
+        halfWidth={isHalfWidth}
         onupload={(data) => (frontImage = data)}
         onremove={() => (frontImage = undefined)}
       />
@@ -346,6 +358,9 @@
         face="rear"
         currentImage={rearImage}
         deviceName={name}
+        uHeight={height}
+        rackWidth={getCropRackWidth(rackWidthOption)}
+        halfWidth={isHalfWidth}
         onupload={(data) => (rearImage = data)}
         onremove={() => (rearImage = undefined)}
       />
