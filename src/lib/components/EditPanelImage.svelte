@@ -12,6 +12,7 @@
   import { SUPPORTED_IMAGE_FORMATS } from "$lib/types/constants";
   import type { SelectedDeviceInfo } from "$lib/types";
   import type { ImageData } from "$lib/types/images";
+  import ImageCropDialog from "./ImageCropDialog.svelte";
 
   interface Props {
     selectedDeviceInfo: SelectedDeviceInfo;
@@ -43,6 +44,9 @@
     rear: HTMLInputElement | null;
   }>({ front: null, rear: null });
 
+  // Chosen file waiting in the crop dialog
+  let crop = $state<{ face: "front" | "rear"; file: File } | null>(null);
+
   // Current placement overrides (if any)
   const placementFrontImage = $derived(
     imageStore.getDeviceImage(
@@ -73,7 +77,7 @@
     fileInputs[face]?.click();
   }
 
-  async function handleFileChange(face: "front" | "rear", event: Event) {
+  function handleFileChange(face: "front" | "rear", event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
@@ -87,9 +91,17 @@
       return;
     }
 
+    crop = { face, file };
+
+    // Reset so the same file can be selected again
+    input.value = "";
+  }
+
+  async function handleCropConfirm(face: "front" | "rear", cropped: File) {
+    crop = null;
     try {
       const data = await fileToImageData(
-        file,
+        cropped,
         selectedDeviceInfo.device.slug,
         face,
       );
@@ -104,9 +116,6 @@
     } catch {
       errors[face] = "Failed to process image";
     }
-
-    // Reset so the same file can be selected again
-    input.value = "";
   }
 
   function clearOverride(face: "front" | "rear") {
@@ -205,6 +214,16 @@
   {@render imageSlot("front", placementFrontImage, deviceTypeFrontImage)}
   {@render imageSlot("rear", placementRearImage, deviceTypeRearImage)}
 </div>
+
+<ImageCropDialog
+  file={crop?.file ?? null}
+  face={crop?.face ?? "front"}
+  uHeight={selectedDeviceInfo.device.u_height}
+  rackWidth={selectedDeviceInfo.rack.width}
+  halfWidth={selectedDeviceInfo.device.slot_width === 1}
+  onconfirm={(cropped) => crop && handleCropConfirm(crop.face, cropped)}
+  oncancel={() => (crop = null)}
+/>
 
 <style>
   .image-overrides {
