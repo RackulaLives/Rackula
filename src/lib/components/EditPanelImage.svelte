@@ -12,6 +12,7 @@
   import { SUPPORTED_IMAGE_FORMATS } from "$lib/types/constants";
   import type { SelectedDeviceInfo } from "$lib/types";
   import type { ImageData } from "$lib/types/images";
+  import ImageCropDialog from "./ImageCropDialog.svelte";
 
   interface Props {
     selectedDeviceInfo: SelectedDeviceInfo;
@@ -43,6 +44,11 @@
     rear: HTMLInputElement | null;
   }>({ front: null, rear: null });
 
+  // Chosen file waiting in the crop dialog. The face is kept after closing so
+  // the dialog title does not change during its exit transition.
+  let cropFile = $state<File | null>(null);
+  let cropFace = $state<"front" | "rear">("front");
+
   // Current placement overrides (if any)
   const placementFrontImage = $derived(
     imageStore.getDeviceImage(
@@ -73,7 +79,7 @@
     fileInputs[face]?.click();
   }
 
-  async function handleFileChange(face: "front" | "rear", event: Event) {
+  function handleFileChange(face: "front" | "rear", event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
@@ -87,9 +93,19 @@
       return;
     }
 
+    cropFace = face;
+    cropFile = file;
+
+    // Reset so the same file can be selected again
+    input.value = "";
+  }
+
+  async function handleCropConfirm(cropped: File) {
+    const face = cropFace;
+    cropFile = null;
     try {
       const data = await fileToImageData(
-        file,
+        cropped,
         selectedDeviceInfo.device.slug,
         face,
       );
@@ -104,9 +120,6 @@
     } catch {
       errors[face] = "Failed to process image";
     }
-
-    // Reset so the same file can be selected again
-    input.value = "";
   }
 
   function clearOverride(face: "front" | "rear") {
@@ -205,6 +218,15 @@
   {@render imageSlot("front", placementFrontImage, deviceTypeFrontImage)}
   {@render imageSlot("rear", placementRearImage, deviceTypeRearImage)}
 </div>
+
+<ImageCropDialog
+  file={cropFile}
+  face={cropFace}
+  uHeight={selectedDeviceInfo.device.u_height}
+  rackWidth={selectedDeviceInfo.rack.width}
+  onconfirm={handleCropConfirm}
+  oncancel={() => (cropFile = null)}
+/>
 
 <style>
   .image-overrides {

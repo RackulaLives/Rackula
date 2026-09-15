@@ -66,6 +66,15 @@
     }
   }
 
+  // Rack width the crop frame is shaped for: the active rack when the device
+  // fits it, otherwise the device's own width.
+  function getCropRackWidth(option: RackWidthOption): number {
+    const fits = optionToRackWidths(option);
+    if (activeRackWidth === 10) return fits.includes(10) ? 10 : 19;
+    if (option === "10") return 10;
+    return activeRackWidth ?? 19;
+  }
+
   // Form state
   let name = $state("");
   let height = $state(1);
@@ -75,6 +84,10 @@
   let isFullDepth = $state(true);
   let isHalfWidth = $state(false);
   let rackWidthOption = $state<RackWidthOption>(getDefaultRackWidthOption());
+  // The image is drawn in every rack width the device fits, so the crop shows
+  // guides for the widths it is not framed for.
+  const cropRackWidth = $derived(getCropRackWidth(rackWidthOption));
+  const cropGuideRackWidths = $derived(optionToRackWidths(rackWidthOption));
   let userChangedColour = $state(false);
 
   // Image state (v0.1.0)
@@ -180,9 +193,11 @@
   }
 
   function handleKeyDown(event: KeyboardEvent) {
+    // Buttons and text areas keep their own Enter behaviour
     if (
       event.key === "Enter" &&
-      event.target instanceof HTMLTextAreaElement === false
+      !(event.target instanceof HTMLTextAreaElement) &&
+      !(event.target instanceof HTMLButtonElement)
     ) {
       event.preventDefault();
       handleSubmit();
@@ -339,6 +354,9 @@
         face="front"
         currentImage={frontImage}
         deviceName={name}
+        uHeight={height}
+        rackWidth={cropRackWidth}
+        guideRackWidths={cropGuideRackWidths}
         onupload={(data) => (frontImage = data)}
         onremove={() => (frontImage = undefined)}
       />
@@ -346,6 +364,9 @@
         face="rear"
         currentImage={rearImage}
         deviceName={name}
+        uHeight={height}
+        rackWidth={cropRackWidth}
+        guideRackWidths={cropGuideRackWidths}
         onupload={(data) => (rearImage = data)}
         onremove={() => (rearImage = undefined)}
       />
