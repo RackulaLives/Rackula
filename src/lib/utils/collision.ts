@@ -19,6 +19,7 @@ import type {
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { effectiveFace } from "./effective-face";
+import { fitsSlotWidth, isNarrowDevice } from "./device-width";
 
 /**
  * Check if a placed device is a container child.
@@ -358,16 +359,20 @@ export function snapToNearestValidPosition(
  * Validates that the child device's width and height fit within the slot,
  * and that the device category is allowed by the slot (if slot.accepts is defined).
  *
- * slot_width mapping:
- * - 1 = half-width device (requires width_fraction >= 0.5)
- * - 2 = full-width device (requires width_fraction >= 1.0)
- * - Default (2) = full width device
+ * Width: a measured width_mm is compared to the slot's share of the rack
+ * opening. Otherwise slot_width 1 needs width_fraction >= 0.5 and slot_width 2
+ * (the default) needs 1.0.
  *
  * @param childType - The device type to place
  * @param slot - The target slot
+ * @param rackWidth - Nominal width in inches of the rack holding the container
  * @returns true if device fits and is allowed, false otherwise
  */
-export function canPlaceInSlot(childType: DeviceType, slot: Slot): boolean {
+export function canPlaceInSlot(
+  childType: DeviceType,
+  slot: Slot,
+  rackWidth: number,
+): boolean {
   // Check category is allowed (if slot.accepts is defined)
   // Empty accepts array or undefined means all categories allowed
   if (slot.accepts && slot.accepts.length > 0) {
@@ -376,15 +381,7 @@ export function canPlaceInSlot(childType: DeviceType, slot: Slot): boolean {
     }
   }
 
-  // Convert slot_width to fraction (1=0.5, 2=1.0)
-  // Default slot_width is 2 (full-width), which requires full width_fraction
-  const slotWidth = childType.slot_width ?? 2;
-  const requiredFraction = slotWidth === 1 ? 0.5 : 1.0;
-
-  // Check width fits
-  const availableFraction = slot.width_fraction ?? 1.0;
-  if (requiredFraction > availableFraction + 0.01) {
-    // +0.01 for floating point tolerance
+  if (!fitsSlotWidth(childType, slot.width_fraction, rackWidth)) {
     return false;
   }
 
@@ -418,10 +415,9 @@ export const CARRIER_2U_2COL_SLUG = "carrier-2u-2col";
  */
 export function requiresCarrier(deviceType: DeviceType): boolean {
   if (deviceType.category === "blank") return false;
-  const isHalfWidth = (deviceType.slot_width ?? 2) === 1;
   const isSubU = deviceType.u_height < 1;
   const isNonIntegerHeight = !Number.isInteger(deviceType.u_height);
-  return isHalfWidth || isSubU || isNonIntegerHeight;
+  return isNarrowDevice(deviceType) || isSubU || isNonIntegerHeight;
 }
 
 /**
@@ -463,8 +459,9 @@ export function isWholeURailPosition(positionInternal: number): boolean {
 export function synthesizeCarrierForDevice(
   deviceType: DeviceType,
 ): string | null {
-  // Only half-width gear fits the half-width carrier cells.
-  if ((deviceType.slot_width ?? 2) !== 1) {
+  // Only narrow gear (half-width or measured) goes in a half-width carrier.
+  // A measured device wider than the cell is rejected by the cell-fit check.
+  if (!isNarrowDevice(deviceType)) {
     return null;
   }
 
@@ -557,6 +554,7 @@ export function findNextFreeChildPosition(
  * @param childType - The DeviceType of the contained child
  * @param currentSlotId - The slot the child currently occupies
  * @param siblings - Other children already in this carrier (excluding the child)
+ * @param rackWidth - Nominal width in inches of the rack holding the carrier
  * @returns The next free, fitting { slotId } or null when none is reachable
  */
 export function findNextSlotForChild(
@@ -564,6 +562,7 @@ export function findNextSlotForChild(
   childType: DeviceType,
   currentSlotId: string,
   siblings: PlacedDevice[],
+  rackWidth: number,
 ): { slotId: string } | null {
   const slots = containerType.slots ?? [];
   const currentIndex = slots.findIndex((s) => s.id === currentSlotId);
@@ -578,7 +577,7 @@ export function findNextSlotForChild(
   for (let offset = 1; offset < slots.length; offset++) {
     const slot = slots[(currentIndex + offset) % slots.length]!;
     if (occupied.has(slot.id)) continue;
-    if (!canPlaceInSlot(childType, slot)) continue;
+    if (!canPlaceInSlot(childType, slot, rackWidth)) continue;
     return { slotId: slot.id };
   }
 
@@ -633,7 +632,7 @@ export function canPlaceInContainer(
   }
 
   // Check if child device dimensions fit within the slot
-  if (!canPlaceInSlot(childType, targetSlot)) {
+  if (!canPlaceInSlot(childType, targetSlot, rack.width)) {
     return false;
   }
 

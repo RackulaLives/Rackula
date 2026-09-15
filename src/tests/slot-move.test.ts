@@ -50,7 +50,7 @@ describe("findNextSlotForChild", () => {
     const carrier = twoColCarrier();
     const child = halfWidthChild();
 
-    const next = findNextSlotForChild(carrier, child, "col-1", []);
+    const next = findNextSlotForChild(carrier, child, "col-1", [], 19);
 
     expect(next).toEqual({ slotId: "col-2" });
   });
@@ -59,7 +59,7 @@ describe("findNextSlotForChild", () => {
     const carrier = twoColCarrier();
     const child = halfWidthChild();
 
-    const next = findNextSlotForChild(carrier, child, "col-2", []);
+    const next = findNextSlotForChild(carrier, child, "col-2", [], 19);
 
     expect(next).toEqual({ slotId: "col-1" });
   });
@@ -82,7 +82,7 @@ describe("findNextSlotForChild", () => {
     });
 
     // From c1, c2 is taken by the sibling, so the next reachable cell is c3.
-    const next = findNextSlotForChild(carrier, child, "c1", [sibling]);
+    const next = findNextSlotForChild(carrier, child, "c1", [sibling], 19);
 
     expect(next).toEqual({ slotId: "c3" });
   });
@@ -96,7 +96,7 @@ describe("findNextSlotForChild", () => {
       device_type: "half-server",
     });
 
-    const next = findNextSlotForChild(carrier, child, "col-1", [sibling]);
+    const next = findNextSlotForChild(carrier, child, "col-1", [sibling], 19);
 
     expect(next).toBeNull();
   });
@@ -111,7 +111,7 @@ describe("findNextSlotForChild", () => {
     });
     const child = createTestDeviceType({ slug: "full", u_height: 1 });
 
-    const next = findNextSlotForChild(carrier, child, "only", []);
+    const next = findNextSlotForChild(carrier, child, "only", [], 19);
 
     expect(next).toBeNull();
   });
@@ -134,7 +134,13 @@ describe("findNextSlotForChild", () => {
     });
 
     // Currently in the wide cell; the only other cell (narrow) does not fit.
-    const fromWide = findNextSlotForChild(carrier, fullWidthChild, "wide", []);
+    const fromWide = findNextSlotForChild(
+      carrier,
+      fullWidthChild,
+      "wide",
+      [],
+      19,
+    );
     expect(fromWide).toBeNull();
   });
 
@@ -142,7 +148,7 @@ describe("findNextSlotForChild", () => {
     const carrier = twoColCarrier();
     const child = halfWidthChild();
 
-    const next = findNextSlotForChild(carrier, child, "nonexistent", []);
+    const next = findNextSlotForChild(carrier, child, "nonexistent", [], 19);
 
     expect(next).toBeNull();
   });

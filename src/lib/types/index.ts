@@ -460,6 +460,11 @@ export interface DeviceType {
   /** Width in slots (1 = half-width, 2 = full-width). Default: 2 */
   slot_width?: SlotWidth;
   /**
+   * Measured width in millimetres. Overrides slot_width for slot fit and marks
+   * the device as carrier-mounted.
+   */
+  width_mm?: number;
+  /**
    * Compatible rack widths in inches.
    * Rackula-specific extension (not in NetBox schema).
    * Devices without this field are assumed to be 19" compatible (standard racks).

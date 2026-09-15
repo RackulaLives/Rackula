@@ -290,6 +290,7 @@ export function moveDeviceToSlot(
     childType,
     child.slot_id,
     siblings,
+    targetRack.width,
   );
   if (!next) return false;
 
@@ -367,7 +368,7 @@ export function placeDeviceSmart(
     if (!carrierType) return false;
     // Only consider cells the child actually fits (width/height/category).
     const fittingSlots = (carrierType.slots ?? []).filter((slot) =>
-      canPlaceInSlot(deviceType, slot),
+      canPlaceInSlot(deviceType, slot, targetRack.width),
     );
     if (fittingSlots.length === 0) return false;
     const children = targetRack.devices.filter(
@@ -410,7 +411,7 @@ export function placeDeviceSmart(
   // guarantees a fit for the standard sizes; reject odd dimensions rather than
   // commit an invalid placement.
   const fittingSlots = (carrierType.slots ?? []).filter((slot) =>
-    canPlaceInSlot(deviceType, slot),
+    canPlaceInSlot(deviceType, slot, targetRack.width),
   );
   const free = findNextFreeChildPosition(
     { ...carrierType, slots: fittingSlots },

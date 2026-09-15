@@ -4,7 +4,11 @@
  */
 
 import type { DeviceType, DeviceFace, Rack, Slot } from "$lib/types";
-import { canPlaceDevice, findNextFreeChildPosition } from "./collision";
+import {
+  canPlaceDevice,
+  canPlaceInSlot,
+  findNextFreeChildPosition,
+} from "./collision";
 import { RAIL_WIDTH } from "$lib/constants/layout";
 import { toInternalUnits, toHumanUnits } from "./position";
 import { effectiveFace } from "./effective-face";
@@ -374,14 +378,14 @@ export function detectContainerDropTarget(
     if (
       aimed &&
       !occupied.has(aimed.id) &&
-      isSlotCompatible(aimed, draggedDevice)
+      canPlaceInSlot(draggedDevice, aimed, rack.width)
     ) {
       return { containerId: container.id, slotId: aimed.id, position: 0 };
     }
 
     // Otherwise fall back to the first free cell (also covers an occupied aim).
     const fittingSlots = slots.filter((s) =>
-      isSlotCompatible(s, draggedDevice),
+      canPlaceInSlot(draggedDevice, s, rack.width),
     );
     const free = findNextFreeChildPosition(
       { ...containerType, slots: fittingSlots },
@@ -497,40 +501,11 @@ export function detectContainerHover(
     return {
       containerId: placedDevice.id,
       targetSlotId: slot?.id ?? null,
-      isValidTarget: slot ? isSlotCompatible(slot, draggedDevice) : false,
+      isValidTarget: slot
+        ? canPlaceInSlot(draggedDevice, slot, rack.width)
+        : false,
     };
   }
 
   return null;
-}
-
-/**
- * Check if a device is compatible with a slot.
- * A device is compatible if:
- * - The slot's accepts array is empty (accepts all) OR includes the device's category
- * - The device fits within the slot dimensions
- */
-function isSlotCompatible(slot: Slot, device: DeviceType): boolean {
-  // Check category is allowed (empty accepts = all allowed)
-  if (slot.accepts && slot.accepts.length > 0) {
-    if (!slot.accepts.includes(device.category)) {
-      return false;
-    }
-  }
-
-  // Check width fits (slot_width 1 = half, 2 = full)
-  const slotWidth = device.slot_width ?? 2;
-  const requiredFraction = slotWidth === 1 ? 0.5 : 1.0;
-  const availableFraction = slot.width_fraction ?? 1.0;
-  if (requiredFraction > availableFraction + 0.01) {
-    return false;
-  }
-
-  // Check height fits
-  const slotHeight = slot.height_units ?? 1;
-  if (device.u_height > slotHeight) {
-    return false;
-  }
-
-  return true;
 }
