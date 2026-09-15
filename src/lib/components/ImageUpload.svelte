@@ -6,6 +6,7 @@
   import type { ImageData } from "$lib/types/images";
   import { validateImageFile, fileToImageData } from "$lib/utils/imageUpload";
   import { SUPPORTED_IMAGE_FORMATS } from "$lib/types/constants";
+  import { getDeviceImageAspect } from "$lib/utils/image-crop";
   import ImageCropDialog from "./ImageCropDialog.svelte";
 
   interface Props {
@@ -17,7 +18,8 @@
     uHeight: number;
     /** Nominal rack width in inches, sets the crop frame shape. */
     rackWidth?: number;
-    halfWidth?: boolean;
+    /** Other rack widths the image is also drawn in, shown as crop guides. */
+    guideRackWidths?: number[];
     onupload?: (data: ImageData) => void;
     onremove?: () => void;
   }
@@ -28,7 +30,7 @@
     deviceName,
     uHeight,
     rackWidth,
-    halfWidth,
+    guideRackWidths,
     onupload,
     onremove,
   }: Props = $props();
@@ -39,6 +41,16 @@
   // Original file kept so the crop can be adjusted after upload.
   let sourceFile = $state<File | null>(null);
   let cropFile = $state<File | null>(null);
+  // Frame aspect the current image was cropped to.
+  let croppedAspect = $state<number | null>(null);
+
+  const aspect = $derived(getDeviceImageAspect(uHeight, rackWidth));
+  const cropStale = $derived(
+    currentImage !== undefined &&
+      sourceFile !== null &&
+      croppedAspect !== null &&
+      Math.abs(croppedAspect - aspect) > 1e-9,
+  );
 
   // Computed label
   const faceLabel = $derived(face === "front" ? "Front Image" : "Rear Image");
@@ -57,7 +69,7 @@
     fileInputRef?.click();
   }
 
-  async function handleFileChange(event: Event) {
+  function handleFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
 
@@ -84,6 +96,7 @@
 
   async function handleCropConfirm(cropped: File) {
     cropFile = null;
+    croppedAspect = aspect;
     try {
       const imageData = await fileToImageData(cropped, "device", face);
       onupload?.(imageData);
@@ -94,6 +107,7 @@
 
   function handleRemove() {
     sourceFile = null;
+    croppedAspect = null;
     onremove?.();
   }
 </script>
@@ -138,6 +152,13 @@
     </button>
   {/if}
 
+  {#if cropStale}
+    <span class="crop-stale" role="status">
+      The device shape changed since this image was cropped. Crop it again to
+      fit.
+    </span>
+  {/if}
+
   {#if error}
     <span class="error-message" role="alert">{error}</span>
   {/if}
@@ -148,7 +169,7 @@
   {face}
   {uHeight}
   {rackWidth}
-  {halfWidth}
+  {guideRackWidths}
   onconfirm={handleCropConfirm}
   oncancel={() => (cropFile = null)}
 />
@@ -229,6 +250,11 @@
   .btn:focus-visible {
     outline: 2px solid var(--colour-selection);
     outline-offset: 2px;
+  }
+
+  .crop-stale {
+    font-size: var(--font-size-sm);
+    color: var(--colour-warning);
   }
 
   .error-message {
