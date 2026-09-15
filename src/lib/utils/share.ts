@@ -49,7 +49,7 @@ import {
 
 /**
  * Normalize rack width to valid share format values (10 or 19)
- * Maps non-standard widths (21, 23) to 19
+ * Maps non-standard widths (21, 23) to 19; the exact width travels in `wx`
  */
 function normalizeRackWidth(width: number): 10 | 19 {
   return width === 10 ? 10 : 19;
@@ -245,6 +245,7 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
     n: rack.name,
     h: rack.height,
     w: normalizeRackWidth(rack.width),
+    ...(rack.width === 21 || rack.width === 23 ? { wx: rack.width } : {}),
     d: convertDevices(rack.devices),
   }));
 
@@ -288,7 +289,7 @@ function fromMinimalLayoutV1(minimal: MinimalLayout): Layout {
   const rack = createDefaultRack(
     minimal.r.n,
     minimal.r.h,
-    normalizeRackWidth(minimal.r.w),
+    minimal.r.wx ?? normalizeRackWidth(minimal.r.w),
     "4-post-cabinet",
     false,
     1,
@@ -325,7 +326,7 @@ function fromMinimalLayoutV2(minimal: MinimalLayoutV2): Layout {
     const rack = createDefaultRack(
       minRack.n,
       minRack.h,
-      normalizeRackWidth(minRack.w),
+      minRack.wx ?? normalizeRackWidth(minRack.w),
       "4-post-cabinet",
       false,
       1,

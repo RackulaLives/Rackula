@@ -15,16 +15,15 @@ import {
   canPlaceDevice,
   canPlaceInContainer,
   canPlaceInSlot,
+  findAdjacentSlotForChild,
+  findChildrenTooWideForRack,
   findValidDropPositions,
   findNextFreeChildPosition,
   findNextSlotForChild,
-  requiresCarrier,
   synthesizeCarrierForDevice,
-} from "$lib/utils/collision";
-import {
-  findAdjacentSlotForChild,
   type CellDirection,
 } from "$lib/utils/collision";
+import { requiresCarrier } from "$lib/utils/device-width";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { generateId } from "$lib/utils/device";
@@ -541,7 +540,7 @@ export function placeDeviceSmart(
   const deviceType = findDeviceType(deviceTypeSlug, layout.device_types);
   if (!deviceType) return false;
 
-  const carrierSlug = synthesizeCarrierForDevice(deviceType);
+  const carrierSlug = synthesizeCarrierForDevice(deviceType, targetRack.width);
 
   // Whole-U full-width devices mount directly to the rails.
   if (!carrierSlug) {
@@ -1020,6 +1019,17 @@ export function moveDeviceToRack(
   const children = sourceRack.devices.filter(
     (d) => d.container_id === device.id,
   );
+
+  // Cell fit for measured children depends on the rack opening.
+  if (
+    findChildrenTooWideForRack(
+      [device, ...children],
+      layout.device_types,
+      targetRack.width,
+    ).length > 0
+  ) {
+    return false;
+  }
   const parentSnapshot = snapshotDevice(device);
   const childrenSnapshots = children.map((child) => snapshotDevice(child));
 

@@ -11,7 +11,8 @@
 import type { DeviceFace, DeviceType, PlacedDevice, Rack } from "$lib/types";
 import { UNITS_PER_U, DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
-import { canPlaceDevice, requiresCarrier } from "$lib/utils/collision";
+import { canPlaceDevice } from "$lib/utils/collision";
+import { requiresCarrier } from "$lib/utils/device-width";
 import { effectiveFace } from "$lib/utils/effective-face";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";

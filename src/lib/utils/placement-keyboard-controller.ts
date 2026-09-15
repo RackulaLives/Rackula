@@ -135,20 +135,20 @@ export function primeKeyboardPlacement(
   deps: PlacementPrimeDeps,
   device: DeviceType,
 ): void {
-  // A device that can only mount inside a chassis bay (a chassis child, or a
-  // half-width device with no rail carrier) has no rail target in any rack.
-  // State the honest requirement and exit placement mode rather than arming a
-  // futile cursor the user could only Escape out of (#2854).
-  if (requiresChassisBay(device)) {
-    deps.abandonPlacement();
-    deps.announce(pickUpNeedsChassisAnnouncement(device));
-    return;
-  }
-
   const rack = resolveActiveRack(deps);
   if (!rack) {
     // Armed with no rack to place into: say so rather than fall silent.
     deps.announce(noRacksAnnouncement(device));
+    return;
+  }
+  // A device that can only mount inside an existing bay (a chassis child, a
+  // half-width device with no rail carrier, or measured gear too wide for a
+  // carrier cell in this rack) has no rail target. State the honest
+  // requirement and exit placement mode rather than arming a futile cursor the
+  // user could only Escape out of (#2854).
+  if (requiresChassisBay(device, rack.width)) {
+    deps.abandonPlacement();
+    deps.announce(pickUpNeedsChassisAnnouncement(device));
     return;
   }
   deps.setActiveRack(rack.id);

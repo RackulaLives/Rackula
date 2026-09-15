@@ -18,6 +18,7 @@
   import { getDefaultColour } from "$lib/utils/device";
   import {
     WIDTH_UNITS,
+    getRackOpeningMm,
     toMillimetres,
     type WidthUnit,
   } from "$lib/utils/device-width";
@@ -70,6 +71,13 @@
       case "both":
         return [10, 19];
     }
+  }
+
+  // Widest rack the device can go in; a 19 inch device also fits an active 21
+  // or 23 inch rack.
+  function getWidestTargetRackWidth(): number {
+    if (rackWidthOption === "10") return 10;
+    return Math.max(19, activeRackWidth ?? 19);
   }
 
   // Form state
@@ -171,9 +179,18 @@
       valid = false;
     }
 
-    if (hasWidth && !(widthValue! > 0)) {
-      widthError = "Width must be greater than 0";
-      valid = false;
+    if (hasWidth) {
+      // Check the stored value: tiny inputs round to 0 mm.
+      const widthMm = toMillimetres(widthValue!, widthUnit);
+      const rackWidth = getWidestTargetRackWidth();
+      const openingMm = getRackOpeningMm(rackWidth);
+      if (!(widthMm > 0)) {
+        widthError = "Width must be at least 0.1 mm";
+        valid = false;
+      } else if (widthMm > openingMm) {
+        widthError = `Too wide for a shelf in a ${rackWidth} inch rack (up to ${Math.floor(openingMm)} mm). Leave width empty for rack-mount gear.`;
+        valid = false;
+      }
     }
 
     return valid;
@@ -359,7 +376,8 @@
         <span class="error-message">{widthError}</span>
       {:else}
         <span class="helper-text"
-          >Measured width. The device mounts in a shelf or carrier cell it fits.</span
+          >For gear that sits on a shelf or carrier. Leave empty for rack-mount
+          gear.</span
         >
       {/if}
     </div>
@@ -368,7 +386,8 @@
     <div class="form-group">
       <Switch
         id="device-half-width"
-        bind:checked={isHalfWidth}
+        checked={isHalfWidth && !hasWidth}
+        onchange={(checked) => (isHalfWidth = checked)}
         disabled={hasWidth}
         label="Half Width"
         helperText={hasWidth

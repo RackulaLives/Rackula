@@ -46,7 +46,7 @@ describe("loadSessionWithTimestamp: forward-compat gate on the autosave door (#2
   });
 
   it("refuses a future-major autosave body, returning null", () => {
-    seedAutosave(bodyWithSchemaVersion("2.0"));
+    seedAutosave(bodyWithSchemaVersion("3.0"));
     expect(loadSessionWithTimestamp()).toBeNull();
   });
 

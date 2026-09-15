@@ -11,7 +11,7 @@ import {
   DEFAULT_RACK_BASE_WEIGHT,
 } from "$lib/types/constants";
 import { VERSION } from "$lib/version";
-import { fitsSlotWidth, isNarrowDevice } from "$lib/utils/device-width";
+import { fitsSlotWidth, requiresCarrier } from "$lib/utils/device-width";
 import {
   SCHEMA_VERSION,
   assertSchemaVersionSupported,
@@ -1000,22 +1000,12 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
         }
 
         const railType = deviceTypeBySlug.get(device.device_type);
-        if (railType && railType.category !== "blank") {
-          const isSubU = railType.u_height < 1;
-          const isNonIntegerHeight = !Number.isInteger(railType.u_height);
-          if (isNarrowDevice(railType) || isSubU || isNonIntegerHeight) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: `Device "${device.name ?? device.id}" is sub-U or narrower than full width and cannot mount directly to the rails. It must be a child of a carrier (set container_id and slot_id).`,
-              path: [
-                "racks",
-                rackIndex,
-                "devices",
-                deviceIndex,
-                "container_id",
-              ],
-            });
-          }
+        if (railType && requiresCarrier(railType)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Device "${device.name ?? device.id}" is sub-U or narrower than full width and cannot mount directly to the rails. It must be a child of a carrier (set container_id and slot_id).`,
+            path: ["racks", rackIndex, "devices", deviceIndex, "container_id"],
+          });
         }
         continue;
       }
