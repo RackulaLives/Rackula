@@ -128,7 +128,10 @@ export async function serializeLayoutToYaml(
       ? {
           id: layout.metadata.id,
           name: layout.metadata.name ?? layout.name,
-          schema_version: schemaVersionForWrite(layout.metadata.schema_version),
+          schema_version: schemaVersionForWrite(
+            layout.metadata.schema_version,
+            layout.device_types,
+          ),
           description: layout.metadata.description,
         }
       : undefined;

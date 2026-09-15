@@ -214,8 +214,8 @@ export function resolveDropTarget(
   // synthesisable (a chassis child) is INVALID on bare rails: it can only go
   // into an existing bay. This mirrors placeDeviceSmart so preview and placement
   // agree.
-  const carrierSlug = synthesizeCarrierForDevice(device);
-  const needsBay = requiresChassisBay(device);
+  const carrierSlug = synthesizeCarrierForDevice(device, rack.width);
+  const needsBay = requiresChassisBay(device, rack.width);
   // Both a carrier-synthesising device and a bay-only device can drop into an
   // existing container cell under the cursor.
   const resolvableContainerTarget =
@@ -300,7 +300,7 @@ export function resolveDropAction(
   );
 
   // Carrier-first: a sub-U / half-width device must land inside a carrier.
-  const carrierSlug = synthesizeCarrierForDevice(dragData.device);
+  const carrierSlug = synthesizeCarrierForDevice(dragData.device, rack.width);
 
   // Drop into the cell under the cursor when hovering a container with a free,
   // fitting cell (y-aware: both column and row). Skipped on the failed-container
@@ -368,7 +368,7 @@ export function resolveDropAction(
   // cursor is over one. On bare rails it is honestly invalid: say it needs a
   // chassis rather than fall through to a rail placement the store would refuse
   // with a misleading "No space".
-  if (requiresChassisBay(dragData.device)) {
+  if (requiresChassisBay(dragData.device, rack.width)) {
     return {
       kind: "invalid",
       feedback: "invalid",
@@ -449,6 +449,9 @@ export function resolveDropAction(
  */
 export function chassisRequirementMessage(device: DeviceType): string {
   const name = device.model ?? device.slug;
+  if (device.width_mm !== undefined) {
+    return `${name} must be placed in a shelf or carrier cell wide enough for it`;
+  }
   return `${name} must be placed in a chassis bay`;
 }
 

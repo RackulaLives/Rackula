@@ -158,6 +158,11 @@ export const MinimalRackSchema = z.object({
   h: z.number().int().min(1).max(100),
   /** width (normalized to 10 or 19 for share links) */
   w: z.union([z.literal(10), z.literal(19)]),
+  /**
+   * exact width when it is 21 or 23. Measured devices fit against the real
+   * opening, so decoding keeps it; older readers ignore this key and use `w`.
+   */
+  wx: z.union([z.literal(21), z.literal(23)]).optional(),
   /** devices */
   d: z.array(MinimalDeviceSchema),
 });

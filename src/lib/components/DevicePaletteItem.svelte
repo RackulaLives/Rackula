@@ -11,6 +11,7 @@
   import CategoryIcon from "./CategoryIcon.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import ImageIndicator from "./ImageIndicator.svelte";
+  import { isNarrowDevice } from "$lib/utils/device-width";
   import Tooltip from "./Tooltip.svelte";
   import {
     createPaletteDragData,
@@ -77,13 +78,15 @@
   // Device display name: model or slug
   const deviceName = $derived(device.model ?? device.slug);
 
-  // Check if device is half-width
-  const isHalfWidth = $derived(device.slot_width === 1);
+  // Half-width or measured narrow gear (mounts in a carrier)
+  const isNarrow = $derived(isNarrowDevice(device));
+  const widthMm = $derived(device.width_mm);
 
   // Build accessible description for device
   const ariaDescription = $derived.by(() => {
     const parts = [deviceName, `${device.u_height}U`, device.category];
-    if (isHalfWidth) parts.push("half-width");
+    if (widthMm !== undefined) parts.push(`${widthMm} mm wide`);
+    else if (isNarrow) parts.push("half-width");
     if (device.is_full_depth === false) parts.push("half-depth");
     if (isFavourite) parts.push("pinned");
     if (!isCompatible && incompatibilityReason)
@@ -354,7 +357,13 @@
   {/if}
   <span class="device-spec">
     <span class="device-height">{device.u_height}U</span>
-    {#if isHalfWidth}
+    {#if widthMm !== undefined}
+      <span
+        class="form-marker"
+        title="Measured width: Mounts inside a shelf or carrier, not directly on the rails"
+        aria-label="{widthMm} mm wide device">{Math.round(widthMm)}mm</span
+      >
+    {:else if isNarrow}
       <span
         class="form-marker"
         title="Half-width: Mounts inside a carrier, not directly on the rails"

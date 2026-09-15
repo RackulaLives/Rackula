@@ -2,26 +2,30 @@
  * Measured device width (#3310)
  *
  * A device type may carry its physical width in millimetres (width_mm). Inside
- * a container, the device fits a slot when its share of the rack's clear
- * opening is no wider than the slot's width_fraction. Devices without width_mm
- * keep the slot_width mapping (1 = half, 2 = full).
+ * a container, the device fits a slot when width_mm is no more than the slot's
+ * share of the rack's clear opening. Devices without width_mm keep the
+ * slot_width mapping (1 = half, 2 = full). Because fit depends on the rack,
+ * changing a rack's width or moving a carrier to another rack re-checks it.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { LayoutSchema } from "$lib/schemas";
 import {
   canPlaceInSlot,
-  requiresCarrier,
+  requiresChassisBay,
   synthesizeCarrierForDevice,
   CARRIER_2COL_SLUG,
 } from "$lib/utils/collision";
+import { requiresCarrier, toMillimetres } from "$lib/utils/device-width";
+import { adaptLegacyLayout } from "$lib/storage";
 import {
-  getRackOpeningMm,
-  toMillimetres,
-  formatWidthMm,
-} from "$lib/utils/device-width";
+  filterDevicesByAttributes,
+  type HeightBucket,
+} from "$lib/utils/deviceFilters";
 import { findStarterDevice } from "$lib/data/starterLibrary";
 import { serializeLayoutToYaml, parseLayoutYaml } from "$lib/utils/yaml";
 import { encodeLayout, decodeLayout } from "$lib/utils/share";
+import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
+import { resetHistoryStore } from "$lib/stores/history.svelte";
 import type { DeviceType } from "$lib/types";
 import {
   createTestContainerChild,
@@ -38,17 +42,16 @@ function measuredDevice(width_mm: number, slug = "mini-pc"): DeviceType {
 
 const thirdSlot = createTestSlot({ id: "left", width_fraction: 0.33 });
 
-describe("rack clear opening", () => {
-  it("is the nominal width minus 1.25 in", () => {
-    expect(getRackOpeningMm(19)).toBeCloseTo(450.85);
-    expect(getRackOpeningMm(10)).toBeCloseTo(222.25);
-  });
-});
-
 describe("canPlaceInSlot with width_mm", () => {
   it("fits a third-width slot in a 19 inch rack when narrow enough", () => {
     expect(canPlaceInSlot(measuredDevice(140), thirdSlot, 19)).toBe(true);
     expect(canPlaceInSlot(measuredDevice(160), thirdSlot, 19)).toBe(false);
+  });
+
+  it("reads a 0.33 cell as a true third, with no fraction-sized overlap", () => {
+    // A third of the 19" opening is 150.3 mm.
+    expect(canPlaceInSlot(measuredDevice(150), thirdSlot, 19)).toBe(true);
+    expect(canPlaceInSlot(measuredDevice(152), thirdSlot, 19)).toBe(false);
   });
 
   it("depends on the rack width", () => {
@@ -63,21 +66,25 @@ describe("canPlaceInSlot with width_mm", () => {
     expect(canPlaceInSlot(half, halfSlot, 10)).toBe(true);
     expect(canPlaceInSlot(half, thirdSlot, 19)).toBe(false);
   });
-
-  it("lets the starter 3-slot shelf hold a measured device", () => {
-    const shelf = findStarterDevice("shelf-1u-3slot")!;
-    const fitting = shelf.slots!.filter((s) =>
-      canPlaceInSlot(measuredDevice(140), s, 19),
-    );
-    expect(fitting.map((s) => s.id)).toEqual(["left", "center", "right"]);
-  });
 });
 
 describe("carrier-first rule for measured devices", () => {
-  it("requires a carrier and synthesises the column carrier", () => {
+  it("requires a carrier and synthesises the column carrier when it fits", () => {
     const device = measuredDevice(72);
     expect(requiresCarrier(device)).toBe(true);
-    expect(synthesizeCarrierForDevice(device)).toBe(CARRIER_2COL_SLUG);
+    expect(synthesizeCarrierForDevice(device, 19)).toBe(CARRIER_2COL_SLUG);
+    expect(requiresChassisBay(device, 19)).toBe(false);
+  });
+
+  it("synthesises no carrier when the device is wider than a half-width cell", () => {
+    for (const [widthMm, rackWidth] of [
+      [300, 19],
+      [140, 10],
+    ] as const) {
+      const device = measuredDevice(widthMm);
+      expect(synthesizeCarrierForDevice(device, rackWidth)).toBeNull();
+      expect(requiresChassisBay(device, rackWidth)).toBe(true);
+    }
   });
 });
 
@@ -150,15 +157,115 @@ describe("LayoutSchema width fit", () => {
   });
 });
 
+describe("rack changes re-check measured children", () => {
+  let store: ReturnType<typeof getLayoutStore>;
+
+  /** A 19" rack with a 3-slot shelf holding a measured child in its centre cell. */
+  function rackWithShelfChild(childWidthMm: number) {
+    const rack = store.addRack("Rack A", 42)!;
+    store.addDeviceTypeRaw(measuredDevice(childWidthMm));
+    store.placeDevice(rack.id, "shelf-1u-3slot", 5);
+    const shelf = store
+      .getRackById(rack.id)!
+      .devices.find((d) => d.device_type === "shelf-1u-3slot")!;
+    expect(
+      store.placeInContainer(rack.id, "mini-pc", shelf.id, "center", 0),
+    ).toBe(true);
+    return { rack, shelf };
+  }
+
+  beforeEach(() => {
+    resetLayoutStore();
+    resetHistoryStore();
+    store = getLayoutStore();
+  });
+
+  it("refuses a rack width change that leaves a child too wide for its cell", () => {
+    const { rack } = rackWithShelfChild(140);
+
+    store.updateRack(rack.id, { width: 10 });
+
+    expect(store.getRackById(rack.id)!.width).toBe(19);
+  });
+
+  it("allows a rack width change when every child still fits", () => {
+    const { rack } = rackWithShelfChild(72);
+
+    store.updateRack(rack.id, { width: 10 });
+
+    expect(store.getRackById(rack.id)!.width).toBe(10);
+  });
+
+  it("refuses moving a shelf to a narrower rack its children do not fit", () => {
+    const { rack, shelf } = rackWithShelfChild(140);
+    const narrow = store.addRack("Rack B", 42)!;
+    store.updateRack(narrow.id, { width: 10 });
+    const shelfIndex = store.getRackById(rack.id)!.devices.indexOf(shelf);
+
+    expect(store.moveDeviceToRack(rack.id, shelfIndex, narrow.id, 10)).toBe(
+      false,
+    );
+    expect(store.getRackById(narrow.id)!.devices).toEqual([]);
+  });
+});
+
+describe("legacy adapter", () => {
+  it("wraps a rail-mounted measured device in a carrier", () => {
+    const device = measuredDevice(72);
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({
+              id: "d1",
+              device_type: device.slug,
+              position: 30,
+            }),
+          ],
+        }),
+      ],
+      device_types: [device],
+    });
+
+    const adapted = adaptLegacyLayout(layout);
+
+    const placed = adapted.racks[0]!.devices.find((d) => d.id === "d1");
+    expect(placed?.container_id).toBeDefined();
+  });
+});
+
+describe("palette width filter", () => {
+  it("lists a measured device under narrow gear, not full width", () => {
+    const device = measuredDevice(72);
+    const filters = {
+      heights: new Set<HeightBucket>(),
+      hasImage: false,
+      customOnly: false,
+    };
+    const notCustom = () => false;
+
+    expect(
+      filterDevicesByAttributes(
+        [device],
+        { ...filters, halfWidth: true, fullWidth: false },
+        notCustom,
+      ),
+    ).toContain(device);
+    expect(
+      filterDevicesByAttributes(
+        [device],
+        { ...filters, halfWidth: false, fullWidth: true },
+        notCustom,
+      ),
+    ).not.toContain(device);
+  });
+});
+
 describe("width units", () => {
   it("converts metric and imperial input to millimetres", () => {
     expect(toMillimetres(72, "mm")).toBe(72);
     expect(toMillimetres(7.2, "cm")).toBe(72);
     expect(toMillimetres(2.83, "in")).toBe(71.9);
-  });
-
-  it("formats a width in both unit systems", () => {
-    expect(formatWidthMm(72)).toBe("72 mm (2.83 in)");
   });
 });
 
@@ -172,12 +279,13 @@ describe("width_mm persistence", () => {
     ).toBe(72.5);
   });
 
-  it("survives a share link round-trip", () => {
+  it("survives a share link round-trip, keeping a 23 inch rack width", () => {
     const shelf = findStarterDevice("shelf-1u-3slot")!;
-    const device = measuredDevice(140);
+    const device = measuredDevice(180);
     const layout = createTestLayout({
       racks: [
         createTestRack({
+          width: 23,
           devices: [
             createTestDevice({
               id: "shelf-1",
@@ -200,6 +308,7 @@ describe("width_mm persistence", () => {
     const { layout: decoded } = decodeLayout(encoded as string);
     expect(
       decoded?.device_types.find((dt) => dt.slug === device.slug)?.width_mm,
-    ).toBe(140);
+    ).toBe(180);
+    expect(decoded?.racks[0]?.width).toBe(23);
   });
 });

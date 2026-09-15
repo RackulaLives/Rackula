@@ -13,6 +13,9 @@ import { MM_PER_INCH, RACK_EAR_ALLOWANCE_IN } from "$lib/types/constants";
 /** Float tolerance so third-width cells (0.33 / 0.34) accept a third. */
 const WIDTH_FIT_TOLERANCE = 0.01;
 
+/** How far a measured width may exceed its cell, for rounding on entry. */
+const WIDTH_FIT_TOLERANCE_MM = 0.5;
+
 type WidthFields = Pick<DeviceType, "slot_width" | "width_mm">;
 
 /** Units accepted when entering a device width. */
@@ -34,22 +37,19 @@ export function getRackOpeningMm(rackWidth: number): number {
 }
 
 /**
- * Share of the rack opening a device needs.
- * @param deviceType - The device being fitted
- * @param rackWidth - Nominal rack width in inches
+ * A cell's share of the opening, reading the rounded third descriptors
+ * (0.33, 0.34, 0.66, 0.67) as exact thirds.
  */
-export function getDeviceWidthFraction(
-  deviceType: WidthFields,
-  rackWidth: number,
-): number {
-  if (deviceType.width_mm !== undefined) {
-    return deviceType.width_mm / getRackOpeningMm(rackWidth);
-  }
-  return (deviceType.slot_width ?? 2) === 1 ? 0.5 : 1.0;
+function cellFraction(slotWidthFraction: number | undefined): number {
+  const fraction = slotWidthFraction ?? 1.0;
+  const thirds = Math.round(fraction * 3) / 3;
+  return Math.abs(fraction - thirds) <= WIDTH_FIT_TOLERANCE ? thirds : fraction;
 }
 
 /**
- * Whether a device is narrow enough for a slot.
+ * Whether a device is narrow enough for a slot. A measured width is compared in
+ * millimetres against the cell's share of the rack opening; otherwise
+ * slot_width 1 needs a 0.5 cell and slot_width 2 (the default) a full cell.
  * @param deviceType - The device being fitted
  * @param slotWidthFraction - The slot's width_fraction (default 1.0)
  * @param rackWidth - Nominal rack width in inches
@@ -59,10 +59,13 @@ export function fitsSlotWidth(
   slotWidthFraction: number | undefined,
   rackWidth: number,
 ): boolean {
-  return (
-    getDeviceWidthFraction(deviceType, rackWidth) <=
-    (slotWidthFraction ?? 1.0) + WIDTH_FIT_TOLERANCE
-  );
+  if (deviceType.width_mm !== undefined) {
+    const cellMm =
+      cellFraction(slotWidthFraction) * getRackOpeningMm(rackWidth);
+    return deviceType.width_mm <= cellMm + WIDTH_FIT_TOLERANCE_MM;
+  }
+  const requiredFraction = (deviceType.slot_width ?? 2) === 1 ? 0.5 : 1.0;
+  return requiredFraction <= (slotWidthFraction ?? 1.0) + WIDTH_FIT_TOLERANCE;
 }
 
 /**
@@ -72,6 +75,28 @@ export function fitsSlotWidth(
 export function isNarrowDevice(deviceType: WidthFields): boolean {
   return (
     (deviceType.slot_width ?? 2) === 1 || deviceType.width_mm !== undefined
+  );
+}
+
+/**
+ * Whether a device must mount inside a carrier rather than directly on the
+ * rails (carrier-first rule, #2158). Sub-U, non-integer-height, or narrow
+ * (half-width or measured) gear cannot register to whole-U rails. Blank filler
+ * panels are exempt: a blank may rail-mount at any height. This is the single
+ * predicate the schema (LayoutSchema.superRefine) and the store (placeDevice /
+ * moveDevice) share so the two layers enforce identical rules.
+ *
+ * @param deviceType - The device being placed
+ * @returns true when a rail placement is forbidden and a carrier is required
+ */
+export function requiresCarrier(
+  deviceType: WidthFields & Pick<DeviceType, "category" | "u_height">,
+): boolean {
+  if (deviceType.category === "blank") return false;
+  return (
+    isNarrowDevice(deviceType) ||
+    deviceType.u_height < 1 ||
+    !Number.isInteger(deviceType.u_height)
   );
 }
 

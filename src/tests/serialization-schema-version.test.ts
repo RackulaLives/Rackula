@@ -11,7 +11,11 @@
  */
 import { describe, it, expect } from "vitest";
 import JSZip from "jszip";
-import { SCHEMA_VERSION, schemaVersionForWrite } from "$lib/schemas/migrations";
+import {
+  MEASURED_WIDTH_SCHEMA_VERSION,
+  SCHEMA_VERSION,
+  schemaVersionForWrite,
+} from "$lib/schemas/migrations";
 import { createLayout } from "$lib/utils/serialization";
 import {
   parseLayoutYaml,
@@ -21,7 +25,11 @@ import {
 import { createMultiLayoutArchive } from "$lib/utils/archive";
 import type { ImageStoreMap } from "$lib/types/images";
 import type { Layout, LayoutMetadata } from "$lib/types";
-import { createTestLayout, createTestRack } from "./factories";
+import {
+  createTestDeviceType,
+  createTestLayout,
+  createTestRack,
+} from "./factories";
 
 /** A 1.0-stamped upgrade-corpus fixture, exactly as a prior release wrote it. */
 const priorReleaseYaml = (
@@ -98,6 +106,23 @@ describe("schema_version in serialized YAML", () => {
     expect(await stampOf(yaml)).toBe(SCHEMA_VERSION);
   });
 
+  it("stamps the measured-width MAJOR only while a device type has width_mm", async () => {
+    const measured = {
+      ...layoutWith(metadata(SCHEMA_VERSION)),
+      device_types: [{ ...createTestDeviceType(), width_mm: 72 }],
+    };
+    const yaml = await serializeLayoutToYaml(measured);
+    expect(await stampOf(yaml)).toBe(MEASURED_WIDTH_SCHEMA_VERSION);
+
+    // Removing the last measured device makes the file readable by 1.x again.
+    const loaded = await parseLayoutYaml(yaml);
+    const resaved = await serializeLayoutToYaml({
+      ...loaded,
+      device_types: [],
+    });
+    expect(await stampOf(resaved)).toBe(SCHEMA_VERSION);
+  });
+
   it("keeps a newer same-MAJOR stamp so round-tripped additions are not misdescribed", async () => {
     const newer = newerMinorStamp();
 
@@ -146,20 +171,22 @@ describe("schema_version in a generated archive", () => {
 describe("schemaVersionForWrite", () => {
   it("stamps SCHEMA_VERSION over an older, absent, empty, or malformed stamp", () => {
     for (const stamp of [PRIOR_RELEASE_STAMP, undefined, "", "not-a-version"]) {
-      expect(schemaVersionForWrite(stamp), String(stamp)).toBe(SCHEMA_VERSION);
+      expect(schemaVersionForWrite(stamp, []), String(stamp)).toBe(
+        SCHEMA_VERSION,
+      );
     }
   });
 
   it("does not keep a malformed stamp even when its numeric prefix is newer", () => {
     const newer = newerMinorStamp();
     for (const stamp of [`${newer}x`, `${newer}-beta`, `${newer}.0`]) {
-      expect(schemaVersionForWrite(stamp), stamp).toBe(SCHEMA_VERSION);
+      expect(schemaVersionForWrite(stamp, []), stamp).toBe(SCHEMA_VERSION);
     }
   });
 
   it("restamps a newer-MAJOR stamp instead of keeping it", () => {
     const [major] = SCHEMA_VERSION.split(".").map(Number);
 
-    expect(schemaVersionForWrite(`${major! + 1}.0`)).toBe(SCHEMA_VERSION);
+    expect(schemaVersionForWrite(`${major! + 1}.0`, [])).toBe(SCHEMA_VERSION);
   });
 });

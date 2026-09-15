@@ -7,6 +7,7 @@
  * index.ts imports these functions.
  */
 
+import type { DeviceType } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { heightToInternalUnits } from "$lib/utils/position";
 
@@ -19,6 +20,15 @@ import { heightToInternalUnits } from "$lib/utils/position";
  * policy in docs/reference/SCHEMA.md (#1113).
  */
 export const SCHEMA_VERSION = "1.1";
+
+/**
+ * Data-format version stamped on a layout that uses measured device widths
+ * (DeviceType.width_mm, #3310). Releases before the field read a measured
+ * device as full width and would reject its placement in a narrower cell, so
+ * the field is a MAJOR change. It is stamped only when a layout uses it, so a
+ * layout without measured devices stays readable by every 1.x release.
+ */
+export const MEASURED_WIDTH_SCHEMA_VERSION = "2.0";
 
 /** MAJOR component of a MAJOR.MINOR version string (untrusted-input safe). */
 export function majorOf(version: string): number {
@@ -47,7 +57,7 @@ export function assertSchemaVersionSupported(
   if (schemaVersion === undefined) {
     return;
   }
-  if (majorOf(schemaVersion) > majorOf(SCHEMA_VERSION)) {
+  if (majorOf(schemaVersion) > majorOf(MEASURED_WIDTH_SCHEMA_VERSION)) {
     throw new Error(
       `This layout was created by a newer version of Rackula (format ${schemaVersion}). ` +
         `Update Rackula to open it. Your file was not changed.`,
@@ -84,9 +94,10 @@ const SCHEMA_VERSION_PATTERN = /^\d+\.\d+$/;
 /**
  * The schema_version a writer stamps on a saved layout (#3108).
  *
- * A layout re-saved after load and migration is in the current format, so an
- * older, absent, or malformed stamp (anything but MAJOR.MINOR digits) becomes
- * SCHEMA_VERSION. A newer same-MAJOR stamp is kept: unknown fields round-trip
+ * The base stamp is MEASURED_WIDTH_SCHEMA_VERSION when a device type has
+ * width_mm, otherwise SCHEMA_VERSION. A layout re-saved after load and
+ * migration is in the current format, so an older, absent, or malformed stamp
+ * (anything but MAJOR.MINOR digits) becomes the base stamp. A newer same-MAJOR stamp is kept: unknown fields round-trip
  * on save, so a layout from a newer same-MAJOR app still carries that format's
  * additions, and restamping it down would misdescribe the file. The shape check
  * runs first because compareVersions reads numeric prefixes, so "1.9x" would
@@ -99,14 +110,21 @@ const SCHEMA_VERSION_PATTERN = /^\d+\.\d+$/;
  * saveable.
  *
  * @param current - The layout's metadata.schema_version, if any.
+ * @param deviceTypes - The layout's device types, checked for width_mm.
  */
-export function schemaVersionForWrite(current: string | undefined): string {
+export function schemaVersionForWrite(
+  current: string | undefined,
+  deviceTypes: Pick<DeviceType, "width_mm">[],
+): string {
+  const base = deviceTypes.some((dt) => dt.width_mm !== undefined)
+    ? MEASURED_WIDTH_SCHEMA_VERSION
+    : SCHEMA_VERSION;
   return current !== undefined &&
     SCHEMA_VERSION_PATTERN.test(current) &&
-    majorOf(current) === majorOf(SCHEMA_VERSION) &&
-    compareVersions(current, SCHEMA_VERSION) > 0
+    majorOf(current) === majorOf(base) &&
+    compareVersions(current, base) > 0
     ? current
-    : SCHEMA_VERSION;
+    : base;
 }
 
 /**

@@ -38,6 +38,7 @@ import type {
 } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { generateId } from "$lib/utils/device";
+import { isNarrowDevice } from "$lib/utils/device-width";
 import { findStarterDevice } from "$lib/data/starterLibrary";
 import { ensurePreCarrierBackup } from "./pre-carrier-backup";
 import { getStorageMode } from "./availability.svelte";
@@ -149,11 +150,6 @@ function snapToWholeU(position: number): number {
   return wholeU * UNITS_PER_U;
 }
 
-/** True when this device type mounts at half the rack width (slot_width 1). */
-function isHalfWidth(deviceType: DeviceType | undefined): boolean {
-  return (deviceType?.slot_width ?? 2) === 1;
-}
-
 /** True when this device type needs a height grid (sub-1U height). */
 function isSubUHeight(deviceType: DeviceType | undefined): boolean {
   const h = deviceType?.u_height ?? 1;
@@ -161,8 +157,8 @@ function isSubUHeight(deviceType: DeviceType | undefined): boolean {
 }
 
 /**
- * A rack-level device must move into a carrier when it is half-width or sub-U
- * height, or it carries a legacy left/right slot_position. Full-width whole-U
+ * A rack-level device must move into a carrier when it is narrow (half-width or
+ * measured) or sub-U height, or it carries a legacy left/right slot_position. Full-width whole-U
  * gear stays on the rails.
  */
 function needsCarrier(
@@ -173,7 +169,10 @@ function needsCarrier(
   if (slot === "left" || slot === "right") {
     return true;
   }
-  return isHalfWidth(deviceType) || isSubUHeight(deviceType);
+  return (
+    (deviceType !== undefined && isNarrowDevice(deviceType)) ||
+    isSubUHeight(deviceType)
+  );
 }
 
 interface CarrierBuild {
