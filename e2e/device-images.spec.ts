@@ -6,31 +6,12 @@ test.describe("Device Images", () => {
   let testImagePath: string;
 
   test.beforeAll(async () => {
-    // Create a minimal valid PNG file for testing in a temp location
+    // Write a 1x1 PNG the browser can decode (the crop dialog loads it)
     testImagePath = test.info().outputPath("test-image.png");
-    const pngSignature = Buffer.from([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-    ]);
-    const ihdrChunk = Buffer.from([
-      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x10,
-      0x00, 0x00, 0x00, 0x10, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
-      0xde,
-    ]);
-    const idatChunk = Buffer.from([
-      0x00, 0x00, 0x00, 0x15, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x62, 0x60,
-      0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00,
-      0x31, 0x00, 0x01, 0xa7, 0x3e, 0xa4, 0xc6,
-    ]);
-    const iendChunk = Buffer.from([
-      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
-    ]);
-
-    const pngBuffer = Buffer.concat([
-      pngSignature,
-      ihdrChunk,
-      idatChunk,
-      iendChunk,
-    ]);
+    const pngBuffer = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "base64",
+    );
     fs.writeFileSync(testImagePath, pngBuffer);
   });
 
@@ -60,6 +41,14 @@ test.describe("Device Images", () => {
     // Find and use the file input for front image
     const fileInput = dialog.locator('input[type="file"]').first();
     await fileInput.setInputFiles(testImagePath);
+
+    // Crop dialog opens with the image framed to the device shape
+    const cropDialog = page.getByTestId("image-crop-dialog");
+    await expect(cropDialog).toBeVisible();
+    const applyCrop = cropDialog.getByTestId("btn-apply-crop");
+    await expect(applyCrop).toBeEnabled();
+    await applyCrop.click();
+    await expect(cropDialog).toBeHidden();
 
     // Preview should appear (img element in the upload area)
     const preview = dialog.locator(locators.deviceDetail.imagePreview);
