@@ -1,20 +1,23 @@
 <!--
   ImageCropDialog Component
   Pan and zoom a device image behind a fixed crop frame, then export the framed
-  area. The frame takes the drawn shape of the device face: its U height by the
-  rack interior width (halved for half-width devices).
+  area. The frame takes the drawn shape of the device image: its U height by the
+  rack interior width plus the image overflow.
 -->
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
   import Button from "./ui/Button.svelte";
   import { STANDARD_RACK_WIDTH } from "$lib/types/constants";
+  import { validateImageFile } from "$lib/utils/imageUpload";
   import {
     MAX_CROP_ZOOM,
     cropImageToFile,
     fitFrame,
     getCoverScale,
     getCropRect,
+    getCropUnitHeight,
     getDeviceImageAspect,
+    getVisibleFraction,
     panView,
     zoomView,
     type CropView,
@@ -28,7 +31,8 @@
     uHeight: number;
     /** Nominal rack width in inches. */
     rackWidth?: number;
-    halfWidth?: boolean;
+    /** Other rack widths the image is also drawn in, shown as guides. */
+    guideRackWidths?: number[];
     onconfirm?: (file: File) => void;
     oncancel?: () => void;
   }
@@ -38,7 +42,7 @@
     face,
     uHeight,
     rackWidth = STANDARD_RACK_WIDTH,
-    halfWidth = false,
+    guideRackWidths = [],
     onconfirm,
     oncancel,
   }: Props = $props();
@@ -49,17 +53,29 @@
   const KEY_PAN_STEP_LARGE = 50;
   const KEY_ZOOM_FACTOR = 1.1;
 
-  const aspect = $derived(getDeviceImageAspect(uHeight, rackWidth, halfWidth));
-  const faceLabel = $derived(face === "front" ? "front" : "rear");
-  const frameDescription = $derived(
-    `${uHeight}U${halfWidth ? " half-width" : ""} device in a ${rackWidth} inch rack`,
+  const units = $derived(getCropUnitHeight(uHeight));
+  const aspect = $derived(getDeviceImageAspect(units, rackWidth));
+
+  // Part of the frame still visible where the image is drawn at another width
+  const guides = $derived(
+    guideRackWidths
+      .filter((width) => width !== rackWidth)
+      .map((width) => {
+        const visible = getVisibleFraction(
+          aspect,
+          getDeviceImageAspect(units, width),
+        );
+        const left = ((1 - visible.width) / 2) * 100;
+        const top = ((1 - visible.height) / 2) * 100;
+        return {
+          width,
+          style: `left: ${left}%; top: ${top}%; width: ${visible.width * 100}%; height: ${visible.height * 100}%;`,
+        };
+      }),
   );
 
   const uLines = $derived(
-    Array.from(
-      { length: Math.max(0, Math.ceil(uHeight) - 1) },
-      (_, i) => i + 1,
-    ),
+    Array.from({ length: Math.max(0, Math.ceil(units) - 1) }, (_, i) => i + 1),
   );
 
   let stageEl = $state<HTMLDivElement | null>(null);
@@ -69,6 +85,9 @@
   let natural = $state<Size | null>(null);
   let loadError = $state<string | null>(null);
   let applying = $state(false);
+  // Bumped each time the dialog opens, so an Apply that finishes after the
+  // dialog closed or reopened is dropped.
+  let session = 0;
 
   // View kept in image terms so it survives a stage resize: zoom is a multiple
   // of the cover scale, (centreX, centreY) is the natural image point at the
@@ -110,16 +129,16 @@
     centreY = natural.height / 2;
   }
 
-  // Load the chosen file; release the object URL when it changes or closes.
+  // Load the chosen file each time the dialog opens. On close the URL is
+  // released but the loaded image stays on screen for the exit transition.
   $effect(() => {
     const current = file;
+    pointers.clear();
+    if (!current) return;
+    session += 1;
     natural = null;
     loadError = null;
     applying = false;
-    if (!current) {
-      imageUrl = null;
-      return;
-    }
     const url = URL.createObjectURL(current);
     imageUrl = url;
     return () => URL.revokeObjectURL(url);
@@ -161,7 +180,8 @@
 
   type Point = { x: number; y: number };
 
-  // Active pointers for drag (one) and pinch (two).
+  // Active pointers for drag (one) and pinch (two). Cleared whenever the dialog
+  // opens or closes, so a pointer lifted after the stage unmounted cannot linger.
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- gesture bookkeeping, never rendered
   const pointers = new Map<number, Point>();
 
@@ -224,19 +244,24 @@
   });
 
   function handleKeyDown(event: KeyboardEvent) {
+    // Keep stage keys away from the app's global shortcuts, which would move or
+    // delete the selected device. Escape and Tab still reach the dialog.
+    if (event.key !== "Escape" && event.key !== "Tab") {
+      event.stopPropagation();
+    }
     const step = event.shiftKey ? KEY_PAN_STEP_LARGE : KEY_PAN_STEP;
     switch (event.key) {
       case "ArrowLeft":
-        pan(step, 0);
-        break;
-      case "ArrowRight":
         pan(-step, 0);
         break;
+      case "ArrowRight":
+        pan(step, 0);
+        break;
       case "ArrowUp":
-        pan(0, step);
+        pan(0, -step);
         break;
       case "ArrowDown":
-        pan(0, -step);
+        pan(0, step);
         break;
       case "+":
       case "=":
@@ -256,22 +281,30 @@
 
   async function handleApply() {
     if (!file || !imageEl || !natural || !view) return;
+    const started = session;
     applying = true;
+    loadError = null;
     try {
       const crop = getCropRect(view, natural, frame);
       const cropped = await cropImageToFile(imageEl, crop, aspect, file);
+      if (started !== session || !file) return;
+      const validation = validateImageFile(cropped);
+      if (!validation.valid) {
+        loadError = validation.error ?? "Failed to crop image";
+        return;
+      }
       onconfirm?.(cropped);
     } catch {
-      loadError = "Failed to crop image";
+      if (started === session) loadError = "Failed to crop image";
     } finally {
-      applying = false;
+      if (started === session) applying = false;
     }
   }
 </script>
 
 <Dialog
   open={file !== null}
-  title="Crop {faceLabel} image"
+  title="Crop {face} image"
   size="L"
   testid="image-crop-dialog"
   onclose={() => oncancel?.()}
@@ -279,7 +312,10 @@
   <div class="crop">
     <p class="crop-hint">
       Drag to move the image. Scroll, pinch, or use the slider to zoom. The
-      frame matches a {frameDescription}.
+      frame matches a {units}U device in a {rackWidth} inch rack.
+      {#each guides as guide (guide.width)}
+        The dashed box shows the part visible in a {guide.width} inch rack.
+      {/each}
     </p>
 
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (role="application" makes this interactive per WAI-ARIA) -->
@@ -296,6 +332,7 @@
       onpointermove={handlePointerMove}
       onpointerup={handlePointerEnd}
       onpointercancel={handlePointerEnd}
+      onlostpointercapture={handlePointerEnd}
       onkeydown={handleKeyDown}
     >
       {#if imageUrl}
@@ -319,7 +356,10 @@
       >
         <!-- Dashed line at each U boundary inside the frame -->
         {#each uLines as u (u)}
-          <span class="crop-u-line" style="top: {(u / uHeight) * 100}%"></span>
+          <span class="crop-u-line" style="top: {(u / units) * 100}%"></span>
+        {/each}
+        {#each guides as guide (guide.width)}
+          <span class="crop-guide" style={guide.style}></span>
         {/each}
       </div>
     </div>
@@ -434,6 +474,12 @@
     left: 0;
     right: 0;
     border-top: 1px dashed rgba(255, 255, 255, 0.5);
+  }
+
+  .crop-guide {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px dashed var(--colour-warning);
   }
 
   .crop-zoom {

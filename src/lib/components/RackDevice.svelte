@@ -36,7 +36,7 @@
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { useLongPress } from "$lib/utils/gestures";
   import { hapticTap } from "$lib/utils/haptics";
-  import { RAIL_WIDTH } from "$lib/constants/layout";
+  import { DEVICE_IMAGE_OVERFLOW, RAIL_WIDTH } from "$lib/constants/layout";
   import {
     fitTextToWidth,
     DEVICE_LABEL_MAX_FONT,
@@ -319,10 +319,6 @@
     return aimed?.id === slotId;
   }
 
-  // Image overflow: how far device images extend past rack rails (Issue #9)
-  // Real equipment extends past the rails; this creates realistic front-mounting appearance
-  const IMAGE_OVERFLOW = 4;
-
   // Convert position from internal units (1/6U) to human U units for rendering
   // PlacedDevice.position is stored in internal units (e.g., 6 = U1, 252 = U42)
   const positionHuman = $derived(toHumanUnits(position));
@@ -412,9 +408,9 @@
   );
 
   // Image dimensions extend past device rect for realistic appearance
-  const imageX = $derived(showImage ? -IMAGE_OVERFLOW : 0);
+  const imageX = $derived(showImage ? -DEVICE_IMAGE_OVERFLOW : 0);
   const imageWidth = $derived(
-    showImage ? deviceWidth + IMAGE_OVERFLOW * 2 : deviceWidth,
+    showImage ? deviceWidth + DEVICE_IMAGE_OVERFLOW * 2 : deviceWidth,
   );
 
   // Unique clipPath ID for this device instance. $props.id() is per component
