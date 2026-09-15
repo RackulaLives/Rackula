@@ -44,8 +44,10 @@
     rear: HTMLInputElement | null;
   }>({ front: null, rear: null });
 
-  // Chosen file waiting in the crop dialog
-  let crop = $state<{ face: "front" | "rear"; file: File } | null>(null);
+  // Chosen file waiting in the crop dialog. The face is kept after closing so
+  // the dialog title does not change during its exit transition.
+  let cropFile = $state<File | null>(null);
+  let cropFace = $state<"front" | "rear">("front");
 
   // Current placement overrides (if any)
   const placementFrontImage = $derived(
@@ -91,14 +93,16 @@
       return;
     }
 
-    crop = { face, file };
+    cropFace = face;
+    cropFile = file;
 
     // Reset so the same file can be selected again
     input.value = "";
   }
 
-  async function handleCropConfirm(face: "front" | "rear", cropped: File) {
-    crop = null;
+  async function handleCropConfirm(cropped: File) {
+    const face = cropFace;
+    cropFile = null;
     try {
       const data = await fileToImageData(
         cropped,
@@ -216,13 +220,12 @@
 </div>
 
 <ImageCropDialog
-  file={crop?.file ?? null}
-  face={crop?.face ?? "front"}
+  file={cropFile}
+  face={cropFace}
   uHeight={selectedDeviceInfo.device.u_height}
   rackWidth={selectedDeviceInfo.rack.width}
-  halfWidth={selectedDeviceInfo.device.slot_width === 1}
-  onconfirm={(cropped) => crop && handleCropConfirm(crop.face, cropped)}
-  oncancel={() => (crop = null)}
+  onconfirm={handleCropConfirm}
+  oncancel={() => (cropFile = null)}
 />
 
 <style>

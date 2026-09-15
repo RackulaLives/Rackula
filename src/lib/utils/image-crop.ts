@@ -1,16 +1,22 @@
 /**
  * Image crop utilities
  * Geometry for the device image cropper: the crop frame takes the drawn shape
- * of the device face (U height by interior rack width), and the image is
- * panned and zoomed behind it. The frame is always fully covered by the image.
+ * of the device image (U height by interior rack width plus the image
+ * overflow), and the image is panned and zoomed behind it. The frame is always
+ * fully covered by the image.
  */
 
 import {
+  DEVICE_IMAGE_OVERFLOW,
   getInteriorWidth,
   getRackWidth,
   U_HEIGHT_PX,
 } from "$lib/constants/layout";
-import { STANDARD_RACK_WIDTH } from "$lib/types/constants";
+import {
+  MAX_DEVICE_HEIGHT,
+  MIN_DEVICE_HEIGHT,
+  STANDARD_RACK_WIDTH,
+} from "$lib/types/constants";
 
 /** Largest zoom allowed, as a multiple of the cover scale. */
 export const MAX_CROP_ZOOM = 10;
@@ -40,20 +46,39 @@ export interface CropRect {
 }
 
 /**
- * Width-to-height ratio of a device face as it is drawn in the rack.
+ * Device height the crop frame is shaped for: the given height when it is a
+ * valid device height, otherwise 1U.
+ */
+export function getCropUnitHeight(uHeight: number): number {
+  return Number.isFinite(uHeight) &&
+    uHeight >= MIN_DEVICE_HEIGHT &&
+    uHeight <= MAX_DEVICE_HEIGHT
+    ? uHeight
+    : 1;
+}
+
+/**
+ * Width-to-height ratio of the box a device image is drawn into in the rack.
  * @param uHeight - Device height in rack units
  * @param rackWidth - Nominal rack width in inches (10, 19, 21, or 23)
- * @param halfWidth - Device occupies half of the rack width
  */
 export function getDeviceImageAspect(
   uHeight: number,
   rackWidth: number = STANDARD_RACK_WIDTH,
-  halfWidth = false,
 ): number {
-  const units = Number.isFinite(uHeight) && uHeight > 0 ? uHeight : 1;
   const width =
-    getInteriorWidth(getRackWidth(rackWidth)) * (halfWidth ? 0.5 : 1);
-  return width / (units * U_HEIGHT_PX);
+    getInteriorWidth(getRackWidth(rackWidth)) + DEVICE_IMAGE_OVERFLOW * 2;
+  return width / (getCropUnitHeight(uHeight) * U_HEIGHT_PX);
+}
+
+/**
+ * Share of a crop (of the given aspect) that stays visible when it is drawn
+ * centred and sliced into a box of another aspect.
+ */
+export function getVisibleFraction(aspect: number, drawnAspect: number): Size {
+  return drawnAspect < aspect
+    ? { width: drawnAspect / aspect, height: 1 }
+    : { width: 1, height: aspect / drawnAspect };
 }
 
 /**
@@ -71,16 +96,18 @@ export function getCoverScale(image: Size, frame: Size): number {
   return Math.max(frame.width / image.width, frame.height / image.height);
 }
 
+/** Keep a scale within [cover, cover * MAX_CROP_ZOOM]. */
+function clampScale(scale: number, image: Size, frame: Size): number {
+  const minScale = getCoverScale(image, frame);
+  return Math.min(Math.max(scale, minScale), minScale * MAX_CROP_ZOOM);
+}
+
 /**
  * Keep the scale within [cover, cover * MAX_CROP_ZOOM] and the image covering
  * the frame on every side.
  */
 export function clampView(view: CropView, image: Size, frame: Size): CropView {
-  const minScale = getCoverScale(image, frame);
-  const scale = Math.min(
-    Math.max(view.scale, minScale),
-    minScale * MAX_CROP_ZOOM,
-  );
+  const scale = clampScale(view.scale, image, frame);
   const minX = frame.width - image.width * scale;
   const minY = frame.height - image.height * scale;
   return {
@@ -102,11 +129,7 @@ export function zoomView(
   image: Size,
   frame: Size,
 ): CropView {
-  const minScale = getCoverScale(image, frame);
-  const scale = Math.min(
-    Math.max(nextScale, minScale),
-    minScale * MAX_CROP_ZOOM,
-  );
+  const scale = clampScale(nextScale, image, frame);
   const ratio = scale / view.scale;
   return clampView(
     {
@@ -170,7 +193,9 @@ export function getCropOutputSize(crop: CropRect, aspect: number): Size {
 }
 
 /**
- * Draw the crop of an image into a new file of the same type.
+ * Draw the crop of an image into a new file of the same type. A crop of the
+ * whole image at its natural size returns the source file untouched, so it is
+ * not re-encoded.
  */
 export function cropImageToFile(
   image: HTMLImageElement,
@@ -179,6 +204,14 @@ export function cropImageToFile(
   source: File,
 ): Promise<File> {
   const output = getCropOutputSize(crop, aspect);
+  if (
+    Math.abs(crop.x) < 0.5 &&
+    Math.abs(crop.y) < 0.5 &&
+    output.width === image.naturalWidth &&
+    output.height === image.naturalHeight
+  ) {
+    return Promise.resolve(source);
+  }
   const canvas = document.createElement("canvas");
   canvas.width = output.width;
   canvas.height = output.height;

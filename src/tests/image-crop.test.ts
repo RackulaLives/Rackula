@@ -13,6 +13,7 @@ import {
   getCropOutputSize,
   getCropRect,
   getDeviceImageAspect,
+  getVisibleFraction,
   MAX_CROP_OUTPUT_EDGE,
   MAX_CROP_ZOOM,
   panView,
@@ -35,17 +36,21 @@ describe("getDeviceImageAspect", () => {
     );
   });
 
-  it("halves the width for half-width devices", () => {
-    expect(getDeviceImageAspect(2, 19, true)).toBeCloseTo(
-      getDeviceImageAspect(2, 19) / 2,
-    );
+  it("falls back to 1U for heights a device cannot have", () => {
+    const oneU = getDeviceImageAspect(1, 19);
+    expect(getDeviceImageAspect(Number.NaN, 19)).toBe(oneU);
+    expect(getDeviceImageAspect(0, 19)).toBe(oneU);
+    expect(getDeviceImageAspect(100, 19)).toBe(oneU);
+  });
+});
+
+describe("getVisibleFraction", () => {
+  it("trims the sides when drawn into a narrower box", () => {
+    expect(getVisibleFraction(8, 4)).toEqual({ width: 0.5, height: 1 });
   });
 
-  it("falls back to 1U for invalid heights", () => {
-    expect(getDeviceImageAspect(Number.NaN, 19)).toBe(
-      getDeviceImageAspect(1, 19),
-    );
-    expect(getDeviceImageAspect(0, 19)).toBe(getDeviceImageAspect(1, 19));
+  it("trims the top and bottom when drawn into a wider box", () => {
+    expect(getVisibleFraction(4, 8)).toEqual({ width: 1, height: 0.5 });
   });
 });
 
@@ -110,9 +115,11 @@ describe("zoomView", () => {
   });
 
   it("clamps the position when zooming out near an edge", () => {
+    // Unclamped, the anchored zoom would leave the image at (320, 80),
+    // uncovering the frame's left and top edges.
     const zoomedIn = { x: 0, y: 0, scale: 1 };
     const out = zoomView(zoomedIn, 0.2, 400, 100, image, frame);
-    expect(out).toEqual(clampView(out, image, frame));
+    expect(out).toEqual({ x: 0, y: 0, scale: 0.2 });
   });
 });
 

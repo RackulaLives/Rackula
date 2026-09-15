@@ -1,6 +1,11 @@
 import { test, expect } from "./helpers/base-test";
 import fs from "fs";
-import { gotoWithRack, locators } from "./helpers";
+import {
+  gotoWithRack,
+  locators,
+  RACK_WITH_DEVICE_SHARE,
+  selectDevice,
+} from "./helpers";
 
 test.describe("Device Images", () => {
   let testImagePath: string;
@@ -63,6 +68,56 @@ test.describe("Device Images", () => {
         .getByTestId("device-palette-item")
         .filter({ hasText: "Server with Image" }),
     ).toBeVisible();
+  });
+
+  test("Enter on the Crop button reopens the crop without adding the device", async ({
+    page,
+  }) => {
+    await page.click('[data-testid="btn-create-custom-device"]');
+    const dialog = page.locator(locators.dialog.root);
+    await page.fill("#device-name", "Server with Image");
+    await dialog
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles(testImagePath);
+
+    const cropDialog = page.getByTestId("image-crop-dialog");
+    await cropDialog.getByTestId("btn-apply-crop").click();
+    await expect(cropDialog).toBeHidden();
+
+    await page.getByRole("button", { name: "Adjust front image crop" }).focus();
+    await page.keyboard.press("Enter");
+
+    await expect(cropDialog).toBeVisible();
+    await expect(
+      page
+        .getByTestId("device-palette-item")
+        .filter({ hasText: "Server with Image" }),
+    ).toHaveCount(0);
+  });
+
+  test("keys on the crop stage do not move or delete the selected device", async ({
+    page,
+  }) => {
+    await gotoWithRack(page, RACK_WITH_DEVICE_SHARE);
+    await selectDevice(page);
+    const device = page.locator(locators.rackView.frontDevice).first();
+    const labelBefore = await device.getAttribute("aria-label");
+
+    await page
+      .getByLabel("Choose front image override")
+      .setInputFiles(testImagePath);
+    const cropDialog = page.getByTestId("image-crop-dialog");
+    await expect(cropDialog).toBeVisible();
+
+    await cropDialog.getByRole("application").focus();
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("Delete");
+    await cropDialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(cropDialog).toBeHidden();
+
+    await expect(device).toHaveAttribute("aria-label", labelBefore ?? "");
   });
 
   test("display mode toggle exists in toolbar", async ({ page }) => {
