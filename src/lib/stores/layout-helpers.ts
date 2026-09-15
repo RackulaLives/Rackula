@@ -41,6 +41,8 @@ export interface CreateDeviceTypeInput {
   slots?: Slot[];
   /** Slot width for container-child devices (1=half-width, 2=full-width) */
   slot_width?: SlotWidth;
+  /** Measured width in millimetres */
+  width_mm?: number;
   /** Rack widths this device is compatible with (e.g., [10], [19], [10, 19]) */
   rack_widths?: RackWidth[];
   /** Legacy alias for notes */
@@ -109,6 +111,9 @@ export function createDeviceType(data: CreateDeviceTypeInput): DeviceType {
   }
   if (data.slot_width !== undefined) {
     deviceType.slot_width = data.slot_width;
+  }
+  if (data.width_mm !== undefined) {
+    deviceType.width_mm = data.width_mm;
   }
   if (data.rack_widths && data.rack_widths.length > 0) {
     deviceType.rack_widths = data.rack_widths;

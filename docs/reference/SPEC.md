@@ -91,6 +91,8 @@ The mounting rule:
 
 Carriers are ordinary devices with a face and a whole-U position. A device with `u_height` below 1, a non-integer `u_height`, or less than full width cannot be placed on the rails directly; it must be a child of a carrier. This rule is enforced in the schema, in store placement actions, and in drag-and-drop targeting, so a fractional rail position cannot be reintroduced from any path.
 
+A device is less than full width when it has `slot_width: 1` (half width) or a measured `width_mm`. Inside a carrier, a cell accepts a device when the device's share of the rack's clear opening is no wider than the cell's `width_fraction`. The clear opening is the nominal rack width minus 1.25 in (17.75 in for 19", 8.75 in for 10"). Without `width_mm`, a half-width device needs a cell of at least 0.5 and a full-width device a cell of 1.0.
+
 Rationale: fractional rail offsets modelled a physical fiction and scattered paired half-width gear into impossible positions. Carrier-first keeps the data faithful to how equipment actually mounts, and gives sub-U devices a real parent rather than a floating coordinate.
 
 Legacy layouts and share links that used fractional rail positions are adapted on load: positions snap to the nearest whole U, and sub-U or paired half-width placements are wrapped in an automatically synthesized carrier. The adaptation runs once on the read path. Older files open with their gear intact, now mounted in carriers the user did not place by hand.

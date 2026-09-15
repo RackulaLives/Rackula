@@ -121,7 +121,7 @@ export const MinimalSlotSchema = z.object({
  * Minimal device type schema.
  *
  * Container device types (carriers, shelves, chassis) carry their slot grid
- * (`sl`), slot width (`sw`), and subdevice role (`sr`) so a shared layout's
+ * (`sl`), slot width (`sw`), measured width (`wm`), and subdevice role (`sr`) so a shared layout's
  * container children round-trip to real slots. `h` allows sub-U heights (>= 0)
  * because the carrier-first model wraps gear under 0.5U.
  */
@@ -142,6 +142,8 @@ export const MinimalDeviceTypeSchema = z.object({
   sl: z.array(MinimalSlotSchema).optional(),
   /** slot_width (1 = half-width, 2 = full-width) */
   sw: z.union([z.literal(1), z.literal(2)]).optional(),
+  /** width_mm (measured width) */
+  wm: z.number().positive().finite().optional(),
   /** subdevice_role */
   sr: z.enum(["parent", "child"]).optional(),
 });

@@ -118,6 +118,7 @@ function convertDeviceTypes(dt: MinimalDeviceType[]): DeviceType[] {
         }
       : {}),
     ...(item.sw !== undefined ? { slot_width: item.sw } : {}),
+    ...(item.wm !== undefined ? { width_mm: item.wm } : {}),
     ...(item.sr ? { subdevice_role: item.sr } : {}),
   }));
 }
@@ -234,6 +235,7 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
       ...(deviceType.slot_width !== undefined
         ? { sw: deviceType.slot_width }
         : {}),
+      ...(deviceType.width_mm !== undefined ? { wm: deviceType.width_mm } : {}),
       ...(deviceType.subdevice_role ? { sr: deviceType.subdevice_role } : {}),
     }));
 
