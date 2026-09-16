@@ -369,6 +369,28 @@
     return deviceLibrary.find((d) => d.slug === slug);
   }
 
+  /**
+   * Image for a container child, on the same precedence as the parent's own:
+   * a placement override for this face wins, otherwise the device-type image.
+   * A child that references an override still missing from the store draws no
+   * image, so its load state is not masked by the device-type one.
+   */
+  function getChildImageUrl(
+    child: PlacedDevice,
+    childType: DeviceType,
+  ): string | null {
+    if (!isImageMode) return null;
+    const layoutId = layoutStore.layout.metadata?.id;
+    const override = layoutId
+      ? imageStore.getImageUrl(placementKey(layoutId, child.id), currentFace)
+      : undefined;
+    if (override) return override;
+    const referencesOverride =
+      currentFace === "rear" ? !!child.rear_image : !!child.front_image;
+    if (referencesOverride) return null;
+    return imageStore.getImageUrl(childType.slug, currentFace) ?? null;
+  }
+
   // Slot display name for a container child, falling back to the raw slot id
   // when the slot has no display name (mirrors EditPanelPosition's
   // containerContext.slotName precedence).
@@ -1046,6 +1068,7 @@
           {@const childY = getChildY(child.position, childType.u_height)}
           {@const childWidth = slotGeo.width}
           {@const childX = slotGeo.x}
+          {@const childImageUrl = getChildImageUrl(child, childType)}
           {@const childColour =
             child.colour_override ??
             childType.colour ??
@@ -1084,7 +1107,8 @@
             oncontextmenu={handleChildContextMenu}
             onkeydown={(e) => handleChildKeyDown(e, child, childType)}
           >
-            <!-- Child device rectangle -->
+            <!-- Child device rectangle. Stays behind the image as the
+                 backing colour, and is the whole body when there is none. -->
             <rect
               class="child-device-rect"
               x={2}
@@ -1095,6 +1119,24 @@
               rx="2"
               ry="2"
             />
+            <!-- Child device image. A carrier child is drawn in its cell, so
+                 the image fills the cell the crop frame is shaped from. -->
+            {#if childImageUrl}
+              {#key childImageUrl}
+                <image
+                  class="child-device-image"
+                  data-testid="child-device-image"
+                  x={2}
+                  y={1}
+                  width={childWidth - 4}
+                  height={childHeight - 2}
+                  href={childImageUrl}
+                  preserveAspectRatio="xMidYMid slice"
+                  role="img"
+                  aria-label={childAriaLabel}
+                />
+              {/key}
+            {/if}
             <!-- Selection highlight -->
             {#if isChildSelected}
               <rect
@@ -1110,18 +1152,23 @@
                 ry="3"
               />
             {/if}
-            <!-- Child device label -->
-            <text
-              class="child-device-label"
-              x={childWidth / 2}
-              y={childHeight / 2}
-              text-anchor="middle"
-              dominant-baseline="middle"
-              font-size={Math.min(11, childHeight * 0.6)}
-              fill="var(--colour-text-on-device)"
-            >
-              {childName.length > 12 ? childName.slice(0, 10) + "…" : childName}
-            </text>
+            <!-- Child device label. Hidden over an image unless labels on
+                 images are on, matching how the parent device behaves. -->
+            {#if !childImageUrl || showLabelsOnImages}
+              <text
+                class="child-device-label"
+                x={childWidth / 2}
+                y={childHeight / 2}
+                text-anchor="middle"
+                dominant-baseline="middle"
+                font-size={Math.min(11, childHeight * 0.6)}
+                fill="var(--colour-text-on-device)"
+              >
+                {childName.length > 12
+                  ? childName.slice(0, 10) + "…"
+                  : childName}
+              </text>
+            {/if}
           </g>
         {/if}
       {/each}

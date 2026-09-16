@@ -59,15 +59,28 @@ export function getCropUnitHeight(uHeight: number): number {
 
 /**
  * Width-to-height ratio of the box a device image is drawn into in the rack.
+ *
+ * A device that spans the rails (fraction 1) is drawn a little wider than the
+ * clear interior, because the image overhangs the rails for a mounted look. A
+ * narrower device sits in a carrier cell, which is drawn inside the interior
+ * with no overhang, so its share of the interior is the whole frame.
+ *
  * @param uHeight - Device height in rack units
  * @param rackWidth - Nominal rack width in inches (10, 19, 21, or 23)
+ * @param widthFraction - The device's share of the rack interior, 0 to 1
  */
 export function getDeviceImageAspect(
   uHeight: number,
   rackWidth: number = STANDARD_RACK_WIDTH,
+  widthFraction: number = 1,
 ): number {
+  const interior = getInteriorWidth(getRackWidth(rackWidth));
+  const fraction =
+    Number.isFinite(widthFraction) && widthFraction > 0 && widthFraction < 1
+      ? widthFraction
+      : 1;
   const width =
-    getInteriorWidth(getRackWidth(rackWidth)) + DEVICE_IMAGE_OVERFLOW * 2;
+    fraction < 1 ? interior * fraction : interior + DEVICE_IMAGE_OVERFLOW * 2;
   return width / (getCropUnitHeight(uHeight) * U_HEIGHT_PX);
 }
 

@@ -173,3 +173,36 @@ describe("wheelDeltaPixels", () => {
     expect(wheelDeltaPixels(1, 2, 900)).toBe(900);
   });
 });
+
+describe("getDeviceImageAspect width fraction", () => {
+  it("frames a half-width device to half the rack interior", () => {
+    // A half-width device sits in a carrier cell, so it is drawn inside the
+    // interior with no rail overhang, unlike a device spanning the rails.
+    const full = getDeviceImageAspect(1, 19);
+    const half = getDeviceImageAspect(1, 19, 0.5);
+
+    expect(half).toBeLessThan(full / 2);
+  });
+
+  it("scales the frame with the fraction at a fixed height", () => {
+    expect(getDeviceImageAspect(1, 19, 0.25)).toBeCloseTo(
+      getDeviceImageAspect(1, 19, 0.5) / 2,
+      5,
+    );
+  });
+
+  it("halves the ratio when the same width is twice as tall", () => {
+    expect(getDeviceImageAspect(2, 19, 0.5)).toBeCloseTo(
+      getDeviceImageAspect(1, 19, 0.5) / 2,
+      5,
+    );
+  });
+
+  it("treats a missing or out-of-range fraction as spanning the rails", () => {
+    for (const fraction of [undefined, 1, 0, -0.5, 2, NaN]) {
+      expect(getDeviceImageAspect(1, 19, fraction), String(fraction)).toBe(
+        getDeviceImageAspect(1, 19),
+      );
+    }
+  });
+});

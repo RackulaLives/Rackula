@@ -20,6 +20,10 @@
     rackWidth?: number;
     /** Other rack widths the image is also drawn in, shown as crop guides. */
     guideRackWidths?: number[];
+    /** The device's share of the rack interior. */
+    widthFraction?: number;
+    /** How the frame width was decided, for the crop hint. */
+    widthLabel?: string;
     onupload?: (data: ImageData) => void;
     onremove?: () => void;
   }
@@ -31,6 +35,8 @@
     uHeight,
     rackWidth,
     guideRackWidths,
+    widthFraction,
+    widthLabel,
     onupload,
     onremove,
   }: Props = $props();
@@ -44,7 +50,9 @@
   // Frame aspect the current image was cropped to.
   let croppedAspect = $state<number | null>(null);
 
-  const aspect = $derived(getDeviceImageAspect(uHeight, rackWidth));
+  const aspect = $derived(
+    getDeviceImageAspect(uHeight, rackWidth, widthFraction),
+  );
   const cropStale = $derived(
     currentImage !== undefined &&
       sourceFile !== null &&
@@ -170,6 +178,8 @@
   {uHeight}
   {rackWidth}
   {guideRackWidths}
+  {widthFraction}
+  {widthLabel}
   onconfirm={handleCropConfirm}
   oncancel={() => (cropFile = null)}
 />
