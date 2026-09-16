@@ -7,7 +7,10 @@
  * the same one.
  */
 import { describe, it, expect, vi } from "vitest";
-import { createPlacementKeyboardController } from "$lib/utils/placement-keyboard-controller";
+import {
+  createPlacementKeyboardController,
+  primeKeyboardPlacement,
+} from "$lib/utils/placement-keyboard-controller";
 import {
   createTestDeviceType,
   createTestDevice,
@@ -114,6 +117,60 @@ describe("keyboard placement controller: no rail target in the rack (#3310)", ()
     const said = announce.mock.calls.at(-1)?.[0] as string;
     expect(said).toContain("shelf");
     expect(said).not.toContain("No space");
+  });
+
+  it("stays armed when a wider rack in the layout can take the device", () => {
+    const announce = vi.fn();
+    const abandonPlacement = vi.fn();
+    const setCursor = vi.fn();
+
+    primeKeyboardPlacement(
+      {
+        getRacks: racks,
+        getDeviceLibrary: () => [measured],
+        getActiveRackId: () => "rack-10",
+        getTargetFace: () => "front",
+        setActiveRack: vi.fn(),
+        setCursor,
+        announce,
+        abandonPlacement,
+      },
+      measured,
+    );
+
+    // Abandoning here would strand the user on the 10 inch rack with no way to
+    // Tab to the 19 inch one that can take the device.
+    expect(abandonPlacement).not.toHaveBeenCalled();
+    expect(setCursor).toHaveBeenCalledWith("rack-10", null);
+    expect(announce.mock.calls.at(-1)?.[0] as string).toContain("shelf");
+  });
+
+  it("abandons placement when no rack in the layout can take the device", () => {
+    const announce = vi.fn();
+    const abandonPlacement = vi.fn();
+
+    primeKeyboardPlacement(
+      {
+        getRacks: () => [
+          createTestRack({
+            id: "rack-10",
+            name: "Rack B",
+            height: 10,
+            width: 10,
+          }),
+        ],
+        getDeviceLibrary: () => [measured],
+        getActiveRackId: () => "rack-10",
+        getTargetFace: () => "front",
+        setActiveRack: vi.fn(),
+        setCursor: vi.fn(),
+        announce,
+        abandonPlacement,
+      },
+      measured,
+    );
+
+    expect(abandonPlacement).toHaveBeenCalled();
   });
 
   it("states the same requirement on Enter rather than reporting no room", () => {

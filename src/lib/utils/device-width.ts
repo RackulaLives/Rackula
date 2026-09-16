@@ -39,11 +39,17 @@ export function getRackOpeningMm(rackWidth: number): number {
 /**
  * A cell's share of the opening, reading the rounded third descriptors
  * (0.33, 0.34, 0.66, 0.67) as exact thirds.
+ *
+ * Only those four values are read as thirds. Snapping everything within a
+ * tolerance of a third would move a deliberate custom fraction: 0.343 would
+ * shrink to a third and reject a device that fits, and 0.657 would grow to two
+ * thirds and accept one that does not.
  */
 function cellFraction(slotWidthFraction: number | undefined): number {
   const fraction = slotWidthFraction ?? 1.0;
-  const thirds = Math.round(fraction * 3) / 3;
-  return Math.abs(fraction - thirds) <= WIDTH_FIT_TOLERANCE ? thirds : fraction;
+  if (fraction === 0.33 || fraction === 0.34) return 1 / 3;
+  if (fraction === 0.66 || fraction === 0.67) return 2 / 3;
+  return fraction;
 }
 
 /**

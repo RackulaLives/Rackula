@@ -205,7 +205,12 @@
         colour,
         notes: notes.trim(),
         isFullDepth,
-        isHalfWidth,
+        // A measured width supersedes the switch, which renders unchecked and
+        // disabled while one is entered. Submit what the user sees, or a device
+        // saved after toggling Half Width and then typing a width would carry
+        // both. Clearing the width restores the switch, so this mirrors the
+        // rendered state in both directions.
+        isHalfWidth: isHalfWidth && !hasWidth,
         widthMm: hasWidth ? toMillimetres(widthValue!, widthUnit) : undefined,
         rackWidths: optionToRackWidths(rackWidthOption),
         frontImage,
