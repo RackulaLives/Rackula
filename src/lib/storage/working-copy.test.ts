@@ -96,7 +96,7 @@ describe("saveSession: data-format stamp on the autosave door (#3310)", () => {
 
   it("stamps the measured-width format when a device type has width_mm", () => {
     const layout = layoutWithMetadata({
-      device_types: [{ ...createTestDeviceType(), width_mm: 72 }],
+      device_types: [createTestDeviceType({ width_mm: 72 })],
     });
 
     expect(saveSession(layout, backup)).toBe(true);

@@ -109,7 +109,7 @@ describe("schema_version in serialized YAML", () => {
   it("stamps the measured-width MAJOR only while a device type has width_mm", async () => {
     const measured = {
       ...layoutWith(metadata(SCHEMA_VERSION)),
-      device_types: [{ ...createTestDeviceType(), width_mm: 72 }],
+      device_types: [createTestDeviceType({ width_mm: 72 })],
     };
     const yaml = await serializeLayoutToYaml(measured);
     expect(await stampOf(yaml)).toBe(MEASURED_WIDTH_SCHEMA_VERSION);
@@ -198,9 +198,7 @@ describe("schemaVersionForWrite", () => {
     // to 1.x, or a 1.x release would read its unknown 2.x additions as its own.
     expect(schemaVersionForWrite(newer, [])).toBe(newer);
     expect(
-      schemaVersionForWrite(newer, [
-        { ...createTestDeviceType(), width_mm: 72 },
-      ]),
+      schemaVersionForWrite(newer, [createTestDeviceType({ width_mm: 72 })]),
     ).toBe(newer);
   });
 });
