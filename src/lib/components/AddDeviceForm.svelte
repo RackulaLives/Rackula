@@ -16,6 +16,7 @@
     MAX_DEVICE_HEIGHT,
   } from "$lib/types/constants";
   import { getDefaultColour } from "$lib/utils/device";
+  import { getCropUnitHeight } from "$lib/utils/image-crop";
 
   interface Props {
     open: boolean;
@@ -87,6 +88,15 @@
   // The image is drawn in every rack width the device fits, so the crop shows
   // guides for the widths it is not framed for.
   const cropRackWidth = $derived(getCropRackWidth(rackWidthOption));
+  // The crop frame follows the form: a half-width device is drawn in a carrier
+  // cell half the interior wide, so it is framed that way rather than to the
+  // full rails.
+  const cropWidthFraction = $derived(isHalfWidth ? 0.5 : 1);
+  const cropWidthLabel = $derived(
+    isHalfWidth
+      ? `a half-width ${getCropUnitHeight(height)}U device in a ${cropRackWidth} inch rack`
+      : undefined,
+  );
   const cropGuideRackWidths = $derived(optionToRackWidths(rackWidthOption));
   let userChangedColour = $state(false);
 
@@ -357,6 +367,8 @@
         uHeight={height}
         rackWidth={cropRackWidth}
         guideRackWidths={cropGuideRackWidths}
+        widthFraction={cropWidthFraction}
+        widthLabel={cropWidthLabel}
         onupload={(data) => (frontImage = data)}
         onremove={() => (frontImage = undefined)}
       />
@@ -367,6 +379,8 @@
         uHeight={height}
         rackWidth={cropRackWidth}
         guideRackWidths={cropGuideRackWidths}
+        widthFraction={cropWidthFraction}
+        widthLabel={cropWidthLabel}
         onupload={(data) => (rearImage = data)}
         onremove={() => (rearImage = undefined)}
       />

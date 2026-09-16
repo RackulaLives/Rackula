@@ -8,6 +8,7 @@
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { placementKey } from "$lib/utils/placement-key";
+  import { getCropUnitHeight } from "$lib/utils/image-crop";
   import { validateImageFile, fileToImageData } from "$lib/utils/imageUpload";
   import { SUPPORTED_IMAGE_FORMATS } from "$lib/types/constants";
   import type { SelectedDeviceInfo } from "$lib/types";
@@ -64,6 +65,17 @@
   );
 
   // Device type fallback images, keyed by slug in the image store
+  // The crop frame takes the device's drawn width, so a half-width device is
+  // framed to the carrier cell it sits in rather than to the full rails.
+  const cropWidthFraction = $derived(
+    selectedDeviceInfo.device.slot_width === 1 ? 0.5 : 1,
+  );
+  const cropWidthLabel = $derived(
+    selectedDeviceInfo.device.slot_width === 1
+      ? `a half-width ${getCropUnitHeight(selectedDeviceInfo.device.u_height)}U device in a ${selectedDeviceInfo.rack.width} inch rack`
+      : undefined,
+  );
+
   const deviceTypeFrontImage = $derived(
     imageStore.getDeviceImage(selectedDeviceInfo.device.slug, "front"),
   );
@@ -224,6 +236,8 @@
   face={cropFace}
   uHeight={selectedDeviceInfo.device.u_height}
   rackWidth={selectedDeviceInfo.rack.width}
+  widthFraction={cropWidthFraction}
+  widthLabel={cropWidthLabel}
   onconfirm={handleCropConfirm}
   oncancel={() => (cropFile = null)}
 />

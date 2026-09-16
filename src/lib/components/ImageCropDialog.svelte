@@ -34,6 +34,10 @@
     rackWidth?: number;
     /** Other rack widths the image is also drawn in, shown as guides. */
     guideRackWidths?: number[];
+    /** The device's share of the rack interior: 1 spans the rails, 0.5 is half. */
+    widthFraction?: number;
+    /** How the frame width was decided, for the hint under the title. */
+    widthLabel?: string;
     onconfirm?: (file: File) => void;
     oncancel?: () => void;
   }
@@ -44,6 +48,8 @@
     uHeight,
     rackWidth = STANDARD_RACK_WIDTH,
     guideRackWidths = [],
+    widthFraction = 1,
+    widthLabel,
     onconfirm,
     oncancel,
   }: Props = $props();
@@ -55,7 +61,14 @@
   const KEY_ZOOM_FACTOR = 1.1;
 
   const units = $derived(getCropUnitHeight(uHeight));
-  const aspect = $derived(getDeviceImageAspect(units, rackWidth));
+  const aspect = $derived(
+    getDeviceImageAspect(units, rackWidth, widthFraction),
+  );
+
+  // What the frame is shaped for, for the hint under the title.
+  const frameDescription = $derived(
+    widthLabel ?? `a ${units}U device in a ${rackWidth} inch rack`,
+  );
 
   // Part of the frame still visible where the image is drawn at another width
   const guides = $derived(
@@ -64,7 +77,7 @@
       .map((width) => {
         const visible = getVisibleFraction(
           aspect,
-          getDeviceImageAspect(units, width),
+          getDeviceImageAspect(units, width, widthFraction),
         );
         const left = ((1 - visible.width) / 2) * 100;
         const top = ((1 - visible.height) / 2) * 100;
@@ -323,7 +336,7 @@
   <div class="crop">
     <p class="crop-hint">
       Drag to move the image. Scroll, pinch, or use the slider to zoom. The
-      frame matches a {units}U device in a {rackWidth} inch rack.
+      frame matches {frameDescription}.
       {#each guides as guide (guide.width)}
         The dashed box shows the part visible in a {guide.width} inch rack.
       {/each}
