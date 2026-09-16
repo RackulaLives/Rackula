@@ -19,6 +19,7 @@
     getDeviceImageAspect,
     getVisibleFraction,
     panView,
+    wheelDeltaPixels,
     zoomView,
     type CropView,
     type Size,
@@ -214,11 +215,14 @@
       const before = pinchState();
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       const after = pinchState();
+      // Pan to the new midpoint first, then zoom about it. The two do not
+      // commute: zooming first leaves the anchor short by (midDelta * (1 - r))
+      // each frame, which drifts visibly over a fast pinch-and-drag.
+      pan(after.midX - before.midX, after.midY - before.midY);
       if (before.distance > 0) {
         const anchor = toFramePoint(after.midX, after.midY);
         zoomTo(zoom * (after.distance / before.distance), anchor.x, anchor.y);
       }
-      pan(after.midX - before.midX, after.midY - before.midY);
     }
   }
 
@@ -237,7 +241,14 @@
       if (!natural) return;
       event.preventDefault();
       const anchor = toFramePoint(event.clientX, event.clientY);
-      zoomTo(zoom * Math.exp(-event.deltaY * 0.0015), anchor.x, anchor.y);
+      // Normalise the delta unit first: Firefox reports lines, not pixels, and
+      // reading 3 lines as 3 pixels makes the wheel look dead (#3311).
+      const deltaY = wheelDeltaPixels(
+        event.deltaY,
+        event.deltaMode,
+        window.innerHeight,
+      );
+      zoomTo(zoom * Math.exp(-deltaY * 0.0015), anchor.x, anchor.y);
     }
     el.addEventListener("wheel", handleWheel, { passive: false });
     return () => el.removeEventListener("wheel", handleWheel);
@@ -376,6 +387,7 @@
         type="range"
         class="zoom-slider"
         aria-label="Zoom"
+        aria-valuetext="{zoom.toFixed(1)} times"
         min="1"
         max={MAX_CROP_ZOOM}
         step="0.01"
@@ -490,6 +502,11 @@
 
   .zoom-slider {
     flex: 1;
+    /* A range input drags from anywhere in its box, so a 44px height gives the
+       control the same touch target as the zoom buttons beside it. The native
+       thumb alone is about 16px, short of the gate. Sizing the box rather than
+       the thumb keeps the platform appearance. */
+    height: 44px;
     accent-color: var(--colour-selection);
   }
 

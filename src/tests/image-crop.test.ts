@@ -17,6 +17,7 @@ import {
   MAX_CROP_OUTPUT_EDGE,
   MAX_CROP_ZOOM,
   panView,
+  wheelDeltaPixels,
   zoomView,
 } from "$lib/utils/image-crop";
 
@@ -152,5 +153,23 @@ describe("getCropOutputSize", () => {
     );
     expect(size.width).toBe(MAX_CROP_OUTPUT_EDGE);
     expect(size.height).toBe(MAX_CROP_OUTPUT_EDGE / 4);
+  });
+});
+
+describe("wheelDeltaPixels", () => {
+  it("passes a pixel delta through unchanged", () => {
+    expect(wheelDeltaPixels(-100, 0, 900)).toBe(-100);
+  });
+
+  it("scales a line delta so a Firefox notch zooms like a Chrome notch", () => {
+    // Firefox reports 3 lines per notch where Chrome reports about 100 pixels.
+    // Reading the 3 as pixels made a notch worth 0.45% instead of 14% zoom.
+    const notch = wheelDeltaPixels(3, 1, 900);
+    expect(notch).toBeGreaterThan(30);
+    expect(Math.exp(-notch * 0.0015)).toBeLessThan(0.95);
+  });
+
+  it("treats a page delta as a viewport height", () => {
+    expect(wheelDeltaPixels(1, 2, 900)).toBe(900);
   });
 });

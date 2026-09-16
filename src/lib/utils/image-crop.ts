@@ -102,6 +102,31 @@ function clampScale(scale: number, image: Size, frame: Size): number {
   return Math.min(Math.max(scale, minScale), minScale * MAX_CROP_ZOOM);
 }
 
+/** Pixels a wheel notch reported in DOM_DELTA_LINE units stands for. */
+const WHEEL_LINE_HEIGHT_PX = 16;
+
+/**
+ * A wheel event's deltaY in pixels, whatever unit the browser reported.
+ *
+ * Chrome and Safari report DOM_DELTA_PIXEL, so deltaY is already pixels, but
+ * Firefox reports DOM_DELTA_LINE with deltaY of about 3 per notch. Reading that
+ * as pixels makes a notch roughly a thirtieth of its intended zoom step, so
+ * scroll-to-zoom looks broken. DOM_DELTA_PAGE is a viewport height.
+ *
+ * @param deltaY - The event's raw deltaY.
+ * @param deltaMode - The event's deltaMode (0 pixel, 1 line, 2 page).
+ * @param pageHeight - Viewport height in pixels, used for DOM_DELTA_PAGE.
+ */
+export function wheelDeltaPixels(
+  deltaY: number,
+  deltaMode: number,
+  pageHeight: number,
+): number {
+  if (deltaMode === 1) return deltaY * WHEEL_LINE_HEIGHT_PX;
+  if (deltaMode === 2) return deltaY * pageHeight;
+  return deltaY;
+}
+
 /**
  * Keep the scale within [cover, cover * MAX_CROP_ZOOM] and the image covering
  * the frame on every side.
