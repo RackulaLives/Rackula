@@ -143,11 +143,24 @@ export function primeKeyboardPlacement(
   }
   // A device that can only mount inside an existing bay (a chassis child, a
   // half-width device with no rail carrier, or measured gear too wide for a
-  // carrier cell in this rack) has no rail target. State the honest
-  // requirement and exit placement mode rather than arming a futile cursor the
-  // user could only Escape out of (#2854).
+  // carrier cell in this rack) has no rail target here. State the honest
+  // requirement rather than arming a cursor that can never land (#2854).
   if (requiresChassisBay(device, rack.width)) {
-    deps.abandonPlacement();
+    // Whether to stay armed turns on the other racks. Measured gear that is too
+    // wide for this rack may fit a wider one, so keep placement armed with a
+    // null cursor and let Tab reach it. A device with no rail target in any
+    // rack has nowhere to go, so exit rather than leave a futile cursor the
+    // user could only Escape out of (#3310).
+    const fitsAnotherRack = deps
+      .getRacks()
+      .some((candidate) => !requiresChassisBay(device, candidate.width));
+    if (!fitsAnotherRack) {
+      deps.abandonPlacement();
+      deps.announce(pickUpNeedsChassisAnnouncement(device));
+      return;
+    }
+    deps.setActiveRack(rack.id);
+    deps.setCursor(rack.id, null);
     deps.announce(pickUpNeedsChassisAnnouncement(device));
     return;
   }

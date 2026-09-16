@@ -54,6 +54,18 @@ describe("canPlaceInSlot with width_mm", () => {
     expect(canPlaceInSlot(measuredDevice(152), thirdSlot, 19)).toBe(false);
   });
 
+  it("keeps a deliberate custom fraction instead of snapping it to a third", () => {
+    // 0.343 of the 19" opening is 154.6 mm. Snapping it down to a third (150.3)
+    // would reject a 152 mm device that fits, and snapping 0.657 up to two
+    // thirds would accept one that does not.
+    const custom = createTestSlot({ id: "left", width_fraction: 0.343 });
+    expect(canPlaceInSlot(measuredDevice(152), custom, 19)).toBe(true);
+
+    const wide = createTestSlot({ id: "left", width_fraction: 0.657 });
+    // 0.657 of the opening is 296.2 mm; two thirds would be 300.6.
+    expect(canPlaceInSlot(measuredDevice(299), wide, 19)).toBe(false);
+  });
+
   it("depends on the rack width", () => {
     // 140 mm is under a third of a 19" opening but over half of a 10" one.
     expect(canPlaceInSlot(measuredDevice(140), thirdSlot, 10)).toBe(false);

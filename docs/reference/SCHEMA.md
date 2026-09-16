@@ -116,7 +116,7 @@ Template definition for devices in the library. Referenced by `PlacedDevice.devi
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `u_height` | `number` | Yes | Height in rack units (0.5-50, multiples of 0.5) |
-| `width_mm` | `number` | No | Measured width in millimetres for gear that sits on a shelf or carrier. Marks the device as carrier-mounted and sets which cells it fits. Stamps `schema_version` 2.0 |
+| `width_mm` | `number` | No | Measured width in millimetres (positive) for gear that sits on a shelf or carrier. Marks the device as carrier-mounted and sets which cells it fits. Stamps `schema_version` 2.0 |
 | `is_full_depth` | `boolean` | No | Full rack depth? (default: `true`) |
 | `is_powered` | `boolean` | No | Device requires power? (default: `true`) |
 | `weight` | `number` | No | Weight value (positive number) |
