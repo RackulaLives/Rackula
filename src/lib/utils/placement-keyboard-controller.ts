@@ -221,6 +221,14 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     // rack) so targetRackId and cursorPosition stay consistent with the active
     // rack; a null cursor shows no preview and the user can Tab on to find space.
     deps.setCursor(nextRack.id, start);
+    if (start == null && requiresChassisBay(device, nextRack.width)) {
+      // The device has no rail target in this rack at all, so "no space" would
+      // send the user hunting for a free U that cannot exist. State the real
+      // requirement, as the pick-up path does, but stay armed: the next Tab may
+      // reach a rack the device does fit (#3310).
+      deps.announce(pickUpNeedsChassisAnnouncement(device));
+      return;
+    }
     deps.announce(
       start == null
         ? noSpaceAnnouncement(nextRack.name)
@@ -234,7 +242,14 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     if (!rack) return;
     if (position == null) {
       // No valid slot in this rack (e.g. it is full). Tell the user rather than
-      // letting Enter silently do nothing.
+      // letting Enter silently do nothing. A device with no rail target here
+      // gets the honest reason instead of "no room" (#3310).
+      if (requiresChassisBay(device, rack.width)) {
+        const reason = pickUpNeedsChassisAnnouncement(device);
+        deps.announce(reason);
+        deps.showToast?.(reason);
+        return;
+      }
       deps.announce(noSpaceAnnouncement(rack.name));
       deps.showToast?.(NO_ROOM_MESSAGE);
       return;
