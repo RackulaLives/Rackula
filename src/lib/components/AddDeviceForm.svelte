@@ -360,12 +360,14 @@
           step="any"
           placeholder="e.g., 72"
           class:error={widthError}
+          oninput={() => (widthError = "")}
         />
         <select
           id="device-width-unit"
           class="input-field"
           aria-label="Width unit"
           bind:value={widthUnit}
+          onchange={() => (widthError = "")}
         >
           {#each WIDTH_UNITS as unit (unit)}
             <option value={unit}>{unit}</option>

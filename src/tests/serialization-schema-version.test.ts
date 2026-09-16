@@ -184,9 +184,23 @@ describe("schemaVersionForWrite", () => {
     }
   });
 
-  it("restamps a newer-MAJOR stamp instead of keeping it", () => {
-    const [major] = SCHEMA_VERSION.split(".").map(Number);
+  it("restamps a stamp whose MAJOR the app cannot read", () => {
+    const [major] = MEASURED_WIDTH_SCHEMA_VERSION.split(".").map(Number);
 
     expect(schemaVersionForWrite(`${major! + 1}.0`, [])).toBe(SCHEMA_VERSION);
+  });
+
+  it("keeps a stamp newer than the measured-width format it can read", () => {
+    const [major, minor] = MEASURED_WIDTH_SCHEMA_VERSION.split(".").map(Number);
+    const newer = `${major}.${minor! + 1}`;
+
+    // A future 2.x file saved with no measured device must not be stamped down
+    // to 1.x, or a 1.x release would read its unknown 2.x additions as its own.
+    expect(schemaVersionForWrite(newer, [])).toBe(newer);
+    expect(
+      schemaVersionForWrite(newer, [
+        { ...createTestDeviceType(), width_mm: 72 },
+      ]),
+    ).toBe(newer);
   });
 });

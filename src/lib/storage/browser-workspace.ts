@@ -32,6 +32,7 @@ import { sessionDebug } from "$lib/utils/debug";
 import { migrateLayout } from "./migrate-layout";
 import { parseLayoutObject } from "$lib/utils/yaml";
 import { assertSchemaVersionSupported } from "$lib/schemas";
+import { stampLayoutForWrite } from "$lib/schemas/migrations";
 import { loadSessionWithTimestamp } from "./working-copy";
 import { type StorageMode } from "./availability.svelte";
 import { getTabId, WRITER_TAB_ID_FIELD } from "./twin-tab-guard";
@@ -288,7 +289,11 @@ export function saveLayoutBody(
     // (readWriterTabId), and a large body is not re-serialized to add the stamp.
     serialized = JSON.stringify({
       schemaVersion: SCHEMA_VERSION,
-      layout,
+      // Stamp the layout's own data-format version, which is separate from the
+      // envelope schemaVersion above. Without it a measured layout would sit in
+      // localStorage claiming 1.x and a release without width_mm would fail on
+      // the placement refinement instead of asking the user to update (#3310).
+      layout: stampLayoutForWrite(layout),
       savedAt,
       [WRITER_TAB_ID_FIELD]: getTabId(),
     });
