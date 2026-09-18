@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from "vitest";
 import { getBrandPacks } from "$lib/data/brandPacks";
-import { DeviceTypeSchema } from "$lib/schemas";
+import { DeviceTypeSchema, InterfaceTypeSchema } from "$lib/schemas";
 
 // Get all brand packs dynamically - no hardcoded list needed
 const ALL_BRAND_PACKS = getBrandPacks();
@@ -32,6 +32,16 @@ describe("Brand Packs", () => {
     it("all devices validate against DeviceTypeSchema", () => {
       for (const device of devices) {
         expect(() => DeviceTypeSchema.parse(device)).not.toThrow();
+      }
+    });
+
+    // DeviceTypeSchema accepts unknown interface types on read (#3289), so it
+    // no longer catches a typo in bundled data. Shipped packs use known types.
+    it("all interface types are known values", () => {
+      for (const device of devices) {
+        for (const iface of device.interfaces ?? []) {
+          expect(InterfaceTypeSchema.options).toContain(iface.type);
+        }
       }
     });
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { InterfaceTemplateSchema } from "$lib/schemas";
+import { InterfaceTemplateSchema, PlacedPortSchema } from "$lib/schemas";
 import { getPortCategory } from "$lib/utils/port-utils";
-import { createTestInterfaceTemplate } from "./factories";
+import { createTestInterfaceTemplate, createTestPlacedPort } from "./factories";
 
 const PRO_AUDIO_TYPES = [
   "xlr-3",
@@ -72,5 +72,48 @@ describe("AV port category routing", () => {
     expect(getPortCategory("1000base-t")).toBe("network");
     expect(getPortCategory("console")).toBe("console");
     expect(getPortCategory("usb-c")).toBe("console");
+  });
+});
+
+// Tolerant reader (#3289): a same-MAJOR file from a newer build may carry an
+// interface type this build does not know. It must load as-is rather than
+// reject the whole layout, while junk values are still refused.
+describe("unknown interface types", () => {
+  const UNKNOWN_TYPE = "400gbase-x-osfp";
+
+  it("accepts an unknown type on an interface template and keeps it unchanged", () => {
+    const result = InterfaceTemplateSchema.safeParse(
+      createTestInterfaceTemplate({ type: UNKNOWN_TYPE }),
+    );
+    expect(result.success).toBe(true);
+    expect(result.data?.type).toBe(UNKNOWN_TYPE);
+  });
+
+  it("accepts an unknown type on a placed port and keeps it unchanged", () => {
+    const result = PlacedPortSchema.safeParse(
+      createTestPlacedPort({ type: UNKNOWN_TYPE }),
+    );
+    expect(result.success).toBe(true);
+    expect(result.data?.type).toBe(UNKNOWN_TYPE);
+  });
+
+  it.each([
+    ["an empty string", ""],
+    ["an over-long string", "x".repeat(101)],
+    ["a number", 42],
+  ])("rejects %s as an interface type", (_label, type) => {
+    expect(
+      InterfaceTemplateSchema.safeParse({
+        ...createTestInterfaceTemplate(),
+        type,
+      }).success,
+    ).toBe(false);
+    expect(
+      PlacedPortSchema.safeParse({ ...createTestPlacedPort(), type }).success,
+    ).toBe(false);
+  });
+
+  it("routes an unknown type to the network port category", () => {
+    expect(getPortCategory(UNKNOWN_TYPE)).toBe("network");
   });
 });

@@ -417,7 +417,7 @@ model: Some Device
       expect(result.deviceType.interfaces![1].mgmt_only).toBe(true);
     });
 
-    it("maps unknown interface type to other with a warning", () => {
+    it("keeps an unknown interface type with a warning", () => {
       const netbox: NetBoxDeviceType = {
         manufacturer: "Cisco",
         model: "Catalyst 9300",
@@ -427,9 +427,25 @@ model: Some Device
 
       const result = convertOk(netbox);
 
+      expect(result.deviceType.interfaces![0].type).toBe("1000base-lx");
+      expect(result.warnings).toContain(
+        "Unknown interface type: 1000base-lx, shown as a generic port",
+      );
+    });
+
+    it("maps an unusable interface type to other with a warning", () => {
+      const netbox: NetBoxDeviceType = {
+        manufacturer: "Cisco",
+        model: "Catalyst 9300",
+        slug: "cisco-catalyst-9300",
+        interfaces: [{ name: "Gi1/0/1", type: "" }],
+      };
+
+      const result = convertOk(netbox);
+
       expect(result.deviceType.interfaces![0].type).toBe("other");
       expect(result.warnings).toContain(
-        'Unknown interface type: 1000base-lx, using "other"',
+        'Unknown interface type: , using "other"',
       );
     });
 

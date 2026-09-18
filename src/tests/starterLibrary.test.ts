@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { getStarterLibrary } from "$lib/data/starterLibrary";
 import { createLayout } from "$lib/utils/serialization";
-import { DeviceTypeSchema } from "$lib/schemas";
+import { DeviceTypeSchema, InterfaceTypeSchema } from "$lib/schemas";
 
 /**
  * Starter Device Library Tests
@@ -29,6 +29,16 @@ describe("Starter Device Type Library", () => {
 
       for (const device of deviceTypes) {
         expect(() => DeviceTypeSchema.parse(device)).not.toThrow();
+      }
+    });
+
+    // DeviceTypeSchema accepts unknown interface types on read (#3289), so it
+    // no longer catches a typo in bundled data. The starter library uses known types.
+    it("all interface types are known values", () => {
+      for (const device of getStarterLibrary()) {
+        for (const iface of device.interfaces ?? []) {
+          expect(InterfaceTypeSchema.options).toContain(iface.type);
+        }
       }
     });
   });

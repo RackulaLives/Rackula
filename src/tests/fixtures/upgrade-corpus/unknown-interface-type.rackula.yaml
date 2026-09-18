@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
+# Synthetic: written by a newer same-MAJOR build that knows interface types this
+# build does not (#3289). Every type string must load and survive unchanged.
+# Device positions are internal units, 6 per U: 6 is U1 and 30 is U5.
+metadata:
+  id: 7d2e4f10-3b6a-4c8e-9f21-6a5b4c3d2e1f
+  name: OSFP Fabric Lab
+  schema_version: "1.2"
+version: 26.10.0
+name: OSFP Fabric Lab
+racks:
+  - id: rack-a
+    name: Rack A
+    height: 12
+    width: 19
+    depth_mm: 1000
+    base_weight: 0
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: dev-switch
+        device_type: osfp-switch-1u
+        position: 6
+        face: front
+        ports:
+          - id: port-sw-osfp1
+            template_name: osfp1
+            template_index: 0
+            type: 400gbase-x-osfp
+          - id: port-sw-osfp2
+            template_name: osfp2
+            template_index: 1
+            type: 800gbase-x-osfp
+          - id: port-sw-mgmt0
+            template_name: mgmt0
+            template_index: 2
+            type: 1000base-t
+      - id: dev-node
+        device_type: gpu-node-2u
+        position: 30
+        face: front
+        ports:
+          - id: port-node-osfp1
+            template_name: osfp1
+            template_index: 0
+            type: 400gbase-x-osfp
+device_types:
+  - slug: osfp-switch-1u
+    manufacturer: Acme
+    model: OSFP Switch 1U
+    u_height: 1
+    colour: "#336699"
+    category: network
+    interfaces:
+      - name: osfp1
+        type: 400gbase-x-osfp
+      - name: osfp2
+        type: 800gbase-x-osfp
+      - name: mgmt0
+        type: 1000base-t
+        mgmt_only: true
+  - slug: gpu-node-2u
+    manufacturer: Acme
+    model: GPU Node 2U
+    u_height: 2
+    colour: "#4A90D9"
+    category: server
+    interfaces:
+      - name: osfp1
+        type: 400gbase-x-osfp
+settings:
+  display_mode: label
+  show_labels_on_images: false
+connections:
+  - id: conn-fabric
+    a_port_id: port-sw-osfp1
+    b_port_id: port-node-osfp1
+    label: fabric

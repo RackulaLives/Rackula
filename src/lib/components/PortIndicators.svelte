@@ -15,6 +15,7 @@
   import type {
     InterfaceTemplate,
     InterfaceType,
+    KnownInterfaceType,
     PlacedPort,
     PortClickInfo,
     PortDirection,
@@ -25,7 +26,11 @@
     hidePortTooltip,
   } from "$lib/stores/portTooltip.svelte";
   import { getConnectionCreationStore } from "$lib/stores/connection-creation.svelte";
-  import { getPortCategory, inferDirection } from "$lib/utils/port-utils";
+  import {
+    getPortCategory,
+    inferDirection,
+    isKnownInterfaceType,
+  } from "$lib/utils/port-utils";
   import {
     computeVisiblePortLayout,
     HIGH_DENSITY_THRESHOLD,
@@ -82,7 +87,7 @@
 
   // Color scheme by interface type (NetBox-inspired)
   // Uses CSS custom properties from tokens.css for design system consistency
-  const INTERFACE_COLORS: Partial<Record<InterfaceType, string>> = {
+  const INTERFACE_COLORS: Partial<Record<KnownInterfaceType, string>> = {
     "1000base-t": "var(--colour-port-1gbe)", // Emerald - 1GbE
     "10gbase-t": "var(--colour-port-10gbe)", // Blue - 10GbE copper
     "10gbase-x-sfpp": "var(--colour-port-sfpp)", // Purple - SFP+
@@ -106,8 +111,12 @@
   const BADGE_HEIGHT = 8;
   const BADGE_SPACING = 4;
 
+  // An unknown type (#3289) falls back to its category colour.
   function getInterfaceColor(type: InterfaceType): string {
-    return INTERFACE_COLORS[type] ?? CATEGORY_COLORS[getPortCategory(type)];
+    return (
+      (isKnownInterfaceType(type) ? INTERFACE_COLORS[type] : undefined) ??
+      CATEGORY_COLORS[getPortCategory(type)]
+    );
   }
 
   // Direction arrow shown for input/output ports (none for bidirectional,
@@ -152,8 +161,9 @@
   const portGroups = $derived.by(() => {
     if (!isHighDensity) return [];
 
-    // Use object instead of Map for ESLint compatibility
-    const groups: Record<string, InterfaceTemplate[]> = {};
+    // Use object instead of Map for ESLint compatibility. Prototype-free, so an
+    // unknown type named like "constructor" (#3289) gets its own group.
+    const groups: Record<string, InterfaceTemplate[]> = Object.create(null);
     for (const iface of visibleInterfaces) {
       const key = iface.type;
       if (!groups[key]) {
@@ -163,9 +173,9 @@
     }
 
     return Object.entries(groups).map(([type, ifaces]) => ({
-      type: type as InterfaceType,
+      type,
       count: ifaces.length,
-      color: getInterfaceColor(type as InterfaceType),
+      color: getInterfaceColor(type),
     }));
   });
 

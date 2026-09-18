@@ -4,13 +4,18 @@
   Renders at the document level, positioned using fixed coordinates.
 -->
 <script lang="ts">
-  import type { InterfaceTemplate, InterfaceType } from "$lib/types";
+  import type {
+    InterfaceTemplate,
+    InterfaceType,
+    KnownInterfaceType,
+  } from "$lib/types";
   import { getPortTooltipState } from "$lib/stores/portTooltip.svelte";
   import {
     inferDirection,
     inferSignalType,
     getSignalLabel,
     deriveGender,
+    isKnownInterfaceType,
   } from "$lib/utils/port-utils";
 
   // Get reactive tooltip state from store
@@ -21,7 +26,7 @@
   const visible = $derived(tooltipState.visible);
 
   // Human-readable type names
-  const TYPE_LABELS: Partial<Record<InterfaceType, string>> = {
+  const TYPE_LABELS: Partial<Record<KnownInterfaceType, string>> = {
     "1000base-t": "1GbE (RJ45)",
     "10gbase-t": "10GbE (RJ45)",
     "10gbase-x-sfpp": "10GbE SFP+",
@@ -54,9 +59,9 @@
     dante: "Dante",
   };
 
-  // Get human-readable type label
+  // Get human-readable type label; an unknown type shows its raw string (#3289)
   function getTypeLabel(type: InterfaceType): string {
-    return TYPE_LABELS[type] ?? type;
+    return (isKnownInterfaceType(type) ? TYPE_LABELS[type] : undefined) ?? type;
   }
 
   const DIRECTION_LABELS = {
@@ -183,6 +188,7 @@
   .port-tooltip-type {
     color: var(--colour-text-muted-inverse, rgba(255, 255, 255, 0.7));
     font-size: var(--font-size-xs);
+    word-break: break-word;
   }
 
   .port-tooltip-direction,
