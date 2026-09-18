@@ -1030,6 +1030,8 @@
           {@const childY = getChildYInSlot(
             slotGeo,
             deviceHeight,
+            // Container-relative whole U (0-indexed), not internal units:
+            // migrateDevicePositions skips container children.
             child.position,
             childType.u_height,
             uHeight,

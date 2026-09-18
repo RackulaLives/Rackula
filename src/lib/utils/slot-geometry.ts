@@ -18,7 +18,8 @@ export interface SlotRect {
 /**
  * Compute every slot's rectangle, keyed by slot id.
  *
- * Rows split the container height evenly, with row 0 at the bottom. For
+ * Rows have uniform height (slot.height_units is not used for layout yet;
+ * per-row heights are tracked in #3342). Row 0 is at the bottom. For
  * contiguous rows (0..n-1, true of every starter container) this matches the
  * drop hit-test in dragdrop.ts (colAtX / rowAtY). Within a row, x accumulates
  * from the left in position.col order, so array order does not matter.
@@ -65,7 +66,8 @@ export function getSlotRects(
  *
  * @param cell - The child's slot rectangle from getSlotRects
  * @param containerHeight - Container height in pixels
- * @param childPosition - Child position in U from the container bottom
+ * @param childPosition - Child position in whole U from the container bottom
+ *   (not internal units: migrateDevicePositions skips container children)
  * @param childUHeight - Child height in U
  * @param uHeight - Pixels per U
  */
