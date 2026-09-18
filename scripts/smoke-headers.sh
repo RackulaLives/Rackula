@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# smoke-headers.sh - fail-closed post-deploy smoke for the Cloudflare prod surface.
+# smoke-headers.sh - fail-closed post-deploy smoke for the Cloudflare prod and
+# dev surfaces.
 #
-# Part of issue #2029. Complements e2e/deploy-smoke.spec.ts rather than
+# Part of issue #2029; the dev surface was added by #2134. Complements e2e/deploy-smoke.spec.ts rather than
 # duplicating it: that suite proves the bundle BOOTS in a real browser (shell
 # renders, a share link paints, version.json is well-formed). It deliberately
 # asserts nothing about headers, content types, SPA-fallback behaviour, or
@@ -22,11 +23,15 @@
 # second copy of the values here to drift.
 #
 # Usage:
-#   scripts/smoke-headers.sh <base-url> [--live] [--expect-version X] [--expect-commit Y]
+#   scripts/smoke-headers.sh <base-url> [--surface prod|dev] [--live] [--expect-version X] [--expect-commit Y]
 #
-#   --live   additionally assert exactly one Strict-Transport-Security header.
-#            Only meaningful on a hostname inside the racku.la zone; see #3214
-#            (a zone-level control currently rewrites HSTS to max-age=0).
+#   --surface  which scripts/gen-headers.mjs surface to expect (default prod).
+#              dev also expects server-mode config.js and asserts that
+#              /api/layouts fails closed (401) without Cloudflare Access, so
+#              run it against the workers.dev preview URL, never d.racku.la.
+#   --live     additionally assert exactly one Strict-Transport-Security header.
+#              Only meaningful on a hostname inside the racku.la zone; see #3214
+#              (a zone-level control currently rewrites HSTS to max-age=0).
 #
 # Exits non-zero on the first category of failure, after running every check, so
 # CI reports all problems in one pass.
@@ -35,17 +40,25 @@ set -uo pipefail
 
 BASE_URL="${1:-}"
 if [ -z "$BASE_URL" ]; then
-  echo "usage: scripts/smoke-headers.sh <base-url> [--live] [--expect-version X] [--expect-commit Y]" >&2
+  echo "usage: scripts/smoke-headers.sh <base-url> [--surface prod|dev] [--live] [--expect-version X] [--expect-commit Y]" >&2
   exit 2
 fi
 shift
 
+SURFACE="prod"
 LIVE=0
 EXPECT_VERSION=""
 EXPECT_COMMIT=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --live) LIVE=1; shift ;;
+    --surface)
+      [ $# -ge 2 ] || { echo "error: $1 requires a value" >&2; exit 2; }
+      case "$2" in
+        prod|dev) SURFACE="$2" ;;
+        *) echo "error: --surface must be prod or dev" >&2; exit 2 ;;
+      esac
+      shift 2 ;;
     --expect-version|--expect-commit)
       # `shift 2` with only one argument left fails under `set -u`-less bash and
       # loops forever; reject explicitly so a malformed CI invocation is loud.
@@ -139,10 +152,13 @@ if headers_of "$BASE_URL/config.js" | grep -qiE '^content-type: *(application|te
 else
   fail "config.js is not JavaScript (SPA fallback; nosniff would block it)"
 fi
-if fetch "$BASE_URL/config.js" | grep -q 'storage: *"browser"'; then
-  pass "config.js declares browser storage"
+# Prod is assets-only (browser storage); dev fronts the persistence API.
+EXPECT_STORAGE="browser"
+[ "$SURFACE" = "dev" ] && EXPECT_STORAGE="server"
+if fetch "$BASE_URL/config.js" | grep -q "storage: *\"$EXPECT_STORAGE\""; then
+  pass "config.js declares $EXPECT_STORAGE storage"
 else
-  fail "config.js does not declare browser storage"
+  fail "config.js does not declare $EXPECT_STORAGE storage"
 fi
 
 # --- 4. hashed entry point resolves to real JS with immutable caching -----
@@ -171,8 +187,11 @@ fi
 # asserts it is not duplicated. (Until #3214 was fixed, a zone-level control
 # rewrote HSTS to max-age=0 on every racku.la hostname; disabling zone HSTS let
 # each Worker's own _headers value through.)
-SECURITY_HEADERS='^(content-security-policy|x-frame-options|x-content-type-options|referrer-policy|permissions-policy|strict-transport-security):'
-expected="$(node "$SCRIPT_DIR/gen-headers.mjs" prod \
+#
+# X-Robots-Tag is compared the same way, against the chosen surface: prod must
+# never emit noindex, and dev always must.
+SECURITY_HEADERS='^(content-security-policy|x-frame-options|x-content-type-options|referrer-policy|permissions-policy|strict-transport-security|x-robots-tag):'
+expected="$(node "$SCRIPT_DIR/gen-headers.mjs" "$SURFACE" \
   | sed -n '/^\/\*/,/^$/p' | sed -n 's/^  //p' \
   | tr 'A-Z' 'a-z' | grep -E "$SECURITY_HEADERS" | sort)"
 actual="$(headers_of "$BASE_URL/" | tr 'A-Z' 'a-z' \
@@ -211,11 +230,11 @@ else
   fail "CSP missing on an absent path"
 fi
 
-# --- 8. login.html is stripped from the prod artifact --------------------
+# --- 8. login.html is stripped from the Cloudflare artifact --------------
 if fetch "$BASE_URL/login.html" | grep -q 'id="app"'; then
   pass "/login.html returns the SPA shell (login form not published)"
 else
-  fail "/login.html still serves the login form - prod has no auth backend"
+  fail "/login.html still serves the login form - neither Cloudflare surface has a login backend"
 fi
 
 # --- 9. Workers metadata and stray publicDir files are not fetchable -----
@@ -233,6 +252,19 @@ check_not_served "/_headers"
 check_not_served "/.assetsignore"
 check_not_served "/.claude/settings.local.json"
 check_not_served "/.DS_Store"
+
+# --- 10. dev API fails closed without Cloudflare Access ------------------
+# The preview URL is outside Access, so no Cf-Access-Jwt-Assertion reaches the
+# Worker and the API must refuse. On d.racku.la itself Access answers first
+# (302), which is why the dev surface runs against the preview URL.
+if [ "$SURFACE" = "dev" ]; then
+  code="$(fetch -o /dev/null -w '%{http_code}' "$BASE_URL/api/layouts")"
+  if [ "$code" = "401" ]; then
+    pass "/api/layouts -> 401 without an Access JWT"
+  else
+    fail "/api/layouts -> $code without an Access JWT (expected 401: the API must fail closed)"
+  fi
+fi
 
 echo
 if [ "$FAILS" -eq 0 ]; then
