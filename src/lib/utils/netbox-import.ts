@@ -9,8 +9,10 @@ import type {
   Airflow,
   RackWidth,
   InterfaceTemplate,
+  Slot,
 } from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
+import { findStarterDevice } from "$lib/data/starterLibrary";
 import {
   DeviceBaySchema,
   DeviceTypeSchema,
@@ -27,6 +29,10 @@ import { z } from "$lib/zod";
 import { parseYaml } from "./yaml";
 import { isKnownInterfaceType } from "./port-utils";
 import { ensureUniqueSlug, generateDeviceSlug, slugify } from "./slug";
+import { uniqueNames } from "./netbox-export";
+
+/** SlotSchema's maximum slot name length. */
+const SLOT_NAME_MAX = 100;
 
 const FeedLegSchema = PowerOutletSchema.shape.feed_leg;
 
@@ -545,6 +551,60 @@ function mapInterface(
 }
 
 /**
+ * Container slots for a NetBox parent's device bays, one slot per bay named
+ * after it. When the slug matches a starter library container with the same
+ * number of slots, that container's slot geometry is reused, which is how a
+ * carrier exported by Rackula round-trips exactly. Otherwise the bays fill a
+ * grid of at most two columns from the bottom row up, with a warning. Two
+ * columns keep every slot at least half width, the narrowest device Rackula
+ * can place; an odd last bay spans the full width.
+ */
+function slotsForDeviceBays(
+  slug: string,
+  bays: { name: string }[],
+  uHeight: number,
+  warnings: string[],
+): Slot[] {
+  // SlotSchema caps slot names at 100 characters; device bay names are not.
+  // Shortening can make two names equal, so keep the slot names unique.
+  const slotNames = uniqueNames(
+    bays.map((bay) => bay.name),
+    SLOT_NAME_MAX,
+  );
+  const longNames = bays.filter((bay) => bay.name.length > SLOT_NAME_MAX);
+  if (longNames.length > 0) {
+    warnings.push(
+      `${longNames.length} device bay name(s) are longer than the ${SLOT_NAME_MAX} characters a slot name allows: shortened on the slot, kept in full on the device bay`,
+    );
+  }
+  const slotName = (i: number) => slotNames[i]!;
+
+  // A slug match means this is that starter container (typically a Rackula
+  // export coming back), so its slots are reused whole, including any
+  // `accepts` restriction such as blade-chassis-4u taking servers only.
+  const starterSlots = findStarterDevice(slug)?.slots;
+  if (starterSlots && starterSlots.length === bays.length) {
+    return starterSlots.map((slot, i) => ({ ...slot, name: slotName(i) }));
+  }
+
+  const columns = Math.min(bays.length, 2);
+  const rows = Math.ceil(bays.length / columns);
+  warnings.push(
+    `${bays.length} device bay(s) imported as slots in a ${rows} by ${columns} grid: the slot layout is approximate`,
+  );
+  return bays.map((_, i) => {
+    const spansRow = i === bays.length - 1 && bays.length % columns !== 0;
+    return {
+      id: `bay-${i + 1}`,
+      name: slotName(i),
+      position: { row: Math.floor(i / columns), col: i % columns },
+      width_fraction: spansRow ? 1 : 1 / columns,
+      height_units: uHeight / rows,
+    };
+  });
+}
+
+/**
  * Convert NetBox device type to Rackula DeviceType
  */
 export function convertToDeviceType(
@@ -595,12 +655,23 @@ export function convertToDeviceType(
     new Set(options?.existingSlugs ?? []),
   );
 
+  // NetBox requires child device types to be 0U, which the schema refuses.
+  // Give the child a height it can load with and ask the user to match it
+  // to the bay it fits.
+  let uHeight = netbox.u_height ?? 1;
+  if (uHeight === 0 && netbox.subdevice_role === "child") {
+    uHeight = 1;
+    warnings.push(
+      "NetBox child types are 0U: imported as 1U, set the height and width to match the bay it fits",
+    );
+  }
+
   // Build the device type
   const deviceType: DeviceType = {
     slug,
     manufacturer: netbox.manufacturer,
     model: netbox.model,
-    u_height: netbox.u_height ?? 1,
+    u_height: uHeight,
     is_full_depth: netbox.is_full_depth ?? true,
     colour,
     category,
@@ -721,6 +792,15 @@ export function convertToDeviceType(
   );
   if (deviceBays.length > 0) {
     deviceType.device_bays = deviceBays;
+    // A NetBox parent with device bays is a Rackula container.
+    if (deviceType.subdevice_role === "parent") {
+      deviceType.slots = slotsForDeviceBays(
+        normalisedSlug,
+        deviceBays,
+        deviceType.u_height,
+        warnings,
+      );
+    }
   }
 
   // Map inventory items

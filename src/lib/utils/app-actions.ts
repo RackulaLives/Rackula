@@ -4,6 +4,7 @@
  * share workflows rather than storage.
  */
 import { getLayoutStore } from "$lib/stores/layout.svelte";
+import { getSelectionStore } from "$lib/stores/selection.svelte";
 import { getUIStore } from "$lib/stores/ui.svelte";
 import { getCanvasStore } from "$lib/stores/canvas.svelte";
 import { getToastStore } from "$lib/stores/toast.svelte";
@@ -19,6 +20,9 @@ import { handleNewRack } from "$lib/utils/dialog-actions";
 import { appDebug } from "$lib/utils/debug";
 import { generateShareUrl } from "$lib/utils/share";
 import { generateQRCode, canFitInQR } from "$lib/utils/qrcode";
+import { findDeviceType } from "$lib/utils/device-lookup";
+import { exportToNetBoxYaml } from "$lib/utils/netbox-export";
+import { slugifyForFilename } from "$lib/utils/slug";
 import {
   generateExportSVG,
   exportAsSVG,
@@ -143,6 +147,45 @@ export function handleShare(): void {
     return;
   }
   dialogStore.open("share");
+}
+
+/**
+ * Download the selected device's type as NetBox devicetype-library YAML,
+ * named <slug>.yaml. Asks for a device selection when none is selected.
+ */
+export async function handleExportDeviceTypeToNetBox(): Promise<void> {
+  const layoutStore = getLayoutStore();
+  const selectionStore = getSelectionStore();
+  const toastStore = getToastStore();
+
+  const rack = selectionStore.selectedRackId
+    ? layoutStore.getRackById(selectionStore.selectedRackId)
+    : undefined;
+  const device = selectionStore.isDeviceSelected
+    ? rack?.devices.find((d) => d.id === selectionStore.selectedDeviceId)
+    : undefined;
+  const deviceType = device
+    ? findDeviceType(device.device_type, layoutStore.device_types)
+    : undefined;
+  if (!deviceType) {
+    toastStore.showToast("Select a device to export its type", "info");
+    return;
+  }
+
+  try {
+    const { yaml, warnings } = await exportToNetBoxYaml(deviceType);
+    const filename = `${slugifyForFilename(deviceType.slug, "device-type")}.yaml`;
+    downloadBlob(new Blob([yaml], { type: "text/yaml" }), filename);
+    toastStore.showToast(
+      warnings.length > 0
+        ? `Exported ${filename}. ${warnings.length} change(s) for NetBox are listed at the top of the file`
+        : `Exported ${filename}`,
+      "success",
+    );
+  } catch (error) {
+    appDebug.export("NetBox device type export failed: %O", error);
+    toastStore.showToast("Device type export failed", "error");
+  }
 }
 
 /** Run the chosen export (SVG, PNG, JPEG, PDF, or CSV) and download it. */

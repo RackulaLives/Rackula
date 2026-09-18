@@ -2,6 +2,8 @@
 
 This guide explains how to import devices from the [NetBox community devicetype-library](https://github.com/netbox-community/devicetype-library) into Rackula.
 
+For the full field mapping in both directions, including components, the in-app import and export commands, and carriers, see [NETBOX-FIELD-MAPPING.md](../reference/NETBOX-FIELD-MAPPING.md).
+
 ## Quick Start
 
 ### Complete Import Workflow

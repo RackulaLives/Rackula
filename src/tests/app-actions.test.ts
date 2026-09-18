@@ -12,6 +12,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   resetAndCreateNewRack,
   handleExportSubmit,
+  handleExportDeviceTypeToNetBox,
 } from "$lib/utils/app-actions";
 import { downloadBlob } from "$lib/utils/export";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
@@ -21,6 +22,9 @@ import {
   resetSelectionStore,
 } from "$lib/stores/selection.svelte";
 import { resetImageStore } from "$lib/stores/images.svelte";
+import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
+import { parseYaml } from "$lib/utils/yaml";
+import { createTestDeviceType } from "./factories";
 import type { ExportOptions } from "$lib/types";
 
 vi.mock("$lib/utils/export", async (importOriginal) => {
@@ -36,6 +40,7 @@ function resetAll() {
   resetImageStore();
   dialogStore.close();
   dialogStore.closeSheet();
+  resetToastStore();
   mockedDownloadBlob.mockClear();
 }
 
@@ -113,5 +118,77 @@ describe("handleExportSubmit filename source (#3007/R6c)", () => {
     // downloads. Confirms the rack-name source is additive, not a
     // replacement that breaks the zero-rack case.
     expect(mockedDownloadBlob).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleExportDeviceTypeToNetBox (#2296)", () => {
+  beforeEach(resetAll);
+
+  function placeAndSelect(deviceType = createTestDeviceType()) {
+    const layoutStore = getLayoutStore();
+    const rack = layoutStore.addRack("Rack", 12);
+    layoutStore.addDeviceTypeRaw(deviceType);
+    const placed = layoutStore.placeDevice(rack!.id, deviceType.slug, 1);
+    expect(placed).toBe(true);
+    const device = layoutStore.getRackById(rack!.id)!.devices[0]!;
+    getSelectionStore().selectDevice(rack!.id, device.id);
+  }
+
+  async function downloadedYaml(): Promise<Record<string, unknown>> {
+    const [blob] = mockedDownloadBlob.mock.calls[0]!;
+    return parseYaml<Record<string, unknown>>(await blob.text());
+  }
+
+  it("downloads the selected device's type as <slug>.yaml", async () => {
+    placeAndSelect(
+      createTestDeviceType({
+        slug: "acme-switch-24",
+        manufacturer: "Acme",
+        model: "Switch 24",
+      }),
+    );
+
+    await handleExportDeviceTypeToNetBox();
+
+    expect(mockedDownloadBlob).toHaveBeenCalledTimes(1);
+    const [, filename] = mockedDownloadBlob.mock.calls[0]!;
+    expect(filename).toBe("acme-switch-24.yaml");
+    expect(await downloadedYaml()).toMatchObject({
+      manufacturer: "Acme",
+      model: "Switch 24",
+      slug: "acme-switch-24",
+    });
+    expect(getToastStore().toasts).toContainEqual(
+      expect.objectContaining({
+        type: "success",
+        message: expect.stringContaining("acme-switch-24.yaml"),
+      }),
+    );
+  });
+
+  it("says the file lists the changes when the export had warnings", async () => {
+    placeAndSelect(createTestDeviceType({ slug: "no-maker", model: "Box" }));
+
+    await handleExportDeviceTypeToNetBox();
+
+    expect(mockedDownloadBlob).toHaveBeenCalledTimes(1);
+    expect(getToastStore().toasts).toContainEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("top of the file"),
+      }),
+    );
+  });
+
+  it("asks for a device selection instead of downloading when none is selected", async () => {
+    getLayoutStore().addRack("Rack", 12);
+
+    await handleExportDeviceTypeToNetBox();
+
+    expect(mockedDownloadBlob).not.toHaveBeenCalled();
+    expect(getToastStore().toasts).toContainEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("Select a device"),
+      }),
+    );
   });
 });
