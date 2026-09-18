@@ -12,6 +12,42 @@ import {
   ALLOWED_RACK_WIDTHS,
   DEFAULT_RACK_VIEW,
 } from "$lib/types/constants";
+import { wrapText } from "$lib/utils/text-sizing";
+
+/** Font size of the empty-rack hint, used both to render and to wrap it */
+export const EMPTY_RACK_HINT_FONT_SIZE = 11;
+
+/** Horizontal breathing room between the hint text and each rail */
+const EMPTY_RACK_HINT_INSET = 4;
+
+/**
+ * Lines of the empty-state hint for one face of a face-filtered rack (#3330).
+ * A fully empty rack gets a single hint on the front face only, so dual view
+ * does not repeat it per face. A face that is empty while the other face has
+ * devices gets its own short hint. Each phrase starts a new line and is
+ * wrapped to the rack interior, since SVG text does not wrap.
+ *
+ * @returns The wrapped lines, empty when this face shows no hint
+ */
+export function getEmptyRackHintLines(
+  face: "front" | "rear",
+  rackHasDevices: boolean,
+  faceHasDevices: boolean,
+  interiorWidth: number,
+): string[] {
+  if (faceHasDevices) return [];
+  let phrases: string[];
+  if (!rackHasDevices) {
+    if (face !== "front") return [];
+    phrases = ["Empty rack.", "Drag a device in."];
+  } else {
+    phrases = [face === "front" ? "Front is empty." : "Rear is empty."];
+  }
+  const width = interiorWidth - EMPTY_RACK_HINT_INSET * 2;
+  return phrases.flatMap((phrase) =>
+    wrapText(phrase, width, EMPTY_RACK_HINT_FONT_SIZE),
+  );
+}
 
 /**
  * Generate a unique rack ID using nanoid (21 characters)

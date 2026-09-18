@@ -3,6 +3,7 @@ import {
   calculateFontSize,
   truncateWithEllipsis,
   fitTextToWidth,
+  wrapText,
   DEVICE_LABEL_MAX_FONT,
   DEVICE_LABEL_MIN_FONT,
   DEVICE_LABEL_IMAGE_MAX_FONT,
@@ -203,6 +204,40 @@ describe("Text Sizing Utility", () => {
         DEVICE_LABEL_ICON_SPACE_RIGHT;
       // Should leave at least 80px for text
       expect(availableForText).toBeGreaterThanOrEqual(80);
+    });
+  });
+
+  describe("wrapText", () => {
+    const text = "Nothing rear-mounted in this rack yet";
+
+    it("keeps text on one line when it fits", () => {
+      expect(wrapText(text, 1000, 11)).toEqual([text]);
+    });
+
+    it("breaks at word boundaries so every line fits the width", () => {
+      const width = 80;
+      const lines = wrapText(text, width, 11);
+      expect(lines.length).toBeGreaterThan(1);
+      for (const line of lines) {
+        expect(
+          fitTextToWidth(line, {
+            maxFontSize: 11,
+            minFontSize: 11,
+            availableWidth: width,
+          }).text,
+        ).toBe(line);
+      }
+      expect(lines.join(" ")).toBe(text);
+    });
+
+    it("puts a word wider than the width on its own line instead of splitting it", () => {
+      const lines = wrapText("a rear-mounted b", 20, 11);
+      expect(lines).toContain("rear-mounted");
+      expect(lines.join(" ")).toBe("a rear-mounted b");
+    });
+
+    it("returns no lines for empty text", () => {
+      expect(wrapText("   ", 100, 11)).toEqual([]);
     });
   });
 });

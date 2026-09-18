@@ -38,6 +38,10 @@
   import { getSelectionStore } from "$lib/stores/selection.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getBlockedSlots } from "$lib/utils/blocked-slots";
+  import {
+    getEmptyRackHintLines,
+    EMPTY_RACK_HINT_FONT_SIZE,
+  } from "$lib/utils/rack";
   import { isChristmas } from "$lib/utils/christmas";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
@@ -299,6 +303,18 @@
   const blockedSlots = $derived(
     faceFilter ? getBlockedSlots(rack, faceFilter, deviceLibrary) : [],
   );
+
+  const emptyHintLines = $derived(
+    faceFilter
+      ? getEmptyRackHintLines(
+          faceFilter,
+          rack.devices.length > 0,
+          visibleDevices.length > 0,
+          interiorWidth,
+        )
+      : [],
+  );
+  const EMPTY_HINT_LINE_HEIGHT = EMPTY_RACK_HINT_FONT_SIZE * 1.4;
   // Placement is armed by the mobile tap-to-place flow and the desktop command
   // palette "Add device" path (#2214/#2352) alike, so the cue surfaces on every
   // viewport. Touch placement is completed by `ontouchend`; pointer placement by
@@ -634,18 +650,28 @@
       {rackDims}
     />
 
-    <!-- Empty-state hint: only in a face-filtered (dual) view, so an empty rear
-         reads as "nothing rear-facing here" rather than looking broken. -->
-    {#if faceFilter && visibleDevices.length === 0}
+    <!-- Empty-state hint: only in a face-filtered view, so an empty rear
+         reads as "nothing rear-facing here" rather than looking broken. One
+         hint per empty rack, wrapped to the interior (#3330). -->
+    {#if emptyHintLines.length > 0}
       <text
         class="empty-face-hint"
         x={RACK_WIDTH / 2}
-        y={RACK_PADDING + RAIL_WIDTH + totalHeight / 2}
+        y={RACK_PADDING +
+          RAIL_WIDTH +
+          totalHeight / 2 -
+          ((emptyHintLines.length - 1) * EMPTY_HINT_LINE_HEIGHT) / 2}
+        font-size={EMPTY_RACK_HINT_FONT_SIZE}
         dominant-baseline="middle"
         text-anchor="middle"
         role="note"
+        aria-label={emptyHintLines.join(" ")}
       >
-        No {faceFilter}-facing or full-depth devices yet. Drag one in.
+        {#each emptyHintLines as line, i (i)}
+          <tspan x={RACK_WIDTH / 2} dy={i === 0 ? 0 : EMPTY_HINT_LINE_HEIGHT}
+            >{line}</tspan
+          >
+        {/each}
       </text>
     {/if}
 
@@ -771,7 +797,6 @@
     /* Muted-text token with a concrete fallback; the frontend-design pass
        confirms the exact token. */
     fill: var(--neutral-400, #9aa3ad);
-    font-size: 11px;
     font-family: var(--font-family, system-ui, sans-serif);
     pointer-events: none;
     user-select: none;
