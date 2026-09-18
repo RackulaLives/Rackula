@@ -1372,6 +1372,9 @@ device-bays:
 
       expect(result.deviceType.slots?.[0]?.name).toBe(longName.slice(0, 100));
       expect(result.deviceType.device_bays).toContainEqual({ name: longName });
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("100 characters"),
+      );
     });
 
     it("reuses a starter container's slot geometry when the slug matches", async () => {

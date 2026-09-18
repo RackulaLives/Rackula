@@ -563,6 +563,12 @@ function slotsForDeviceBays(
 ): Slot[] {
   // SlotSchema caps slot names at 100 characters; device bay names are not.
   const slotName = (i: number) => bays[i]!.name.slice(0, 100);
+  const longNames = bays.filter((bay) => bay.name.length > 100).length;
+  if (longNames > 0) {
+    warnings.push(
+      `${longNames} device bay name(s) are longer than the 100 characters a slot name allows: shortened on the slot, kept in full on the device bay`,
+    );
+  }
 
   const starterSlots = findStarterDevice(slug)?.slots;
   if (starterSlots && starterSlots.length === bays.length) {
@@ -644,7 +650,7 @@ export function convertToDeviceType(
   if (uHeight === 0 && netbox.subdevice_role === "child") {
     uHeight = 1;
     warnings.push(
-      "NetBox child types are 0U: imported as 1U, set the height to match the bay it fits",
+      "NetBox child types are 0U: imported as 1U, set the height and width to match the bay it fits",
     );
   }
 

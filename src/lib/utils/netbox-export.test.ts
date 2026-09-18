@@ -105,6 +105,16 @@ describe("exportToNetBoxYaml", () => {
     ]);
   });
 
+  it("does not warn about Rackula fields NetBox device types have no field for", async () => {
+    // fullDeviceType carries colour, category, tags, slot_width, rack_widths,
+    // va_rating, interface position and direction, a device bay position and
+    // an inventory serial. The guide lists these drops; they never warn.
+    const { yaml, warnings } = await exportToNetBoxYaml(fullDeviceType());
+
+    expect(warnings).toEqual([]);
+    expect(yaml).not.toContain("#");
+  });
+
   it("omits empty component lists and unset optional fields", async () => {
     const deviceType = {
       ...createTestDeviceType({ manufacturer: "Acme", model: "Box" }),
@@ -189,13 +199,29 @@ describe("exportToNetBoxYaml", () => {
         ],
       });
 
-      const { data } = await exportParsed(container);
+      const { data, warnings } = await exportParsed(container);
       const names = (data["device-bays"] as { name: string }[]).map(
         (b) => b.name,
       );
 
       expect(new Set(names).size).toBe(names.length);
       expect(names).toContain("Bay");
+      expect(warnings).toContainEqual(expect.stringContaining('"Bay 2"'));
+    });
+
+    it("keeps bay names unique when a type without slots repeats a device bay name", async () => {
+      const deviceType: DeviceType = {
+        ...createTestDeviceType({ manufacturer: "Acme", model: "Chassis" }),
+        device_bays: [{ name: "Bay" }, { name: "Bay" }],
+      };
+
+      const { data, warnings } = await exportParsed(deviceType);
+      const names = (data["device-bays"] as { name: string }[]).map(
+        (b) => b.name,
+      );
+
+      expect(new Set(names).size).toBe(names.length);
+      expect(warnings).toContainEqual(expect.stringContaining('"Bay 2"'));
     });
 
     it("exports a child type as 0U and warns that the height is not carried", async () => {

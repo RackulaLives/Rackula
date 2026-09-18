@@ -9,7 +9,7 @@ Both work on device types only. Importing rack placements (elevations) is tracke
 
 ## Warnings
 
-Every change that loses or alters data produces a warning.
+A warning means NetBox receives a different value than Rackula holds, for example a fallback manufacturer, an interface type written as `other`, a renamed bay, or a slot grid or child height that is not carried. Fields that NetBox device types have no field for are never written and never warned about, because every Rackula type carries some of them (`colour` and `category` are required). They are listed under [Fields export drops](#fields-export-drops) and in the component table.
 
 - Export writes the warnings as a comment block after the `---` document start, so the file itself records what changed. The toast after the download says when the file lists changes.
 - Import shows the warnings in the import dialog.
@@ -46,11 +46,10 @@ Export writes each list under its hyphenated devicetype-library key and omits em
 
 ## Fields export drops
 
-These are Rackula extensions with no devicetype-library field. Export drops them without a warning because they are dropped on every export:
+These are Rackula extensions with no devicetype-library field. Export always drops them, without a warning. The component fields dropped on export are listed in the component table above.
 
 - `colour`, `category`, `tags`
 - `slot_width`, `rack_widths`
-- `slots` (written as device bays, see below)
 - `va_rating`, `outlet_count`
 - `serial_number`, `asset_tag`, `links`, `custom_fields`
 - Device images
@@ -64,10 +63,10 @@ Rackula models a carrier, slotted shelf or blade chassis as a container: a devic
 A device type with slots exports as `subdevice_role: parent` with one `device-bays` entry per slot, in slot order.
 
 - The bay name is the slot name, or the slot id when the slot has no name.
-- A repeated name gets a numeric suffix (`Bay`, `Bay 2`) so bay names stay unique, which NetBox requires.
+- A repeated name gets a numeric suffix (`Bay`, `Bay 2`) so bay names stay unique, which NetBox requires. The export warns about each renamed bay.
 - Slot positions, width fractions, heights and `accepts` do not survive. The export warns about this.
 
-A device type without slots but with `device_bays` (for example, one imported from NetBox) exports those bays by name.
+A device type without slots but with `device_bays` (for example, one imported from NetBox) exports those bays by name, with the same rule for repeated names.
 
 ### Import
 
@@ -75,7 +74,8 @@ A parent device type with `device-bays` imports as a container with one slot per
 
 - When the slug matches a starter library container (the `carrier-*` carriers, the slotted shelves, `blade-chassis-4u`) with the same number of slots, the importer reuses that container's slot geometry and names the slots after the bays, in order.
 - Otherwise it generates one slot per bay, named after its bay, in a grid of at most two columns filled from the bottom row up. Rows share the device height equally. Every slot is at least half width, the narrowest device Rackula can place, and an odd last bay spans the full width. The import warns that the slot layout is approximate.
-- Slot names are capped at 100 characters. The device bay keeps its full name.
+- Slot names are capped at 100 characters, with a warning. The device bay keeps its full name. Export writes bay names from the slots, but NetBox caps bay names at 64 characters, so a longer name would not import into NetBox either way.
+- Generated slots are placeholders, since NetBox bays carry no size. An imported child type is full width and 1U until you change it, so it may not fit a generated slot until you set its height and width.
 
 ### Round trip
 
@@ -89,7 +89,7 @@ A parent device type with `device-bays` imports as a container with one slot per
 NetBox requires child device types (`subdevice_role: child`) to be 0U. Rackula needs a height of at least 0.5U.
 
 - Export writes a child type with `u_height: 0` and warns that the Rackula height is not carried.
-- Import gives a 0U child type a height of 1U and warns you to set the height to match the bay it fits.
+- Import gives a 0U child type a height of 1U and warns you to set the height and width to match the bay it fits.
 
 Sub-U and half-width rail gear (for example a 0.5U unit that mounts in a carrier) is not a child type in Rackula and exports with its own height and no `subdevice_role`.
 

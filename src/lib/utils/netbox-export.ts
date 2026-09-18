@@ -1,8 +1,14 @@
 /**
  * NetBox Device Type Export
  * Converts a Rackula DeviceType to netbox-community/devicetype-library YAML.
- * Rackula-only fields are dropped; every lossy change is reported as a
- * warning and written into the file as a comment block.
+ *
+ * Warning contract: a warning means NetBox receives a different value than
+ * Rackula holds (a fallback, a mapped type, a renamed bay, a dropped slot
+ * grid or height). Warnings are returned and written into the file as a
+ * comment block. Fields NetBox device types have no field for (colour,
+ * category, tags, slot_width, rack_widths, interface position, and so on)
+ * are always dropped and never warned, since every type carries some of
+ * them; the field-mapping guide lists them instead.
  * Field mapping: docs/reference/NETBOX-FIELD-MAPPING.md
  */
 
@@ -125,16 +131,17 @@ function exportInterfaces(
 }
 
 /**
- * One device bay per container slot, named after the slot (or its id when it
- * has no name). A repeated name gets a numeric suffix so bay names stay unique,
- * which NetBox requires within a device type.
+ * Device bays with unique names, which NetBox requires within a device type.
+ * A repeated name gets a numeric suffix, with a warning.
  */
-function baysFromSlots(deviceType: DeviceType): { name: string }[] {
+function uniqueBays(names: string[], warnings: string[]): { name: string }[] {
   const used = new Set<string>();
-  return (deviceType.slots ?? []).map((slot) => {
-    const base = slot.name || slot.id;
+  return names.map((base) => {
     let name = base;
     for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
+    if (name !== base) {
+      warnings.push(`Bay name "${base}" repeats: exported as "${name}"`);
+    }
     used.add(name);
     return { name };
   });
@@ -167,18 +174,21 @@ export async function exportToNetBoxYaml(
     warnings.push(`Model is not set, exported as "${model}"`);
   }
 
-  // A container's slots become device bays; its slot grid does not survive.
-  // A type without slots keeps any device bays it carries (a NetBox import).
+  // A container's slots become device bays, named after the slot (or its id);
+  // its slot grid does not survive. A type without slots keeps any device
+  // bays it carries (a NetBox import).
   const slotCount = deviceType.slots?.length ?? 0;
-  const bays =
-    slotCount > 0
-      ? baysFromSlots(deviceType)
-      : (deviceType.device_bays ?? []).map((bay) => ({ name: bay.name }));
   if (slotCount > 0) {
     warnings.push(
       `${slotCount} slot(s) exported as device bays: slot positions and sizes are not carried`,
     );
   }
+  const bays = uniqueBays(
+    slotCount > 0
+      ? (deviceType.slots ?? []).map((slot) => slot.name || slot.id)
+      : (deviceType.device_bays ?? []).map((bay) => bay.name),
+    warnings,
+  );
 
   // devicetype-library requires subdevice_role: parent whenever device bays exist.
   const subdeviceRole = bays.length > 0 ? "parent" : deviceType.subdevice_role;
