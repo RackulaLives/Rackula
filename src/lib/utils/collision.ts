@@ -585,6 +585,62 @@ export function findNextSlotForChild(
   return null;
 }
 
+/** A direction to move a contained child between the cells of its carrier. */
+export type CellDirection = "up" | "down" | "left" | "right";
+
+/**
+ * The nearest free cell a contained child can move to in one direction within
+ * its own carrier (#2295). Rows count from the bottom (row 0), so "up" is a
+ * higher row in the same column and "right" a higher column in the same row.
+ * Occupied cells and cells the child does not fit are leapfrogged, like the
+ * rack-level nudge. Never wraps and never leaves the carrier.
+ *
+ * @param containerType - The carrier DeviceType (with slots[])
+ * @param childType - The DeviceType of the contained child
+ * @param currentSlotId - The slot the child currently occupies
+ * @param siblings - Other children already in this carrier (excluding the child)
+ * @param direction - Which way to move
+ * @returns The target { slotId } or null when no free cell lies that way
+ */
+export function findAdjacentSlotForChild(
+  containerType: DeviceType,
+  childType: DeviceType,
+  currentSlotId: string,
+  siblings: PlacedDevice[],
+  direction: CellDirection,
+): { slotId: string } | null {
+  const slots = containerType.slots ?? [];
+  const current = slots.find((s) => s.id === currentSlotId);
+  if (!current) return null;
+
+  const vertical = direction === "up" || direction === "down";
+  const step = direction === "up" || direction === "right" ? 1 : -1;
+  const occupied = new Set(
+    siblings.map((s) => s.slot_id).filter((id): id is string => !!id),
+  );
+
+  // Cells in the same column (vertical) or row (horizontal) that lie in the
+  // requested direction, nearest first.
+  const candidates = slots
+    .filter((slot) =>
+      vertical
+        ? slot.position.col === current.position.col &&
+          (slot.position.row - current.position.row) * step > 0
+        : slot.position.row === current.position.row &&
+          (slot.position.col - current.position.col) * step > 0,
+    )
+    .sort((a, b) =>
+      vertical
+        ? (a.position.row - b.position.row) * step
+        : (a.position.col - b.position.col) * step,
+    );
+
+  const target = candidates.find(
+    (slot) => !occupied.has(slot.id) && canPlaceInSlot(childType, slot),
+  );
+  return target ? { slotId: target.id } : null;
+}
+
 /**
  * Check if a device can be placed inside a container at a specific slot and position
  *

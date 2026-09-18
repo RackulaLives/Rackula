@@ -130,7 +130,11 @@ import {
   placeDeviceSmart as placeDeviceSmartImpl,
   moveDeviceToRack as moveDeviceToRackImpl,
   moveDeviceToSlot as moveDeviceToSlotImpl,
+  moveDeviceIntoContainer as moveDeviceIntoContainerImpl,
+  moveDeviceSmart as moveDeviceSmartImpl,
+  moveDeviceToAdjacentSlot as moveDeviceToAdjacentSlotImpl,
 } from "./layout/device-actions";
+import type { CellDirection } from "$lib/utils/collision";
 
 export { type BackupState, HAS_STARTED_KEY };
 
@@ -342,6 +346,9 @@ export function createLayoutStore(
     moveDevice,
     moveDeviceToRack,
     moveDeviceToSlot,
+    moveDeviceToAdjacentSlot,
+    moveDeviceIntoContainer,
+    moveDeviceSmart,
     removeDeviceFromRack,
     updateDeviceFace,
     updateDeviceName,
@@ -794,11 +801,77 @@ export function createLayoutStore(
   }
 
   /**
+   * Move a contained child to the nearest free cell in one direction within
+   * its own carrier (arrow keys, #2295).
+   */
+  function moveDeviceToAdjacentSlot(
+    rackId: string,
+    deviceIndex: number,
+    direction: CellDirection,
+  ): boolean {
+    return moveDeviceToAdjacentSlotImpl(
+      stateAccess,
+      rackId,
+      deviceIndex,
+      direction,
+    );
+  }
+
+  /**
+   * Move an existing device into a container cell, keeping its identity, in
+   * one undo step (#2295).
+   */
+  function moveDeviceIntoContainer(
+    fromRackId: string,
+    deviceIndex: number,
+    toRackId: string,
+    containerId: string,
+    slotId: string,
+    position: number,
+  ): boolean {
+    // $state.snapshot() is a Svelte rune: it must be called from this .svelte.ts file
+    return moveDeviceIntoContainerImpl(
+      stateAccess,
+      fromRackId,
+      deviceIndex,
+      toRackId,
+      containerId,
+      slotId,
+      position,
+      (device) => $state.snapshot(device),
+    );
+  }
+
+  /**
+   * Move an existing device carrier-first (the move counterpart of
+   * placeDeviceSmart), keeping its identity, in one undo step (#2295).
+   */
+  function moveDeviceSmart(
+    fromRackId: string,
+    deviceIndex: number,
+    toRackId: string,
+    position: number,
+    face?: DeviceFace,
+  ): boolean {
+    // $state.snapshot() is a Svelte rune: it must be called from this .svelte.ts file
+    return moveDeviceSmartImpl(
+      stateAccess,
+      fromRackId,
+      deviceIndex,
+      toRackId,
+      position,
+      face,
+      (device) => $state.snapshot(device),
+    );
+  }
+
+  /**
    * Remove a device from a rack. Uses undo/redo support via
    * removeDeviceRecorded.
-   * @returns The removed device's display name, or undefined if nothing was
-   * removed. Every removal affordance (#2993) uses this to name the device in
-   * its undo toast, so all five stay in sync with a single source of truth.
+   * @returns The removed device's display name (plus "and N devices" for a
+   * carrier's children), or undefined if nothing was removed. Every removal
+   * affordance (#2993) uses this to name the removal in its undo toast, so all
+   * five stay in sync with a single source of truth.
    */
   function removeDeviceFromRack(
     rackId: string,

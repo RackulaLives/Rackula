@@ -9,7 +9,7 @@
  * rune that must be called from a .svelte.ts file (the facade).
  */
 
-import type { DeviceFace, PlacedDevice } from "$lib/types";
+import type { DeviceFace, DeviceType, PlacedDevice, Rack } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import {
   canPlaceDevice,
@@ -21,6 +21,10 @@ import {
   requiresCarrier,
   synthesizeCarrierForDevice,
 } from "$lib/utils/collision";
+import {
+  findAdjacentSlotForChild,
+  type CellDirection,
+} from "$lib/utils/collision";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { generateId } from "$lib/utils/device";
@@ -31,15 +35,23 @@ import {
   createAddDeviceTypeCommand,
   createBatchCommand,
   createCrossRackMoveCommand,
+  createInRackCommand,
   createMoveToSlotCommand,
+  createRemoveConnectionCommand,
+  createRemoveDeviceCommand,
+  createReparentDeviceCommand,
+  type Command,
+  type DevicePlacement,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
 import { getCommandStoreAdapter } from "./command-adapters";
 import { getRackById } from "./rack-actions";
 import {
+  findEmptiedAutoCarrier,
   moveDeviceRecorded,
   placeDeviceRecorded,
 } from "./recorded-device-actions";
+import { findConnectionsForDevices } from "./recorded-device-type-actions";
 
 /** Snapshot function injected by the facade ($state.snapshot is a rune). */
 export type SnapshotDeviceFn = (device: PlacedDevice) => PlacedDevice;
@@ -48,6 +60,8 @@ export type SnapshotDeviceFn = (device: PlacedDevice) => PlacedDevice;
  * Duplicate a placed device within a rack
  * Places the duplicate in the next available slot on the same face
  * Inherits all properties (custom label, image overrides, colour)
+ * A carrier is copied with its children; a carrier child is copied into the
+ * next free cell of its own carrier (#2295)
  * Uses undo/redo system for reverting the operation
  * @param ctx - Layout state access
  * @param rackId - Rack ID containing the device
@@ -78,6 +92,18 @@ export function duplicateDevice(
   );
   if (!deviceType) {
     return { error: "Device type not found" };
+  }
+
+  // A carrier child is duplicated into a free cell of its own carrier. It must
+  // never land on the rails: sub-U / half-width gear there fails the schema.
+  if (sourceDevice.container_id) {
+    return duplicateContainerChild(
+      ctx,
+      sourceRack,
+      sourceDevice,
+      deviceType,
+      snapshotDevice,
+    );
   }
 
   // Find valid positions on the same face
@@ -140,7 +166,96 @@ export function duplicateDevice(
     adapter,
     `${deviceName} (Copy)`,
   );
-  history.execute(command);
+
+  // A carrier is deep-copied: each child gets a new id and fresh ports and is
+  // linked to the copy, all in the same undo step as the copy itself.
+  const children = sourceRack.devices.filter(
+    (d) => d.container_id === sourceDevice.id,
+  );
+  const childCommands = children.map((child) => {
+    const childType = findDeviceType(child.device_type, layout.device_types);
+    const childCopy: PlacedDevice = {
+      ...snapshotDevice(child),
+      id: generateId(),
+      container_id: duplicatedDevice.id,
+      ports: childType ? instantiatePorts(childType) : undefined,
+    };
+    return createPlaceDeviceCommand(childCopy, adapter, childType?.model);
+  });
+  const placeCommand =
+    childCommands.length > 0
+      ? createBatchCommand(`Place ${deviceName} (Copy)`, [
+          command,
+          ...childCommands,
+        ])
+      : command;
+  // Pinned to this rack so undo/redo after selecting another rack still act
+  // on the copy and its children here.
+  history.execute(createInRackCommand(rackId, placeCommand, adapter));
+  ctx.markDirty();
+
+  return { device: duplicatedDevice };
+}
+
+/**
+ * Duplicate a carrier child into the next free cell of the same carrier,
+ * scanning forward from the source's cell. Refuses with an error when no cell
+ * fits, so the copy never falls back to the rails.
+ */
+function duplicateContainerChild(
+  ctx: LayoutStateAccess,
+  rack: Rack,
+  child: PlacedDevice,
+  childType: DeviceType,
+  snapshotDevice: SnapshotDeviceFn,
+): { error?: string; device?: PlacedDevice } {
+  const layout = ctx.getLayout();
+  const container = rack.devices.find((d) => d.id === child.container_id);
+  const containerType = container
+    ? findDeviceType(container.device_type, layout.device_types)
+    : undefined;
+  if (!container || !containerType || !child.slot_id) {
+    return { error: "Cannot duplicate: carrier not found" };
+  }
+
+  const siblings = rack.devices.filter(
+    (d) => d.container_id === container.id && d.id !== child.id,
+  );
+  const next = findNextSlotForChild(
+    containerType,
+    childType,
+    child.slot_id,
+    siblings,
+  );
+  if (!next) {
+    const containerName = containerType.model ?? containerType.slug;
+    return { error: `Cannot duplicate: no free cell in ${containerName}` };
+  }
+
+  const duplicatedDevice: PlacedDevice = {
+    ...snapshotDevice(child),
+    id: generateId(),
+    slot_id: next.slotId,
+    position: 0,
+    ports: instantiatePorts(childType),
+  };
+
+  ctx.setActiveRackId(rack.id);
+  const deviceName = childType.model ?? childType.slug;
+  const adapter = getCommandStoreAdapter(ctx);
+  ctx
+    .getHistory()
+    .execute(
+      createInRackCommand(
+        rack.id,
+        createPlaceDeviceCommand(
+          duplicatedDevice,
+          adapter,
+          `${deviceName} (Copy)`,
+        ),
+        adapter,
+      ),
+    );
   ctx.markDirty();
 
   return { device: duplicatedDevice };
@@ -313,6 +428,70 @@ export function moveDeviceToSlot(
 }
 
 /**
+ * Move a contained child to the nearest free cell in one direction within its
+ * own carrier (arrow keys, #2295). Like moveDeviceToSlot it only changes
+ * slot_id, so the child is never ejected. No-op (returns false) when the device
+ * is not a carrier child or no free cell lies that way.
+ *
+ * @param ctx - Layout state access
+ * @param rackId - Rack containing the child and its carrier
+ * @param deviceIndex - Index of the child in the rack's devices array
+ * @param direction - Which way to move
+ * @returns true if the child moved to a new cell
+ */
+export function moveDeviceToAdjacentSlot(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  deviceIndex: number,
+  direction: CellDirection,
+): boolean {
+  const targetRack = getRackById(ctx, rackId);
+  const child = targetRack?.devices[deviceIndex];
+  if (!targetRack || !child?.container_id || !child.slot_id) return false;
+
+  const layout = ctx.getLayout();
+  const childType = findDeviceType(child.device_type, layout.device_types);
+  const container = targetRack.devices.find((d) => d.id === child.container_id);
+  const containerType = container
+    ? findDeviceType(container.device_type, layout.device_types)
+    : undefined;
+  if (!childType || !container || !containerType) return false;
+
+  const siblings = targetRack.devices.filter(
+    (d) => d.container_id === container.id && d.id !== child.id,
+  );
+  const next = findAdjacentSlotForChild(
+    containerType,
+    childType,
+    child.slot_id,
+    siblings,
+    direction,
+  );
+  if (!next) return false;
+
+  ctx.setActiveRackId(rackId);
+  const adapter = getCommandStoreAdapter(ctx);
+  ctx
+    .getHistory()
+    .execute(
+      createInRackCommand(
+        rackId,
+        createMoveToSlotCommand(
+          deviceIndex,
+          container.id,
+          child.slot_id,
+          next.slotId,
+          adapter,
+          childType.model ?? childType.slug,
+        ),
+        adapter,
+      ),
+    );
+  ctx.markDirty();
+  return true;
+}
+
+/**
  * Place a device carrier-first.
  *
  * Half-width gear cannot register to the rails directly. This flow:
@@ -464,6 +643,290 @@ export function placeDeviceSmart(
   history.execute(createBatchCommand(`Place ${childName}`, commands));
   ctx.markDirty();
 
+  return true;
+}
+
+/**
+ * Move an existing placed device into a container cell, in the same rack or
+ * another one, keeping its identity: id, ports (so connections survive), name,
+ * notes, colour, images and custom fields (#2295). One undo step. When the
+ * device leaves an auto-created carrier empty, that carrier goes in the same
+ * step.
+ *
+ * Refuses (returns false, nothing changes) when the cell does not fit or is
+ * taken, or when the device is itself a container (containers do not nest).
+ *
+ * @returns true if the device is in the requested cell afterwards
+ */
+export function moveDeviceIntoContainer(
+  ctx: LayoutStateAccess,
+  fromRackId: string,
+  deviceIndex: number,
+  toRackId: string,
+  containerId: string,
+  slotId: string,
+  position: number,
+  snapshotDevice: SnapshotDeviceFn,
+): boolean {
+  const sourceRack = getRackById(ctx, fromRackId);
+  const targetRack = getRackById(ctx, toRackId);
+  if (!sourceRack || !targetRack) return false;
+  const device = sourceRack.devices[deviceIndex];
+  if (!device) return false;
+
+  const layout = ctx.getLayout();
+  const deviceType = findDeviceType(device.device_type, layout.device_types);
+  const container = targetRack.devices.find((d) => d.id === containerId);
+  const containerType = container
+    ? findDeviceType(container.device_type, layout.device_types)
+    : undefined;
+  if (!deviceType || !container || !containerType) return false;
+  // Containers never nest (single-level nesting, LayoutSchema), which also
+  // stops a container being dropped into its own cell.
+  if (deviceType.slots?.length) return false;
+
+  if (
+    device.container_id === container.id &&
+    device.slot_id === slotId &&
+    device.position === position
+  ) {
+    return true;
+  }
+
+  if (
+    !canPlaceInContainer(
+      targetRack,
+      layout.device_types,
+      container,
+      containerType,
+      deviceType,
+      slotId,
+      position,
+      device.id,
+    )
+  ) {
+    return false;
+  }
+
+  return commitReparent(
+    ctx,
+    sourceRack,
+    targetRack,
+    device,
+    deviceType,
+    {
+      position,
+      face: container.face,
+      container_id: container.id,
+      slot_id: slotId,
+    },
+    [],
+    snapshotDevice,
+  );
+}
+
+/**
+ * Move an existing placed device carrier-first, the move counterpart of
+ * placeDeviceSmart. Gear that needs no carrier moves on the rails via
+ * moveDeviceToRack. Otherwise the device joins a free, fitting cell of a
+ * matching carrier at the target U, or a new auto-created carrier synthesised
+ * there. Either way it keeps its identity and the move is one undo step, with
+ * any auto-created carrier it leaves empty removed in that step (#2295).
+ *
+ * @returns true if moved successfully
+ */
+export function moveDeviceSmart(
+  ctx: LayoutStateAccess,
+  fromRackId: string,
+  deviceIndex: number,
+  toRackId: string,
+  positionU: number,
+  face: DeviceFace | undefined,
+  snapshotDevice: SnapshotDeviceFn,
+): boolean {
+  const sourceRack = getRackById(ctx, fromRackId);
+  const targetRack = getRackById(ctx, toRackId);
+  if (!sourceRack || !targetRack) return false;
+  const device = sourceRack.devices[deviceIndex];
+  if (!device) return false;
+
+  const layout = ctx.getLayout();
+  const deviceType = findDeviceType(device.device_type, layout.device_types);
+  if (!deviceType) return false;
+
+  const carrierSlug = synthesizeCarrierForDevice(deviceType);
+  if (!carrierSlug) {
+    return moveDeviceToRack(
+      ctx,
+      fromRackId,
+      deviceIndex,
+      toRackId,
+      positionU,
+      face,
+      snapshotDevice,
+    );
+  }
+
+  // Containers never nest (single-level nesting, LayoutSchema).
+  if (deviceType.slots?.length) return false;
+
+  const carrierType = findDeviceType(carrierSlug, layout.device_types);
+  if (!carrierType) return false;
+  const carrierCells = {
+    ...carrierType,
+    slots: (carrierType.slots ?? []).filter((slot) =>
+      canPlaceInSlot(deviceType, slot),
+    ),
+  };
+  const positionInternal = toInternalUnits(positionU);
+
+  // Prefer an existing carrier of the right kind at this U with a free cell.
+  const existingCarrier = targetRack.devices.find(
+    (d) =>
+      !d.container_id &&
+      d.device_type === carrierSlug &&
+      d.position === positionInternal,
+  );
+  if (existingCarrier) {
+    const others = targetRack.devices.filter(
+      (d) => d.container_id === existingCarrier.id && d.id !== device.id,
+    );
+    const free = findNextFreeChildPosition(carrierCells, others);
+    if (!free) return false;
+    return moveDeviceIntoContainer(
+      ctx,
+      fromRackId,
+      deviceIndex,
+      toRackId,
+      existingCarrier.id,
+      free.slotId,
+      free.position,
+      snapshotDevice,
+    );
+  }
+
+  // Otherwise synthesise a carrier at this U (a whole-U, full-width rail
+  // placement) and move the device into its first fitting cell.
+  if (
+    !canPlaceDevice(
+      targetRack,
+      layout.device_types,
+      carrierType.u_height,
+      positionInternal,
+      undefined,
+      "both",
+    )
+  ) {
+    return false;
+  }
+  const free = findNextFreeChildPosition(carrierCells, []);
+  if (!free) return false;
+
+  const carrierDevice: PlacedDevice = {
+    id: generateId(),
+    device_type: carrierSlug,
+    position: positionInternal,
+    face: "both",
+    auto_created: true,
+    ports: instantiatePorts(carrierType),
+  };
+  const adapter = getCommandStoreAdapter(ctx);
+  const setupCommands: Command[] = [];
+  if (!layout.device_types.some((dt) => dt.slug === carrierSlug)) {
+    setupCommands.push(createAddDeviceTypeCommand(carrierType, adapter));
+  }
+  setupCommands.push(
+    createInRackCommand(
+      targetRack.id,
+      createPlaceDeviceCommand(carrierDevice, adapter, "Carrier"),
+      adapter,
+    ),
+  );
+
+  return commitReparent(
+    ctx,
+    sourceRack,
+    targetRack,
+    device,
+    deviceType,
+    {
+      position: free.position,
+      face: carrierDevice.face,
+      container_id: carrierDevice.id,
+      slot_id: free.slotId,
+    },
+    setupCommands,
+    snapshotDevice,
+  );
+}
+
+/**
+ * Execute a reparent as one undo step: any setup commands (a new carrier),
+ * the identity-preserving move, then removal of an auto-created carrier the
+ * device left empty, along with that carrier's connections.
+ */
+function commitReparent(
+  ctx: LayoutStateAccess,
+  sourceRack: Rack,
+  targetRack: Rack,
+  device: PlacedDevice,
+  deviceType: DeviceType,
+  placement: DevicePlacement,
+  setupCommands: Command[],
+  snapshotDevice: SnapshotDeviceFn,
+): boolean {
+  const layout = ctx.getLayout();
+  const layoutId = layout.metadata?.id ?? "";
+  const adapter = getCommandStoreAdapter(ctx);
+  const deviceName = deviceType.model ?? deviceType.slug;
+
+  const commands: Command[] = [
+    ...setupCommands,
+    createReparentDeviceCommand(
+      sourceRack.id,
+      targetRack.id,
+      snapshotDevice(device),
+      placement,
+      adapter,
+      deviceName,
+      layoutId,
+    ),
+  ];
+
+  const emptiedCarrier =
+    placement.container_id === device.container_id
+      ? undefined
+      : findEmptiedAutoCarrier(sourceRack, device);
+  if (emptiedCarrier) {
+    const carrierSnapshot = snapshotDevice(emptiedCarrier);
+    for (const connection of findConnectionsForDevices(ctx, [
+      { rackId: sourceRack.id, device: carrierSnapshot },
+    ])) {
+      commands.push(
+        createRemoveConnectionCommand(
+          connection,
+          adapter,
+          `Remove connection ${connection.label ?? connection.id}`,
+        ),
+      );
+    }
+    commands.push(
+      createInRackCommand(
+        sourceRack.id,
+        createRemoveDeviceCommand(
+          carrierSnapshot,
+          adapter,
+          "carrier",
+          layoutId,
+        ),
+        adapter,
+      ),
+    );
+  }
+
+  ctx.setActiveRackId(targetRack.id);
+  ctx.getHistory().execute(createBatchCommand(`Move ${deviceName}`, commands));
+  ctx.markDirty();
   return true;
 }
 

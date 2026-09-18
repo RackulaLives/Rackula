@@ -6,7 +6,7 @@
  * wrapping raw mutators, then executes it through the history system.
  */
 
-import type { Connection, DeviceType, PlacedDevice } from "$lib/types";
+import type { Connection, DeviceType, PlacedDevice, Rack } from "$lib/types";
 import {
   createDeviceType as createDeviceTypeHelper,
   findDeviceType as findDeviceTypeInArray,
@@ -19,6 +19,8 @@ import {
   createDeleteDeviceTypeCommand,
   createRemoveConnectionCommand,
   createBatchCommand,
+  createInRackCommand,
+  createRemoveDeviceCommand,
   type Command,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
@@ -101,6 +103,111 @@ export function findConnectionsForDevices(
 }
 
 /**
+ * Auto-created carriers in `rack` that every child is leaving.
+ *
+ * A carrier synthesised by drag/drop (auto_created) exists only to hold its
+ * children, so when its last child leaves (removed, dragged out, moved to
+ * another carrier or rack, or its device type deleted) the carrier goes with
+ * it in the same undo step. User-placed carriers persist when empty (#2295).
+ *
+ * @param rack - The rack to scan
+ * @param isLeaving - Whether a placed device is being removed from its spot
+ * @returns The carriers to remove alongside the leaving devices
+ */
+export function findAutoCarriersEmptiedBy(
+  rack: Rack,
+  isLeaving: (device: PlacedDevice) => boolean,
+): PlacedDevice[] {
+  return rack.devices.filter((carrier) => {
+    if (!carrier.auto_created || isLeaving(carrier)) return false;
+    const children = rack.devices.filter((d) => d.container_id === carrier.id);
+    return children.length > 0 && children.every(isLeaving);
+  });
+}
+
+/**
+ * Commands that keep containers and their children consistent when device
+ * types are deleted (#2295):
+ * - children (of other types) inside a deleted type's container are removed,
+ *   since they would otherwise reference a container that no longer exists;
+ * - auto-created carriers left with no children are removed.
+ * Both bring their connections along. In a batch, the child commands go
+ * before the type deletions and the carrier commands after them, so undo
+ * restores each container before the children that reference it.
+ * Connections already in `claimedConnectionIds` are skipped so none is
+ * restored twice.
+ */
+function containerCleanup(
+  ctx: LayoutStateAccess,
+  deletedSlugs: Set<string>,
+  claimedConnectionIds: Set<string>,
+): {
+  connectionCommands: Command[];
+  childCommands: Command[];
+  carrierCommands: Command[];
+} {
+  const layout = ctx.getLayout();
+  const adapter = getCommandStoreAdapter(ctx);
+  const layoutId = layout.metadata?.id ?? "";
+  // JSON-cloned like getPlacedDevicesWithRackForType's placements: the remove
+  // command structuredClones its device, which a state proxy fails.
+  const plain = (rackId: string, device: PlacedDevice) => ({
+    rackId,
+    device: JSON.parse(JSON.stringify(device)) as PlacedDevice,
+  });
+  const children = layout.racks.flatMap((rack) => {
+    const deletedContainerIds = new Set(
+      rack.devices
+        .filter((d) => deletedSlugs.has(d.device_type))
+        .map((d) => d.id),
+    );
+    return rack.devices
+      .filter(
+        (d) =>
+          d.container_id &&
+          deletedContainerIds.has(d.container_id) &&
+          !deletedSlugs.has(d.device_type),
+      )
+      .map((child) => plain(rack.id, child));
+  });
+  const carriers = layout.racks.flatMap((rack) =>
+    findAutoCarriersEmptiedBy(rack, (d) => deletedSlugs.has(d.device_type)).map(
+      (carrier) => plain(rack.id, carrier),
+    ),
+  );
+  const connectionCommands = findConnectionsForDevices(ctx, [
+    ...children,
+    ...carriers,
+  ])
+    .filter((connection) => !claimedConnectionIds.has(connection.id))
+    .map((connection) => {
+      claimedConnectionIds.add(connection.id);
+      return createRemoveConnectionCommand(
+        connection,
+        adapter,
+        `Remove connection ${connection.label ?? connection.id}`,
+      );
+    });
+  const removeIn = ({
+    rackId,
+    device,
+  }: {
+    rackId: string;
+    device: PlacedDevice;
+  }) =>
+    createInRackCommand(
+      rackId,
+      createRemoveDeviceCommand(device, adapter, "device", layoutId),
+      adapter,
+    );
+  return {
+    connectionCommands,
+    childCommands: children.map(removeIn),
+    carrierCommands: carriers.map(removeIn),
+  };
+}
+
+/**
  * Delete a device type with undo/redo support
  * @param ctx - Layout state access
  * @param slug - Device type slug
@@ -136,11 +243,23 @@ export function deleteDeviceTypeRecorded(
     ),
   );
 
+  const cleanup = containerCleanup(
+    ctx,
+    new Set([slug]),
+    new Set(connectedConnections.map((c) => c.id)),
+  );
+  const cleanupCommands = [
+    ...cleanup.connectionCommands,
+    ...cleanup.childCommands,
+    deleteCommand,
+    ...cleanup.carrierCommands,
+  ];
+
   const command =
-    connectionCommands.length > 0
+    connectionCommands.length > 0 || cleanupCommands.length > 1
       ? createBatchCommand(`Delete ${existing.model ?? existing.slug}`, [
           ...connectionCommands,
-          deleteCommand,
+          ...cleanupCommands,
         ])
       : deleteCommand;
 
@@ -229,9 +348,14 @@ export function deleteMultipleDeviceTypesRecorded(
     description,
   );
 
+  const cleanup = containerCleanup(ctx, new Set(slugs), claimedConnectionIds);
+
   const batchCommand = createBatchCommand(description, [
     ...connectionCommands,
+    ...cleanup.connectionCommands,
+    ...cleanup.childCommands,
     ...commands,
+    ...cleanup.carrierCommands,
   ]);
   history.execute(batchCommand);
   ctx.markDirty();

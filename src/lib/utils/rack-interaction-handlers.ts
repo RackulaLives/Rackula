@@ -21,6 +21,7 @@ import {
 } from "$lib/utils/rack-drop-coordinator";
 import {
   dispatchDropAction,
+  placeContainerDrop,
   type RackEventCallbacks,
 } from "$lib/utils/rack-drop-handlers";
 import { hapticError } from "$lib/utils/haptics";
@@ -146,26 +147,7 @@ export function handleDrop(event: DragEvent, ctx: RackHandlerContext): void {
 
   // Container drops need special handling for source removal and fallback
   if (action.kind === "container-drop") {
-    const success = ctx.layoutStore.placeInContainer(
-      action.rackId,
-      action.slug,
-      action.containerTarget.containerId,
-      action.containerTarget.slotId,
-      action.containerTarget.position,
-    );
-    if (success) {
-      if (
-        action.dragData.type === "rack-device" &&
-        action.dragData.sourceRackId &&
-        action.dragData.sourceIndex !== undefined
-      ) {
-        ctx.layoutStore.removeDeviceFromRack(
-          action.dragData.sourceRackId,
-          action.dragData.sourceIndex,
-        );
-      }
-      return;
-    }
+    if (placeContainerDrop(ctx.layoutStore, action)) return;
     // Container placement failed — fall through to rack-level via re-resolve
     const fallbackAction = resolveDropAction(
       { svgElement: svg, clientX: event.clientX, clientY: event.clientY },

@@ -6,7 +6,10 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { findNextSlotForChild } from "$lib/utils/collision";
+import {
+  findAdjacentSlotForChild,
+  findNextSlotForChild,
+} from "$lib/utils/collision";
 import {
   createTestDeviceType,
   createTestContainerType,
@@ -145,5 +148,136 @@ describe("findNextSlotForChild", () => {
     const next = findNextSlotForChild(carrier, child, "nonexistent", []);
 
     expect(next).toBeNull();
+  });
+});
+
+// A 2x2 carrier: row 0 is the bottom row, so "up" is a higher row.
+function twoByTwoCarrier() {
+  const cell = (row: number, col: number) =>
+    createTestSlot({
+      id: `r${row}-c${col}`,
+      position: { row, col },
+      width_fraction: 0.5,
+      height_units: 0.5,
+    });
+  return createTestContainerType({
+    slug: "carrier-2x2",
+    u_height: 1,
+    slots: [cell(0, 0), cell(0, 1), cell(1, 0), cell(1, 1)],
+  });
+}
+
+function subUHalfChild() {
+  return createTestDeviceType({
+    slug: "half-sub-u",
+    u_height: 0.5,
+    slot_width: 1,
+  });
+}
+
+function siblingIn(slotId: string) {
+  return createTestContainerChild({
+    container_id: "carrier-1",
+    slot_id: slotId,
+    device_type: "half-server",
+  });
+}
+
+describe("findAdjacentSlotForChild (#2295)", () => {
+  it("moves right to the next column in the same row", () => {
+    expect(
+      findAdjacentSlotForChild(
+        twoColCarrier(),
+        halfWidthChild(),
+        "col-1",
+        [],
+        "right",
+      ),
+    ).toEqual({ slotId: "col-2" });
+  });
+
+  it("moves left to the previous column in the same row", () => {
+    expect(
+      findAdjacentSlotForChild(
+        twoColCarrier(),
+        halfWidthChild(),
+        "col-2",
+        [],
+        "left",
+      ),
+    ).toEqual({ slotId: "col-1" });
+  });
+
+  it("moves up to the cell above in the same column", () => {
+    expect(
+      findAdjacentSlotForChild(
+        twoByTwoCarrier(),
+        subUHalfChild(),
+        "r0-c1",
+        [],
+        "up",
+      ),
+    ).toEqual({ slotId: "r1-c1" });
+  });
+
+  it("moves down to the cell below in the same column", () => {
+    expect(
+      findAdjacentSlotForChild(
+        twoByTwoCarrier(),
+        subUHalfChild(),
+        "r1-c0",
+        [],
+        "down",
+      ),
+    ).toEqual({ slotId: "r0-c0" });
+  });
+
+  it("returns null at the edge of the carrier, never wrapping", () => {
+    const carrier = twoColCarrier();
+    const child = halfWidthChild();
+
+    expect(
+      findAdjacentSlotForChild(carrier, child, "col-2", [], "right"),
+    ).toBeNull();
+    expect(
+      findAdjacentSlotForChild(carrier, child, "col-1", [], "up"),
+    ).toBeNull();
+  });
+
+  it("leapfrogs an occupied cell to the next free one in that direction", () => {
+    const carrier = createTestContainerType({
+      slug: "carrier-3col",
+      u_height: 1,
+      slots: [0, 1, 2].map((col) =>
+        createTestSlot({
+          id: `c${col}`,
+          position: { row: 0, col },
+          width_fraction: 0.5,
+          height_units: 1,
+        }),
+      ),
+    });
+
+    expect(
+      findAdjacentSlotForChild(
+        carrier,
+        halfWidthChild(),
+        "c0",
+        [siblingIn("c1")],
+        "right",
+      ),
+    ).toEqual({ slotId: "c2" });
+  });
+
+  it("returns null when every cell that way is taken", () => {
+    expect(
+      findAdjacentSlotForChild(
+        twoColCarrier(),
+        halfWidthChild(),
+        "col-1",
+        [siblingIn("col-2")],
+        "right",
+      ),
+    ).toBeNull();
   });
 });

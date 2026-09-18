@@ -444,6 +444,34 @@ describe("Layout Store", () => {
       expect(restoredChild?.id).toBe(childId);
     });
 
+    // #2295: device removal stays immediate (no confirm, #2993), so the undo
+    // toast must say that the carrier's children went with it.
+    it("names the removed children in the returned toast label", () => {
+      const { store, rack, carrierId, childId } = setupCarrierWithChild();
+      const childSlug = store.rack.devices.find(
+        (d) => d.id === childId,
+      )!.device_type;
+      store.placeInContainer(rack.id, childSlug, carrierId, "slot-right", 0);
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrierId,
+      );
+
+      expect(store.removeDeviceFromRack(rack.id, carrierIndex)).toBe(
+        "Test Carrier and 2 devices",
+      );
+    });
+
+    it("uses the singular when the carrier held one child", () => {
+      const { store, rack, carrierId } = setupCarrierWithChild();
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrierId,
+      );
+
+      expect(store.removeDeviceFromRack(rack.id, carrierIndex)).toBe(
+        "Test Carrier and 1 device",
+      );
+    });
+
     it("loads cleanly through the browser reload path after a carrier delete", () => {
       const { store, rack, carrierId } = setupCarrierWithChild();
       const carrierIndex = store.rack.devices.findIndex(
@@ -1485,6 +1513,160 @@ describe("Layout Store", () => {
       // Redo should restore the duplicate
       store.redo();
       expect(store.rack.devices.length).toBe(initialCount + 1);
+    });
+  });
+
+  describe("duplicateDevice (carriers and their children, #2295)", () => {
+    /** A 1U half-width device: placeDeviceSmart mounts it in carrier-1u-2col. */
+    function addHalfWidthDevice(
+      store: ReturnType<typeof getLayoutStore>,
+      name = "Mini Switch",
+    ) {
+      return store.addDeviceType(
+        createTestDeviceTypeInput({
+          name,
+          u_height: 1,
+          category: "network",
+          slot_width: 1,
+          interfaces: [createTestInterfaceTemplate({ name: "eth0" })],
+        }),
+      );
+    }
+
+    function carrierOf(store: ReturnType<typeof getLayoutStore>) {
+      return store.rack.devices.find((d) =>
+        d.device_type.startsWith("carrier"),
+      )!;
+    }
+
+    function childrenOf(
+      store: ReturnType<typeof getLayoutStore>,
+      carrierId: string,
+    ) {
+      return store.rack.devices.filter((d) => d.container_id === carrierId);
+    }
+
+    it("duplicates a carrier child into the next free cell of the same carrier, never onto the rails", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+      const dt = addHalfWidthDevice(store);
+      store.placeDeviceSmart(rack.id, dt.slug, 5);
+      const carrier = carrierOf(store);
+      const childIndex = store.rack.devices.findIndex(
+        (d) => d.container_id === carrier.id,
+      );
+      const source = store.rack.devices[childIndex]!;
+
+      const result = store.duplicateDevice(rack.id, childIndex);
+
+      expect(result.error).toBeUndefined();
+      expect(result.device?.container_id).toBe(carrier.id);
+      expect(result.device?.slot_id).not.toBe(source.slot_id);
+      expect(result.device?.id).not.toBe(source.id);
+      expect(LayoutSchema.safeParse(store.layout).success).toBe(true);
+    });
+
+    it("duplicates a sub-U carrier child into the next free cell and keeps the layout schema-valid", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+      const dt = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "RB5009",
+          u_height: 0.5,
+          category: "network",
+          slot_width: 1,
+        }),
+      );
+      store.placeDeviceSmart(rack.id, dt.slug, 5);
+      const carrier = carrierOf(store);
+      const childIndex = store.rack.devices.findIndex(
+        (d) => d.container_id === carrier.id,
+      );
+
+      const result = store.duplicateDevice(rack.id, childIndex);
+
+      expect(result.device?.container_id).toBe(carrier.id);
+      expect(
+        new Set(childrenOf(store, carrier.id).map((c) => c.slot_id)).size,
+      ).toBe(2);
+      expect(LayoutSchema.safeParse(store.layout).success).toBe(true);
+    });
+
+    it("refuses with an error and places nothing when the carrier is full", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+      const dt = addHalfWidthDevice(store);
+      store.placeDeviceSmart(rack.id, dt.slug, 5);
+      store.placeDeviceSmart(rack.id, dt.slug, 5);
+      const carrier = carrierOf(store);
+      const childIndex = store.rack.devices.findIndex(
+        (d) => d.container_id === carrier.id,
+      );
+      const before = store.rack.devices.map((d) => d.id);
+
+      const result = store.duplicateDevice(rack.id, childIndex);
+
+      expect(result.device).toBeUndefined();
+      expect(result.error).toMatch(/no free cell/i);
+      expect(store.rack.devices.map((d) => d.id)).toEqual(before);
+    });
+
+    it("deep-copies a carrier with its children, giving each copy new ids and ports", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+      const dt = addHalfWidthDevice(store);
+      store.placeDeviceSmart(rack.id, dt.slug, 5);
+      store.placeDeviceSmart(rack.id, dt.slug, 5);
+      const carrier = carrierOf(store);
+      const originals = childrenOf(store, carrier.id);
+      const namedIndex = store.rack.devices.findIndex(
+        (d) => d.id === originals[0]!.id,
+      );
+      store.updateDeviceName(rack.id, namedIndex, "Core Switch");
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrier.id,
+      );
+
+      const result = store.duplicateDevice(rack.id, carrierIndex);
+
+      const copy = result.device!;
+      expect(copy.id).not.toBe(carrier.id);
+      expect(copy.position).not.toBe(carrier.position);
+      const copiedChildren = childrenOf(store, copy.id);
+      expect(copiedChildren.map((c) => c.slot_id).sort()).toEqual(
+        originals.map((c) => c.slot_id).sort(),
+      );
+      expect(copiedChildren.map((c) => c.name)).toContain("Core Switch");
+      const originalIds = new Set(originals.map((c) => c.id));
+      expect(copiedChildren.some((c) => originalIds.has(c.id))).toBe(false);
+      const originalPortIds = new Set(
+        originals.flatMap((c) => c.ports ?? []).map((p) => p.id),
+      );
+      const copiedPorts = copiedChildren.flatMap((c) => c.ports ?? []);
+      expect(copiedPorts.length).toBeGreaterThan(0);
+      expect(copiedPorts.some((p) => originalPortIds.has(p.id))).toBe(false);
+      expect(LayoutSchema.safeParse(store.layout).success).toBe(true);
+    });
+
+    it("undoes a deep carrier duplicate in one step", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+      const dt = addHalfWidthDevice(store);
+      store.placeDeviceSmart(rack.id, dt.slug, 5);
+      const carrier = carrierOf(store);
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrier.id,
+      );
+      const before = store.rack.devices.map((d) => d.id);
+
+      const copy = store.duplicateDevice(rack.id, carrierIndex).device!;
+      store.undo();
+
+      expect(store.rack.devices.map((d) => d.id)).toEqual(before);
+
+      store.redo();
+      expect(store.rack.devices.find((d) => d.id === copy.id)).toBeDefined();
+      expect(childrenOf(store, copy.id).length).toBeGreaterThan(0);
     });
   });
 

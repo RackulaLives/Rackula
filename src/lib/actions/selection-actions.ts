@@ -21,24 +21,117 @@ import {
   findNextSlotForChild,
   isContainerChild,
 } from "$lib/utils/collision";
+import type { CellDirection } from "$lib/utils/collision";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { toHumanUnits } from "$lib/utils/position";
 import type { DeviceFace, DeviceType, Rack } from "$lib/types";
 
 /**
- * Move the selected device up one valid position in the rack.
- * No-op if no device is selected or if the device is a container child.
+ * Move the selected device up one valid position in the rack. A carrier child
+ * moves to the free cell above it instead, never out of its carrier.
+ * No-op if no device is selected.
  */
 export function moveSelectedDeviceUp(): void {
   _moveSelectedDevice(1);
 }
 
 /**
- * Move the selected device down one valid position in the rack.
- * No-op if no device is selected or if the device is a container child.
+ * Move the selected device down one valid position in the rack. A carrier
+ * child moves to the free cell below it instead, never out of its carrier.
+ * No-op if no device is selected.
  */
 export function moveSelectedDeviceDown(): void {
   _moveSelectedDevice(-1);
+}
+
+/**
+ * Move the selected carrier child to the free cell on its left.
+ * No-op unless the selected device is a carrier child.
+ */
+export function moveSelectedDeviceLeft(): void {
+  moveSelectedChildSideways("left");
+}
+
+/**
+ * Move the selected carrier child to the free cell on its right.
+ * No-op unless the selected device is a carrier child.
+ */
+export function moveSelectedDeviceRight(): void {
+  moveSelectedChildSideways("right");
+}
+
+const CELL_BLOCKED_MESSAGES: Record<CellDirection, string> = {
+  up: "Cannot move up, no free cell above",
+  down: "Cannot move down, no free cell below",
+  left: "Cannot move left, no free cell to the left",
+  right: "Cannot move right, no free cell to the right",
+};
+
+/**
+ * Move a carrier child to the nearest free cell in a direction within its own
+ * carrier (#2295), announcing the cell it lands in or why it cannot move
+ * through the same live region as rack-level moves.
+ */
+function moveChildCell(
+  rackId: string,
+  deviceIndex: number,
+  direction: CellDirection,
+): void {
+  const layoutStore = getLayoutStore();
+  const placementStore = getPlacementStore();
+
+  if (!layoutStore.moveDeviceToAdjacentSlot(rackId, deviceIndex, direction)) {
+    placementStore.announcePosition(CELL_BLOCKED_MESSAGES[direction]);
+    return;
+  }
+
+  const rack = layoutStore.getRackById(rackId);
+  const child = rack?.devices[deviceIndex];
+  const container = rack?.devices.find((d) => d.id === child?.container_id);
+  const containerType = container
+    ? findDeviceType(container.device_type, layoutStore.device_types)
+    : undefined;
+  const slot = containerType?.slots?.find((s) => s.id === child?.slot_id);
+  placementStore.announcePosition(
+    `Moved to ${slot?.name ?? slot?.id ?? "the next cell"}`,
+  );
+}
+
+/** The selected device when it is a carrier child, with its rack and index. */
+function selectedCarrierChild(): {
+  rackId: string;
+  deviceIndex: number;
+} | null {
+  const selectionStore = getSelectionStore();
+  const layoutStore = getLayoutStore();
+
+  if (!selectionStore.isDeviceSelected) return null;
+  if (selectionStore.selectedRackId === null) return null;
+
+  const rack = layoutStore.getRackById(selectionStore.selectedRackId);
+  if (!rack) return null;
+
+  const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
+  if (deviceIndex === null) return null;
+
+  const device = rack.devices[deviceIndex];
+  if (!device || !isContainerChild(device)) return null;
+
+  return { rackId: rack.id, deviceIndex };
+}
+
+/**
+ * Whether the selection is a carrier child. The keyboard handler uses this to
+ * claim ArrowLeft/ArrowRight only when they would move a child (#2295).
+ */
+export function isCarrierChildSelected(): boolean {
+  return selectedCarrierChild() !== null;
+}
+
+function moveSelectedChildSideways(direction: "left" | "right"): void {
+  const target = selectedCarrierChild();
+  if (!target) return;
+  moveChildCell(target.rackId, target.deviceIndex, direction);
 }
 
 function _moveSelectedDevice(direction: 1 | -1): void {
@@ -59,7 +152,10 @@ function _moveSelectedDevice(direction: 1 | -1): void {
   if (deviceIndex === null) return;
 
   const placedDevice = rack.devices[deviceIndex];
-  if (placedDevice && isContainerChild(placedDevice)) return;
+  if (placedDevice && isContainerChild(placedDevice)) {
+    moveChildCell(rack.id, deviceIndex, direction === 1 ? "up" : "down");
+    return;
+  }
 
   const result = findNextValidPosition(
     rack,

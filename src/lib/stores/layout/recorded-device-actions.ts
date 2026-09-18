@@ -8,14 +8,17 @@
  * correct rack.
  */
 
-import type { DeviceFace, DeviceType, PlacedDevice } from "$lib/types";
+import type { DeviceFace, DeviceType, PlacedDevice, Rack } from "$lib/types";
 import { UNITS_PER_U, DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
 import { canPlaceDevice, requiresCarrier } from "$lib/utils/collision";
 import { effectiveFace } from "$lib/utils/effective-face";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
-import { findConnectionsForDevices } from "./recorded-device-type-actions";
+import {
+  findAutoCarriersEmptiedBy,
+  findConnectionsForDevices,
+} from "./recorded-device-type-actions";
 import { debug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { instantiatePorts } from "$lib/utils/port-utils";
@@ -34,6 +37,7 @@ import {
   createUpdateDeviceIpCommand,
   createRemoveConnectionCommand,
   createBatchCommand,
+  createInRackCommand,
   type Command,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
@@ -391,15 +395,32 @@ export function moveDeviceRecorded(
 }
 
 /**
+ * The auto-created carrier that `device` is the last child of, if any. See
+ * findAutoCarriersEmptiedBy for the rule (#2295).
+ *
+ * @param rack - The rack the device is leaving
+ * @param device - The device that is leaving its carrier
+ * @returns The carrier to remove, or undefined when none should be removed
+ */
+export function findEmptiedAutoCarrier(
+  rack: Rack,
+  device: PlacedDevice,
+): PlacedDevice | undefined {
+  if (!device.container_id) return undefined;
+  return findAutoCarriersEmptiedBy(rack, (d) => d.id === device.id)[0];
+}
+
+/**
  * Remove a device with undo/redo support
  * @param ctx - Layout state access
  * @param rackId - Rack ID
  * @param deviceIndex - Device index
  * @param snapshotDevice - Snapshot function (for converting reactive proxies to plain objects)
  * @returns The removed device's display name (model, falling back to slug),
+ * followed by "and N devices" when a carrier's children were removed with it,
  * or undefined if the rack/index was invalid and nothing was removed. Callers
- * use this to name the device in an undo toast without re-resolving the
- * device type themselves (#2993).
+ * use this to name the removal in an undo toast without re-resolving the
+ * device type themselves (#2993, #2295).
  */
 export function removeDeviceRecorded(
   ctx: LayoutStateAccess,
@@ -436,6 +457,13 @@ export function removeDeviceRecorded(
     .filter((d) => d.container_id === device.id)
     .map((child) => snapshotDevice(child));
 
+  // Removing the last child of an auto-created carrier removes the carrier
+  // too, in the same undo step (#2295).
+  const emptiedCarrier = findEmptiedAutoCarrier(targetRack, device);
+  const carrierSnapshot = emptiedCarrier
+    ? snapshotDevice(emptiedCarrier)
+    : undefined;
+
   // Connections reference placed devices' ports by id. Deleting a device (or
   // a carrier and its children) without cleaning up its connections leaves
   // dangling port references, saved as-is on the next autosave (#639).
@@ -445,6 +473,7 @@ export function removeDeviceRecorded(
   const connectedConnections = findConnectionsForDevices(ctx, [
     { rackId, device },
     ...children.map((child) => ({ rackId, device: child })),
+    ...(carrierSnapshot ? [{ rackId, device: carrierSnapshot }] : []),
   ]);
 
   const removeCommand =
@@ -478,15 +507,31 @@ export function removeDeviceRecorded(
     ),
   );
 
+  // The carrier is removed after its child, so undo restores the carrier
+  // before the child that references it.
+  const carrierCommands: Command[] = carrierSnapshot
+    ? [
+        createRemoveDeviceCommand(
+          carrierSnapshot,
+          adapter,
+          "carrier",
+          layout.metadata?.id ?? "",
+        ),
+      ]
+    : [];
+
   const command =
-    connectionCommands.length > 0
+    connectionCommands.length > 0 || carrierCommands.length > 0
       ? createBatchCommand(`Remove ${deviceName}`, [
           ...connectionCommands,
           removeCommand,
+          ...carrierCommands,
         ])
       : removeCommand;
 
-  history.execute(command);
+  // Pinned to this rack so undo/redo after selecting another rack restore or
+  // remove the device (and any carrier it emptied) here, together.
+  history.execute(createInRackCommand(rackId, command, adapter));
   ctx.markDirty();
 
   if (connectedConnections.length > 0) {
@@ -497,7 +542,11 @@ export function removeDeviceRecorded(
     });
   }
 
-  return deviceName;
+  // Removal has no confirm step (#2993), so the undo toast is the only place
+  // the user learns a carrier's children went with it (#2295).
+  if (children.length === 0) return deviceName;
+  const childNoun = children.length === 1 ? "device" : "devices";
+  return `${deviceName} and ${children.length} ${childNoun}`;
 }
 
 /**
