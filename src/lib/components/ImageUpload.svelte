@@ -95,7 +95,9 @@
       return;
     }
 
-    sourceFile = file;
+    // Only the crop dialog gets the new file: sourceFile keeps backing the
+    // image on screen until the crop is confirmed, so cancelling leaves the
+    // current image and its Crop button pointing at the file it came from.
     cropFile = file;
 
     // Reset input for re-selection of same file
@@ -103,11 +105,17 @@
   }
 
   async function handleCropConfirm(cropped: File) {
+    const source = cropFile;
+    const framedAspect = aspect;
     cropFile = null;
-    croppedAspect = aspect;
     try {
       const imageData = await fileToImageData(cropped, "device", face);
       onupload?.(imageData);
+      // Only now does this file back the visible image: recording the frame
+      // before the conversion would mark a failed re-crop as up to date while
+      // the previous image is still on screen.
+      sourceFile = source;
+      croppedAspect = framedAspect;
     } catch {
       error = "Failed to process image";
     }

@@ -114,18 +114,18 @@
 
   async function handleCropConfirm(cropped: File) {
     const face = cropFace;
+    // Read the file asynchronously, so pin the target first: the user can
+    // select another device while it is read, and the image belongs to the
+    // device that was being edited when the crop was confirmed.
+    const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
+    const key = placementKey(layoutId, placedDevice.id);
     cropFile = null;
     try {
-      const data = await fileToImageData(
-        cropped,
-        selectedDeviceInfo.device.slug,
-        face,
-      );
-      const deviceId = selectedDeviceInfo.placedDevice.id;
-      imageStore.setDeviceImage(placementKey(layoutId, deviceId), face, data);
+      const data = await fileToImageData(cropped, device.slug, face);
+      imageStore.setDeviceImage(key, face, data);
       layoutStore.updateDevicePlacementImage(
-        selectedDeviceInfo.rack.id,
-        selectedDeviceInfo.deviceIndex,
+        rack.id,
+        deviceIndex,
         face,
         data.filename,
       );

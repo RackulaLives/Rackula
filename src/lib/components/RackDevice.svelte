@@ -1120,16 +1120,19 @@
               ry="2"
             />
             <!-- Child device image. A carrier child is drawn in its cell, so
-                 the image fills the cell the crop frame is shaped from. -->
+                 the image covers the whole cell: it is sliced to fill, and the
+                 inset the backing rect uses would change the aspect it is
+                 sliced into and clip more than the crop frame showed. The
+                 parent device image overflows its own rect the same way. -->
             {#if childImageUrl}
               {#key childImageUrl}
                 <image
                   class="child-device-image"
                   data-testid="child-device-image"
-                  x={2}
-                  y={1}
-                  width={childWidth - 4}
-                  height={childHeight - 2}
+                  x={0}
+                  y={0}
+                  width={childWidth}
+                  height={childHeight}
                   href={childImageUrl}
                   preserveAspectRatio="xMidYMid slice"
                   role="img"
