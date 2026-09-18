@@ -254,7 +254,6 @@
     placedDevice: PlacedDevice;
     originalIndex: number;
     deviceType: DeviceType;
-    element: Element;
   };
   let pressedChild = $state.raw<PressedChild | null>(null);
   // Element holding pointer capture for the current press: this device's
@@ -274,13 +273,37 @@
     return { device, deviceIndex, deviceId: placedDeviceId, position };
   }
 
-  function isPointerOver(element: Element, event: PointerEvent): boolean {
-    const rect = element.getBoundingClientRect();
+  // Whether the pointer is over one of this container's cells on screen, with
+  // the cells split into columns and rows the way drop targeting splits them
+  // (colAtX / rowAtY in dragdrop.ts). Covers the whole cell, not only the
+  // child in it, since a child can be shorter than its cell.
+  function isPointerOverCell(
+    slotId: string | undefined,
+    event: PointerEvent,
+  ): boolean {
+    const slots = device.slots ?? [];
+    const slot = slots.find((s) => s.id === slotId);
+    if (!slot || !rectElement) return false;
+
+    const rect = rectElement.getBoundingClientRect();
+    const colWidth = (col: number) =>
+      rect.width *
+      (slots.find((s) => s.position.col === col)?.width_fraction ?? 1);
+    const left =
+      rect.left +
+      [...new Set(slots.map((s) => s.position.col))]
+        .filter((col) => col < slot.position.col)
+        .reduce((sum, col) => sum + colWidth(col), 0);
+    const rowCount = new Set(slots.map((s) => s.position.row)).size;
+    const rowHeight = rect.height / rowCount;
+    // Row 0 is the bottom row.
+    const top = rect.top + (rowCount - 1 - slot.position.row) * rowHeight;
+
     return (
-      event.clientX >= rect.left &&
-      event.clientX <= rect.right &&
-      event.clientY >= rect.top &&
-      event.clientY <= rect.bottom
+      event.clientX >= left &&
+      event.clientX < left + colWidth(slot.position.col) &&
+      event.clientY >= top &&
+      event.clientY < top + rowHeight
     );
   }
 
@@ -606,7 +629,10 @@
     } else if (pointerState === "dragging") {
       // A child released over its own cell stays put (#3340). Resolving it as
       // a drop would move it to another free cell or report the cell blocked.
-      if (pressedChild && isPointerOver(pressedChild.element, event)) {
+      if (
+        pressedChild &&
+        isPointerOverCell(pressedChild.placedDevice.slot_id, event)
+      ) {
         cancelActiveDrag();
         return;
       }
@@ -999,12 +1025,19 @@
               : childAriaLabel}
             aria-pressed={isChildSelected}
             onpointerdown={(e) =>
-              handlePointerDown(e, {
-                placedDevice: child,
-                originalIndex: childIndex,
-                deviceType: childType,
-                element: e.currentTarget,
-              })}
+              handlePointerDown(
+                e,
+                // A secondary-button press acts on the carrier: the context
+                // menu it opens is the carrier's, so selecting the child
+                // would leave the menu acting on something else.
+                e.button === 0
+                  ? {
+                      placedDevice: child,
+                      originalIndex: childIndex,
+                      deviceType: childType,
+                    }
+                  : null,
+              )}
             onpointermove={handlePointerMove}
             onpointerup={handlePointerUp}
             onpointercancel={handlePointerCancel}

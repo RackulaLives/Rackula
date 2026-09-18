@@ -84,7 +84,13 @@ function renderCarrier(
   });
 }
 
-function pointer(target: Element, type: string, x: number, y: number) {
+function pointer(
+  target: Element,
+  type: string,
+  x: number,
+  y: number,
+  button = 0,
+) {
   target.dispatchEvent(
     new PointerEvent(type, {
       bubbles: true,
@@ -92,13 +98,14 @@ function pointer(target: Element, type: string, x: number, y: number) {
       pointerId: 1,
       clientX: x,
       clientY: y,
+      button,
     }),
   );
 }
 
-function tap(target: Element) {
-  pointer(target, "pointerdown", 0, 0);
-  pointer(target, "pointerup", 0, 0);
+function tap(target: Element, button = 0) {
+  pointer(target, "pointerdown", 0, 0, button);
+  pointer(target, "pointerup", 0, 0, button);
 }
 
 /** Press on the child, cross the drag threshold, then release at (x, y). */
@@ -193,6 +200,17 @@ describe("selecting a carrier child on the canvas (#3340)", () => {
     expect(onselect.mock.calls[0]![0].detail.deviceId).toBe(carrier.id);
   });
 
+  it("a right-click on a child selects the carrier, whose context menu it opens", () => {
+    const { store, rackId, carrier } = setup();
+    const onselect = vi.fn();
+    renderCarrier(store, rackId, carrier.id, { onselect });
+
+    tap(childButton("Column 1"), 2);
+
+    expect(onselect).toHaveBeenCalledTimes(1);
+    expect(onselect.mock.calls[0]![0].detail.deviceId).toBe(carrier.id);
+  });
+
   it("a child takes keyboard focus and Enter selects it, not the carrier", async () => {
     const { store, rackId, carrier, child } = setup();
     const onselect = vi.fn();
@@ -262,16 +280,21 @@ describe("dragging a carrier child on the canvas (#3340)", () => {
   });
 
   it("releasing a child drag over its own cell leaves it where it was", async () => {
+    // The carrier has a free second cell, so resolving the release as a drop
+    // would move the child there. Only the carrier's box is laid out: the
+    // test is on the cell, which can be larger than the child in it.
     const { store, rackId, carrier } = setup();
     const detach = attachDropListeners(store, rackId);
     renderCarrier(store, rackId, carrier.id);
     const before = snapshotRack(store, rackId);
 
-    const button = childButton("Column 1");
-    vi.spyOn(button, "getBoundingClientRect").mockReturnValue(
-      new DOMRect(RAIL_WIDTH, yForU(5) - U_PX / 2, INTERIOR_WIDTH / 2, U_PX),
+    vi.spyOn(
+      screen.getByTestId("rack-device-hitbox"),
+      "getBoundingClientRect",
+    ).mockReturnValue(
+      new DOMRect(RAIL_WIDTH, yForU(5) - U_PX / 2, INTERIOR_WIDTH, U_PX),
     );
-    await dragTo(button, xForColumn(1), yForU(5));
+    await dragTo(childButton("Column 1"), xForColumn(1), yForU(5));
 
     expect(snapshotRack(store, rackId)).toEqual(before);
     detach();
