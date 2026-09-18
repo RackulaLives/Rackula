@@ -397,9 +397,10 @@ export function moveDeviceRecorded(
  * @param deviceIndex - Device index
  * @param snapshotDevice - Snapshot function (for converting reactive proxies to plain objects)
  * @returns The removed device's display name (model, falling back to slug),
+ * followed by "and N devices" when a carrier's children were removed with it,
  * or undefined if the rack/index was invalid and nothing was removed. Callers
- * use this to name the device in an undo toast without re-resolving the
- * device type themselves (#2993).
+ * use this to name the removal in an undo toast without re-resolving the
+ * device type themselves (#2993, #2295).
  */
 export function removeDeviceRecorded(
   ctx: LayoutStateAccess,
@@ -497,7 +498,11 @@ export function removeDeviceRecorded(
     });
   }
 
-  return deviceName;
+  // Removal has no confirm step (#2993), so the undo toast is the only place
+  // the user learns a carrier's children went with it (#2295).
+  if (children.length === 0) return deviceName;
+  const childNoun = children.length === 1 ? "device" : "devices";
+  return `${deviceName} and ${children.length} ${childNoun}`;
 }
 
 /**

@@ -444,6 +444,34 @@ describe("Layout Store", () => {
       expect(restoredChild?.id).toBe(childId);
     });
 
+    // #2295: device removal stays immediate (no confirm, #2993), so the undo
+    // toast must say that the carrier's children went with it.
+    it("names the removed children in the returned toast label", () => {
+      const { store, rack, carrierId, childId } = setupCarrierWithChild();
+      const childSlug = store.rack.devices.find(
+        (d) => d.id === childId,
+      )!.device_type;
+      store.placeInContainer(rack.id, childSlug, carrierId, "slot-right", 0);
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrierId,
+      );
+
+      expect(store.removeDeviceFromRack(rack.id, carrierIndex)).toBe(
+        "Test Carrier and 2 devices",
+      );
+    });
+
+    it("uses the singular when the carrier held one child", () => {
+      const { store, rack, carrierId } = setupCarrierWithChild();
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrierId,
+      );
+
+      expect(store.removeDeviceFromRack(rack.id, carrierIndex)).toBe(
+        "Test Carrier and 1 device",
+      );
+    });
+
     it("loads cleanly through the browser reload path after a carrier delete", () => {
       const { store, rack, carrierId } = setupCarrierWithChild();
       const carrierIndex = store.rack.devices.findIndex(

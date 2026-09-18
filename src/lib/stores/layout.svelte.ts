@@ -796,9 +796,10 @@ export function createLayoutStore(
   /**
    * Remove a device from a rack. Uses undo/redo support via
    * removeDeviceRecorded.
-   * @returns The removed device's display name, or undefined if nothing was
-   * removed. Every removal affordance (#2993) uses this to name the device in
-   * its undo toast, so all five stay in sync with a single source of truth.
+   * @returns The removed device's display name (plus "and N devices" for a
+   * carrier's children), or undefined if nothing was removed. Every removal
+   * affordance (#2993) uses this to name the removal in its undo toast, so all
+   * five stay in sync with a single source of truth.
    */
   function removeDeviceFromRack(
     rackId: string,
