@@ -14,8 +14,9 @@
 //                                                          deploy/security-headers.conf
 //
 // Consumers: the prod wrangler deploy step (.github/workflows/deploy-prod.yml,
-// #2029) calls this to produce the CF `_headers` and `.assetsignore` artifacts;
-// the dev cutover (#2134) will call it with the `dev` surface. `--check` runs in
+// #2029) calls this to produce the CF `_headers` and `.assetsignore` artifacts,
+// and the dev deploy (.github/workflows/deploy-dev.yml, #2134) calls it with
+// the `dev` surface. `--check` runs in
 // the validate job (.github/workflows/test.yml) so the generator cannot silently
 // drift from deploy/security-headers.conf.
 //

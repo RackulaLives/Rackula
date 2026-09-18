@@ -8,13 +8,17 @@ name: Deploy Dev
 # Deploy order, mirroring deploy-prod.yml so a bad build never takes traffic:
 #   1. build main, generate the CF-only artifacts, write server-mode config.js
 #   2. `wrangler versions upload`  -> a per-version preview URL, no traffic
-#   3. curl smoke against the preview URL (smoke-headers.sh --surface dev)
+#   3. curl smoke (smoke-headers.sh --surface dev) and browser boot smoke
+#      against the preview URL
 #   4. `wrangler versions deploy`  -> shifts 100% of dev traffic
 #   5. `wrangler triggers deploy`  -> applies the d.racku.la route
 #   6. browser smoke against d.racku.la through Cloudflare Access
 #
+# Only main of this repository deploys. A dispatch from any other ref, or a
+# fork's main, skips the job: d.racku.la is shared, and its R2 data is real.
+#
 # Rollback: from api/, `wrangler versions deploy <previous-version-id>@100% --yes`.
-# Each run's summary records the version id it promoted.
+# Each run's summary records the version id and whether it was promoted.
 
 on:
   push:
@@ -38,6 +42,7 @@ on:
       - scripts/smoke-headers.sh
       - e2e/deploy-smoke.spec.ts
       - e2e/playwright.smoke.config.ts
+      - e2e/helpers/**
       - .github/workflows/deploy-dev.yml
       # Skip docs-only deploys. The dir globs above match every file in a
       # directory, so a README inside api/ would otherwise trigger a deploy.
@@ -58,6 +63,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy to Cloudflare Workers
+    if: github.repository == 'RackulaLives/Rackula' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment:
@@ -139,6 +145,18 @@ jobs:
             || { echo "::error::version.json commit != ${EXPECTED_COMMIT}"; cat dist/version.json; exit 1; }
           echo "artifact OK: ${EXPECTED_VERSION} @ ${EXPECTED_COMMIT}"
 
+      # Installed before upload so nothing slow sits between promotion and the
+      # live verification below.
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-chromium-
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Upload version (no traffic)
         id: upload
         working-directory: api
@@ -176,8 +194,20 @@ jobs:
             --expect-version "$BUILD_VERSION" \
             --expect-commit "$BUILD_COMMIT"
 
+      # Proves the bundle boots in a real browser before it takes traffic,
+      # catching load-time failures the curl smoke cannot see. No Access
+      # credentials and no EXPECT_SERVER_API: the API answers 401 here, and the
+      # app starts cleanly without it.
+      - name: Browser smoke against the preview URL
+        env:
+          SMOKE_TEST_URL: ${{ steps.upload.outputs.preview_url }}
+          EXPECT_VERSION: ${{ steps.build.outputs.version }}
+          EXPECT_COMMIT: ${{ steps.build.outputs.commit }}
+        run: npm run test:e2e:smoke
+
       # Everything above is fail-closed. Only now does traffic move.
       - name: Promote version to 100% of traffic
+        id: promote
         working-directory: api
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -193,16 +223,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: ./node_modules/.bin/wrangler triggers deploy
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('package-lock.json') }}
-          restore-keys: playwright-${{ runner.os }}-chromium-
-
-      - name: Install Playwright chromium
-        run: npx playwright install --with-deps chromium
 
       # d.racku.la is inside the zone, so CI is challenged there, and it sits
       # behind Access. Chromium solves the challenge, and the service-token
@@ -233,13 +253,21 @@ jobs:
           BUILD_COMMIT: ${{ steps.build.outputs.commit }}
           VERSION_ID: ${{ steps.upload.outputs.version_id }}
           PREVIEW_URL: ${{ steps.upload.outputs.preview_url }}
+          PROMOTE_OUTCOME: ${{ steps.promote.outcome }}
+        # A version that failed its smoke was uploaded but never served
+        # traffic. Label it so, or a later rollback could pick it by mistake.
         run: |
+          if [ "$PROMOTE_OUTCOME" = "success" ]; then
+            status="promoted to d.racku.la"
+          else
+            status="NOT promoted (never served traffic; do not roll back to it)"
+          fi
           {
             echo "### Dev deploy"
             echo ""
             echo "- build: \`${BUILD_VERSION}\` @ \`${BUILD_COMMIT}\`"
-            echo "- Worker version id: \`${VERSION_ID}\`"
-            echo "- preview: ${PREVIEW_URL}"
+            echo "- Worker version id: \`${VERSION_ID:-none}\`, ${status}"
+            echo "- preview: ${PREVIEW_URL:-none}"
             echo ""
-            echo "Rollback: from \`api/\`, run \`wrangler versions deploy <previous-version-id>@100% --yes\`."
+            echo "Rollback: from \`api/\`, run \`wrangler versions deploy <previous-promoted-version-id>@100% --yes\`."
           } >> "$GITHUB_STEP_SUMMARY"

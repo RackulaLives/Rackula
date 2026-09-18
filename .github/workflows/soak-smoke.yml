@@ -53,14 +53,6 @@ jobs:
             access: true
     env:
       SMOKE_TEST_URL: ${{ matrix.target.url }}
-      # Cloudflare Access credentials reach the dev leg only. count.racku.la is
-      # public (#3094), and handing service-token credentials to a job with no
-      # use for them only widens where they can leak. playwright.smoke.config.ts
-      # treats empty values as absent. The same flag turns on the /api/layouts
-      # check, since only the Access-gated dev surface has an API.
-      CF_ACCESS_CLIENT_ID: ${{ matrix.target.access && secrets.CF_ACCESS_CLIENT_ID || '' }}
-      CF_ACCESS_CLIENT_SECRET: ${{ matrix.target.access && secrets.CF_ACCESS_CLIENT_SECRET || '' }}
-      EXPECT_SERVER_API: ${{ matrix.target.access && '1' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -91,7 +83,18 @@ jobs:
       # saw a 403 challenge page, which is why every run of this workflow failed
       # from 2026-07-20 until #2029 -- 79 runs, zero successes, predating the
       # August outage entirely.
+      #
+      # Cloudflare Access credentials reach the dev leg's smoke step only.
+      # count.racku.la is public (#3094), and step scope keeps the token away
+      # from npm ci's lifecycle scripts and every other step.
+      # playwright.smoke.config.ts treats empty values as absent. The same flag
+      # turns on the /api/layouts check, since only the Access-gated dev
+      # surface has an API.
       - name: Browser smoke test against deployed app
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ matrix.target.access && secrets.CF_ACCESS_CLIENT_ID || '' }}
+          CF_ACCESS_CLIENT_SECRET: ${{ matrix.target.access && secrets.CF_ACCESS_CLIENT_SECRET || '' }}
+          EXPECT_SERVER_API: ${{ matrix.target.access && '1' || '' }}
         run: npm run test:e2e:smoke
 
       - name: Upload Playwright report

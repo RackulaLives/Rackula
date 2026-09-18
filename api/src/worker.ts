@@ -8,7 +8,8 @@
  * reached and never enters the bundle (app.ts loads it via dynamic import).
  *
  * Cloudflare Access JWT validation (folded in from #2134) runs in front of the
- * app on `/api/*` and `/*` when configured (CF_ACCESS_* env vars). A deployed
+ * app on every request the Worker receives, which with api/wrangler.jsonc's
+ * `run_worker_first` is `/api/*` only; static assets never reach it. A deployed
  * Worker with those absent fails closed (denies every request) unless
  * CF_ACCESS_DISABLED=true is explicitly set, which restores the skip path
  * (smoke endpoints return 200) for local `wrangler dev` (#2913).
