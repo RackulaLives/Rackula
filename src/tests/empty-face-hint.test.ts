@@ -32,7 +32,8 @@ describe("Empty-face hint", () => {
       },
     });
 
-    expect(screen.getByRole("note")).toBeInTheDocument();
+    // Names the empty face, so a hint for the wrong face would fail here.
+    expect(screen.getByRole("note")).toHaveTextContent(/rear/i);
   });
 
   it("hides the hint when a full-depth device is visible on the rear", () => {
