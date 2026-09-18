@@ -117,6 +117,10 @@ export interface NetBoxInventoryItem {
   part_id?: string | null;
 }
 
+/**
+ * Front or rear pass-through port template (`front-ports`, `rear-ports`).
+ * Rackula does not import these yet; they are counted for a warning.
+ */
 export interface NetBoxPassThroughPort {
   name: string;
   type?: string;
