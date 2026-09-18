@@ -829,7 +829,7 @@ export function createLayoutStore(
     slotId: string,
     position: number,
   ): boolean {
-    // $state.snapshot() is a Svelte rune — must be called from this .svelte.ts file
+    // $state.snapshot() is a Svelte rune: it must be called from this .svelte.ts file
     return moveDeviceIntoContainerImpl(
       stateAccess,
       fromRackId,
@@ -853,7 +853,7 @@ export function createLayoutStore(
     position: number,
     face?: DeviceFace,
   ): boolean {
-    // $state.snapshot() is a Svelte rune — must be called from this .svelte.ts file
+    // $state.snapshot() is a Svelte rune: it must be called from this .svelte.ts file
     return moveDeviceSmartImpl(
       stateAccess,
       fromRackId,

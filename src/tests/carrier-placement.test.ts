@@ -378,6 +378,32 @@ describe("auto-created carrier lifecycle (#2295)", () => {
     expect(carriersIn(store, rackId).map((c) => c.id)).toEqual([carrier.id]);
   });
 
+  it("removes a container's children when the container's device type is deleted, undoably", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    const shelfType = store.addDeviceType({
+      name: "Two Bay Shelf",
+      u_height: 1,
+      category: "shelf",
+      colour: CATEGORY_COLOURS.shelf,
+      slots: [
+        { id: "left", position: { row: 0, col: 0 }, width_fraction: 0.5 },
+        { id: "right", position: { row: 0, col: 1 }, width_fraction: 0.5 },
+      ],
+    });
+    store.placeDevice(rackId, shelfType.slug, 5);
+    const shelf = devicesIn(store, rackId)[0]!;
+    store.placeInContainer(rackId, slug, shelf.id, "left", 0);
+    const before = snapshotRack(store, rackId);
+
+    store.deleteDeviceType(shelfType.slug);
+
+    expect(devicesIn(store, rackId)).toEqual([]);
+    expect(LayoutSchema.safeParse(store.layout).success).toBe(true);
+
+    store.undo();
+    expect(snapshotRack(store, rackId)).toEqual(before);
+  });
+
   it("keeps a user-placed carrier when its last child is removed", () => {
     const { store, rackId, slug } = setupLifecycle();
     store.placeDevice(rackId, "carrier-1u-2col", 5);
