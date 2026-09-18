@@ -23,7 +23,7 @@ import {
   TolerantInterfaceTypeSchema,
   WeightUnitSchema,
 } from "$lib/schemas";
-import type { z } from "$lib/zod";
+import { z } from "$lib/zod";
 import { parseYaml } from "./yaml";
 import { isKnownInterfaceType } from "./port-utils";
 import { ensureUniqueSlug, generateDeviceSlug, slugify } from "./slug";
@@ -200,7 +200,7 @@ function keepValidComponents<T extends { name: unknown }>(
   items: T[],
   schema: z.ZodType,
   noun: string,
-  warnings: string[],
+  warnings?: string[],
 ): T[] {
   return items.filter((item) => {
     const parsed = schema.safeParse(item);
@@ -209,11 +209,35 @@ function keepValidComponents<T extends { name: unknown }>(
     const label =
       typeof item.name === "string" && item.name ? ` "${item.name}"` : "";
     const field = first?.path.join(".") || "item";
-    warnings.push(
+    warnings?.push(
       `Skipped ${noun}${label}: ${field}: ${first?.message ?? "validation failed"}`,
     );
     return false;
   });
+}
+
+/**
+ * Minimal shape for component lists Rackula counts but does not import.
+ */
+const NamedComponentSchema = z.object({ name: z.string().min(1) });
+
+/**
+ * Read a component list Rackula does not import, keeping only named items so
+ * a malformed entry neither drives category inference nor inflates the
+ * "not supported" count.
+ */
+function readNamedComponents(
+  netbox: NetBoxDeviceType,
+  key: ComponentListKey,
+  noun: string,
+  warnings?: string[],
+): { name: unknown }[] {
+  return keepValidComponents(
+    (readComponentList(netbox, key, warnings) ?? []) as { name: unknown }[],
+    NamedComponentSchema,
+    noun,
+    warnings,
+  );
 }
 
 /**
@@ -378,7 +402,8 @@ export function inferCategory(netbox: NetBoxDeviceType): DeviceCategory {
     manufacturer.includes("aten") ||
     manufacturer.includes("avocent") ||
     combined.includes("dominion") ||
-    readComponentList(netbox, "console-server-ports")?.length
+    readNamedComponents(netbox, "console-server-ports", "console server port")
+      .length > 0
   ) {
     return "kvm";
   }
@@ -718,8 +743,14 @@ export function convertToDeviceType(
   // Console ports have no Rackula representation yet. Note the gap in
   // warnings rather than silently dropping the data.
   const consolePortCount =
-    (readComponentList(netbox, "console-ports", warnings)?.length ?? 0) +
-    (readComponentList(netbox, "console-server-ports", warnings)?.length ?? 0);
+    readNamedComponents(netbox, "console-ports", "console port", warnings)
+      .length +
+    readNamedComponents(
+      netbox,
+      "console-server-ports",
+      "console server port",
+      warnings,
+    ).length;
   if (consolePortCount > 0) {
     warnings.push(
       `${consolePortCount} console port(s) are not yet supported by Rackula and were not imported`,
@@ -734,7 +765,7 @@ export function convertToDeviceType(
     ["rear-ports", "rear port"],
   ] as const;
   for (const [key, noun] of unsupportedLists) {
-    const count = readComponentList(netbox, key, warnings)?.length ?? 0;
+    const count = readNamedComponents(netbox, key, noun, warnings).length;
     if (count > 0) {
       warnings.push(
         `${count} ${noun}(s) are not yet supported by Rackula and were not imported`,

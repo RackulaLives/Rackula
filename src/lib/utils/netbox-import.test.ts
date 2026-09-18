@@ -849,6 +849,29 @@ console-server-ports:
       expect(result.inferredCategory).toBe("kvm");
     });
 
+    it("ignores unnamed console port entries for kvm inference and the unsupported count", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Serial Box
+slug: generic-serial-box
+console-server-ports:
+  - {}
+console-ports:
+  - name: ""
+`);
+
+      expect(result.inferredCategory).not.toBe("kvm");
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped console server port: name"),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped console port: name"),
+      );
+      expect(result.warnings).not.toContainEqual(
+        expect.stringContaining("console port(s) are not yet supported"),
+      );
+    });
+
     it("warns about module bays, front ports and rear ports instead of dropping them silently", async () => {
       const result = await importOk(`
 manufacturer: Generic
