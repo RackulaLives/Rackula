@@ -247,6 +247,43 @@
   let pointerStartPos: { x: number; y: number } | null = $state(null);
   let activePointerId: number | null = $state(null);
 
+  // A press that starts on a carrier child acts on that child, not on this
+  // carrier (#3340): a tap selects the child and a drag moves it through the
+  // same drop paths as a rack-level device. Null for a press on this device.
+  type PressedChild = {
+    placedDevice: PlacedDevice;
+    originalIndex: number;
+    deviceType: DeviceType;
+    element: Element;
+  };
+  let pressedChild = $state.raw<PressedChild | null>(null);
+  // Element holding pointer capture for the current press: this device's
+  // hitbox rect, or the rect of the pressed child.
+  let captureElement: Element | null = null;
+
+  // What the current press acts on: the pressed child, or this device.
+  function pressSubject() {
+    if (pressedChild) {
+      return {
+        device: pressedChild.deviceType,
+        deviceIndex: pressedChild.originalIndex,
+        deviceId: pressedChild.placedDevice.id,
+        position: pressedChild.placedDevice.position,
+      };
+    }
+    return { device, deviceIndex, deviceId: placedDeviceId, position };
+  }
+
+  function isPointerOver(element: Element, event: PointerEvent): boolean {
+    const rect = element.getBoundingClientRect();
+    return (
+      event.clientX >= rect.left &&
+      event.clientX <= rect.right &&
+      event.clientY >= rect.top &&
+      event.clientY <= rect.bottom
+    );
+  }
+
   // Image overflow: how far device images extend past rack rails (Issue #9)
   // Real equipment extends past the rails; this creates realistic front-mounting appearance
   const IMAGE_OVERFLOW = 4;
@@ -393,8 +430,16 @@
       );
     }
 
-    // Tab into container slots when container is selected
-    if (event.key === "Tab" && !event.shiftKey && isContainer && selected) {
+    // Tab into container slots when container is selected. Only from the
+    // container itself: a Tab from a slot or child inside it moves on rather
+    // than jumping back to the first slot (#3340).
+    if (
+      event.key === "Tab" &&
+      !event.shiftKey &&
+      isContainer &&
+      selected &&
+      event.target === event.currentTarget
+    ) {
       // Focus first slot within this device group
       const firstSlot = groupElement?.querySelector("[data-slot-id]");
       if (firstSlot instanceof SVGElement) {
@@ -405,8 +450,33 @@
     }
   }
 
+  // Enter/Space on a focused carrier child selects the child (#3340). Stop
+  // propagation so the carrier and the rack do not also select themselves.
+  function handleChildKeyDown(
+    event: KeyboardEvent,
+    child: PlacedDevice,
+    childType: DeviceType,
+  ) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    onselect?.(
+      new CustomEvent("select", {
+        detail: {
+          deviceId: child.id,
+          slug: childType.slug,
+          position: child.position,
+          face: currentFace,
+        },
+      }),
+    );
+  }
+
   // Pointer Events for unified mouse/touch handling (fixes Safari foreignObject bug #397)
-  function handlePointerDown(event: PointerEvent) {
+  function handlePointerDown(
+    event: PointerEvent,
+    child: PressedChild | null = null,
+  ) {
     // Only handle primary pointer (left mouse button or first touch)
     if (!event.isPrimary) return;
 
@@ -422,12 +492,16 @@
     pointerState = "pressing";
     activePointerId = event.pointerId;
     longPressFired = false;
+    pressedChild = child;
 
     // Capture pointer to receive events even if cursor leaves element
     // Note: setPointerCapture may not exist in test environments (happy-dom)
-    // Safari 18.x fix #411: Capture on the rect element (has explicit geometry)
-    if (rectElement?.setPointerCapture) {
-      rectElement.setPointerCapture(event.pointerId);
+    // Safari 18.x fix #411: Capture on the rect element (has explicit geometry).
+    // A child's rect is the only part of it that takes pointers, so it is the
+    // target here.
+    captureElement = child ? target : rectElement;
+    if (captureElement?.setPointerCapture) {
+      captureElement.setPointerCapture(event.pointerId);
     }
   }
 
@@ -435,6 +509,7 @@
     // Only track the pointer we started with
     if (event.pointerId !== activePointerId) return;
     if (!pointerStartPos) return;
+    const subject = pressSubject();
 
     if (pointerState === "pressing") {
       // Check if we've moved beyond the drag threshold
@@ -449,14 +524,20 @@
         isDragging = true;
 
         // Set up drag data for drop handling
-        const dragData = createRackDeviceDragData(device, rackId, deviceIndex);
+        const dragData = createRackDeviceDragData(
+          subject.device,
+          rackId,
+          subject.deviceIndex,
+        );
         setCurrentDragData(dragData);
 
         // Show drag tooltip at cursor position
-        showDragTooltip(device, event.clientX, event.clientY);
+        showDragTooltip(subject.device, event.clientX, event.clientY);
 
         ondragstartProp?.(
-          new CustomEvent("dragstart", { detail: { rackId, deviceIndex } }),
+          new CustomEvent("dragstart", {
+            detail: { rackId, deviceIndex: subject.deviceIndex },
+          }),
         );
       }
     }
@@ -472,9 +553,9 @@
           detail: {
             clientX: event.clientX,
             clientY: event.clientY,
-            device,
+            device: subject.device,
             rackId,
-            deviceIndex,
+            deviceIndex: subject.deviceIndex,
           },
         }),
       );
@@ -483,15 +564,16 @@
 
   function handlePointerUp(event: PointerEvent) {
     if (event.pointerId !== activePointerId) return;
+    const subject = pressSubject();
 
     // Release pointer capture (may not exist in test environments)
     // Exception is safe to ignore: releasePointerCapture throws if the pointer
     // was already released (e.g., by pointercancel or browser gesture handling).
     // This is a normal race condition, not an error condition.
     // Safari 18.x fix #411: Release on the rect element (has explicit geometry)
-    if (rectElement?.releasePointerCapture && activePointerId !== null) {
+    if (captureElement?.releasePointerCapture && activePointerId !== null) {
       try {
-        rectElement.releasePointerCapture(activePointerId);
+        captureElement.releasePointerCapture(activePointerId);
       } catch {
         // Already released - safe to ignore
       }
@@ -513,24 +595,31 @@
         onselect?.(
           new CustomEvent("select", {
             detail: {
-              deviceId: placedDeviceId,
-              slug: device.slug,
-              position,
+              deviceId: subject.deviceId,
+              slug: subject.device.slug,
+              position: subject.position,
               face: currentFace,
             },
           }),
         );
       }
     } else if (pointerState === "dragging") {
+      // A child released over its own cell stays put (#3340). Resolving it as
+      // a drop would move it to another free cell or report the cell blocked.
+      if (pressedChild && isPointerOver(pressedChild.element, event)) {
+        cancelActiveDrag();
+        return;
+      }
+
       // Complete the drag operation
       document.dispatchEvent(
         new CustomEvent("rackula:dragend", {
           detail: {
             clientX: event.clientX,
             clientY: event.clientY,
-            device,
+            device: subject.device,
             rackId,
-            deviceIndex,
+            deviceIndex: subject.deviceIndex,
           },
         }),
       );
@@ -545,6 +634,8 @@
     pointerState = "idle";
     pointerStartPos = null;
     activePointerId = null;
+    pressedChild = null;
+    captureElement = null;
   }
 
   function handlePointerCancel(event: PointerEvent) {
@@ -558,9 +649,9 @@
   // down, so it also releases capture that a real pointercancel/pointerup
   // would already have released.
   function cancelActiveDrag() {
-    if (rectElement?.releasePointerCapture && activePointerId !== null) {
+    if (captureElement?.releasePointerCapture && activePointerId !== null) {
       try {
-        rectElement.releasePointerCapture(activePointerId);
+        captureElement.releasePointerCapture(activePointerId);
       } catch {
         // Already released - safe to ignore
       }
@@ -581,6 +672,8 @@
     pointerState = "idle";
     pointerStartPos = null;
     activePointerId = null;
+    pressedChild = null;
+    captureElement = null;
   }
 
   // Escape-to-cancel (#2935): a window Escape handler active only while this
@@ -687,7 +780,7 @@
     : yMotion.current})"
   class="rack-device"
   class:selected
-  class:dragging={isDragging}
+  class:dragging={isDragging && !pressedChild}
   role="button"
   tabindex="0"
   aria-label={ariaLabel}
@@ -875,7 +968,7 @@
   <!-- Container children: devices placed inside this container's slots -->
   {#if isContainer && containerChildDevices.length > 0}
     <g class="container-children">
-      {#each containerChildDevices as { placedDevice: child } (child.id)}
+      {#each containerChildDevices as { placedDevice: child, originalIndex: childIndex } (child.id)}
         {@const childType = getChildDeviceType(child.device_type)}
         {@const slotGeo = child.slot_id
           ? slotGeometry.get(child.slot_id)
@@ -896,9 +989,26 @@
           <g
             class="container-child"
             class:selected={isChildSelected}
+            class:dragging={isDragging &&
+              pressedChild?.placedDevice.id === child.id}
             transform="translate({childX}, {childY})"
-            role="img"
-            aria-label={childAriaLabel}
+            role="button"
+            tabindex="0"
+            aria-label={isChildSelected
+              ? `${childAriaLabel}, selected`
+              : childAriaLabel}
+            aria-pressed={isChildSelected}
+            onpointerdown={(e) =>
+              handlePointerDown(e, {
+                placedDevice: child,
+                originalIndex: childIndex,
+                deviceType: childType,
+                element: e.currentTarget,
+              })}
+            onpointermove={handlePointerMove}
+            onpointerup={handlePointerUp}
+            onpointercancel={handlePointerCancel}
+            onkeydown={(e) => handleChildKeyDown(e, child, childType)}
           >
             <!-- Child device rectangle -->
             <rect
@@ -1107,6 +1217,21 @@
 
   .container-child {
     pointer-events: auto;
+    cursor: grab;
+  }
+
+  .container-child.dragging {
+    opacity: 0.7;
+    cursor: grabbing;
+  }
+
+  .container-child:focus {
+    outline: none;
+  }
+
+  .container-child:focus-visible .child-device-rect {
+    stroke: var(--colour-selection);
+    stroke-width: 2;
   }
 
   .child-device-rect {
