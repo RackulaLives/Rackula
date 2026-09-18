@@ -126,6 +126,51 @@ export function findAutoCarriersEmptiedBy(
 }
 
 /**
+ * Commands that remove the auto-created carriers a device type deletion
+ * empties, plus their connections (#2295). Carrier commands go after the
+ * type deletions in a batch, so undo restores each carrier before the
+ * children that reference it. Connections already in `claimedConnectionIds`
+ * are skipped so none is restored twice.
+ */
+function emptiedCarrierCleanup(
+  ctx: LayoutStateAccess,
+  deletedSlugs: Set<string>,
+  claimedConnectionIds: Set<string>,
+): { connectionCommands: Command[]; carrierCommands: Command[] } {
+  const layout = ctx.getLayout();
+  const adapter = getCommandStoreAdapter(ctx);
+  const layoutId = layout.metadata?.id ?? "";
+  // JSON-cloned like getPlacedDevicesWithRackForType's placements: the remove
+  // command structuredClones its device, which a state proxy fails.
+  const carriers = layout.racks.flatMap((rack) =>
+    findAutoCarriersEmptiedBy(rack, (d) => deletedSlugs.has(d.device_type)).map(
+      (carrier) => ({
+        rackId: rack.id,
+        device: JSON.parse(JSON.stringify(carrier)) as PlacedDevice,
+      }),
+    ),
+  );
+  const connectionCommands = findConnectionsForDevices(ctx, carriers)
+    .filter((connection) => !claimedConnectionIds.has(connection.id))
+    .map((connection) => {
+      claimedConnectionIds.add(connection.id);
+      return createRemoveConnectionCommand(
+        connection,
+        adapter,
+        `Remove connection ${connection.label ?? connection.id}`,
+      );
+    });
+  const carrierCommands = carriers.map(({ rackId, device }) =>
+    createInRackCommand(
+      rackId,
+      createRemoveDeviceCommand(device, adapter, "carrier", layoutId),
+      adapter,
+    ),
+  );
+  return { connectionCommands, carrierCommands };
+}
+
+/**
  * Delete a device type with undo/redo support
  * @param ctx - Layout state access
  * @param slug - Device type slug
@@ -139,40 +184,15 @@ export function deleteDeviceTypeRecorded(
   if (!existing) return;
 
   const placedDevices = getPlacedDevicesWithRackForType(ctx, slug);
-  // Auto-created carriers whose children are all of this type go too, in the
-  // same undo step (#2295). JSON-cloned like the placements above: the
-  // remove command structuredClones its device, which a state proxy fails.
-  const emptiedCarriers = layout.racks.flatMap((rack) =>
-    findAutoCarriersEmptiedBy(rack, (d) => d.device_type === slug).map(
-      (carrier) => ({
-        rackId: rack.id,
-        device: JSON.parse(JSON.stringify(carrier)) as PlacedDevice,
-      }),
-    ),
-  );
-  const connectedConnections = findConnectionsForDevices(ctx, [
-    ...placedDevices,
-    ...emptiedCarriers,
-  ]);
+  const connectedConnections = findConnectionsForDevices(ctx, placedDevices);
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
-  const layoutId = layout.metadata?.id ?? "";
 
   const deleteCommand = createDeleteDeviceTypeCommand(
     existing,
     placedDevices,
     adapter,
-    layoutId,
-  );
-
-  // Removed after the type's placements, so undo restores each carrier before
-  // the children that reference it.
-  const carrierCommands: Command[] = emptiedCarriers.map(({ rackId, device }) =>
-    createInRackCommand(
-      rackId,
-      createRemoveDeviceCommand(device, adapter, "carrier", layoutId),
-      adapter,
-    ),
+    layout.metadata?.id ?? "",
   );
 
   // Connections reference PlacedPort.id, which DELETE_DEVICE_TYPE's device
@@ -186,12 +206,22 @@ export function deleteDeviceTypeRecorded(
     ),
   );
 
+  const carrierCleanup = emptiedCarrierCleanup(
+    ctx,
+    new Set([slug]),
+    new Set(connectedConnections.map((c) => c.id)),
+  );
+  const cleanupCommands = [
+    ...carrierCleanup.connectionCommands,
+    deleteCommand,
+    ...carrierCleanup.carrierCommands,
+  ];
+
   const command =
-    connectionCommands.length > 0 || carrierCommands.length > 0
+    connectionCommands.length > 0 || cleanupCommands.length > 1
       ? createBatchCommand(`Delete ${existing.model ?? existing.slug}`, [
           ...connectionCommands,
-          deleteCommand,
-          ...carrierCommands,
+          ...cleanupCommands,
         ])
       : deleteCommand;
 
@@ -280,9 +310,17 @@ export function deleteMultipleDeviceTypesRecorded(
     description,
   );
 
+  const carrierCleanup = emptiedCarrierCleanup(
+    ctx,
+    new Set(slugs),
+    claimedConnectionIds,
+  );
+
   const batchCommand = createBatchCommand(description, [
     ...connectionCommands,
+    ...carrierCleanup.connectionCommands,
     ...commands,
+    ...carrierCleanup.carrierCommands,
   ]);
   history.execute(batchCommand);
   ctx.markDirty();

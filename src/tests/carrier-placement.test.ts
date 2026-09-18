@@ -299,9 +299,7 @@ function childIn(store: LifecycleStore, rackId: string, carrierId: string) {
 function snapshotRack(store: LifecycleStore, rackId: string) {
   return (
     JSON.parse(JSON.stringify(devicesIn(store, rackId))) as PlacedDevice[]
-  )
-    .slice()
-    .sort((a, b) => a.id.localeCompare(b.id));
+  ).sort((a, b) => a.id.localeCompare(b.id));
 }
 
 describe("auto-created carrier lifecycle (#2295)", () => {
@@ -347,6 +345,19 @@ describe("auto-created carrier lifecycle (#2295)", () => {
     store.undo();
     expect(snapshotRack(store, rackId)).toEqual(before);
     expect(LayoutSchema.safeParse(store.layout).success).toBe(true);
+  });
+
+  it("removes an auto-created carrier when a bulk library cleanup deletes its children's types, undoably", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    store.placeDeviceSmart(rackId, slug, 5);
+    const before = snapshotRack(store, rackId);
+
+    store.deleteMultipleDeviceTypesRecorded([slug]);
+
+    expect(devicesIn(store, rackId)).toEqual([]);
+
+    store.undo();
+    expect(snapshotRack(store, rackId)).toEqual(before);
   });
 
   it("keeps an auto-created carrier when deleting one of two device types it holds", () => {
