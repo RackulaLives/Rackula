@@ -254,7 +254,7 @@
         }
 
         // Device long-press has its own context menu behavior.
-        if (target?.closest(".rack-device")) {
+        if (target?.closest(".rack-device-wrapper")) {
           bayedLongPressDebug(
             "skip rack context menu: device target rackId=%s point=%o",
             rackId,

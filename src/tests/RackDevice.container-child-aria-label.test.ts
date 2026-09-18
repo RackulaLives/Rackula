@@ -70,7 +70,7 @@ describe("RackDevice container-child accessible name (#2890)", () => {
       },
     });
 
-    const childElement = getByRole("img", {
+    const childElement = getByRole("button", {
       name: "Blade Server, 1U server in Left Bay of Blade Chassis at U5",
     });
     expect(childElement).toBeInTheDocument();
@@ -120,7 +120,7 @@ describe("RackDevice container-child accessible name (#2890)", () => {
       },
     });
 
-    const childElement = getByRole("img", {
+    const childElement = getByRole("button", {
       name: "Blade Server, 1U server in slot-left of Blade Chassis at U1",
     });
     expect(childElement).toBeInTheDocument();

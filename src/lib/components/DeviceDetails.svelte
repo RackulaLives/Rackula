@@ -14,6 +14,7 @@
   import {
     IconChevronUp,
     IconChevronDown,
+    IconChevronLeft,
     IconTrash,
     IconTransitionRight,
     IconCopy,
@@ -102,6 +103,11 @@
   // the affirmative verbs; delete is surfaced separately as a quiet Remove.
   const moveUpVerb = $derived(verbs.find((v) => v.id === "move-device-up"));
   const moveDownVerb = $derived(verbs.find((v) => v.id === "move-device-down"));
+  // Left and right are only supplied for a carrier child (#3340).
+  const moveLeftVerb = $derived(verbs.find((v) => v.id === "move-device-left"));
+  const moveRightVerb = $derived(
+    verbs.find((v) => v.id === "move-device-right"),
+  );
   const slotVerb = $derived(verbs.find((v) => v.id === "move-device-slot"));
   const flipVerb = $derived(verbs.find((v) => v.id === "flip-device-face"));
   const duplicateVerb = $derived(
@@ -109,12 +115,18 @@
   );
   const deleteVerb = $derived(verbs.find((v) => v.id === "delete-selection"));
 
-  // Affirmative verbs for the row, in mockup order: Up, Down, [Slot], Flip.
-  // Duplicate is appended in the template. Delete is surfaced as a quiet Remove.
+  // Affirmative verbs for the row, in mockup order: Up, Down, [Left, Right],
+  // [Slot], Flip. Duplicate is appended in the template. Delete is surfaced as
+  // a quiet Remove.
   const rowVerbs = $derived(
-    [moveUpVerb, moveDownVerb, slotVerb, flipVerb].filter(
-      (v): v is SelectionVerbItem => v !== undefined,
-    ),
+    [
+      moveUpVerb,
+      moveDownVerb,
+      moveLeftVerb,
+      moveRightVerb,
+      slotVerb,
+      flipVerb,
+    ].filter((v): v is SelectionVerbItem => v !== undefined),
   );
 
   function dispatch(id: ActionId) {
@@ -201,6 +213,12 @@
               {:else if verb.id === "move-device-down"}
                 <IconChevronDown />
                 <span>Down</span>
+              {:else if verb.id === "move-device-left"}
+                <IconChevronLeft />
+                <span>Left</span>
+              {:else if verb.id === "move-device-right"}
+                <IconChevronRight />
+                <span>Right</span>
               {:else if verb.id === "move-device-slot"}
                 <IconChevronRight size={ICON_SIZE.sm} />
                 <span>Move</span>
@@ -363,6 +381,9 @@
 
   .verbs {
     display: flex;
+    /* A carrier child adds Left and Right (#3340); wrap rather than overflow
+       the sheet on a phone. */
+    flex-wrap: wrap;
     gap: var(--space-2);
   }
 
