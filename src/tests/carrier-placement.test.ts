@@ -24,11 +24,14 @@ import type { PlacedDevice } from "$lib/types";
 import { LayoutSchema } from "$lib/schemas";
 import { toInternalUnits } from "$lib/utils/position";
 import { dispatchDropAction } from "$lib/utils/rack-drop-handlers";
-import { getToastStore } from "$lib/stores/toast.svelte";
+import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
+import { resetCarrierHint } from "$lib/stores/layout/device-actions";
+import { CARRIER_HINT_MESSAGE } from "$lib/constants/toast-messages";
 
 beforeEach(() => {
   resetLayoutStore();
   resetHistoryStore();
+  resetCarrierHint();
 });
 
 /** A 0.5U half-width device (needs a 2x2 carrier). */
@@ -181,6 +184,24 @@ describe("placeDeviceSmart (store carrier-first flow)", () => {
     expect(carrierIn(store)).toBeUndefined();
     const placed = store.rack!.devices.find((d) => d.device_type === dt.slug);
     expect(placed?.container_id).toBeUndefined();
+  });
+
+  it("hints on the first auto-created carrier only, not on later ones", () => {
+    resetToastStore();
+    const { store, rackId } = setupRack();
+    const dt = addRb5009(store);
+    const toastStore = getToastStore();
+    const hintShown = () =>
+      toastStore.toasts.some((t) => t.message === CARRIER_HINT_MESSAGE);
+
+    expect(store.placeDeviceSmart(rackId, dt.slug, 5)).toBe(true);
+    expect(hintShown()).toBe(true);
+
+    // A second auto-created carrier in the same session stays quiet, even
+    // once the first hint has gone.
+    toastStore.clearAllToasts();
+    expect(store.placeDeviceSmart(rackId, dt.slug, 8)).toBe(true);
+    expect(hintShown()).toBe(false);
   });
 
   it("fills a free cell of an existing carrier at the target U", () => {
