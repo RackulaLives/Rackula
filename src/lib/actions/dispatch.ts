@@ -37,6 +37,7 @@ import {
   handleShare,
   handleFitAll,
   resetAndCreateNewRack,
+  handleExportDeviceTypeToNetBox,
 } from "$lib/utils/app-actions";
 import {
   handleDelete,
@@ -213,6 +214,9 @@ export function createActionDispatch(): ActionDispatch {
     },
     "import-devices": runImportDevices,
     "import-netbox": handleImportFromNetBox,
+    "export-netbox": () => {
+      void handleExportDeviceTypeToNetBox();
+    },
     "new-custom-device": handleAddDevice,
     "command-palette": () => dialogStore.open("commandPalette"),
     // layout

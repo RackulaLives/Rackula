@@ -47,6 +47,15 @@ describe("createActionDispatch", () => {
     expect(spy).toHaveBeenCalledOnce();
   });
 
+  it("calls handleExportDeviceTypeToNetBox when export-netbox runs", () => {
+    const spy = vi
+      .spyOn(appActions, "handleExportDeviceTypeToNetBox")
+      .mockResolvedValue(undefined);
+    const dispatch = createActionDispatch();
+    dispatch["export-netbox"]();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
   it("runs the registered trigger when import-devices runs", () => {
     const trigger = vi.fn();
     const unregister = registerImportDevicesTrigger(trigger);

@@ -39,6 +39,7 @@ export type ActionId =
   | "load"
   | "import-devices"
   | "import-netbox"
+  | "export-netbox"
   | "new-custom-device"
   | "view-yaml"
   | "export"
@@ -576,6 +577,18 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [],
     appMenuGroup: "devices",
     keywords: ["netbox", "import", "dcim"],
+  },
+  {
+    // Acts on the selected device, so it is selection-scoped: the palette
+    // lists it with the selection verbs and greys it in search until a device
+    // is selected. Read-only does not block it; exporting changes nothing.
+    id: "export-netbox",
+    label: "Export device type to NetBox YAML",
+    scope: "selection",
+    bindings: [],
+    enabledWhen: (ctx) => ctx.isDeviceSelected,
+    appMenuGroup: "devices",
+    keywords: ["netbox", "export", "device type", "yaml", "dcim"],
   },
   {
     id: "new-custom-device",
