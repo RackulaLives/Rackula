@@ -31,6 +31,7 @@ import { CARRIER_HINT_MESSAGE } from "$lib/constants/toast-messages";
 beforeEach(() => {
   resetLayoutStore();
   resetHistoryStore();
+  resetCarrierHint();
 });
 
 /** A 0.5U half-width device (needs a 2x2 carrier). */
@@ -186,7 +187,6 @@ describe("placeDeviceSmart (store carrier-first flow)", () => {
   });
 
   it("hints on the first auto-created carrier only, not on later ones", () => {
-    resetCarrierHint();
     resetToastStore();
     const { store, rackId } = setupRack();
     const dt = addRb5009(store);
