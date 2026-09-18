@@ -12,14 +12,18 @@ import type {
 } from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import {
+  DeviceBaySchema,
   DeviceTypeSchema,
+  InventoryItemSchema,
   PoEModeSchema,
   PoETypeSchema,
   PowerOutletSchema,
+  PowerPortSchema,
   SubdeviceRoleSchema,
   TolerantInterfaceTypeSchema,
   WeightUnitSchema,
 } from "$lib/schemas";
+import { z } from "$lib/zod";
 import { parseYaml } from "./yaml";
 import { isKnownInterfaceType } from "./port-utils";
 import { ensureUniqueSlug, generateDeviceSlug, slugify } from "./slug";
@@ -44,6 +48,19 @@ export interface NetBoxDeviceType {
   weight_unit?: string;
   subdevice_role?: string;
   interfaces?: NetBoxInterface[];
+  // devicetype-library writes every other component list with a hyphenated
+  // key. Read them through readComponentList, never directly.
+  "console-ports"?: NetBoxConsolePort[];
+  "console-server-ports"?: NetBoxConsolePort[];
+  "power-ports"?: NetBoxPowerPort[];
+  "power-outlets"?: NetBoxPowerOutlet[];
+  "device-bays"?: NetBoxDeviceBay[];
+  "module-bays"?: NetBoxModuleBay[];
+  "inventory-items"?: NetBoxInventoryItem[];
+  "front-ports"?: NetBoxPassThroughPort[];
+  "rear-ports"?: NetBoxPassThroughPort[];
+  // Underscore spellings, accepted as a fallback for files already in
+  // circulation.
   console_ports?: NetBoxConsolePort[];
   console_server_ports?: NetBoxConsolePort[];
   power_ports?: NetBoxPowerPort[];
@@ -51,6 +68,8 @@ export interface NetBoxDeviceType {
   device_bays?: NetBoxDeviceBay[];
   module_bays?: NetBoxModuleBay[];
   inventory_items?: NetBoxInventoryItem[];
+  front_ports?: NetBoxPassThroughPort[];
+  rear_ports?: NetBoxPassThroughPort[];
   comments?: string;
 }
 
@@ -69,18 +88,20 @@ export interface NetBoxConsolePort {
   label?: string;
 }
 
+// NetBox's device type YAML export writes unset component fields as null, so
+// the mapped optional fields below allow null.
 export interface NetBoxPowerPort {
   name: string;
-  type?: string;
-  maximum_draw?: number;
-  allocated_draw?: number;
+  type?: string | null;
+  maximum_draw?: number | null;
+  allocated_draw?: number | null;
 }
 
 export interface NetBoxPowerOutlet {
   name: string;
-  type?: string;
-  power_port?: string;
-  feed_leg?: string;
+  type?: string | null;
+  power_port?: string | null;
+  feed_leg?: string | null;
 }
 
 export interface NetBoxDeviceBay {
@@ -97,8 +118,126 @@ export interface NetBoxModuleBay {
 export interface NetBoxInventoryItem {
   name: string;
   label?: string;
-  manufacturer?: string;
-  part_id?: string;
+  manufacturer?: string | null;
+  part_id?: string | null;
+}
+
+/**
+ * Front or rear pass-through port template (`front-ports`, `rear-ports`).
+ * Rackula does not import these yet; they are counted for a warning.
+ */
+export interface NetBoxPassThroughPort {
+  name: string;
+  type?: string;
+  label?: string;
+}
+
+/**
+ * Underscore fallback for each hyphenated devicetype-library component key.
+ */
+const COMPONENT_LIST_FALLBACK_KEYS = {
+  "console-ports": "console_ports",
+  "console-server-ports": "console_server_ports",
+  "power-ports": "power_ports",
+  "power-outlets": "power_outlets",
+  "device-bays": "device_bays",
+  "module-bays": "module_bays",
+  "inventory-items": "inventory_items",
+  "front-ports": "front_ports",
+  "rear-ports": "rear_ports",
+} as const satisfies Record<string, keyof NetBoxDeviceType>;
+
+type ComponentListKey = keyof typeof COMPONENT_LIST_FALLBACK_KEYS;
+
+/**
+ * Read a component list by its hyphenated devicetype-library key, falling
+ * back to the underscore spelling. When both hold a list the hyphenated one
+ * wins. A value that is not a list, and list items that are not mappings, are
+ * skipped. Pass `warnings` to record each of these cases.
+ */
+function readComponentList<K extends ComponentListKey>(
+  netbox: NetBoxDeviceType,
+  key: K,
+  warnings?: string[],
+): NonNullable<NetBoxDeviceType[K]> | undefined {
+  const fallbackKey = COMPONENT_LIST_FALLBACK_KEYS[key];
+
+  let list: unknown[] | undefined;
+  let listKey: string = key;
+  for (const candidate of [key, fallbackKey]) {
+    const value: unknown = netbox[candidate];
+    if (value == null) continue;
+    if (!Array.isArray(value)) {
+      warnings?.push(`Ignored "${candidate}": expected a list`);
+    } else if (list) {
+      warnings?.push(
+        `Both "${key}" and "${fallbackKey}" are present, using "${key}"`,
+      );
+    } else {
+      list = value;
+      listKey = candidate;
+    }
+  }
+  if (!list) return undefined;
+
+  const items = list.filter(
+    (item) => typeof item === "object" && item !== null && !Array.isArray(item),
+  );
+  if (items.length < list.length) {
+    warnings?.push(
+      `Ignored ${list.length - items.length} invalid item(s) in "${listKey}"`,
+    );
+  }
+  return items as NonNullable<NetBoxDeviceType[K]>;
+}
+
+/**
+ * Keep the mapped component items that pass their Rackula schema. Each
+ * rejected item is skipped with a warning, so one malformed entry does not
+ * fail the whole import at the DeviceTypeSchema gate.
+ */
+function keepValidComponents<T extends { name: unknown }>(
+  items: T[],
+  schema: z.ZodType,
+  noun: string,
+  warnings?: string[],
+): T[] {
+  return items.filter((item) => {
+    const parsed = schema.safeParse(item);
+    if (parsed.success) return true;
+    const first = parsed.error.issues[0];
+    const label =
+      typeof item.name === "string" && item.name ? ` "${item.name}"` : "";
+    const field = first?.path.join(".") || "item";
+    warnings?.push(
+      `Skipped ${noun}${label}: ${field}: ${first?.message ?? "validation failed"}`,
+    );
+    return false;
+  });
+}
+
+/**
+ * Minimal shape for component lists Rackula counts but does not import.
+ */
+const NamedComponentSchema = z.object({ name: z.string().min(1) });
+
+/**
+ * Read a component list Rackula does not import, keeping only named items so
+ * a malformed entry neither drives category inference nor inflates the
+ * "not supported" count.
+ */
+function readNamedComponents(
+  netbox: NetBoxDeviceType,
+  key: ComponentListKey,
+  noun: string,
+  warnings?: string[],
+): { name: unknown }[] {
+  return keepValidComponents(
+    (readComponentList(netbox, key, warnings) ?? []) as { name: unknown }[],
+    NamedComponentSchema,
+    noun,
+    warnings,
+  );
 }
 
 /**
@@ -263,7 +402,8 @@ export function inferCategory(netbox: NetBoxDeviceType): DeviceCategory {
     manufacturer.includes("aten") ||
     manufacturer.includes("avocent") ||
     combined.includes("dominion") ||
-    netbox.console_server_ports?.length
+    readNamedComponents(netbox, "console-server-ports", "console server port")
+      .length > 0
   ) {
     return "kvm";
   }
@@ -529,22 +669,28 @@ export function convertToDeviceType(
   }
 
   // Map power ports
-  if (netbox.power_ports && netbox.power_ports.length > 0) {
-    deviceType.power_ports = netbox.power_ports.map((p) => ({
+  const powerPorts = keepValidComponents(
+    (readComponentList(netbox, "power-ports", warnings) ?? []).map((p) => ({
       name: p.name,
-      type: p.type,
-      maximum_draw: p.maximum_draw,
-      allocated_draw: p.allocated_draw,
-    }));
+      type: p.type ?? undefined,
+      maximum_draw: p.maximum_draw ?? undefined,
+      allocated_draw: p.allocated_draw ?? undefined,
+    })),
+    PowerPortSchema,
+    "power port",
+    warnings,
+  );
+  if (powerPorts.length > 0) {
+    deviceType.power_ports = powerPorts;
   }
 
   // Map power outlets
-  if (netbox.power_outlets && netbox.power_outlets.length > 0) {
-    deviceType.power_outlets = netbox.power_outlets.map((o) => {
+  const powerOutlets = keepValidComponents(
+    (readComponentList(netbox, "power-outlets", warnings) ?? []).map((o) => {
       const outlet: NonNullable<DeviceType["power_outlets"]>[number] = {
         name: o.name,
-        type: o.type,
-        power_port: o.power_port,
+        type: o.type ?? undefined,
+        power_port: o.power_port ?? undefined,
       };
       if (o.feed_leg) {
         const parsedFeedLeg = FeedLegSchema.safeParse(o.feed_leg);
@@ -555,34 +701,76 @@ export function convertToDeviceType(
         }
       }
       return outlet;
-    });
+    }),
+    PowerOutletSchema,
+    "power outlet",
+    warnings,
+  );
+  if (powerOutlets.length > 0) {
+    deviceType.power_outlets = powerOutlets;
   }
 
   // Map device bays
-  if (netbox.device_bays && netbox.device_bays.length > 0) {
-    deviceType.device_bays = netbox.device_bays.map((b) => ({
+  const deviceBays = keepValidComponents(
+    (readComponentList(netbox, "device-bays", warnings) ?? []).map((b) => ({
       name: b.name,
-    }));
+    })),
+    DeviceBaySchema,
+    "device bay",
+    warnings,
+  );
+  if (deviceBays.length > 0) {
+    deviceType.device_bays = deviceBays;
   }
 
   // Map inventory items
-  if (netbox.inventory_items && netbox.inventory_items.length > 0) {
-    deviceType.inventory_items = netbox.inventory_items.map((item) => ({
-      name: item.name,
-      manufacturer: item.manufacturer,
-      part_id: item.part_id,
-    }));
+  const inventoryItems = keepValidComponents(
+    (readComponentList(netbox, "inventory-items", warnings) ?? []).map(
+      (item) => ({
+        name: item.name,
+        manufacturer: item.manufacturer ?? undefined,
+        part_id: item.part_id ?? undefined,
+      }),
+    ),
+    InventoryItemSchema,
+    "inventory item",
+    warnings,
+  );
+  if (inventoryItems.length > 0) {
+    deviceType.inventory_items = inventoryItems;
   }
 
   // Console ports have no Rackula representation yet. Note the gap in
   // warnings rather than silently dropping the data.
   const consolePortCount =
-    (netbox.console_ports?.length ?? 0) +
-    (netbox.console_server_ports?.length ?? 0);
+    readNamedComponents(netbox, "console-ports", "console port", warnings)
+      .length +
+    readNamedComponents(
+      netbox,
+      "console-server-ports",
+      "console server port",
+      warnings,
+    ).length;
   if (consolePortCount > 0) {
     warnings.push(
       `${consolePortCount} console port(s) are not yet supported by Rackula and were not imported`,
     );
+  }
+
+  // Module bays and front/rear pass-through ports have no Rackula
+  // representation either.
+  const unsupportedLists = [
+    ["module-bays", "module bay"],
+    ["front-ports", "front port"],
+    ["rear-ports", "rear port"],
+  ] as const;
+  for (const [key, noun] of unsupportedLists) {
+    const count = readNamedComponents(netbox, key, noun, warnings).length;
+    if (count > 0) {
+      warnings.push(
+        `${count} ${noun}(s) are not yet supported by Rackula and were not imported`,
+      );
+    }
   }
 
   // Validate the built DeviceType against the schema before it can enter the
