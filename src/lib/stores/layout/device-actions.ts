@@ -242,6 +242,7 @@ function duplicateContainerChild(
     childType,
     child.slot_id,
     siblings,
+    rack.width,
   );
   if (!next) {
     const containerName = containerType.model ?? containerType.slug;
@@ -483,6 +484,7 @@ export function moveDeviceToAdjacentSlot(
     child.slot_id,
     siblings,
     direction,
+    targetRack.width,
   );
   if (!next) return false;
 
@@ -772,7 +774,7 @@ export function moveDeviceSmart(
   const deviceType = findDeviceType(device.device_type, layout.device_types);
   if (!deviceType) return false;
 
-  const carrierSlug = synthesizeCarrierForDevice(deviceType);
+  const carrierSlug = synthesizeCarrierForDevice(deviceType, targetRack.width);
   if (!carrierSlug) {
     return moveDeviceToRack(
       ctx,
@@ -793,7 +795,7 @@ export function moveDeviceSmart(
   const carrierCells = {
     ...carrierType,
     slots: (carrierType.slots ?? []).filter((slot) =>
-      canPlaceInSlot(deviceType, slot),
+      canPlaceInSlot(deviceType, slot, targetRack.width),
     ),
   };
   const positionInternal = toInternalUnits(positionU);

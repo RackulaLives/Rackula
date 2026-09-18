@@ -626,6 +626,7 @@ export type CellDirection = "up" | "down" | "left" | "right";
  * @param currentSlotId - The slot the child currently occupies
  * @param siblings - Other children already in this carrier (excluding the child)
  * @param direction - Which way to move
+ * @param rackWidth - Nominal width in inches of the rack holding the carrier
  * @returns The target { slotId } or null when no free cell lies that way
  */
 export function findAdjacentSlotForChild(
@@ -634,6 +635,7 @@ export function findAdjacentSlotForChild(
   currentSlotId: string,
   siblings: PlacedDevice[],
   direction: CellDirection,
+  rackWidth: number,
 ): { slotId: string } | null {
   const slots = containerType.slots ?? [];
   const current = slots.find((s) => s.id === currentSlotId);
@@ -662,7 +664,8 @@ export function findAdjacentSlotForChild(
     );
 
   const target = candidates.find(
-    (slot) => !occupied.has(slot.id) && canPlaceInSlot(childType, slot),
+    (slot) =>
+      !occupied.has(slot.id) && canPlaceInSlot(childType, slot, rackWidth),
   );
   return target ? { slotId: target.id } : null;
 }

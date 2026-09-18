@@ -99,6 +99,19 @@ describe("schema_version reject-newer-major gate (#2205)", () => {
     expect(yaml).toBe(before);
   });
 
+  it("rejects a stamp that is not MAJOR.MINOR digits", async () => {
+    // A malformed stamp reads as MAJOR 0 and would otherwise slip through the
+    // newer-major check, so a typo such as "2.O" would load as legacy 1.x and
+    // be migrated as if it carried no 2.x additions.
+    const yaml = await yamlWithSchemaVersion("invalid");
+    await expect(parseLayoutYaml(yaml)).rejects.toThrow(/unreadable/i);
+  });
+
+  it("rejects a stamp with a numeric prefix but a malformed shape", async () => {
+    const yaml = await yamlWithSchemaVersion("1.9x");
+    await expect(parseLayoutYaml(yaml)).rejects.toThrow(/unreadable/i);
+  });
+
   it("does not reject an older MAJOR (older majors migrate, never gate-reject)", async () => {
     // schema_version started at 1.0, so MAJOR 0 is the only older major. It must
     // fall through to the migration path, not be rejected by the newer-major gate.
