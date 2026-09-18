@@ -9,7 +9,7 @@
  * rune that must be called from a .svelte.ts file (the facade).
  */
 
-import type { DeviceFace, PlacedDevice } from "$lib/types";
+import type { DeviceFace, DeviceType, PlacedDevice, Rack } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import {
   canPlaceDevice,
@@ -48,6 +48,8 @@ export type SnapshotDeviceFn = (device: PlacedDevice) => PlacedDevice;
  * Duplicate a placed device within a rack
  * Places the duplicate in the next available slot on the same face
  * Inherits all properties (custom label, image overrides, colour)
+ * A carrier is copied with its children; a carrier child is copied into the
+ * next free cell of its own carrier (#2295)
  * Uses undo/redo system for reverting the operation
  * @param ctx - Layout state access
  * @param rackId - Rack ID containing the device
@@ -78,6 +80,18 @@ export function duplicateDevice(
   );
   if (!deviceType) {
     return { error: "Device type not found" };
+  }
+
+  // A carrier child is duplicated into a free cell of its own carrier. It must
+  // never land on the rails: sub-U / half-width gear there fails the schema.
+  if (sourceDevice.container_id) {
+    return duplicateContainerChild(
+      ctx,
+      sourceRack,
+      sourceDevice,
+      deviceType,
+      snapshotDevice,
+    );
   }
 
   // Find valid positions on the same face
@@ -140,7 +154,91 @@ export function duplicateDevice(
     adapter,
     `${deviceName} (Copy)`,
   );
-  history.execute(command);
+
+  // A carrier is deep-copied: each child gets a new id and fresh ports and is
+  // linked to the copy, all in the same undo step as the copy itself.
+  const children = sourceRack.devices.filter(
+    (d) => d.container_id === sourceDevice.id,
+  );
+  if (children.length > 0) {
+    const childCommands = children.map((child) => {
+      const childType = findDeviceType(child.device_type, layout.device_types);
+      const childCopy: PlacedDevice = {
+        ...snapshotDevice(child),
+        id: generateId(),
+        container_id: duplicatedDevice.id,
+        ports: childType ? instantiatePorts(childType) : undefined,
+      };
+      return createPlaceDeviceCommand(childCopy, adapter, childType?.model);
+    });
+    history.execute(
+      createBatchCommand(`Place ${deviceName} (Copy)`, [
+        command,
+        ...childCommands,
+      ]),
+    );
+  } else {
+    history.execute(command);
+  }
+  ctx.markDirty();
+
+  return { device: duplicatedDevice };
+}
+
+/**
+ * Duplicate a carrier child into the next free cell of the same carrier,
+ * scanning forward from the source's cell. Refuses with an error when no cell
+ * fits, so the copy never falls back to the rails.
+ */
+function duplicateContainerChild(
+  ctx: LayoutStateAccess,
+  rack: Rack,
+  child: PlacedDevice,
+  childType: DeviceType,
+  snapshotDevice: SnapshotDeviceFn,
+): { error?: string; device?: PlacedDevice } {
+  const layout = ctx.getLayout();
+  const container = rack.devices.find((d) => d.id === child.container_id);
+  const containerType = container
+    ? findDeviceType(container.device_type, layout.device_types)
+    : undefined;
+  if (!container || !containerType || !child.slot_id) {
+    return { error: "Cannot duplicate: carrier not found" };
+  }
+
+  const siblings = rack.devices.filter(
+    (d) => d.container_id === container.id && d.id !== child.id,
+  );
+  const next = findNextSlotForChild(
+    containerType,
+    childType,
+    child.slot_id,
+    siblings,
+  );
+  if (!next) {
+    const containerName = containerType.model ?? containerType.slug;
+    return { error: `Cannot duplicate: no free cell in ${containerName}` };
+  }
+
+  const duplicatedDevice: PlacedDevice = {
+    ...snapshotDevice(child),
+    id: generateId(),
+    slot_id: next.slotId,
+    position: 0,
+    ports: instantiatePorts(childType),
+  };
+
+  ctx.setActiveRackId(rack.id);
+  const deviceName = childType.model ?? childType.slug;
+  ctx
+    .getHistory()
+    .execute(
+      createPlaceDeviceCommand(
+        duplicatedDevice,
+        getCommandStoreAdapter(ctx),
+        `${deviceName} (Copy)`,
+      ),
+    );
   ctx.markDirty();
 
   return { device: duplicatedDevice };
