@@ -86,8 +86,9 @@ export const UNITS_PER_U = 6;
 /**
  * Maximum number of racks allowed per layout
  * v0.6.0: Multi-rack support enabled
+ * Effectively unlimited; constrained only by browser memory
  */
-export const MAX_RACKS = 10;
+export const MAX_RACKS = 10000;
 
 /**
  * Standard rack width in inches (19" rack)
