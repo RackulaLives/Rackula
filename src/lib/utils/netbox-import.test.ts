@@ -1377,6 +1377,24 @@ device-bays:
       );
     });
 
+    it("keeps slot names unique when shortened bay names collide", async () => {
+      const prefix = "B".repeat(120);
+      const result = await importOk(`
+manufacturer: Acme
+model: Chassis 2
+slug: acme-chassis-2
+subdevice_role: parent
+device-bays:
+  - name: ${prefix}x
+  - name: ${prefix}y
+`);
+
+      const names = (result.deviceType.slots ?? []).map((s) => s.name ?? "");
+      expect(names.length).toBeGreaterThan(1);
+      expect(names.every((name) => name.length <= 100)).toBe(true);
+      expect(new Set(names).size).toBe(names.length);
+    });
+
     it("reuses a starter container's slot geometry when the slug matches", async () => {
       const carrier = findStarterDevice("carrier-1u-2x2");
       const starterSlots = carrier?.slots ?? [];

@@ -3,8 +3,8 @@
  * Converts a Rackula DeviceType to netbox-community/devicetype-library YAML.
  *
  * Warning contract: a warning means NetBox receives a different value than
- * Rackula holds (a fallback, a mapped type, a renamed bay, a dropped slot
- * grid or height). Warnings are returned and written into the file as a
+ * Rackula holds (a fallback, a mapped type, a shortened or renamed bay, a
+ * changed subdevice role, a dropped slot grid or height). Warnings are returned and written into the file as a
  * comment block. Fields NetBox device types have no field for (colour,
  * category, tags, slot_width, rack_widths, interface position, and so on)
  * are always dropped and never warned, since every type carries some of
@@ -130,19 +130,42 @@ function exportInterfaces(
   return exported;
 }
 
+/** NetBox's maximum device bay name length. */
+const NETBOX_BAY_NAME_MAX = 64;
+
 /**
- * Device bays with unique names, which NetBox requires within a device type.
- * A repeated name gets a numeric suffix, with a warning.
+ * Fit each name to maxLength, then make the names unique: a repeat gets a
+ * numeric suffix (" 2", " 3", ...), trimming the name so the result still
+ * fits maxLength. Shared with the importer, which applies it to slot names.
  */
-function uniqueBays(names: string[], warnings: string[]): { name: string }[] {
+export function uniqueNames(names: string[], maxLength: number): string[] {
   const used = new Set<string>();
-  return names.map((base) => {
-    let name = base;
-    for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
-    if (name !== base) {
-      warnings.push(`Bay name "${base}" repeats: exported as "${name}"`);
+  return names.map((name) => {
+    const base = name.slice(0, maxLength);
+    let unique = base;
+    for (let n = 2; used.has(unique); n++) {
+      const suffix = ` ${n}`;
+      unique = `${base.slice(0, maxLength - suffix.length)}${suffix}`;
     }
-    used.add(name);
+    used.add(unique);
+    return unique;
+  });
+}
+
+/**
+ * Device bays named within NetBox's length limit and unique within the type,
+ * both of which NetBox requires. Each shortened or renamed bay warns.
+ */
+function netBoxBays(names: string[], warnings: string[]): { name: string }[] {
+  return uniqueNames(names, NETBOX_BAY_NAME_MAX).map((name, i) => {
+    const original = names[i]!;
+    if (original.length > NETBOX_BAY_NAME_MAX) {
+      warnings.push(
+        `Bay name is longer than NetBox's ${NETBOX_BAY_NAME_MAX} characters: exported as "${name}"`,
+      );
+    } else if (name !== original) {
+      warnings.push(`Bay name "${original}" repeats: exported as "${name}"`);
+    }
     return { name };
   });
 }
@@ -183,7 +206,7 @@ export async function exportToNetBoxYaml(
       `${slotCount} slot(s) exported as device bays: slot positions and sizes are not carried`,
     );
   }
-  const bays = uniqueBays(
+  const bays = netBoxBays(
     slotCount > 0
       ? (deviceType.slots ?? []).map((slot) => slot.name || slot.id)
       : (deviceType.device_bays ?? []).map((bay) => bay.name),
@@ -192,6 +215,11 @@ export async function exportToNetBoxYaml(
 
   // devicetype-library requires subdevice_role: parent whenever device bays exist.
   const subdeviceRole = bays.length > 0 ? "parent" : deviceType.subdevice_role;
+  if (subdeviceRole !== deviceType.subdevice_role) {
+    warnings.push(
+      `Subdevice role ${deviceType.subdevice_role ? `"${deviceType.subdevice_role}"` : "unset"}, exported as "parent": NetBox requires it for a type with device bays`,
+    );
+  }
 
   // NetBox requires child device types to be 0U.
   let uHeight = deviceType.u_height;

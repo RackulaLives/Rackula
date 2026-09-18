@@ -29,6 +29,10 @@ import { z } from "$lib/zod";
 import { parseYaml } from "./yaml";
 import { isKnownInterfaceType } from "./port-utils";
 import { ensureUniqueSlug, generateDeviceSlug, slugify } from "./slug";
+import { uniqueNames } from "./netbox-export";
+
+/** SlotSchema's maximum slot name length. */
+const SLOT_NAME_MAX = 100;
 
 const FeedLegSchema = PowerOutletSchema.shape.feed_leg;
 
@@ -562,14 +566,22 @@ function slotsForDeviceBays(
   warnings: string[],
 ): Slot[] {
   // SlotSchema caps slot names at 100 characters; device bay names are not.
-  const slotName = (i: number) => bays[i]!.name.slice(0, 100);
-  const longNames = bays.filter((bay) => bay.name.length > 100).length;
-  if (longNames > 0) {
+  // Shortening can make two names equal, so keep the slot names unique.
+  const slotNames = uniqueNames(
+    bays.map((bay) => bay.name),
+    SLOT_NAME_MAX,
+  );
+  const longNames = bays.filter((bay) => bay.name.length > SLOT_NAME_MAX);
+  if (longNames.length > 0) {
     warnings.push(
-      `${longNames} device bay name(s) are longer than the 100 characters a slot name allows: shortened on the slot, kept in full on the device bay`,
+      `${longNames.length} device bay name(s) are longer than the ${SLOT_NAME_MAX} characters a slot name allows: shortened on the slot, kept in full on the device bay`,
     );
   }
+  const slotName = (i: number) => slotNames[i]!;
 
+  // A slug match means this is that starter container (typically a Rackula
+  // export coming back), so its slots are reused whole, including any
+  // `accepts` restriction such as blade-chassis-4u taking servers only.
   const starterSlots = findStarterDevice(slug)?.slots;
   if (starterSlots && starterSlots.length === bays.length) {
     return starterSlots.map((slot, i) => ({ ...slot, name: slotName(i) }));

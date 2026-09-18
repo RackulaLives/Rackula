@@ -224,6 +224,38 @@ describe("exportToNetBoxYaml", () => {
       expect(warnings).toContainEqual(expect.stringContaining('"Bay 2"'));
     });
 
+    it("shortens bay names to NetBox's 64-character limit and keeps them unique", async () => {
+      const longName = "Front Blade Bay ".repeat(5);
+      const container = createTestContainerType({
+        manufacturer: "Acme",
+        slots: [
+          createTestSlot({ id: "a", name: longName }),
+          createTestSlot({ id: "b", name: longName }),
+        ],
+      });
+
+      const { data, warnings } = await exportParsed(container);
+      const names = (data["device-bays"] as { name: string }[]).map(
+        (b) => b.name,
+      );
+
+      expect(names.every((name) => name.length <= 64)).toBe(true);
+      expect(new Set(names).size).toBe(names.length);
+      expect(warnings).toContainEqual(expect.stringContaining("64"));
+    });
+
+    it("warns when a type with device bays is written with a different subdevice role", async () => {
+      const deviceType: DeviceType = {
+        ...createTestDeviceType({ manufacturer: "Acme", model: "Chassis" }),
+        device_bays: [{ name: "Bay 1" }],
+      };
+
+      const { data, warnings } = await exportParsed(deviceType);
+
+      expect(data.subdevice_role).toBe("parent");
+      expect(warnings).toContainEqual(expect.stringContaining('"parent"'));
+    });
+
     it("exports a child type as 0U and warns that the height is not carried", async () => {
       const child: DeviceType = {
         ...createTestDeviceType({ manufacturer: "Acme", model: "Blade" }),

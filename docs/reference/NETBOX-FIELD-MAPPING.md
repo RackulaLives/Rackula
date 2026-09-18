@@ -9,10 +9,12 @@ Both work on device types only. Importing rack placements (elevations) is tracke
 
 ## Warnings
 
-A warning means NetBox receives a different value than Rackula holds, for example a fallback manufacturer, an interface type written as `other`, a renamed bay, or a slot grid or child height that is not carried. Fields that NetBox device types have no field for are never written and never warned about, because every Rackula type carries some of them (`colour` and `category` are required). They are listed under [Fields export drops](#fields-export-drops) and in the component table.
+Export and import warn about different things.
 
-- Export writes the warnings as a comment block after the `---` document start, so the file itself records what changed. The toast after the download says when the file lists changes.
-- Import shows the warnings in the import dialog.
+- An export warning means NetBox receives a different value than Rackula holds, for example a fallback manufacturer, an interface type written as `other`, a shortened or renamed bay, a changed subdevice role, or a slot grid or child height that is not carried. Fields that NetBox device types have no field for are never written and never warned about, because every Rackula type carries some of them (`colour` and `category` are required). They are listed under [Fields export drops](#fields-export-drops) and in the component table.
+- An import warning means Rackula stores a different value than the file holds, or skips one, for example a 0U child stored as 1U, a generated slot layout, a shortened slot name, an unknown airflow value, or an unsupported component list.
+
+Export writes its warnings as a comment block after the `---` document start, so the file itself records what changed, and the toast after the download says when the file lists changes. Import shows its warnings in the import dialog.
 
 ## Scalar fields
 
@@ -27,7 +29,7 @@ A warning means NetBox receives a different value than Rackula holds, for exampl
 | `airflow` | `airflow` | Written as is. | `rear-to-side`, `bottom-to-top` and `top-to-bottom` have no Rackula value and are skipped with a warning. |
 | `weight`, `weight_unit` | `weight`, `weight_unit` | Written. The unit is `kg` when unset, with a warning. | `g` and `oz` have no Rackula unit, so the weight is skipped with a warning. |
 | `is_powered` | `is_powered` | Written as is. | Not read. |
-| `subdevice_role` | `subdevice_role` | `parent` for any type with slots or device bays, otherwise as is. | Read as is. |
+| `subdevice_role` | `subdevice_role` | `parent` for any type with slots or device bays, with a warning when the stored role differs. Otherwise as is. | Read as is. |
 | `notes` | `comments` | `notes`, or the legacy `comments` field. | Read into `notes`. |
 | `front_image`, `rear_image` | `front_image`, `rear_image` | Not written. The flags point at image files in the devicetype-library repository, which the export does not include. | Read as booleans. |
 
@@ -63,18 +65,19 @@ Rackula models a carrier, slotted shelf or blade chassis as a container: a devic
 A device type with slots exports as `subdevice_role: parent` with one `device-bays` entry per slot, in slot order.
 
 - The bay name is the slot name, or the slot id when the slot has no name.
-- A repeated name gets a numeric suffix (`Bay`, `Bay 2`) so bay names stay unique, which NetBox requires. The export warns about each renamed bay.
+- A name longer than NetBox's 64-character limit is shortened to fit, with a warning.
+- A repeated name gets a numeric suffix (`Bay`, `Bay 2`) so bay names stay unique, which NetBox requires. The name is trimmed to keep the suffix within 64 characters. The export warns about each renamed bay.
 - Slot positions, width fractions, heights and `accepts` do not survive. The export warns about this.
 
-A device type without slots but with `device_bays` (for example, one imported from NetBox) exports those bays by name, with the same rule for repeated names.
+A device type without slots but with `device_bays` (for example, one imported from NetBox) exports those bays by name, with the same length and repeated-name rules.
 
 ### Import
 
 A parent device type with `device-bays` imports as a container with one slot per bay.
 
-- When the slug matches a starter library container (the `carrier-*` carriers, the slotted shelves, `blade-chassis-4u`) with the same number of slots, the importer reuses that container's slot geometry and names the slots after the bays, in order.
+- When the slug matches a starter library container (the `carrier-*` carriers, the slotted shelves, `blade-chassis-4u`) with the same number of slots, the importer reuses that container's slots and names them after the bays, in order. A slug match means the file describes that container, usually a Rackula export coming back, so the slots are reused whole, including any `accepts` restriction (for example `blade-chassis-4u` takes servers only).
 - Otherwise it generates one slot per bay, named after its bay, in a grid of at most two columns filled from the bottom row up. Rows share the device height equally. Every slot is at least half width, the narrowest device Rackula can place, and an odd last bay spans the full width. The import warns that the slot layout is approximate.
-- Slot names are capped at 100 characters, with a warning. The device bay keeps its full name. Export writes bay names from the slots, but NetBox caps bay names at 64 characters, so a longer name would not import into NetBox either way.
+- Slot names are capped at 100 characters, with a warning, and stay unique: if shortening makes two names equal, the later one gets a numeric suffix. The device bay keeps its full name.
 - Generated slots are placeholders, since NetBox bays carry no size. An imported child type is full width and 1U until you change it, so it may not fit a generated slot until you set its height and width.
 
 ### Round trip
