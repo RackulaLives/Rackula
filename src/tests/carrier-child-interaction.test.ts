@@ -7,7 +7,7 @@
  * store outcome.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/svelte";
+import { render, screen, fireEvent, within } from "@testing-library/svelte";
 import { tick } from "svelte";
 import RackDevice from "$lib/components/RackDevice.svelte";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
@@ -200,15 +200,38 @@ describe("selecting a carrier child on the canvas (#3340)", () => {
     expect(onselect.mock.calls[0]![0].detail.deviceId).toBe(carrier.id);
   });
 
-  it("a right-click on a child selects the carrier, whose context menu it opens", () => {
+  it("a right-click on a child selects the carrier and opens the carrier's context menu", async () => {
     const { store, rackId, carrier } = setup();
     const onselect = vi.fn();
-    renderCarrier(store, rackId, carrier.id, { onselect });
+    const oncontextmenuopen = vi.fn();
+    renderCarrier(store, rackId, carrier.id, { onselect, oncontextmenuopen });
+    const button = childButton("Column 1");
 
-    tap(childButton("Column 1"), 2);
+    tap(button, 2);
+    await fireEvent.contextMenu(button, { clientX: 0, clientY: 0 });
 
     expect(onselect).toHaveBeenCalledTimes(1);
     expect(onselect.mock.calls[0]![0].detail.deviceId).toBe(carrier.id);
+    expect(oncontextmenuopen).toHaveBeenCalledTimes(1);
+    expect(oncontextmenuopen.mock.calls[0]![0].detail).toMatchObject({
+      rackId,
+      deviceIndex: store
+        .getRackById(rackId)!
+        .devices.findIndex((d) => d.id === carrier.id),
+    });
+  });
+
+  it("a child is its own control, not part of the carrier's button", () => {
+    // Content inside a role="button" is presentational, so assistive
+    // technology would not expose a child nested in its carrier's button.
+    const { store, rackId, carrier } = setup();
+    renderCarrier(store, rackId, carrier.id);
+
+    const carrierButton = screen.getByRole("button", { name: /^Carrier/ });
+    expect(
+      within(carrierButton).queryByRole("button", { name: /Mini Switch/ }),
+    ).not.toBeInTheDocument();
+    expect(childButton("Column 1")).toBeInTheDocument();
   });
 
   it("a child takes keyboard focus and Enter selects it, not the carrier", async () => {

@@ -753,6 +753,17 @@
     }
   }
 
+  // Placement mode owns this gesture (#2990 follow-up): stopping propagation
+  // unconditionally here swallowed the click before it ever reached
+  // Rack.svelte's rack-level handleClick -> handlePlacementClick path, so a
+  // click on an occupied device's body while armed for placement was a silent
+  // no-op (no "Can't place device here" toast, no retry cue). Outside
+  // placement mode, keep stopping propagation so a device click doesn't also
+  // bubble into rack-level selection.
+  function handleClick(event: MouseEvent) {
+    if (!placementStore.isPlacing) event.stopPropagation();
+  }
+
   // Context menu handler (right-click) - opens device context menu, unless
   // connection-creation mode is armed (#1932), in which case right-click
   // cancels the mode instead (mirrors Escape). Ports render inside this
@@ -794,202 +805,201 @@
   });
 </script>
 
+<!-- The positioned wrapper holds the device's own button and, for a container,
+     its children as a sibling after it: a child control inside the device's
+     role="button" would be presentational to assistive technology (#3340).
+     DOM order keeps the focus order: the device, then its children. -->
 <g
   bind:this={groupElement}
-  data-device-id={device.slug}
-  data-device-uuid={placedDeviceId}
-  data-device-face={currentFace}
-  data-device-position={position}
-  data-testid="rack-device"
+  class="rack-device-wrapper"
+  class:dragging={isDragging && !pressedChild}
   transform="translate({RAIL_WIDTH + slotXOffset}, {prefersReducedMotion.current
     ? yPosition
     : yMotion.current})"
-  class="rack-device"
-  class:selected
-  class:dragging={isDragging && !pressedChild}
-  role="button"
-  tabindex="0"
-  aria-label={ariaLabel}
-  aria-pressed={selected}
-  onclick={(e) => {
-    // Placement mode owns this gesture (#2990 follow-up): stopping
-    // propagation unconditionally here swallowed the click before it ever
-    // reached Rack.svelte's rack-level handleClick -> handlePlacementClick
-    // path, so a click on an occupied device's body while armed for
-    // placement was a silent no-op (no "Can't place device here" toast, no
-    // retry cue). Outside placement mode, keep stopping propagation so a
-    // device click doesn't also bubble into rack-level selection.
-    if (!placementStore.isPlacing) e.stopPropagation();
-  }}
-  oncontextmenu={handleContextMenu}
-  onkeydown={handleKeyDown}
 >
-  <!-- Device rectangle with pointer events (Safari 18.x fix #411)
+  <g
+    data-device-id={device.slug}
+    data-device-uuid={placedDeviceId}
+    data-device-face={currentFace}
+    data-device-position={position}
+    data-testid="rack-device"
+    class="rack-device"
+    class:selected
+    role="button"
+    tabindex="0"
+    aria-label={ariaLabel}
+    aria-pressed={selected}
+    onclick={handleClick}
+    oncontextmenu={handleContextMenu}
+    onkeydown={handleKeyDown}
+  >
+    <!-- Device rectangle with pointer events (Safari 18.x fix #411)
        Using explicit geometry rect for pointer events instead of <g> element
        because Safari 18.x doesn't properly compute hit areas on transformed <g> elements -->
-  <rect
-    bind:this={rectElement}
-    data-testid="rack-device-hitbox"
-    class="device-rect"
-    class:rear-muted={isRearMuted}
-    x="0"
-    y="0"
-    width={deviceWidth}
-    height={deviceHeight}
-    fill={effectiveColour}
-    rx="2"
-    ry="2"
-    role="presentation"
-    aria-hidden="true"
-    onpointerdown={handlePointerDown}
-    onpointermove={handlePointerMove}
-    onpointerup={handlePointerUp}
-    onpointercancel={handlePointerCancel}
-  />
-
-  <!-- Selection outline -->
-  {#if selected}
     <rect
-      class="device-selection"
-      x="1"
-      y="1"
-      width={deviceWidth - 2}
-      height={deviceHeight - 2}
-      rx="2"
-      ry="2"
-    />
-  {/if}
-
-  <!-- Device content: Image, loading placeholder, or Label -->
-  {#if showImage}
-    <!-- ClipPath for rounded corners on device image -->
-    <defs>
-      <clipPath id={clipId}>
-        <rect
-          x={imageX}
-          y="0"
-          width={imageWidth}
-          height={deviceHeight}
-          rx="2"
-          ry="2"
-        />
-      </clipPath>
-    </defs>
-    <!-- Device image: extends past rack rails for realistic front-mounting
-         appearance. Keyed on the URL so the fade-in animation re-fires when a
-         freshly fetched image replaces a placeholder. The fade is a CSS
-         animation, so the global prefers-reduced-motion reset disables it. -->
-    {#key deviceImageUrl}
-      <image
-        class="device-image"
-        x={imageX}
-        y="0"
-        width={imageWidth}
-        height={deviceHeight}
-        href={deviceImageUrl}
-        preserveAspectRatio="xMidYMid slice"
-        clip-path="url(#{clipId})"
-        role="img"
-        aria-label={imageAccessibleName}
-      />
-    {/key}
-    <!-- Label overlay when showLabelsOnImages is true
-         Safari 18.x fix #420: Use SVG-native component instead of foreignObject
-         to avoid transform inheritance bug -->
-    {#if showLabelsOnImages}
-      <LabelOverlaySVG
-        text={fittedImageLabel.text}
-        fontSize={fittedImageLabel.fontSize}
-        width={deviceWidth}
-        height={deviceHeight}
-      />
-    {/if}
-  {:else if showImagePlaceholder}
-    <!-- A custom image is expected here but not yet in the store (still loading,
-         or its fetch failed and will retry on the next reopen). Show a quiet
-         placeholder over the device rect rather than a blank cell or a broken
-         image. The device button's aria-label announces the loading state. -->
-    <rect
-      class="device-image-placeholder"
+      bind:this={rectElement}
+      data-testid="rack-device-hitbox"
+      class="device-rect"
+      class:rear-muted={isRearMuted}
       x="0"
       y="0"
       width={deviceWidth}
       height={deviceHeight}
+      fill={effectiveColour}
       rx="2"
       ry="2"
       role="presentation"
       aria-hidden="true"
+      onpointerdown={handlePointerDown}
+      onpointermove={handlePointerMove}
+      onpointerup={handlePointerUp}
+      onpointercancel={handlePointerCancel}
     />
-    {#if deviceHeight >= 22}
-      <CategoryIconSVG
-        category={device.category}
-        size={14}
-        x={(deviceWidth - 14) / 2}
-        y={(deviceHeight - 14) / 2}
+
+    <!-- Selection outline -->
+    {#if selected}
+      <rect
+        class="device-selection"
+        x="1"
+        y="1"
+        width={deviceWidth - 2}
+        height={deviceHeight - 2}
+        rx="2"
+        ry="2"
       />
     {/if}
-  {:else}
-    <!-- Device name (centered, auto-sized) -->
-    <text
-      class="device-name"
-      x={deviceWidth / 2}
-      y={deviceHeight / 2}
-      dominant-baseline="middle"
-      text-anchor="middle"
-      style="font-size: {fittedLabel.fontSize}px"
-    >
-      {fittedLabel.text}
-    </text>
 
-    <!-- Category icon (vertically centered)
+    <!-- Device content: Image, loading placeholder, or Label -->
+    {#if showImage}
+      <!-- ClipPath for rounded corners on device image -->
+      <defs>
+        <clipPath id={clipId}>
+          <rect
+            x={imageX}
+            y="0"
+            width={imageWidth}
+            height={deviceHeight}
+            rx="2"
+            ry="2"
+          />
+        </clipPath>
+      </defs>
+      <!-- Device image: extends past rack rails for realistic front-mounting
+         appearance. Keyed on the URL so the fade-in animation re-fires when a
+         freshly fetched image replaces a placeholder. The fade is a CSS
+         animation, so the global prefers-reduced-motion reset disables it. -->
+      {#key deviceImageUrl}
+        <image
+          class="device-image"
+          x={imageX}
+          y="0"
+          width={imageWidth}
+          height={deviceHeight}
+          href={deviceImageUrl}
+          preserveAspectRatio="xMidYMid slice"
+          clip-path="url(#{clipId})"
+          role="img"
+          aria-label={imageAccessibleName}
+        />
+      {/key}
+      <!-- Label overlay when showLabelsOnImages is true
+         Safari 18.x fix #420: Use SVG-native component instead of foreignObject
+         to avoid transform inheritance bug -->
+      {#if showLabelsOnImages}
+        <LabelOverlaySVG
+          text={fittedImageLabel.text}
+          fontSize={fittedImageLabel.fontSize}
+          width={deviceWidth}
+          height={deviceHeight}
+        />
+      {/if}
+    {:else if showImagePlaceholder}
+      <!-- A custom image is expected here but not yet in the store (still loading,
+         or its fetch failed and will retry on the next reopen). Show a quiet
+         placeholder over the device rect rather than a blank cell or a broken
+         image. The device button's aria-label announces the loading state. -->
+      <rect
+        class="device-image-placeholder"
+        x="0"
+        y="0"
+        width={deviceWidth}
+        height={deviceHeight}
+        rx="2"
+        ry="2"
+        role="presentation"
+        aria-hidden="true"
+      />
+      {#if deviceHeight >= 22}
+        <CategoryIconSVG
+          category={device.category}
+          size={14}
+          x={(deviceWidth - 14) / 2}
+          y={(deviceHeight - 14) / 2}
+        />
+      {/if}
+    {:else}
+      <!-- Device name (centered, auto-sized) -->
+      <text
+        class="device-name"
+        x={deviceWidth / 2}
+        y={deviceHeight / 2}
+        dominant-baseline="middle"
+        text-anchor="middle"
+        style="font-size: {fittedLabel.fontSize}px"
+      >
+        {fittedLabel.text}
+      </text>
+
+      <!-- Category icon (vertically centered)
          Safari 18.x fix #411: Use SVG-native component instead of foreignObject
          to avoid transform inheritance bug -->
-    {#if deviceHeight >= 22}
-      <CategoryIconSVG
-        category={device.category}
-        size={14}
-        x={8}
-        y={(deviceHeight - 14) / 2}
+      {#if deviceHeight >= 22}
+        <CategoryIconSVG
+          category={device.category}
+          size={14}
+          x={8}
+          y={(deviceHeight - 14) / 2}
+        />
+      {/if}
+    {/if}
+
+    <!-- Rear affordance: marks this as the back of a full-depth device. -->
+    {#if isRearTreatment}
+      <text
+        class="rear-badge"
+        x={deviceWidth - 4}
+        y="10"
+        text-anchor="end"
+        aria-hidden="true"
+      >
+        REAR
+      </text>
+    {/if}
+
+    <!-- Port indicators (rendered after device content) -->
+    {#if device.interfaces?.length}
+      <PortIndicators
+        interfaces={device.interfaces}
+        {ports}
+        {deviceWidth}
+        {deviceHeight}
+        {rackView}
+        {onPortClick}
       />
     {/if}
-  {/if}
 
-  <!-- Rear affordance: marks this as the back of a full-depth device. -->
-  {#if isRearTreatment}
-    <text
-      class="rear-badge"
-      x={deviceWidth - 4}
-      y="10"
-      text-anchor="end"
-      aria-hidden="true"
-    >
-      REAR
-    </text>
-  {/if}
-
-  <!-- Port indicators (rendered after device content) -->
-  {#if device.interfaces?.length}
-    <PortIndicators
-      interfaces={device.interfaces}
-      {ports}
-      {deviceWidth}
-      {deviceHeight}
-      {rackView}
-      {onPortClick}
-    />
-  {/if}
-
-  <!-- Container slot grid (shown when selected OR during drag-over) -->
-  {#if isContainer && (selected || isDragOverContainer)}
-    <ContainerSlots
-      containerType={device}
-      containerWidth={deviceWidth}
-      containerHeight={deviceHeight}
-      selectedSlotId={null}
-      dropTargetSlotId={isDragOverContainer ? dragTargetSlotId : null}
-      isValidDropTarget={isDragTargetValid}
-    />
-  {/if}
+    <!-- Container slot grid (shown when selected OR during drag-over) -->
+    {#if isContainer && (selected || isDragOverContainer)}
+      <ContainerSlots
+        containerType={device}
+        containerWidth={deviceWidth}
+        containerHeight={deviceHeight}
+        selectedSlotId={null}
+        dropTargetSlotId={isDragOverContainer ? dragTargetSlotId : null}
+        isValidDropTarget={isDragTargetValid}
+      />
+    {/if}
+  </g>
 
   <!-- Container children: devices placed inside this container's slots -->
   {#if isContainer && containerChildDevices.length > 0}
@@ -1041,6 +1051,8 @@
             onpointermove={handlePointerMove}
             onpointerup={handlePointerUp}
             onpointercancel={handlePointerCancel}
+            onclick={handleClick}
+            oncontextmenu={handleContextMenu}
             onkeydown={(e) => handleChildKeyDown(e, child, childType)}
           >
             <!-- Child device rectangle -->
@@ -1089,13 +1101,13 @@
 </g>
 
 <style>
-  .rack-device {
+  .rack-device-wrapper {
     /* Enable GPU-accelerated filter animations */
     will-change: filter;
     transition: filter var(--anim-drag-settle, 0.15s) ease-out;
   }
 
-  .rack-device.dragging {
+  .rack-device-wrapper.dragging {
     opacity: 0.7;
     /* Drop shadow provides visual feedback during drag.
 		   Note: CSS transform: scale() is NOT used here because SVG <g> elements
@@ -1106,13 +1118,13 @@
   }
 
   /* Hover state: subtle lift before dragging */
-  .rack-device:hover:not(.dragging) {
+  .rack-device-wrapper:hover:not(.dragging) {
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
   }
 
   /* Touch behavior for interactive SVG group
      Safari 18.x fix #411: cursor moved to .device-rect for proper hit area */
-  .rack-device {
+  .rack-device-wrapper {
     /* iOS Safari fixes (#232):
        - Disable Safari's default callout/context menu on long press
        - Prevent text selection during touch gestures
@@ -1148,7 +1160,7 @@
   }
 
   .rack-device:active .device-rect,
-  .rack-device.dragging .device-rect {
+  .rack-device-wrapper.dragging .device-rect {
     cursor: grabbing;
   }
 
@@ -1238,7 +1250,7 @@
 
   /* Respect reduced motion preference */
   @media (prefers-reduced-motion: reduce) {
-    .rack-device {
+    .rack-device-wrapper {
       transition: none;
     }
   }

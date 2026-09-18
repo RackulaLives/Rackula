@@ -165,7 +165,7 @@
         }
 
         // Device long-press has its own context menu behavior.
-        if (target?.closest(".rack-device")) {
+        if (target?.closest(".rack-device-wrapper")) {
           rackDualLongPressDebug(
             "skip rack context menu: device target rackId=%s point=%o",
             rack.id,
