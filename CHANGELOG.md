@@ -267,7 +267,7 @@ A large usability release. The workspace is rebuilt around the canvas, and the s
 - Device palette gains favourites, list virtualization for large libraries, and an image on/off toggle (#2094)
 - New layouts open to a template picker instead of a blank canvas; the standalone StartScreen is gone, with entry routed through the sidebar and app menu (#2081, #2095)
 - Export-all renders every layout with per-mode framing in one pass (#2045)
-- Carrier device types host half-width and sub-U gear directly, replacing the fractional-rail model so sub-U placement is predictable (#2158, #2289, #2291, #2159)
+- Carrier device types host half-width and sub-U gear directly, replacing the fractional-rail model so sub-U placement is predictable. Layouts and share links from earlier releases load with carriers added automatically around their half-width and sub-U gear (#2158, #2289, #2291, #2159, #2290)
 - Storage status chip in the toolbar shows save state at a glance, with the storage location inline and a last-save details popover on hover or tap (#2035, #2446, #2640)
 - Moving browser-stored layouts to server storage prompts before overwriting an existing server copy (#2608)
 - Pre-overwrite snapshots are taken server-side with conflict detection; the Load dialog lists and restores them (#2040, #2041, #2042)

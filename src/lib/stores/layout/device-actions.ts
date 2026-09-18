@@ -52,9 +52,26 @@ import {
   placeDeviceRecorded,
 } from "./recorded-device-actions";
 import { findConnectionsForDevices } from "./recorded-device-type-actions";
+import { getToastStore } from "$lib/stores/toast.svelte";
+import { CARRIER_HINT_MESSAGE } from "$lib/constants/toast-messages";
 
 /** Snapshot function injected by the facade ($state.snapshot is a rune). */
 export type SnapshotDeviceFn = (device: PlacedDevice) => PlacedDevice;
+
+// The carrier hint (#2165) explains the first auto-created carrier of a page
+// load, so the bracket is not a surprise, and stays quiet after that.
+let carrierHintShown = false;
+
+function showCarrierHintOnce(): void {
+  if (carrierHintShown) return;
+  carrierHintShown = true;
+  getToastStore().showToast(CARRIER_HINT_MESSAGE, "info");
+}
+
+/** Re-arm the once-per-page-load carrier hint (for testing). */
+export function resetCarrierHint(): void {
+  carrierHintShown = false;
+}
 
 /**
  * Duplicate a placed device within a rack
@@ -642,6 +659,7 @@ export function placeDeviceSmart(
 
   history.execute(createBatchCommand(`Place ${childName}`, commands));
   ctx.markDirty();
+  showCarrierHintOnce();
 
   return true;
 }
@@ -843,7 +861,7 @@ export function moveDeviceSmart(
     ),
   );
 
-  return commitReparent(
+  const moved = commitReparent(
     ctx,
     sourceRack,
     targetRack,
@@ -858,6 +876,8 @@ export function moveDeviceSmart(
     setupCommands,
     snapshotDevice,
   );
+  if (moved) showCarrierHintOnce();
+  return moved;
 }
 
 /**
