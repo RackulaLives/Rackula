@@ -37,6 +37,7 @@ import {
   createUpdateDeviceIpCommand,
   createRemoveConnectionCommand,
   createBatchCommand,
+  createInRackCommand,
   type Command,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
@@ -528,7 +529,9 @@ export function removeDeviceRecorded(
         ])
       : removeCommand;
 
-  history.execute(command);
+  // Pinned to this rack so undo/redo after selecting another rack restore or
+  // remove the device (and any carrier it emptied) here, together.
+  history.execute(createInRackCommand(rackId, command, adapter));
   ctx.markDirty();
 
   if (connectedConnections.length > 0) {

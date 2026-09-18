@@ -381,6 +381,78 @@ describe("auto-created carrier lifecycle (#2295)", () => {
   });
 });
 
+// Selecting another rack changes the active rack between an edit and its
+// undo/redo. Each edit must replay against the rack it was made in.
+describe("carrier edits replay in their own rack after a rack switch (#2295)", () => {
+  function setupTwoRacks() {
+    const { store, rackId, slug } = setupLifecycle();
+    const other = store.addRack("Other Rack", 12)!;
+    store.placeDeviceSmart(rackId, slug, 5);
+    return { store, rackId, otherId: other.id, slug };
+  }
+
+  function expectReplaysInRack(
+    store: LifecycleStore,
+    rackId: string,
+    otherId: string,
+    edit: () => void,
+  ) {
+    const before = snapshotRack(store, rackId);
+    edit();
+    const after = snapshotRack(store, rackId);
+
+    store.setActiveRack(otherId);
+    store.undo();
+    expect(snapshotRack(store, rackId)).toEqual(before);
+    expect(devicesIn(store, otherId)).toEqual([]);
+
+    store.setActiveRack(otherId);
+    store.redo();
+    expect(snapshotRack(store, rackId)).toEqual(after);
+    expect(devicesIn(store, otherId)).toEqual([]);
+  }
+
+  it("duplicating a carrier with its children", () => {
+    const { store, rackId, otherId } = setupTwoRacks();
+    const carrier = carriersIn(store, rackId)[0]!;
+
+    expectReplaysInRack(store, rackId, otherId, () =>
+      store.duplicateDevice(rackId, indexIn(store, rackId, carrier.id)),
+    );
+  });
+
+  it("duplicating a carrier child into the next cell", () => {
+    const { store, rackId, otherId } = setupTwoRacks();
+    const child = devicesIn(store, rackId).find((d) => d.container_id)!;
+
+    expectReplaysInRack(store, rackId, otherId, () =>
+      store.duplicateDevice(rackId, indexIn(store, rackId, child.id)),
+    );
+  });
+
+  it("removing the last child of an auto-created carrier", () => {
+    const { store, rackId, otherId } = setupTwoRacks();
+    const child = devicesIn(store, rackId).find((d) => d.container_id)!;
+
+    expectReplaysInRack(store, rackId, otherId, () =>
+      store.removeDeviceFromRack(rackId, indexIn(store, rackId, child.id)),
+    );
+  });
+
+  it("moving a child one cell over", () => {
+    const { store, rackId, otherId } = setupTwoRacks();
+    const child = devicesIn(store, rackId).find((d) => d.container_id)!;
+
+    expectReplaysInRack(store, rackId, otherId, () =>
+      store.moveDeviceToAdjacentSlot(
+        rackId,
+        indexIn(store, rackId, child.id),
+        "right",
+      ),
+    );
+  });
+});
+
 describe("moving a carrier child keeps its identity (#2295)", () => {
   it("moves a child onto bare rails into a new carrier, keeping its fields and ports", () => {
     const { store, rackId, slug } = setupLifecycle();

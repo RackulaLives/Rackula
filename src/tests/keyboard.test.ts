@@ -754,6 +754,28 @@ describe("KeyboardHandler Component", () => {
       ).toBe("slot-left");
     });
 
+    it("leaves ArrowRight alone for a selected child in a read-only layout", () => {
+      const layoutStore = getLayoutStore();
+      const selectionStore = getSelectionStore();
+      const { rackId, childId } = createBladeContainerWithChild();
+      selectionStore.selectDevice(rackId, childId);
+      getUIStore().setReadOnly(true);
+
+      render(KeyboardHandler);
+
+      const event = new KeyboardEvent("keydown", {
+        key: "ArrowRight",
+        bubbles: true,
+        cancelable: true,
+      });
+      window.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(
+        layoutStore.rack!.devices.find((d) => d.id === childId)!.slot_id,
+      ).toBe("slot-left");
+    });
+
     it("does not consume ArrowLeft or ArrowRight when no carrier child is selected", () => {
       render(KeyboardHandler);
 

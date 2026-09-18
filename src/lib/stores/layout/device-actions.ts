@@ -172,26 +172,26 @@ export function duplicateDevice(
   const children = sourceRack.devices.filter(
     (d) => d.container_id === sourceDevice.id,
   );
-  if (children.length > 0) {
-    const childCommands = children.map((child) => {
-      const childType = findDeviceType(child.device_type, layout.device_types);
-      const childCopy: PlacedDevice = {
-        ...snapshotDevice(child),
-        id: generateId(),
-        container_id: duplicatedDevice.id,
-        ports: childType ? instantiatePorts(childType) : undefined,
-      };
-      return createPlaceDeviceCommand(childCopy, adapter, childType?.model);
-    });
-    history.execute(
-      createBatchCommand(`Place ${deviceName} (Copy)`, [
-        command,
-        ...childCommands,
-      ]),
-    );
-  } else {
-    history.execute(command);
-  }
+  const childCommands = children.map((child) => {
+    const childType = findDeviceType(child.device_type, layout.device_types);
+    const childCopy: PlacedDevice = {
+      ...snapshotDevice(child),
+      id: generateId(),
+      container_id: duplicatedDevice.id,
+      ports: childType ? instantiatePorts(childType) : undefined,
+    };
+    return createPlaceDeviceCommand(childCopy, adapter, childType?.model);
+  });
+  const placeCommand =
+    childCommands.length > 0
+      ? createBatchCommand(`Place ${deviceName} (Copy)`, [
+          command,
+          ...childCommands,
+        ])
+      : command;
+  // Pinned to this rack so undo/redo after selecting another rack still act
+  // on the copy and its children here.
+  history.execute(createInRackCommand(rackId, placeCommand, adapter));
   ctx.markDirty();
 
   return { device: duplicatedDevice };
@@ -242,13 +242,18 @@ function duplicateContainerChild(
 
   ctx.setActiveRackId(rack.id);
   const deviceName = childType.model ?? childType.slug;
+  const adapter = getCommandStoreAdapter(ctx);
   ctx
     .getHistory()
     .execute(
-      createPlaceDeviceCommand(
-        duplicatedDevice,
-        getCommandStoreAdapter(ctx),
-        `${deviceName} (Copy)`,
+      createInRackCommand(
+        rack.id,
+        createPlaceDeviceCommand(
+          duplicatedDevice,
+          adapter,
+          `${deviceName} (Copy)`,
+        ),
+        adapter,
       ),
     );
   ctx.markDirty();
@@ -465,16 +470,21 @@ export function moveDeviceToAdjacentSlot(
   if (!next) return false;
 
   ctx.setActiveRackId(rackId);
+  const adapter = getCommandStoreAdapter(ctx);
   ctx
     .getHistory()
     .execute(
-      createMoveToSlotCommand(
-        deviceIndex,
-        container.id,
-        child.slot_id,
-        next.slotId,
-        getCommandStoreAdapter(ctx),
-        childType.model ?? childType.slug,
+      createInRackCommand(
+        rackId,
+        createMoveToSlotCommand(
+          deviceIndex,
+          container.id,
+          child.slot_id,
+          next.slotId,
+          adapter,
+          childType.model ?? childType.slug,
+        ),
+        adapter,
       ),
     );
   ctx.markDirty();

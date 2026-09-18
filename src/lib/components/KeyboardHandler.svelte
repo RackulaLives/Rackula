@@ -17,6 +17,7 @@
   import { getConnectionCreationStore } from "$lib/stores/connection-creation.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
+  import { getUIStore } from "$lib/stores/ui.svelte";
   import {
     createPlacementKeyboardController,
     focusRackContainer,
@@ -30,6 +31,7 @@
   const connectionCreationStore = getConnectionCreationStore();
   const canvasStore = getCanvasStore();
   const toastStore = getToastStore();
+  const uiStore = getUIStore();
 
   // Keyboard placement (#106): while a device is armed, arrow / Tab / Enter /
   // Escape drive a U-slot cursor and place via the same store path as
@@ -146,12 +148,15 @@
     if (!action) return;
 
     // The horizontal arrows only move a selected carrier child between cells
-    // (#2295). Otherwise leave them alone: Alt+Arrow is browser back/forward,
-    // and roving widgets (verb bar, layout tabs) move focus with them and mark
-    // the event handled.
+    // in an editable layout (#2295). Otherwise leave them alone: Alt+Arrow is
+    // browser back/forward, and roving widgets (verb bar, layout tabs) move
+    // focus with them and mark the event handled.
     if (
       (action.id === "move-device-left" || action.id === "move-device-right") &&
-      (event.altKey || event.defaultPrevented || !isCarrierChildSelected())
+      (event.altKey ||
+        event.defaultPrevented ||
+        uiStore.readOnly ||
+        !isCarrierChildSelected())
     ) {
       return;
     }
