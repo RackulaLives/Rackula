@@ -2,7 +2,7 @@ name: Soak Smoke
 
 # Scheduled browser smoke check against the live prod and dev deployments,
 # independent of any deploy trigger. Each run is the 7-day soak signal that
-# #1986 (VPS decommission) reads before destroying the Linode instance: the
+# #1986 (VPS decommission) reads before destroying the Vultr instance: the
 # decommission gate is an unbroken 7-day streak of green runs on this
 # workflow, queryable with:
 #
@@ -15,10 +15,10 @@ name: Soak Smoke
 #
 # count.racku.la is public (confirmed by #3094: prod stays public; M017 brings
 # its own OAuth later) and is served from Cloudflare Workers Static Assets as of
-# #2029, so it needs no CF Access token. d.racku.la sits behind Cloudflare Access
-# and authenticates via the same service-token secrets deploy-dev.yml uses
-# (CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET, added by #2346); its leg is
-# commented out until #2134 moves dev onto Workers.
+# #2029, so it needs no CF Access token. d.racku.la is the rackula-dev Worker
+# (#2134) behind Cloudflare Access and authenticates via the same service-token
+# secrets deploy-dev.yml uses (CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET,
+# added by #2346). #1986's streak counts from the first run with both legs.
 
 on:
   schedule:
@@ -47,18 +47,20 @@ jobs:
         target:
           - name: prod
             url: https://count.racku.la
-          # TODO(#2134): restore the dev leg when d.racku.la moves to Workers.
-          # It is removed, not left failing, on purpose. A run's conclusion spans
-          # both legs (fail-fast is off, but either leg failing fails the run),
-          # so while d.racku.la is down every run would be red. That destroys the
-          # two things this workflow exists for: the 7-day green streak that
-          # gates #1986, and an alert anyone still trusts. A permanently-red
-          # check is what got this workflow muted during the August 2026 outage
-          # (#3167) - it failed correctly for three days and was then disabled.
-          # - name: dev
-          #   url: https://d.racku.la
+            access: false
+          - name: dev
+            url: https://d.racku.la
+            access: true
     env:
       SMOKE_TEST_URL: ${{ matrix.target.url }}
+      # Cloudflare Access credentials reach the dev leg only. count.racku.la is
+      # public (#3094), and handing service-token credentials to a job with no
+      # use for them only widens where they can leak. playwright.smoke.config.ts
+      # treats empty values as absent. The same flag turns on the /api/layouts
+      # check, since only the Access-gated dev surface has an API.
+      CF_ACCESS_CLIENT_ID: ${{ matrix.target.access && secrets.CF_ACCESS_CLIENT_ID || '' }}
+      CF_ACCESS_CLIENT_SECRET: ${{ matrix.target.access && secrets.CF_ACCESS_CLIENT_SECRET || '' }}
+      EXPECT_SERVER_API: ${{ matrix.target.access && '1' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -83,16 +85,6 @@ jobs:
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
 
-      # No CF_ACCESS_* here: count.racku.la is public (#3094, decided), and the
-      # only target in the matrix today is prod. Handing Access service-token
-      # credentials to a public target would put them in the environment of a
-      # job that has no use for them.
-      #
-      # TODO(#2134): when the dev leg is restored, scope these to that target
-      # only - e.g. a per-target matrix flag gating the env, not a job-wide
-      # export. d.racku.la sits behind Access and the smoke config
-      # (playwright.smoke.config.ts) applies them as request headers; without
-      # them the dev leg hits the login wall instead of the app (#2346).
       # Cloudflare serves a Managed Challenge to datacenter IPs across the zone.
       # The specs navigate first so Chromium solves it, then use `page.request`,
       # which inherits the clearance cookie. Before that fix a bare API request
