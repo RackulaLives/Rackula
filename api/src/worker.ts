@@ -72,6 +72,16 @@ export function createWorkerHandler(): WorkerHandler {
     async fetch(request: Request, env: WorkerEnv): Promise<Response> {
       const envMap = toEnvMap(env);
 
+      // Host lock: when RACKULA_API_HOST is set, only that host reaches the
+      // app. Version preview URLs sit outside Cloudflare Access and outlive
+      // their version, so without this they would reach R2 guarded by nothing
+      // but that version's JWT check. Unset or blank (local `wrangler dev`)
+      // means no lock.
+      const apiHost = envMap.RACKULA_API_HOST?.trim();
+      if (apiHost && new URL(request.url).hostname !== apiHost) {
+        return Response.json({ error: "Not Found" }, { status: 404 });
+      }
+
       // Cloudflare Access validation runs before the app when configured.
       // Fails closed (denies) when CF_ACCESS_* env vars are absent and no
       // explicit CF_ACCESS_DISABLED=true opt-out is set (#2913).

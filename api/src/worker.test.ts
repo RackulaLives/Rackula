@@ -94,7 +94,51 @@ describe("Worker fetch: Cloudflare Access gate", () => {
   });
 });
 
-describe("wrangler.jsonc does not promote the dev-only opt-out to a deployed var", () => {
+describe("Worker fetch: API host lock", () => {
+  // Version preview URLs (<id>-rackula-dev.<sub>.workers.dev) sit outside
+  // Cloudflare Access and outlive the version they belong to. The host lock
+  // keeps them from ever reaching the app or R2, whatever state that
+  // version's Access validation was in.
+  const lockedEnv = (): WorkerEnv =>
+    buildEnv({ CF_ACCESS_DISABLED: "true", RACKULA_API_HOST: "d.racku.la" });
+
+  it("answers 404 without reaching the app when the request host is not the locked host", async () => {
+    const worker = createWorkerHandler();
+
+    const res = await worker.fetch(
+      new Request(
+        "https://0123abcd-rackula-dev.example.workers.dev/api/version",
+      ),
+      lockedEnv(),
+    );
+
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body).not.toHaveProperty("version");
+  });
+
+  it("serves the locked host normally", async () => {
+    const worker = createWorkerHandler();
+
+    const res = await worker.fetch(
+      new Request("https://d.racku.la/api/version"),
+      lockedEnv(),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("applies no lock when RACKULA_API_HOST is unset or blank (local wrangler dev)", async () => {
+    const worker = createWorkerHandler();
+    const env = buildEnv({ CF_ACCESS_DISABLED: "true", RACKULA_API_HOST: "" });
+
+    const res = await worker.fetch(smokeRequest(), env);
+
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("wrangler.jsonc keeps the deployed Worker locked down", () => {
   it("never sets CF_ACCESS_DISABLED in wrangler.jsonc (the fail-closed default must ship to every deployed Worker)", () => {
     // The opt-out belongs only in api/.dev.vars, which `wrangler dev` reads
     // but `wrangler deploy` never bundles. If CF_ACCESS_DISABLED is ever
@@ -108,5 +152,15 @@ describe("wrangler.jsonc does not promote the dev-only opt-out to a deployed var
       .filter((line) => !line.trim().startsWith("//"))
       .join("\n");
     expect(jsoncOnly).not.toContain("CF_ACCESS_DISABLED");
+  });
+
+  it("locks the API to the host of its route (preview URLs must never reach R2)", () => {
+    // If RACKULA_API_HOST is dropped or drifts from the route, every version
+    // preview URL reaches the API with only the JWT check in front of it.
+    const raw = readFileSync(join(THIS_DIR, "..", "wrangler.jsonc"), "utf-8");
+    const routeHost = raw.match(/"pattern":\s*"([^"/]+)\/\*"/)?.[1];
+    const lockHost = raw.match(/"RACKULA_API_HOST":\s*"([^"]*)"/)?.[1];
+    expect(routeHost).toBeTruthy();
+    expect(lockHost).toBe(routeHost);
   });
 });

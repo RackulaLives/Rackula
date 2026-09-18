@@ -3,8 +3,8 @@
 # smoke-headers.sh - fail-closed post-deploy smoke for the Cloudflare prod and
 # dev surfaces.
 #
-# Part of issue #2029; the dev surface was added by #2134. Complements e2e/deploy-smoke.spec.ts rather than
-# duplicating it: that suite proves the bundle BOOTS in a real browser (shell
+# Part of issue #2029; the dev surface was added by #2134. Complements
+# e2e/deploy-smoke.spec.ts rather than duplicating it: that suite proves the bundle BOOTS in a real browser (shell
 # renders, a share link paints, version.json is well-formed). It deliberately
 # asserts nothing about headers, content types, SPA-fallback behaviour, or
 # version/commit matching, and it tolerates an empty commit for Docker builds.
@@ -27,8 +27,8 @@
 #
 #   --surface  which scripts/gen-headers.mjs surface to expect (default prod).
 #              dev also expects server-mode config.js and asserts that
-#              /api/layouts fails closed (401) without Cloudflare Access, so
-#              run it against the workers.dev preview URL, never d.racku.la.
+#              /api/layouts is unreachable (404, the API host lock), so run it
+#              against the workers.dev preview URL, never d.racku.la.
 #   --live     additionally assert exactly one Strict-Transport-Security header.
 #              Only meaningful on a hostname inside the racku.la zone; see #3214
 #              (a zone-level control currently rewrites HSTS to max-age=0).
@@ -253,16 +253,17 @@ check_not_served "/.assetsignore"
 check_not_served "/.claude/settings.local.json"
 check_not_served "/.DS_Store"
 
-# --- 10. dev API fails closed without Cloudflare Access ------------------
-# The preview URL is outside Access, so no Cf-Access-Jwt-Assertion reaches the
-# Worker and the API must refuse. On d.racku.la itself Access answers first
-# (302), which is why the dev surface runs against the preview URL.
+# --- 10. dev API is unreachable from a preview URL -----------------------
+# Preview URLs sit outside Cloudflare Access and outlive their version, so the
+# Worker locks /api/* to d.racku.la (RACKULA_API_HOST) and answers 404 anywhere
+# else. On d.racku.la itself Access answers first (302), which is why the dev
+# surface runs against the preview URL.
 if [ "$SURFACE" = "dev" ]; then
   code="$(fetch -o /dev/null -w '%{http_code}' "$BASE_URL/api/layouts")"
-  if [ "$code" = "401" ]; then
-    pass "/api/layouts -> 401 without an Access JWT"
+  if [ "$code" = "404" ]; then
+    pass "/api/layouts -> 404 off the locked host"
   else
-    fail "/api/layouts -> $code without an Access JWT (expected 401: the API must fail closed)"
+    fail "/api/layouts -> $code on a preview URL (expected 404: the API host lock must keep previews away from R2)"
   fi
 fi
 

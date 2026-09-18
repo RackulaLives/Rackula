@@ -540,7 +540,7 @@ Two environments with different deployment triggers:
 
 ### Dev Deployment
 
-Automatically deploys on code pushes to `main`. The Deploy Dev workflow builds the SPA and publishes it with the persistence API to the `rackula-dev` Worker (`api/wrangler.jsonc`): `wrangler versions upload`, a curl smoke against the preview URL (`scripts/smoke-headers.sh --surface dev`, which also asserts the API fails closed without Access), `versions deploy`, `triggers deploy`, then a browser smoke on d.racku.la through Cloudflare Access. Layouts live in the `rackula-layouts-dev` R2 bucket. Tests are not re-run here (they gate the PR before merge).
+Automatically deploys on code pushes to `main`. The Deploy Dev workflow builds the SPA and publishes it with the persistence API to the `rackula-dev` Worker (`api/wrangler.jsonc`): `wrangler versions upload`, a curl smoke against the preview URL (`scripts/smoke-headers.sh --surface dev`, which also asserts preview URLs cannot reach the API), `versions deploy`, `triggers deploy`, then a browser smoke on d.racku.la through Cloudflare Access. Layouts live in the `rackula-layouts-dev` R2 bucket. Tests are not re-run here (they gate the PR before merge).
 
 ```bash
 git push origin main  # Triggers Deploy Dev: build, upload a version, smoke it, promote to d.racku.la

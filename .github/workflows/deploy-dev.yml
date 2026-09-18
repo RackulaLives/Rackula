@@ -182,8 +182,9 @@ jobs:
 
       # The preview URL is on workers.dev, outside the racku.la zone, so curl is
       # not challenged there. It is also outside Cloudflare Access, which is why
-      # --surface dev expects /api/layouts to answer 401: the API fails closed.
-      - name: Smoke headers, content types and API fail-closed on the preview URL
+      # --surface dev expects /api/layouts to answer 404: the Worker locks the
+      # API to d.racku.la, so no preview URL can reach R2.
+      - name: Smoke headers, content types and API host lock on the preview URL
         env:
           PREVIEW_URL: ${{ steps.upload.outputs.preview_url }}
           BUILD_VERSION: ${{ steps.build.outputs.version }}
@@ -196,7 +197,7 @@ jobs:
 
       # Proves the bundle boots in a real browser before it takes traffic,
       # catching load-time failures the curl smoke cannot see. No Access
-      # credentials and no EXPECT_SERVER_API: the API answers 401 here, and the
+      # credentials and no EXPECT_SERVER_API: the API answers 404 here, and the
       # app starts cleanly without it.
       - name: Browser smoke against the preview URL
         env:

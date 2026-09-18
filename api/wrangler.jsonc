@@ -38,10 +38,11 @@
   "routes": [{ "pattern": "d.racku.la/*", "zone_name": "racku.la" }],
 
   // preview_urls stays on so `wrangler versions upload` yields a workers.dev
-  // URL for the pre-promotion curl smoke: Bot Fight Mode challenges CI on every
-  // racku.la host. The preview URL is outside Access. The SPA there is the same
-  // open-source bundle, and /api/* fails closed (401) without an Access JWT,
-  // which deploy-dev.yml asserts on every deploy.
+  // URL for the pre-promotion smoke: Bot Fight Mode challenges CI on every
+  // racku.la host. Preview URLs are outside Access and outlive their version.
+  // The SPA there is the same open-source bundle, and RACKULA_API_HOST below
+  // locks /api/* to d.racku.la, so a preview URL answers 404 there and never
+  // reaches R2. deploy-dev.yml asserts that on every deploy.
   "workers_dev": false,
   "preview_urls": true,
 
@@ -67,11 +68,14 @@
   // Plain vars, not secrets: none of these is sensitive. The Access team
   // domain and application AUD tag both appear in the public Access login
   // redirect for d.racku.la. The Worker fails closed if any CF_ACCESS_* value
-  // is missing (#2913). api/.dev.vars blanks them for local `wrangler dev`.
-  // deploy-dev.yml adds APP_VERSION and APP_COMMIT per upload for /api/version.
+  // is missing (#2913). RACKULA_API_HOST must match the route host
+  // (worker.test.ts checks). api/.dev.vars blanks the Access values and the
+  // host lock for local `wrangler dev`. deploy-dev.yml adds APP_VERSION and
+  // APP_COMMIT per upload for /api/version.
   "vars": {
     "NODE_ENV": "production",
     "CORS_ORIGIN": "https://d.racku.la",
+    "RACKULA_API_HOST": "d.racku.la",
     "CF_ACCESS_JWKS_URL": "https://gwilym.cloudflareaccess.com/cdn-cgi/access/certs",
     "CF_ACCESS_ISSUER": "https://gwilym.cloudflareaccess.com",
     "CF_ACCESS_AUD": "1ea609e49a2f7105b29c169d259406673aaf0c1f51ab5870f16a9c1dc6e87a38",
