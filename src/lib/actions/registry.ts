@@ -52,6 +52,8 @@ export type ActionId =
   | "toggle-annotations"
   | "move-device-up"
   | "move-device-down"
+  | "move-device-left"
+  | "move-device-right"
   | "move-device-slot"
   | "flip-device-face"
   | "focus-rack"
@@ -309,6 +311,27 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     enabledWhen: (ctx) => !ctx.readOnly && ctx.isDeviceSelected,
     helpGroup: "Editing",
     keywords: ["nudge", "down"],
+  },
+  // Left/right move a carrier child between the cells of its carrier (#2295);
+  // they do nothing for rack-level devices, so they are offered only when the
+  // selected child has another cell to go to.
+  {
+    id: "move-device-left",
+    label: "Move to cell left",
+    scope: "selection",
+    bindings: [{ key: "ArrowLeft" }],
+    enabledWhen: (ctx) => !ctx.readOnly && ctx.canMoveDeviceSlot,
+    helpGroup: "Editing",
+    keywords: ["cell", "carrier", "left"],
+  },
+  {
+    id: "move-device-right",
+    label: "Move to cell right",
+    scope: "selection",
+    bindings: [{ key: "ArrowRight" }],
+    enabledWhen: (ctx) => !ctx.readOnly && ctx.canMoveDeviceSlot,
+    helpGroup: "Editing",
+    keywords: ["cell", "carrier", "right"],
   },
   {
     id: "move-device-slot",

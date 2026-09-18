@@ -24,6 +24,8 @@ import { dialogStore } from "$lib/stores/dialogs.svelte";
 import {
   moveSelectedDeviceUp,
   moveSelectedDeviceDown,
+  moveSelectedDeviceLeft,
+  moveSelectedDeviceRight,
   moveSelectedDeviceToSlot,
   duplicateSelection,
   flipSelectedDeviceFace,
@@ -234,6 +236,14 @@ export function createActionDispatch(): ActionDispatch {
     "move-device-down": () => {
       if (getUIStore().readOnly) return;
       moveSelectedDeviceDown();
+    },
+    "move-device-left": () => {
+      if (getUIStore().readOnly) return;
+      moveSelectedDeviceLeft();
+    },
+    "move-device-right": () => {
+      if (getUIStore().readOnly) return;
+      moveSelectedDeviceRight();
     },
     "move-device-slot": () => {
       if (getUIStore().readOnly) return;

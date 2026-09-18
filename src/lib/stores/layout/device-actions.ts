@@ -21,6 +21,10 @@ import {
   requiresCarrier,
   synthesizeCarrierForDevice,
 } from "$lib/utils/collision";
+import {
+  findAdjacentSlotForChild,
+  type CellDirection,
+} from "$lib/utils/collision";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { generateId } from "$lib/utils/device";
@@ -414,6 +418,65 @@ export function moveDeviceToSlot(
       deviceName,
     ),
   );
+  ctx.markDirty();
+  return true;
+}
+
+/**
+ * Move a contained child to the nearest free cell in one direction within its
+ * own carrier (arrow keys, #2295). Like moveDeviceToSlot it only changes
+ * slot_id, so the child is never ejected. No-op (returns false) when the device
+ * is not a carrier child or no free cell lies that way.
+ *
+ * @param ctx - Layout state access
+ * @param rackId - Rack containing the child and its carrier
+ * @param deviceIndex - Index of the child in the rack's devices array
+ * @param direction - Which way to move
+ * @returns true if the child moved to a new cell
+ */
+export function moveDeviceToAdjacentSlot(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  deviceIndex: number,
+  direction: CellDirection,
+): boolean {
+  const targetRack = getRackById(ctx, rackId);
+  const child = targetRack?.devices[deviceIndex];
+  if (!targetRack || !child?.container_id || !child.slot_id) return false;
+
+  const layout = ctx.getLayout();
+  const childType = findDeviceType(child.device_type, layout.device_types);
+  const container = targetRack.devices.find((d) => d.id === child.container_id);
+  const containerType = container
+    ? findDeviceType(container.device_type, layout.device_types)
+    : undefined;
+  if (!childType || !container || !containerType) return false;
+
+  const siblings = targetRack.devices.filter(
+    (d) => d.container_id === container.id && d.id !== child.id,
+  );
+  const next = findAdjacentSlotForChild(
+    containerType,
+    childType,
+    child.slot_id,
+    siblings,
+    direction,
+  );
+  if (!next) return false;
+
+  ctx.setActiveRackId(rackId);
+  ctx
+    .getHistory()
+    .execute(
+      createMoveToSlotCommand(
+        deviceIndex,
+        container.id,
+        child.slot_id,
+        next.slotId,
+        getCommandStoreAdapter(ctx),
+        childType.model ?? childType.slug,
+      ),
+    );
   ctx.markDirty();
   return true;
 }

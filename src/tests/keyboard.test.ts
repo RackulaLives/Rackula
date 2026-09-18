@@ -689,6 +689,71 @@ describe("KeyboardHandler Component", () => {
     });
   });
 
+  describe("Carrier child cell movement (#2295)", () => {
+    it("ArrowRight and ArrowLeft move a selected child between cells of its carrier", async () => {
+      const layoutStore = getLayoutStore();
+      const selectionStore = getSelectionStore();
+      const { rackId, containerId, childId } = createBladeContainerWithChild();
+      selectionStore.selectDevice(rackId, childId);
+      const child = () =>
+        layoutStore.rack!.devices.find((d) => d.id === childId)!;
+
+      render(KeyboardHandler);
+
+      await fireEvent.keyDown(window, { key: "ArrowRight" });
+      expect(child().slot_id).toBe("slot-right");
+      expect(child().container_id).toBe(containerId);
+
+      await fireEvent.keyDown(window, { key: "ArrowLeft" });
+      expect(child().slot_id).toBe("slot-left");
+    });
+
+    // The verb bar and layout tabs use ArrowLeft/ArrowRight to move focus and
+    // mark the event handled; the selected child must not move as well.
+    it("ArrowRight already handled by a focused widget leaves the child in place", () => {
+      const layoutStore = getLayoutStore();
+      const selectionStore = getSelectionStore();
+      const { rackId, childId } = createBladeContainerWithChild();
+      selectionStore.selectDevice(rackId, childId);
+
+      render(KeyboardHandler);
+
+      const event = new KeyboardEvent("keydown", {
+        key: "ArrowRight",
+        bubbles: true,
+        cancelable: true,
+      });
+      event.preventDefault();
+      window.dispatchEvent(event);
+
+      expect(
+        layoutStore.rack!.devices.find((d) => d.id === childId)!.slot_id,
+      ).toBe("slot-left");
+    });
+
+    it("ArrowLeft and ArrowRight leave a selected rack-level device in place", async () => {
+      const layoutStore = getLayoutStore();
+      const selectionStore = getSelectionStore();
+      const rack = layoutStore.addRack("Test Rack", 42)!;
+      const deviceType = layoutStore.addDeviceType({
+        name: "Server",
+        u_height: 1,
+        category: "server",
+        colour: CATEGORY_COLOURS.server,
+      });
+      layoutStore.placeDevice(rack.id, deviceType.slug, 10);
+      const device = layoutStore.rack!.devices[0]!;
+      selectionStore.selectDevice(rack.id, device.id);
+
+      render(KeyboardHandler);
+
+      await fireEvent.keyDown(window, { key: "ArrowLeft" });
+      await fireEvent.keyDown(window, { key: "ArrowRight" });
+
+      expect(layoutStore.rack!.devices[0]!.position).toBe(device.position);
+    });
+  });
+
   describe("Multi-U Device Movement", () => {
     it("moves 2U device by 1U (consistent step size)", async () => {
       const layoutStore = getLayoutStore();

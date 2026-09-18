@@ -123,3 +123,53 @@ describe("moveDeviceToSlot (store)", () => {
     expect(store.moveDeviceToSlot(rackId, index)).toBe(false);
   });
 });
+
+describe("moveDeviceToAdjacentSlot (store, #2295)", () => {
+  it("moves a child one cell right within its carrier, undoable", () => {
+    const { store, rackId } = setupRack();
+    const dt = addHalfWidth(store);
+    store.placeDeviceSmart(rackId, dt.slug, 5);
+    const carrier = carrierIn(store);
+    const index = childIndex(store, dt.slug);
+    expect(store.rack!.devices[index]!.slot_id).toBe("col-1");
+
+    expect(store.moveDeviceToAdjacentSlot(rackId, index, "right")).toBe(true);
+
+    const after = store.rack!.devices.find((d) => d.device_type === dt.slug)!;
+    expect(after.container_id).toBe(carrier.id);
+    expect(after.slot_id).toBe("col-2");
+
+    store.undo();
+    expect(
+      store.rack!.devices.find((d) => d.device_type === dt.slug)!.slot_id,
+    ).toBe("col-1");
+  });
+
+  it("returns false and records nothing when no cell lies that way", () => {
+    const { store, rackId } = setupRack();
+    const dt = addHalfWidth(store);
+    store.placeDeviceSmart(rackId, dt.slug, 5);
+    const index = childIndex(store, dt.slug);
+
+    expect(store.moveDeviceToAdjacentSlot(rackId, index, "up")).toBe(false);
+    expect(store.moveDeviceToAdjacentSlot(rackId, index, "left")).toBe(false);
+    expect(store.rack!.devices[index]!.slot_id).toBe("col-1");
+
+    // The only history entry is the placement itself.
+    store.undo();
+    expect(store.rack!.devices).toEqual([]);
+  });
+
+  it("returns false for a rack-level device", () => {
+    const { store, rackId } = setupRack();
+    const dt = store.addDeviceType({
+      name: "Server 1U",
+      u_height: 1,
+      category: "server",
+      colour: CATEGORY_COLOURS.server,
+    });
+    store.placeDevice(rackId, dt.slug, 5);
+
+    expect(store.moveDeviceToAdjacentSlot(rackId, 0, "right")).toBe(false);
+  });
+});

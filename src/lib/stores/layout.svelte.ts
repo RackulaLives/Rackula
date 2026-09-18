@@ -132,7 +132,9 @@ import {
   moveDeviceToSlot as moveDeviceToSlotImpl,
   moveDeviceIntoContainer as moveDeviceIntoContainerImpl,
   moveDeviceSmart as moveDeviceSmartImpl,
+  moveDeviceToAdjacentSlot as moveDeviceToAdjacentSlotImpl,
 } from "./layout/device-actions";
+import type { CellDirection } from "$lib/utils/collision";
 
 export { type BackupState, HAS_STARTED_KEY };
 
@@ -344,6 +346,7 @@ export function createLayoutStore(
     moveDevice,
     moveDeviceToRack,
     moveDeviceToSlot,
+    moveDeviceToAdjacentSlot,
     moveDeviceIntoContainer,
     moveDeviceSmart,
     removeDeviceFromRack,
@@ -795,6 +798,23 @@ export function createLayoutStore(
    */
   function moveDeviceToSlot(rackId: string, deviceIndex: number): boolean {
     return moveDeviceToSlotImpl(stateAccess, rackId, deviceIndex);
+  }
+
+  /**
+   * Move a contained child to the nearest free cell in one direction within
+   * its own carrier (arrow keys, #2295).
+   */
+  function moveDeviceToAdjacentSlot(
+    rackId: string,
+    deviceIndex: number,
+    direction: CellDirection,
+  ): boolean {
+    return moveDeviceToAdjacentSlotImpl(
+      stateAccess,
+      rackId,
+      deviceIndex,
+      direction,
+    );
   }
 
   /**

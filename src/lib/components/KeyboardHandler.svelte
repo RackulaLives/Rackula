@@ -144,6 +144,16 @@
     const action = findActionForEvent(event);
     if (!action) return;
 
+    // Roving widgets (the verb bar, layout tabs) move focus with the
+    // horizontal arrows and mark the event handled. Don't also move the
+    // selected carrier child (#2295).
+    if (
+      event.defaultPrevented &&
+      (action.id === "move-device-left" || action.id === "move-device-right")
+    ) {
+      return;
+    }
+
     event.preventDefault();
     dispatch[action.id]?.();
   }
