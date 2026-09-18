@@ -21,6 +21,7 @@ import {
 import { createTestDeviceType } from "./factories";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import type { PlacedDevice } from "$lib/types";
+import { LayoutSchema } from "$lib/schemas";
 
 beforeEach(() => {
   resetLayoutStore();
@@ -247,5 +248,79 @@ describe("placeDeviceSmart (store carrier-first flow)", () => {
 
     expect(store.placeDeviceSmart(rackId, dt.slug, 5)).toBe(false);
     expect(carrierIn(store)).toBeUndefined();
+  });
+});
+
+describe("auto-created carrier lifecycle (#2295)", () => {
+  type Store = NonNullable<ReturnType<typeof getLayoutStore>>;
+
+  /** A rack plus a 1U half-width device type (mounts in carrier-1u-2col). */
+  function setup(): { store: Store; rackId: string; slug: string } {
+    const store = getLayoutStore()!;
+    const rack = store.addRack("Test Rack", 12)!;
+    const dt = store.addDeviceType({
+      name: "Mini Switch",
+      u_height: 1,
+      category: "network",
+      colour: CATEGORY_COLOURS.network,
+      slot_width: 1,
+    });
+    return { store, rackId: rack.id, slug: dt.slug };
+  }
+
+  function carriers(store: Store) {
+    return store.rack!.devices.filter((d) =>
+      d.device_type.startsWith("carrier"),
+    );
+  }
+
+  function indexOf(store: Store, id: string) {
+    return store.rack!.devices.findIndex((d) => d.id === id);
+  }
+
+  function childOf(store: Store, carrierId: string) {
+    return store.rack!.devices.find((d) => d.container_id === carrierId)!;
+  }
+
+  it("removes an auto-created carrier with its last child, in one undo step", () => {
+    const { store, rackId, slug } = setup();
+    store.placeDeviceSmart(rackId, slug, 5);
+    const carrier = carriers(store)[0]!;
+    const child = childOf(store, carrier.id);
+
+    store.removeDeviceFromRack(rackId, indexOf(store, child.id));
+
+    expect(store.rack!.devices).toEqual([]);
+
+    store.undo();
+
+    expect(carriers(store).map((c) => c.id)).toEqual([carrier.id]);
+    expect(childOf(store, carrier.id).id).toBe(child.id);
+    expect(LayoutSchema.safeParse(store.layout).success).toBe(true);
+  });
+
+  it("keeps an auto-created carrier while it still holds another child", () => {
+    const { store, rackId, slug } = setup();
+    store.placeDeviceSmart(rackId, slug, 5);
+    store.placeDeviceSmart(rackId, slug, 5);
+    const carrier = carriers(store)[0]!;
+    const child = childOf(store, carrier.id);
+
+    store.removeDeviceFromRack(rackId, indexOf(store, child.id));
+
+    expect(carriers(store).map((c) => c.id)).toEqual([carrier.id]);
+  });
+
+  it("keeps a user-placed carrier when its last child is removed", () => {
+    const { store, rackId, slug } = setup();
+    store.placeDevice(rackId, "carrier-1u-2col", 5);
+    store.placeDeviceSmart(rackId, slug, 5);
+    const carrier = carriers(store)[0]!;
+    expect(carrier.auto_created).toBeFalsy();
+    const child = childOf(store, carrier.id);
+
+    store.removeDeviceFromRack(rackId, indexOf(store, child.id));
+
+    expect(carriers(store).map((c) => c.id)).toEqual([carrier.id]);
   });
 });

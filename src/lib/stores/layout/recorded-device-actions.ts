@@ -8,7 +8,7 @@
  * correct rack.
  */
 
-import type { DeviceFace, DeviceType, PlacedDevice } from "$lib/types";
+import type { DeviceFace, DeviceType, PlacedDevice, Rack } from "$lib/types";
 import { UNITS_PER_U, DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
 import { canPlaceDevice, requiresCarrier } from "$lib/utils/collision";
@@ -391,6 +391,31 @@ export function moveDeviceRecorded(
 }
 
 /**
+ * The auto-created carrier that `device` is the last child of, if any.
+ *
+ * A carrier synthesised by drag/drop (auto_created) exists only to hold its
+ * children, so when its last child leaves (removed, dragged out, or moved to
+ * another carrier or rack) the carrier goes with it in the same undo step.
+ * User-placed carriers (auto_created falsy) persist when empty (#2295).
+ *
+ * @param rack - The rack the device is leaving
+ * @param device - The device that is leaving its carrier
+ * @returns The carrier to remove, or undefined when none should be removed
+ */
+export function findEmptiedAutoCarrier(
+  rack: Rack,
+  device: PlacedDevice,
+): PlacedDevice | undefined {
+  if (!device.container_id) return undefined;
+  const carrier = rack.devices.find((d) => d.id === device.container_id);
+  if (!carrier?.auto_created) return undefined;
+  const hasOtherChildren = rack.devices.some(
+    (d) => d.container_id === carrier.id && d.id !== device.id,
+  );
+  return hasOtherChildren ? undefined : carrier;
+}
+
+/**
  * Remove a device with undo/redo support
  * @param ctx - Layout state access
  * @param rackId - Rack ID
@@ -437,6 +462,13 @@ export function removeDeviceRecorded(
     .filter((d) => d.container_id === device.id)
     .map((child) => snapshotDevice(child));
 
+  // Removing the last child of an auto-created carrier removes the carrier
+  // too, in the same undo step (#2295).
+  const emptiedCarrier = findEmptiedAutoCarrier(targetRack, device);
+  const carrierSnapshot = emptiedCarrier
+    ? snapshotDevice(emptiedCarrier)
+    : undefined;
+
   // Connections reference placed devices' ports by id. Deleting a device (or
   // a carrier and its children) without cleaning up its connections leaves
   // dangling port references, saved as-is on the next autosave (#639).
@@ -446,6 +478,7 @@ export function removeDeviceRecorded(
   const connectedConnections = findConnectionsForDevices(ctx, [
     { rackId, device },
     ...children.map((child) => ({ rackId, device: child })),
+    ...(carrierSnapshot ? [{ rackId, device: carrierSnapshot }] : []),
   ]);
 
   const removeCommand =
@@ -479,11 +512,25 @@ export function removeDeviceRecorded(
     ),
   );
 
+  // The carrier is removed after its child, so undo restores the carrier
+  // before the child that references it.
+  const carrierCommands: Command[] = carrierSnapshot
+    ? [
+        createRemoveDeviceCommand(
+          carrierSnapshot,
+          adapter,
+          "carrier",
+          layout.metadata?.id ?? "",
+        ),
+      ]
+    : [];
+
   const command =
-    connectionCommands.length > 0
+    connectionCommands.length > 0 || carrierCommands.length > 0
       ? createBatchCommand(`Remove ${deviceName}`, [
           ...connectionCommands,
           removeCommand,
+          ...carrierCommands,
         ])
       : removeCommand;
 
