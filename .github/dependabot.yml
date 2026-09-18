@@ -76,6 +76,11 @@ updates:
     ignore:
       - dependency-name: "js-yaml"
         update-types: ["version-update:semver-major"]
+      # better-auth 1.7.x removes the generic-oauth plugin endpoints that OIDC
+      # login uses (api/src/auth/config.ts). Hold at 1.6.x until login moves to
+      # signIn.social / callback/:id. See issue #3229.
+      - dependency-name: "better-auth"
+        versions: [">=1.7.0"]
 
   # GitHub Actions - group all together
   - package-ecosystem: "github-actions"
