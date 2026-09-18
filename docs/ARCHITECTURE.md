@@ -137,46 +137,24 @@ No legacy support or migration code. Features are implemented as if they're the 
 
 ## Deployment Architecture
 
-> This section describes the current VPS-based deployment. It is being migrated to Cloudflare (epic #1984: dev cutover #2134, prod cutover #2029, VPS decommission #1986). The diagram and table below will be rewritten at cutover.
+Both hosted environments run on Cloudflare Workers. The Vultr VPS that used to serve them is being decommissioned (#1986). Self-host images (Docker, LXC) are built by the same release pipeline and do not depend on either Worker.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     GitHub Repository                        │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│   Push to main ─────────────────────────────────────────────│
-│         │                                                    │
-│         ▼                                                    │
-│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐   │
-│   │    Lint     │────▶│    Test     │────▶│    Build    │   │
-│   └─────────────┘     └─────────────┘     └─────────────┘   │
-│                                                  │           │
-│                                                  ▼           │
-│                                        ┌─────────────────┐   │
-│                                        │  VPS (Docker)   │   │
-│                                        │  d.racku.la     │   │
-│                                        └─────────────────┘   │
-│                                                              │
-│   Git tag v* ───────────────────────────────────────────────│
-│         │                                                    │
-│         ▼                                                    │
-│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐   │
-│   │Docker Build │────▶│  Push to    │────▶│  VPS Pull   │   │
-│   │             │     │   ghcr.io   │     │  & Deploy   │   │
-│   └─────────────┘     └─────────────┘     └─────────────┘   │
-│                                                  │           │
-│                                                  ▼           │
-│                                        ┌─────────────────┐   │
-│                                        │   VPS (Docker)  │   │
-│                                        │  count.racku.la │   │
-│                                        └─────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+Push to main --> Deploy Dev (deploy-dev.yml) --> rackula-dev Worker --> d.racku.la
+                 build, versions upload,         SPA assets + API on /api/*,
+                 smoke preview URL, promote      R2 bucket, behind Cloudflare Access
+
+Git tag v* ----> Release (release.yml) -------> rackula-prod Worker -> count.racku.la
+                 stage, gate, promote via        assets only, no Worker script,
+                 deploy-prod.yml                 browser storage mode
 ```
 
-| Environment | URL            | Trigger        | Use Case         |
-| ----------- | -------------- | -------------- | ---------------- |
-| Dev         | d.racku.la     | Push to `main` | Preview, testing |
-| Prod        | count.racku.la | Git tag `v*`   | Live users       |
+| Environment | URL | Trigger | Worker (config) | Use case |
+| --- | --- | --- | --- | --- |
+| Dev | d.racku.la | Push to `main` | `rackula-dev` (`api/wrangler.jsonc`) | Preview, testing, server storage |
+| Prod | count.racku.la | Git tag `v*` | `rackula-prod` (`wrangler.jsonc`) | Live users |
+
+Both deploys upload a Worker version, smoke its workers.dev preview URL, and only then shift traffic. See `docs/deployment/RELEASE-PIPELINE.md`.
 
 ### Version Alignment
 

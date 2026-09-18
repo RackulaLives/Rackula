@@ -6,7 +6,7 @@ This is the operational runbook for rotating and revoking the two classes of Clo
 
 The prod surface is live (#2029). Account: `GarethLand`, id `f8606884a913456ec07bf4ccbf136abc`. Zone `racku.la`, id `ecc485cd0dd1c5fe05e803f83632d721`. Worker `rackula-prod`, `workers.dev` subdomain `gvns`.
 
-The dev half of #2675 is still outstanding: no `rackula-dev` Worker and no R2 bucket yet. When it lands, extend the inventory below rather than rewriting it, and record whether dev gets its own token copy or shares the prod one (Cloudflare cannot scope a Workers Scripts token to a single Worker, so both carry the same blast radius either way; see the account-wide risk note below).
+The dev surface is live (#2134). Worker `rackula-dev` (config `api/wrangler.jsonc`), R2 bucket `rackula-layouts-dev`. Dev shares the prod deploy token rather than holding its own copy: Cloudflare cannot scope a Workers Scripts token to a single Worker, so a separate token would carry the same blast radius (see the account-wide risk note below). If a dev deploy ever needs a scope this token lacks, mint a separate dev token rather than widening this one.
 
 The Cloudflare Access service token pair (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`) already exists; its section below is accurate today.
 
@@ -16,21 +16,21 @@ Cloudflare API tokens scoped to Workers Scripts edit cannot be restricted to a s
 
 ## Token class 1: Cloudflare API deploy tokens
 
-Used by the deploy workflows to publish the Worker. `deploy-prod.yml` runs `wrangler versions upload`, `versions deploy` and `triggers deploy`. `rollback-prod.yml` runs `versions deploy` only, so the Workers Routes scope in the table below is exercised by `deploy-prod.yml` alone. #2134 adds `wrangler deploy` once dev lands.
+Used by the deploy workflows to publish the Workers. `deploy-prod.yml` and `deploy-dev.yml` each run `wrangler versions upload`, `versions deploy` and `triggers deploy`. `rollback-prod.yml` runs `versions deploy` only, so the Workers Routes scope in the table below is exercised by the two deploy workflows.
 
 ### Storage
 
-- Secret names: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, following the Wrangler convention so no extra env plumbing is needed. `deploy-prod.yml` and `rollback-prod.yml` read both.
+- Secret names: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, following the Wrangler convention so no extra env plumbing is needed. `deploy-prod.yml`, `rollback-prod.yml` and `deploy-dev.yml` read both.
 - Storage tier: repository-level GitHub Actions secrets, matching how `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` are stored. Environment-scoped secrets were considered and not used: `deploy-prod.yml` deliberately carries no `environment:` binding, because `promote-gate` in `release.yml` already binds the protected `prod` environment and a second binding would prompt the same reviewer twice in one run. The approval gate is therefore upstream of the token, not around it.
-- Minimum scope for the prod token (three permissions, verified against the deploy path):
+- Minimum scope for the deploy token, shared by prod and dev (three permissions, verified against both deploy paths):
 
   | Scope | Permission | Needed for |
   | --- | --- | --- |
   | Account | Workers Scripts: **Edit** | `versions upload` / `versions deploy`, including static-asset upload |
-  | Zone (`racku.la` only) | Workers Routes: **Edit** | `triggers deploy` maintaining the `count.racku.la/*` route |
+  | Zone (`racku.la` only) | Workers Routes: **Edit** | `triggers deploy` maintaining the `count.racku.la/*` and `d.racku.la/*` routes |
   | Zone (`racku.la` only) | Zone: **Read** | resolving `zone_name: "racku.la"` to a zone id |
 
-  Deliberately not granted, versus the set Cloudflare's Workers Builds template auto-generates: R2 Storage and KV Storage (prod is assets-only with zero bindings -- the dev Worker will need R2, mint that separately rather than widening this token), Account Settings: Read (only needed to resolve the account when it is not supplied, and `CLOUDFLARE_ACCOUNT_ID` is passed explicitly), and User Details / Memberships: Read (used by `wrangler whoami`, not by deploys).
+  Deliberately not granted, versus the set Cloudflare's Workers Builds template auto-generates: R2 Storage and KV Storage (not needed even for the dev Worker's R2 binding: `deploy-dev.yml` uploaded and promoted `rackula-dev` with this token on 2026-09-17. The Worker reaches R2 through its binding at runtime, not through the token), Account Settings: Read (only needed to resolve the account when it is not supplied, and `CLOUDFLARE_ACCOUNT_ID` is passed explicitly), and User Details / Memberships: Read (used by `wrangler whoami`, not by deploys).
 
   No DNS permission is required. The Custom Domain attach path would have needed DNS: Edit, but `count.racku.la` is bound with a Workers route instead, so the token never touches DNS records.
 
@@ -47,7 +47,7 @@ Every 90 days, or immediately on suspected compromise. Cloudflare account API to
 1. In the Cloudflare dashboard, go to My Profile > API Tokens > Create Token. Recreate the same scope as the token being replaced (see the scope table above; for prod that is Workers Scripts: Edit, plus Workers Routes: Edit and Zone: Read on `racku.la`). Do not reuse the old token's name; append a date suffix so the audit log distinguishes them.
 2. Copy the new token value immediately; Cloudflare shows it once.
 3. Update `CLOUDFLARE_API_TOKEN` with the new value everywhere it is stored: check Settings > Secrets and variables > Actions for a repository secret, and check Settings > Environments > `dev` and > `prod` for environment secrets, and update every copy you find. Do not stop at the first one; a copy left on the old value is a copy still trusting a token you are about to revoke. Confirm `CLOUDFLARE_ACCOUNT_ID` is still correct in each location; it does not usually need to change.
-4. Trigger a `workflow_dispatch` run of `Deploy Dev` (Actions > Deploy Dev > Run workflow) and confirm the `deploy` job succeeds against d.racku.la. For a prod-side rotation, trigger the equivalent verification path once #2029 lands (`deploy-prod.yml` is currently a `workflow_call`-only reusable workflow invoked by the release orchestrator; confirm with a real release promote or with whatever manual dispatch path #2029 adds).
+4. Trigger a `workflow_dispatch` run of `Deploy Dev` (Actions > Deploy Dev > Run workflow) and confirm the `deploy` job succeeds. It uploads, promotes and applies triggers with the token, so a green run exercises every scope in the table. Prod uses the same token, so this also verifies the prod path without cutting a release.
 5. Once the new token has verified deploy success, return to the Cloudflare dashboard and revoke the old token (API Tokens > find the old entry > Roll or Delete).
 6. Note the rotation date and who performed it somewhere durable (a comment on the tracking issue is sufficient); there is no in-repo rotation log to update.
 
@@ -62,12 +62,12 @@ Every 90 days, or immediately on suspected compromise. Cloudflare account API to
 
 ## Token class 2: Cloudflare Access service tokens
 
-Used by the `smoke-test` job in `deploy-dev.yml` to authenticate through Cloudflare Access, which fronts d.racku.la. This pair exists today; it is not a placeholder.
+Used by the browser smoke in `deploy-dev.yml` and the dev leg of `soak-smoke.yml` to authenticate through Cloudflare Access, which fronts d.racku.la.
 
 ### Storage
 
 - Secret names: `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`.
-- Stored as repository-level GitHub Actions secrets (Settings > Secrets and variables > Actions > Repository secrets), not scoped to a GitHub Environment. Verified via `gh secret list --env dev` and `--env prod`, both empty; the `check-cf-access` and `smoke-test` jobs in `deploy-dev.yml` read `secrets.CF_ACCESS_CLIENT_ID` / `secrets.CF_ACCESS_CLIENT_SECRET` directly without an `environment:` binding, which only works because they are repository secrets.
+- Stored as repository-level GitHub Actions secrets (Settings > Secrets and variables > Actions > Repository secrets), not scoped to a GitHub Environment. Verified via `gh secret list --env dev` and `--env prod`, both empty. `soak-smoke.yml` reads `secrets.CF_ACCESS_CLIENT_ID` / `secrets.CF_ACCESS_CLIENT_SECRET` without an `environment:` binding, which only works because they are repository secrets.
 - Prod (`count.racku.la`) is not behind Cloudflare Access today, so there is no prod copy of this pair. If a future issue puts prod behind Access, this section's storage and cadence apply there too; update this file rather than writing a second one.
 
 ### Who can rotate
@@ -83,7 +83,7 @@ Every 90 days, matching the API token cadence, or immediately on suspected compr
 1. In the Cloudflare Zero Trust dashboard, go to Access controls > Service credentials > Service Tokens. Create a new service token (or use the dashboard's rotate action on the existing token if available at the time; check whether it issues a new Client Secret for the same Client ID with an overlap window, which avoids a hard cutover).
 2. Copy the new Client ID and Client Secret.
 3. In GitHub, go to Settings > Secrets and variables > Actions > Repository secrets, and update `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`.
-4. Trigger a `workflow_dispatch` run of `Deploy Dev` and confirm the `check-cf-access` job reports the secret available and the `smoke-test` job passes, specifically the curl gate against `https://d.racku.la` and `https://d.racku.la/api/layouts`.
+4. Trigger a `workflow_dispatch` run of `Soak Smoke` and confirm the dev leg passes, including the `/api/layouts` check through Access.
 5. Once verified, delete the old service token in the Zero Trust dashboard (or confirm the rotate action already invalidated it).
 
 ### Revocation on suspected compromise

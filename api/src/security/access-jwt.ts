@@ -23,8 +23,8 @@
  * `wrangler dev`. When configured, a missing or invalid assertion yields 401
  * (missing) or 403 (present but invalid).
  *
- * No values are hardcoded; all three are read from env. The real values are set
- * later by the dev cutover (#2675 / #2134).
+ * No values are hardcoded; all three are read from env. The dev Worker's values
+ * are plain vars in api/wrangler.jsonc (#2134).
  */
 import {
   createRemoteJWKSet,
