@@ -102,7 +102,13 @@ describe("arrow-key carrier child moves (#2295)", () => {
 
     expect(deviceIn(rackId, childId).slot_id).toBe("col-2");
     expect(deviceIn(rackId, childId).container_id).toBe(carrierId);
-    expect(getPlacementStore().placementAnnouncement).toBe("Moved to Column 2");
+    const carrierType = getLayoutStore().device_types.find(
+      (dt) => dt.slug === deviceIn(rackId, carrierId!).device_type,
+    )!;
+    const cellName = carrierType.slots!.find((s) => s.id === "col-2")!.name;
+    expect(getPlacementStore().placementAnnouncement).toBe(
+      `Moved to ${cellName}`,
+    );
   });
 
   it("moves a selected child back left", () => {

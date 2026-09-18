@@ -334,6 +334,39 @@ describe("auto-created carrier lifecycle (#2295)", () => {
     expect(carriersIn(store, rackId).map((c) => c.id)).toEqual([carrier.id]);
   });
 
+  it("removes an auto-created carrier when its children's device type is deleted, undoably", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    store.placeDeviceSmart(rackId, slug, 5);
+    store.placeDeviceSmart(rackId, slug, 5);
+    const before = snapshotRack(store, rackId);
+
+    store.deleteDeviceType(slug);
+
+    expect(devicesIn(store, rackId)).toEqual([]);
+
+    store.undo();
+    expect(snapshotRack(store, rackId)).toEqual(before);
+    expect(LayoutSchema.safeParse(store.layout).success).toBe(true);
+  });
+
+  it("keeps an auto-created carrier when deleting one of two device types it holds", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    const other = store.addDeviceType({
+      name: "Other Half",
+      u_height: 1,
+      category: "network",
+      colour: CATEGORY_COLOURS.network,
+      slot_width: 1,
+    });
+    store.placeDeviceSmart(rackId, slug, 5);
+    store.placeDeviceSmart(rackId, other.slug, 5);
+    const carrier = carriersIn(store, rackId)[0]!;
+
+    store.deleteDeviceType(slug);
+
+    expect(carriersIn(store, rackId).map((c) => c.id)).toEqual([carrier.id]);
+  });
+
   it("keeps a user-placed carrier when its last child is removed", () => {
     const { store, rackId, slug } = setupLifecycle();
     store.placeDevice(rackId, "carrier-1u-2col", 5);
@@ -499,6 +532,71 @@ describe("moving a carrier child keeps its identity (#2295)", () => {
     store.undo();
 
     expect(devicesIn(store, other.id)).toEqual([]);
+    expect(snapshotRack(store, rackId)).toEqual(before);
+  });
+
+  it("undo restores the original id when the move had to remap it", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    const other = store.addRack("Other Rack", 12)!;
+    store.placeDeviceSmart(rackId, slug, 5);
+    const child = devicesIn(store, rackId).find((d) => d.container_id)!;
+    // Force an id collision in the target rack (#1363 remap path).
+    store.setActiveRack(other.id);
+    store.placeDeviceRaw({
+      id: child.id,
+      device_type: slug,
+      position: 0,
+      face: "front",
+      container_id: "elsewhere",
+      slot_id: "col-1",
+    });
+    const before = snapshotRack(store, rackId);
+
+    store.moveDeviceSmart(
+      rackId,
+      indexIn(store, rackId, child.id),
+      other.id,
+      8,
+    );
+    store.undo();
+
+    expect(snapshotRack(store, rackId)).toEqual(before);
+  });
+
+  it("never moves a container into a cell, including its own", () => {
+    const { store, rackId } = setupLifecycle();
+    const bayType = store.addDeviceType({
+      name: "One Bay Shelf",
+      u_height: 1,
+      category: "shelf",
+      colour: CATEGORY_COLOURS.shelf,
+      slots: [{ id: "bay", position: { row: 0, col: 0 }, width_fraction: 1 }],
+    });
+    store.placeDevice(rackId, bayType.slug, 5);
+    store.placeDevice(rackId, bayType.slug, 8);
+    const [a, b] = devicesIn(store, rackId);
+    const before = snapshotRack(store, rackId);
+
+    expect(
+      store.moveDeviceIntoContainer(
+        rackId,
+        indexIn(store, rackId, a!.id),
+        rackId,
+        b!.id,
+        "bay",
+        0,
+      ),
+    ).toBe(false);
+    expect(
+      store.moveDeviceIntoContainer(
+        rackId,
+        indexIn(store, rackId, a!.id),
+        rackId,
+        a!.id,
+        "bay",
+        0,
+      ),
+    ).toBe(false);
     expect(snapshotRack(store, rackId)).toEqual(before);
   });
 

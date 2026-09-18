@@ -5,6 +5,7 @@
 <script lang="ts">
   import { shouldIgnoreKeyboard } from "$lib/utils/keyboard";
   import { findActionForEvent } from "$lib/actions/registry";
+  import { isCarrierChildSelected } from "$lib/actions/selection-actions";
   import {
     createActionDispatch,
     isCommandPaletteShortcut,
@@ -144,12 +145,13 @@
     const action = findActionForEvent(event);
     if (!action) return;
 
-    // Roving widgets (the verb bar, layout tabs) move focus with the
-    // horizontal arrows and mark the event handled. Don't also move the
-    // selected carrier child (#2295).
+    // The horizontal arrows only move a selected carrier child between cells
+    // (#2295). Otherwise leave them alone: Alt+Arrow is browser back/forward,
+    // and roving widgets (verb bar, layout tabs) move focus with them and mark
+    // the event handled.
     if (
-      event.defaultPrevented &&
-      (action.id === "move-device-left" || action.id === "move-device-right")
+      (action.id === "move-device-left" || action.id === "move-device-right") &&
+      (event.altKey || event.defaultPrevented || !isCarrierChildSelected())
     ) {
       return;
     }

@@ -312,9 +312,9 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     helpGroup: "Editing",
     keywords: ["nudge", "down"],
   },
-  // Left/right move a carrier child between the cells of its carrier (#2295);
-  // they do nothing for rack-level devices, so they are offered only when the
-  // selected child has another cell to go to.
+  // Left/right move a carrier child between the cells of its carrier (#2295).
+  // They are keyboard-only: KeyboardHandler claims the arrows only while a
+  // carrier child is selected, and the palette excludes them.
   {
     id: "move-device-left",
     label: "Move to cell left",

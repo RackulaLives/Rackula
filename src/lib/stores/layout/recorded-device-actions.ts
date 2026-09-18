@@ -15,7 +15,10 @@ import { canPlaceDevice, requiresCarrier } from "$lib/utils/collision";
 import { effectiveFace } from "$lib/utils/effective-face";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
-import { findConnectionsForDevices } from "./recorded-device-type-actions";
+import {
+  findAutoCarriersEmptiedBy,
+  findConnectionsForDevices,
+} from "./recorded-device-type-actions";
 import { debug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { instantiatePorts } from "$lib/utils/port-utils";
@@ -391,12 +394,8 @@ export function moveDeviceRecorded(
 }
 
 /**
- * The auto-created carrier that `device` is the last child of, if any.
- *
- * A carrier synthesised by drag/drop (auto_created) exists only to hold its
- * children, so when its last child leaves (removed, dragged out, or moved to
- * another carrier or rack) the carrier goes with it in the same undo step.
- * User-placed carriers (auto_created falsy) persist when empty (#2295).
+ * The auto-created carrier that `device` is the last child of, if any. See
+ * findAutoCarriersEmptiedBy for the rule (#2295).
  *
  * @param rack - The rack the device is leaving
  * @param device - The device that is leaving its carrier
@@ -407,12 +406,7 @@ export function findEmptiedAutoCarrier(
   device: PlacedDevice,
 ): PlacedDevice | undefined {
   if (!device.container_id) return undefined;
-  const carrier = rack.devices.find((d) => d.id === device.container_id);
-  if (!carrier?.auto_created) return undefined;
-  const hasOtherChildren = rack.devices.some(
-    (d) => d.container_id === carrier.id && d.id !== device.id,
-  );
-  return hasOtherChildren ? undefined : carrier;
+  return findAutoCarriersEmptiedBy(rack, (d) => d.id === device.id)[0];
 }
 
 /**

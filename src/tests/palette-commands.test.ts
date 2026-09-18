@@ -62,6 +62,22 @@ describe("getPaletteCommands", () => {
     expect(ids(baseCtx)).toContain("import-devices");
   });
 
+  // The palette cannot tell which direction a child can move, so the
+  // keyboard-only cell arrows stay out of it; "Move to next cell" covers it
+  // (#2295).
+  it("does not offer the left/right cell arrows for a movable carrier child", () => {
+    const ctx = {
+      ...baseCtx,
+      hasSelection: true,
+      isDeviceSelected: true,
+      canMoveDeviceSlot: true,
+    };
+    const list = ids(ctx);
+    expect(list).toContain("move-device-slot");
+    expect(list).not.toContain("move-device-left");
+    expect(list).not.toContain("move-device-right");
+  });
+
   it("hides selection commands when nothing is selected", () => {
     expect(ids(baseCtx)).not.toContain("duplicate-selection");
     expect(ids(baseCtx)).not.toContain("delete-selection");

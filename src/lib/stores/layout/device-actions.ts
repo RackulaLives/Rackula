@@ -644,8 +644,7 @@ export function placeDeviceSmart(
  * step.
  *
  * Refuses (returns false, nothing changes) when the cell does not fit or is
- * taken, or when the device is itself a populated container (carriers do not
- * nest).
+ * taken, or when the device is itself a container (containers do not nest).
  *
  * @returns true if the device is in the requested cell afterwards
  */
@@ -672,9 +671,9 @@ export function moveDeviceIntoContainer(
     ? findDeviceType(container.device_type, layout.device_types)
     : undefined;
   if (!deviceType || !container || !containerType) return false;
-  if (sourceRack.devices.some((d) => d.container_id === device.id)) {
-    return false;
-  }
+  // Containers never nest (single-level nesting, LayoutSchema), which also
+  // stops a container being dropped into its own cell.
+  if (deviceType.slots?.length) return false;
 
   if (
     device.container_id === container.id &&
@@ -757,6 +756,9 @@ export function moveDeviceSmart(
       snapshotDevice,
     );
   }
+
+  // Containers never nest (single-level nesting, LayoutSchema).
+  if (deviceType.slots?.length) return false;
 
   const carrierType = findDeviceType(carrierSlug, layout.device_types);
   if (!carrierType) return false;

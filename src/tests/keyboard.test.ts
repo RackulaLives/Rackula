@@ -731,6 +731,43 @@ describe("KeyboardHandler Component", () => {
       ).toBe("slot-left");
     });
 
+    // Alt+Left/Right is browser back/forward on Windows and Linux.
+    it("leaves Alt+ArrowRight to the browser", () => {
+      const layoutStore = getLayoutStore();
+      const selectionStore = getSelectionStore();
+      const { rackId, childId } = createBladeContainerWithChild();
+      selectionStore.selectDevice(rackId, childId);
+
+      render(KeyboardHandler);
+
+      const event = new KeyboardEvent("keydown", {
+        key: "ArrowRight",
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      window.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(
+        layoutStore.rack!.devices.find((d) => d.id === childId)!.slot_id,
+      ).toBe("slot-left");
+    });
+
+    it("does not consume ArrowLeft or ArrowRight when no carrier child is selected", () => {
+      render(KeyboardHandler);
+
+      for (const key of ["ArrowLeft", "ArrowRight"]) {
+        const event = new KeyboardEvent("keydown", {
+          key,
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(false);
+      }
+    });
+
     it("ArrowLeft and ArrowRight leave a selected rack-level device in place", async () => {
       const layoutStore = getLayoutStore();
       const selectionStore = getSelectionStore();

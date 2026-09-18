@@ -97,23 +97,41 @@ function moveChildCell(
   );
 }
 
-function moveSelectedChildSideways(direction: "left" | "right"): void {
+/** The selected device when it is a carrier child, with its rack and index. */
+function selectedCarrierChild(): {
+  rackId: string;
+  deviceIndex: number;
+} | null {
   const selectionStore = getSelectionStore();
   const layoutStore = getLayoutStore();
 
-  if (!selectionStore.isDeviceSelected) return;
-  if (selectionStore.selectedRackId === null) return;
+  if (!selectionStore.isDeviceSelected) return null;
+  if (selectionStore.selectedRackId === null) return null;
 
   const rack = layoutStore.getRackById(selectionStore.selectedRackId);
-  if (!rack) return;
+  if (!rack) return null;
 
   const deviceIndex = selectionStore.getSelectedDeviceIndex(rack.devices);
-  if (deviceIndex === null) return;
+  if (deviceIndex === null) return null;
 
   const device = rack.devices[deviceIndex];
-  if (!device || !isContainerChild(device)) return;
+  if (!device || !isContainerChild(device)) return null;
 
-  moveChildCell(rack.id, deviceIndex, direction);
+  return { rackId: rack.id, deviceIndex };
+}
+
+/**
+ * Whether the selection is a carrier child. The keyboard handler uses this to
+ * claim ArrowLeft/ArrowRight only when they would move a child (#2295).
+ */
+export function isCarrierChildSelected(): boolean {
+  return selectedCarrierChild() !== null;
+}
+
+function moveSelectedChildSideways(direction: "left" | "right"): void {
+  const target = selectedCarrierChild();
+  if (!target) return;
+  moveChildCell(target.rackId, target.deviceIndex, direction);
 }
 
 function _moveSelectedDevice(direction: 1 | -1): void {

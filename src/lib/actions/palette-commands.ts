@@ -45,6 +45,10 @@ const EXCLUDED: ReadonlySet<ActionId> = new Set<ActionId>([
   "move-rack-left",
   "move-rack-right",
   "bay-rack",
+  // Keyboard-only cell arrows (#2295): the palette's context cannot tell which
+  // way a carrier child can move, and "Move to next cell" covers the palette.
+  "move-device-left",
+  "move-device-right",
 ]);
 
 /**
