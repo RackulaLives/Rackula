@@ -20,13 +20,16 @@ beforeEach(() => {
   resetSelectionStore();
 });
 
-/** A half-width switch dropped at U5 (column 1 of a new 2-column carrier), selected. */
-function renderPanelForChild() {
+/**
+ * A half-width switch dropped at U5, selected. A 1U switch lands in column 1
+ * of a 2-column carrier; a 0.5U one in the bottom-left cell of a 2x2 carrier.
+ */
+function renderPanelForChild(uHeight = 1) {
   const store = getLayoutStore();
   const rack = store.addRack("Test Rack", 12)!;
   const switchType = store.addDeviceType({
     name: "Mini Switch",
-    u_height: 1,
+    u_height: uHeight,
     category: "network",
     colour: CATEGORY_COLOURS.network,
     slot_width: 1,
@@ -75,5 +78,20 @@ describe("EditPanelPosition cell controls for a carrier child (#3340)", () => {
       .getRackById(rackId)!
       .devices.find((d) => d.id === childId)!;
     expect(moved.slot_id).toBe("col-2");
+  });
+
+  it("moves a child up a row in a two-row carrier", async () => {
+    const { store, rackId, childId } = renderPanelForChild(0.5);
+    const before = store
+      .getRackById(rackId)!
+      .devices.find((d) => d.id === childId)!.slot_id;
+
+    expect(screen.getByRole("button", { name: /cell below/ })).toBeDisabled();
+    await fireEvent.click(screen.getByRole("button", { name: /cell above/ }));
+
+    const moved = store
+      .getRackById(rackId)!
+      .devices.find((d) => d.id === childId)!;
+    expect(moved.slot_id).not.toBe(before);
   });
 });
