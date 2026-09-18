@@ -2,13 +2,15 @@
 
 This is the one executable acceptance checklist for d.racku.la once it is served by the Cloudflare Worker instead of the VPS. It consolidates verification steps that were previously scattered as prose across #1985 (dev-arc tracker), #2134 (dev cutover: d.racku.la re-point and deploy-dev rewrite), and #2626 (Workers entry and CF storage driver). See #2677 for the consolidation issue.
 
-## Status: not runnable yet
+## Status
 
-d.racku.la still runs on the VPS today. The dev Worker cutover (#2134) has not happened, so most items below cannot pass yet and every checkbox starts unchecked. Run this checklist against d.racku.la after each dev cutover deploy, starting with the #2134 cutover itself.
+d.racku.la is served by the `rackula-dev` Worker as of #2134. Deploy Dev automates most of these items on every deploy (`scripts/smoke-headers.sh --surface dev` on the preview URL, then the browser smoke on the live host). Run the full list by hand after a change to the Worker config, the Access app, or the R2 bucket.
+
+Run the curl commands from a residential connection. Cloudflare serves a Managed Challenge to datacenter IPs, GitHub runners included, on every racku.la host (Bot Fight Mode on the Free plan), so a response carrying `cf-mitigated: challenge` never reached Access or the Worker.
 
 ## What this gates
 
-Passing this checklist is the acceptance gate for #2134's done-when. #2134 in turn gates prod cutover #2029: dev must be proven on Workers before prod cuts over.
+Passing this checklist is the acceptance gate for #2134's done-when. Prod cut over first (#2029, 2026-08-22), so this no longer gates prod. Together with the soak window it gates the VPS decommission (#1986).
 
 ## Relationship to soak-smoke
 
@@ -54,7 +56,7 @@ Items that hit `/api/*` authenticate the same way `deploy-dev.yml` and `soak-smo
 
   Command: `curl -sS https://d.racku.la/config.js`
 
-  Expected: the body contains `window.__RACKULA_CONFIG__ = { storage: "server" }`. The build-time default is `storage: "browser"` (`static/config.js`); the dev deploy step must overwrite it.
+  Expected: the body contains `window.__RACKULA_CONFIG__ = { storage: "server", env: "dev" }`. The build-time default is `storage: "browser"` (`static/config.js`); `deploy-dev.yml` overwrites it.
 
 - [ ] `version.json` matches the deployed version and commit.
 
@@ -66,7 +68,7 @@ Items that hit `/api/*` authenticate the same way `deploy-dev.yml` and `soak-smo
 
   Command: `grep -c vps-rackula .github/workflows/deploy-dev.yml`
 
-  Expected: `0`. This item is intentionally unchecked today: `vps-rackula` is still the self-hosted runner label for the current VPS-based deploy and smoke-test jobs in `deploy-dev.yml`. It flips to checked only once the VPS deploy leg of that workflow is removed as part of the dev cutover; this checklist does not modify that workflow itself.
+  Expected: `0`. #2134 rewrote the workflow onto `ubuntu-latest` and wrangler.
 
 - [ ] This checklist is wired into #2134's done-when.
 
@@ -76,8 +78,8 @@ Items that hit `/api/*` authenticate the same way `deploy-dev.yml` and `soak-smo
 
 - #2677: the consolidation issue this checklist implements.
 - #2134: dev cutover (d.racku.la re-point and deploy-dev rewrite); consumes this checklist as its acceptance gate.
-- #1985: dev-arc tracker.
+- #2382: Cloudflare migration epic (the old dev-arc tracker, #1985, closed 2026-09-17).
 - #2626: Workers entry and CF storage driver; the local `wrangler dev` precursor to these live checks.
-- #2029: prod cutover, gated on #2134 (and therefore on this checklist) passing.
+- #2029: prod cutover (shipped 2026-08-22, before dev).
 - `docs/deployment/soak-smoke.md`: the scheduled ongoing health signal that complements this one-time gate.
 - `docs/plans/2026-06-29-cloudflare-migration-plan.md`: Appendix, per-issue smoketests, original source of the exact commands consolidated here.
