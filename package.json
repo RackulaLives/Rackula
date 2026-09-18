@@ -53,7 +53,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.6.0",
     "@types/qrcode": "^1.5.6",
-    "@vitest/coverage-v8": "^5.0.0",
+    "@vitest/coverage-v8": "^5.0.1",
     "@vitest/eslint-plugin": "^1.6.27",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
