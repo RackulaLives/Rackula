@@ -43,6 +43,19 @@ export interface NetBoxDeviceType {
   weight_unit?: string;
   subdevice_role?: string;
   interfaces?: NetBoxInterface[];
+  // devicetype-library writes every other component list with a hyphenated
+  // key. Read them through readComponentList, never directly.
+  "console-ports"?: NetBoxConsolePort[];
+  "console-server-ports"?: NetBoxConsolePort[];
+  "power-ports"?: NetBoxPowerPort[];
+  "power-outlets"?: NetBoxPowerOutlet[];
+  "device-bays"?: NetBoxDeviceBay[];
+  "module-bays"?: NetBoxModuleBay[];
+  "inventory-items"?: NetBoxInventoryItem[];
+  "front-ports"?: NetBoxPassThroughPort[];
+  "rear-ports"?: NetBoxPassThroughPort[];
+  // Underscore spellings, accepted as a fallback for files already in
+  // circulation.
   console_ports?: NetBoxConsolePort[];
   console_server_ports?: NetBoxConsolePort[];
   power_ports?: NetBoxPowerPort[];
@@ -50,6 +63,8 @@ export interface NetBoxDeviceType {
   device_bays?: NetBoxDeviceBay[];
   module_bays?: NetBoxModuleBay[];
   inventory_items?: NetBoxInventoryItem[];
+  front_ports?: NetBoxPassThroughPort[];
+  rear_ports?: NetBoxPassThroughPort[];
   comments?: string;
 }
 
@@ -68,18 +83,20 @@ export interface NetBoxConsolePort {
   label?: string;
 }
 
+// NetBox's device type YAML export writes unset component fields as null, so
+// the mapped optional fields below allow null.
 export interface NetBoxPowerPort {
   name: string;
-  type?: string;
-  maximum_draw?: number;
-  allocated_draw?: number;
+  type?: string | null;
+  maximum_draw?: number | null;
+  allocated_draw?: number | null;
 }
 
 export interface NetBoxPowerOutlet {
   name: string;
-  type?: string;
-  power_port?: string;
-  feed_leg?: string;
+  type?: string | null;
+  power_port?: string | null;
+  feed_leg?: string | null;
 }
 
 export interface NetBoxDeviceBay {
@@ -96,8 +113,73 @@ export interface NetBoxModuleBay {
 export interface NetBoxInventoryItem {
   name: string;
   label?: string;
-  manufacturer?: string;
-  part_id?: string;
+  manufacturer?: string | null;
+  part_id?: string | null;
+}
+
+export interface NetBoxPassThroughPort {
+  name: string;
+  type?: string;
+  label?: string;
+}
+
+/**
+ * Underscore fallback for each hyphenated devicetype-library component key.
+ */
+const COMPONENT_LIST_FALLBACK_KEYS = {
+  "console-ports": "console_ports",
+  "console-server-ports": "console_server_ports",
+  "power-ports": "power_ports",
+  "power-outlets": "power_outlets",
+  "device-bays": "device_bays",
+  "module-bays": "module_bays",
+  "inventory-items": "inventory_items",
+  "front-ports": "front_ports",
+  "rear-ports": "rear_ports",
+} as const satisfies Record<string, keyof NetBoxDeviceType>;
+
+type ComponentListKey = keyof typeof COMPONENT_LIST_FALLBACK_KEYS;
+
+/**
+ * Read a component list by its hyphenated devicetype-library key, falling
+ * back to the underscore spelling. When both hold a list the hyphenated one
+ * wins. A value that is not a list, and list items that are not mappings, are
+ * skipped. Pass `warnings` to record each of these cases.
+ */
+function readComponentList<K extends ComponentListKey>(
+  netbox: NetBoxDeviceType,
+  key: K,
+  warnings?: string[],
+): NonNullable<NetBoxDeviceType[K]> | undefined {
+  const fallbackKey = COMPONENT_LIST_FALLBACK_KEYS[key];
+
+  let list: unknown[] | undefined;
+  let listKey: string = key;
+  for (const candidate of [key, fallbackKey]) {
+    const value: unknown = netbox[candidate];
+    if (value == null) continue;
+    if (!Array.isArray(value)) {
+      warnings?.push(`Ignored "${candidate}": expected a list`);
+    } else if (list) {
+      warnings?.push(
+        `Both "${key}" and "${fallbackKey}" are present, using "${key}"`,
+      );
+    } else {
+      list = value;
+      listKey = candidate;
+    }
+  }
+  if (!list) return undefined;
+
+  const items = list.filter(
+    (item) => typeof item === "object" && item !== null && !Array.isArray(item),
+  );
+  if (items.length < list.length) {
+    warnings?.push(
+      `Ignored ${list.length - items.length} invalid item(s) in "${listKey}"`,
+    );
+  }
+  return items as NonNullable<NetBoxDeviceType[K]>;
 }
 
 /**
@@ -262,7 +344,7 @@ export function inferCategory(netbox: NetBoxDeviceType): DeviceCategory {
     manufacturer.includes("aten") ||
     manufacturer.includes("avocent") ||
     combined.includes("dominion") ||
-    netbox.console_server_ports?.length
+    readComponentList(netbox, "console-server-ports")?.length
   ) {
     return "kvm";
   }
@@ -522,22 +604,24 @@ export function convertToDeviceType(
   }
 
   // Map power ports
-  if (netbox.power_ports && netbox.power_ports.length > 0) {
-    deviceType.power_ports = netbox.power_ports.map((p) => ({
+  const powerPorts = readComponentList(netbox, "power-ports", warnings);
+  if (powerPorts && powerPorts.length > 0) {
+    deviceType.power_ports = powerPorts.map((p) => ({
       name: p.name,
-      type: p.type,
-      maximum_draw: p.maximum_draw,
-      allocated_draw: p.allocated_draw,
+      type: p.type ?? undefined,
+      maximum_draw: p.maximum_draw ?? undefined,
+      allocated_draw: p.allocated_draw ?? undefined,
     }));
   }
 
   // Map power outlets
-  if (netbox.power_outlets && netbox.power_outlets.length > 0) {
-    deviceType.power_outlets = netbox.power_outlets.map((o) => {
+  const powerOutlets = readComponentList(netbox, "power-outlets", warnings);
+  if (powerOutlets && powerOutlets.length > 0) {
+    deviceType.power_outlets = powerOutlets.map((o) => {
       const outlet: NonNullable<DeviceType["power_outlets"]>[number] = {
         name: o.name,
-        type: o.type,
-        power_port: o.power_port,
+        type: o.type ?? undefined,
+        power_port: o.power_port ?? undefined,
       };
       if (o.feed_leg) {
         const parsedFeedLeg = FeedLegSchema.safeParse(o.feed_leg);
@@ -552,30 +636,48 @@ export function convertToDeviceType(
   }
 
   // Map device bays
-  if (netbox.device_bays && netbox.device_bays.length > 0) {
-    deviceType.device_bays = netbox.device_bays.map((b) => ({
+  const deviceBays = readComponentList(netbox, "device-bays", warnings);
+  if (deviceBays && deviceBays.length > 0) {
+    deviceType.device_bays = deviceBays.map((b) => ({
       name: b.name,
     }));
   }
 
   // Map inventory items
-  if (netbox.inventory_items && netbox.inventory_items.length > 0) {
-    deviceType.inventory_items = netbox.inventory_items.map((item) => ({
+  const inventoryItems = readComponentList(netbox, "inventory-items", warnings);
+  if (inventoryItems && inventoryItems.length > 0) {
+    deviceType.inventory_items = inventoryItems.map((item) => ({
       name: item.name,
-      manufacturer: item.manufacturer,
-      part_id: item.part_id,
+      manufacturer: item.manufacturer ?? undefined,
+      part_id: item.part_id ?? undefined,
     }));
   }
 
   // Console ports have no Rackula representation yet. Note the gap in
   // warnings rather than silently dropping the data.
   const consolePortCount =
-    (netbox.console_ports?.length ?? 0) +
-    (netbox.console_server_ports?.length ?? 0);
+    (readComponentList(netbox, "console-ports", warnings)?.length ?? 0) +
+    (readComponentList(netbox, "console-server-ports", warnings)?.length ?? 0);
   if (consolePortCount > 0) {
     warnings.push(
       `${consolePortCount} console port(s) are not yet supported by Rackula and were not imported`,
     );
+  }
+
+  // Module bays and front/rear pass-through ports have no Rackula
+  // representation either.
+  const unsupportedLists = [
+    ["module-bays", "module bay"],
+    ["front-ports", "front port"],
+    ["rear-ports", "rear port"],
+  ] as const;
+  for (const [key, noun] of unsupportedLists) {
+    const count = readComponentList(netbox, key, warnings)?.length ?? 0;
+    if (count > 0) {
+      warnings.push(
+        `${count} ${noun}(s) are not yet supported by Rackula and were not imported`,
+      );
+    }
   }
 
   // Validate the built DeviceType against the schema before it can enter the
