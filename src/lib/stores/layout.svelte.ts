@@ -130,6 +130,8 @@ import {
   placeDeviceSmart as placeDeviceSmartImpl,
   moveDeviceToRack as moveDeviceToRackImpl,
   moveDeviceToSlot as moveDeviceToSlotImpl,
+  moveDeviceIntoContainer as moveDeviceIntoContainerImpl,
+  moveDeviceSmart as moveDeviceSmartImpl,
 } from "./layout/device-actions";
 
 export { type BackupState, HAS_STARTED_KEY };
@@ -342,6 +344,8 @@ export function createLayoutStore(
     moveDevice,
     moveDeviceToRack,
     moveDeviceToSlot,
+    moveDeviceIntoContainer,
+    moveDeviceSmart,
     removeDeviceFromRack,
     updateDeviceFace,
     updateDeviceName,
@@ -791,6 +795,54 @@ export function createLayoutStore(
    */
   function moveDeviceToSlot(rackId: string, deviceIndex: number): boolean {
     return moveDeviceToSlotImpl(stateAccess, rackId, deviceIndex);
+  }
+
+  /**
+   * Move an existing device into a container cell, keeping its identity, in
+   * one undo step (#2295).
+   */
+  function moveDeviceIntoContainer(
+    fromRackId: string,
+    deviceIndex: number,
+    toRackId: string,
+    containerId: string,
+    slotId: string,
+    position: number,
+  ): boolean {
+    // $state.snapshot() is a Svelte rune — must be called from this .svelte.ts file
+    return moveDeviceIntoContainerImpl(
+      stateAccess,
+      fromRackId,
+      deviceIndex,
+      toRackId,
+      containerId,
+      slotId,
+      position,
+      (device) => $state.snapshot(device),
+    );
+  }
+
+  /**
+   * Move an existing device carrier-first (the move counterpart of
+   * placeDeviceSmart), keeping its identity, in one undo step (#2295).
+   */
+  function moveDeviceSmart(
+    fromRackId: string,
+    deviceIndex: number,
+    toRackId: string,
+    position: number,
+    face?: DeviceFace,
+  ): boolean {
+    // $state.snapshot() is a Svelte rune — must be called from this .svelte.ts file
+    return moveDeviceSmartImpl(
+      stateAccess,
+      fromRackId,
+      deviceIndex,
+      toRackId,
+      position,
+      face,
+      (device) => $state.snapshot(device),
+    );
   }
 
   /**

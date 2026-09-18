@@ -22,6 +22,9 @@ import { createTestDeviceType } from "./factories";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import type { PlacedDevice } from "$lib/types";
 import { LayoutSchema } from "$lib/schemas";
+import { toInternalUnits } from "$lib/utils/position";
+import { dispatchDropAction } from "$lib/utils/rack-drop-handlers";
+import { getToastStore } from "$lib/stores/toast.svelte";
 
 beforeEach(() => {
   resetLayoutStore();
@@ -251,76 +254,356 @@ describe("placeDeviceSmart (store carrier-first flow)", () => {
   });
 });
 
+// --- Container lifecycle (#2295) -------------------------------------------
+
+type LifecycleStore = NonNullable<ReturnType<typeof getLayoutStore>>;
+
+/** A rack plus a 1U half-width device type (mounts in carrier-1u-2col). */
+function setupLifecycle(): {
+  store: LifecycleStore;
+  rackId: string;
+  slug: string;
+} {
+  const store = getLayoutStore()!;
+  const rack = store.addRack("Test Rack", 12)!;
+  const dt = store.addDeviceType({
+    name: "Mini Switch",
+    u_height: 1,
+    category: "network",
+    colour: CATEGORY_COLOURS.network,
+    slot_width: 1,
+    interfaces: [{ name: "eth0", type: "1000base-t" }],
+  });
+  return { store, rackId: rack.id, slug: dt.slug };
+}
+
+function devicesIn(store: LifecycleStore, rackId: string) {
+  return store.getRackById(rackId)!.devices;
+}
+
+function carriersIn(store: LifecycleStore, rackId: string) {
+  return devicesIn(store, rackId).filter((d) =>
+    d.device_type.startsWith("carrier"),
+  );
+}
+
+function indexIn(store: LifecycleStore, rackId: string, id: string) {
+  return devicesIn(store, rackId).findIndex((d) => d.id === id);
+}
+
+function childIn(store: LifecycleStore, rackId: string, carrierId: string) {
+  return devicesIn(store, rackId).find((d) => d.container_id === carrierId)!;
+}
+
+/** Plain, id-sorted copy of a rack's devices, for before/after comparisons. */
+function snapshotRack(store: LifecycleStore, rackId: string) {
+  return (
+    JSON.parse(JSON.stringify(devicesIn(store, rackId))) as PlacedDevice[]
+  )
+    .slice()
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
 describe("auto-created carrier lifecycle (#2295)", () => {
-  type Store = NonNullable<ReturnType<typeof getLayoutStore>>;
-
-  /** A rack plus a 1U half-width device type (mounts in carrier-1u-2col). */
-  function setup(): { store: Store; rackId: string; slug: string } {
-    const store = getLayoutStore()!;
-    const rack = store.addRack("Test Rack", 12)!;
-    const dt = store.addDeviceType({
-      name: "Mini Switch",
-      u_height: 1,
-      category: "network",
-      colour: CATEGORY_COLOURS.network,
-      slot_width: 1,
-    });
-    return { store, rackId: rack.id, slug: dt.slug };
-  }
-
-  function carriers(store: Store) {
-    return store.rack!.devices.filter((d) =>
-      d.device_type.startsWith("carrier"),
-    );
-  }
-
-  function indexOf(store: Store, id: string) {
-    return store.rack!.devices.findIndex((d) => d.id === id);
-  }
-
-  function childOf(store: Store, carrierId: string) {
-    return store.rack!.devices.find((d) => d.container_id === carrierId)!;
-  }
-
   it("removes an auto-created carrier with its last child, in one undo step", () => {
-    const { store, rackId, slug } = setup();
+    const { store, rackId, slug } = setupLifecycle();
     store.placeDeviceSmart(rackId, slug, 5);
-    const carrier = carriers(store)[0]!;
-    const child = childOf(store, carrier.id);
+    const carrier = carriersIn(store, rackId)[0]!;
+    const child = childIn(store, rackId, carrier.id);
 
-    store.removeDeviceFromRack(rackId, indexOf(store, child.id));
+    store.removeDeviceFromRack(rackId, indexIn(store, rackId, child.id));
 
-    expect(store.rack!.devices).toEqual([]);
+    expect(devicesIn(store, rackId)).toEqual([]);
 
     store.undo();
 
-    expect(carriers(store).map((c) => c.id)).toEqual([carrier.id]);
-    expect(childOf(store, carrier.id).id).toBe(child.id);
+    expect(carriersIn(store, rackId).map((c) => c.id)).toEqual([carrier.id]);
+    expect(childIn(store, rackId, carrier.id).id).toBe(child.id);
     expect(LayoutSchema.safeParse(store.layout).success).toBe(true);
   });
 
   it("keeps an auto-created carrier while it still holds another child", () => {
-    const { store, rackId, slug } = setup();
+    const { store, rackId, slug } = setupLifecycle();
     store.placeDeviceSmart(rackId, slug, 5);
     store.placeDeviceSmart(rackId, slug, 5);
-    const carrier = carriers(store)[0]!;
-    const child = childOf(store, carrier.id);
+    const carrier = carriersIn(store, rackId)[0]!;
+    const child = childIn(store, rackId, carrier.id);
 
-    store.removeDeviceFromRack(rackId, indexOf(store, child.id));
+    store.removeDeviceFromRack(rackId, indexIn(store, rackId, child.id));
 
-    expect(carriers(store).map((c) => c.id)).toEqual([carrier.id]);
+    expect(carriersIn(store, rackId).map((c) => c.id)).toEqual([carrier.id]);
   });
 
   it("keeps a user-placed carrier when its last child is removed", () => {
-    const { store, rackId, slug } = setup();
+    const { store, rackId, slug } = setupLifecycle();
     store.placeDevice(rackId, "carrier-1u-2col", 5);
     store.placeDeviceSmart(rackId, slug, 5);
-    const carrier = carriers(store)[0]!;
+    const carrier = carriersIn(store, rackId)[0]!;
     expect(carrier.auto_created).toBeFalsy();
-    const child = childOf(store, carrier.id);
+    const child = childIn(store, rackId, carrier.id);
 
-    store.removeDeviceFromRack(rackId, indexOf(store, child.id));
+    store.removeDeviceFromRack(rackId, indexIn(store, rackId, child.id));
 
-    expect(carriers(store).map((c) => c.id)).toEqual([carrier.id]);
+    expect(carriersIn(store, rackId).map((c) => c.id)).toEqual([carrier.id]);
+  });
+});
+
+describe("moving a carrier child keeps its identity (#2295)", () => {
+  it("moves a child onto bare rails into a new carrier, keeping its fields and ports", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    store.placeDeviceSmart(rackId, slug, 5);
+    const oldCarrier = carriersIn(store, rackId)[0]!;
+    const childId = childIn(store, rackId, oldCarrier.id).id;
+    store.updateDeviceName(rackId, indexIn(store, rackId, childId), "Core");
+    store.updateDeviceNotes(rackId, indexIn(store, rackId, childId), "uplink");
+    const child = devicesIn(store, rackId).find((d) => d.id === childId)!;
+    const portIds = (child.ports ?? []).map((p) => p.id);
+
+    expect(
+      store.moveDeviceSmart(rackId, indexIn(store, rackId, childId), rackId, 8),
+    ).toBe(true);
+
+    const moved = devicesIn(store, rackId).find((d) => d.id === childId)!;
+    expect(moved.name).toBe("Core");
+    expect(moved.notes).toBe("uplink");
+    expect((moved.ports ?? []).map((p) => p.id)).toEqual(portIds);
+    const newCarrier = devicesIn(store, rackId).find(
+      (d) => d.id === moved.container_id,
+    )!;
+    expect(newCarrier.position).toBe(toInternalUnits(8));
+    expect(newCarrier.auto_created).toBe(true);
+    // The old auto-created carrier was emptied by the move, so it went too.
+    expect(carriersIn(store, rackId).map((c) => c.id)).toEqual([newCarrier.id]);
+    expect(LayoutSchema.safeParse(store.layout).success).toBe(true);
+  });
+
+  it("undoes a child move in one step", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    store.placeDeviceSmart(rackId, slug, 5);
+    const carrier = carriersIn(store, rackId)[0]!;
+    const child = childIn(store, rackId, carrier.id);
+    const before = snapshotRack(store, rackId);
+
+    store.moveDeviceSmart(rackId, indexIn(store, rackId, child.id), rackId, 8);
+    store.undo();
+
+    expect(snapshotRack(store, rackId)).toEqual(before);
+  });
+
+  it("keeps the moved child's connections", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    store.placeDeviceSmart(rackId, slug, 5);
+    store.placeDeviceSmart(rackId, slug, 5);
+    const carrier = carriersIn(store, rackId)[0]!;
+    const [a, b] = devicesIn(store, rackId).filter(
+      (d) => d.container_id === carrier.id,
+    );
+    const connection = {
+      id: "connection-1",
+      a_port_id: a!.ports![0]!.id,
+      b_port_id: b!.ports![0]!.id,
+    };
+    store.addConnectionRaw(connection);
+
+    store.moveDeviceSmart(rackId, indexIn(store, rackId, a!.id), rackId, 8);
+
+    expect(store.layout.connections).toEqual([connection]);
+    expect(LayoutSchema.safeParse(store.layout).success).toBe(true);
+  });
+
+  it("moves a child into a free cell of a carrier already at the target U", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    store.placeDeviceSmart(rackId, slug, 5);
+    const first = carriersIn(store, rackId)[0]!;
+    store.placeDeviceSmart(rackId, slug, 8);
+    const second = carriersIn(store, rackId).find((c) => c.id !== first.id)!;
+    const child = childIn(store, rackId, first.id);
+
+    store.moveDeviceSmart(rackId, indexIn(store, rackId, child.id), rackId, 8);
+
+    const moved = devicesIn(store, rackId).find((d) => d.id === child.id)!;
+    expect(moved.container_id).toBe(second.id);
+    expect(carriersIn(store, rackId).map((c) => c.id)).toEqual([second.id]);
+  });
+
+  it("moves a child into a chosen cell of a user-placed carrier", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    store.placeDevice(rackId, "carrier-1u-2col", 8);
+    const target = carriersIn(store, rackId)[0]!;
+    store.placeDeviceSmart(rackId, slug, 5);
+    const child = devicesIn(store, rackId).find((d) => d.container_id)!;
+
+    expect(
+      store.moveDeviceIntoContainer(
+        rackId,
+        indexIn(store, rackId, child.id),
+        rackId,
+        target.id,
+        "col-2",
+        0,
+      ),
+    ).toBe(true);
+
+    const moved = devicesIn(store, rackId).find((d) => d.id === child.id)!;
+    expect(moved.container_id).toBe(target.id);
+    expect(moved.slot_id).toBe("col-2");
+    expect(carriersIn(store, rackId).map((c) => c.id)).toEqual([target.id]);
+  });
+
+  it("refuses an occupied cell and changes nothing", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    store.placeDeviceSmart(rackId, slug, 8);
+    const target = carriersIn(store, rackId)[0]!;
+    const occupiedSlot = childIn(store, rackId, target.id).slot_id!;
+    store.placeDeviceSmart(rackId, slug, 5);
+    const source = carriersIn(store, rackId).find((c) => c.id !== target.id)!;
+    const child = childIn(store, rackId, source.id);
+    const before = snapshotRack(store, rackId);
+
+    expect(
+      store.moveDeviceIntoContainer(
+        rackId,
+        indexIn(store, rackId, child.id),
+        rackId,
+        target.id,
+        occupiedSlot,
+        0,
+      ),
+    ).toBe(false);
+    expect(snapshotRack(store, rackId)).toEqual(before);
+  });
+
+  it("moves a child to another rack in one undo step", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    const other = store.addRack("Other Rack", 12)!;
+    store.placeDeviceSmart(rackId, slug, 5);
+    const carrier = carriersIn(store, rackId)[0]!;
+    const child = childIn(store, rackId, carrier.id);
+    const before = snapshotRack(store, rackId);
+
+    expect(
+      store.moveDeviceSmart(
+        rackId,
+        indexIn(store, rackId, child.id),
+        other.id,
+        3,
+      ),
+    ).toBe(true);
+
+    expect(devicesIn(store, rackId)).toEqual([]);
+    const moved = devicesIn(store, other.id).find((d) => d.id === child.id)!;
+    expect(carriersIn(store, other.id).map((c) => c.id)).toEqual([
+      moved.container_id,
+    ]);
+
+    store.undo();
+
+    expect(devicesIn(store, other.id)).toEqual([]);
+    expect(snapshotRack(store, rackId)).toEqual(before);
+  });
+
+  function dragDataFor(store: LifecycleStore, rackId: string, id: string) {
+    const device = devicesIn(store, rackId).find((d) => d.id === id)!;
+    return {
+      type: "rack-device" as const,
+      device: store.device_types.find((dt) => dt.slug === device.device_type)!,
+      sourceRackId: rackId,
+      sourceIndex: indexIn(store, rackId, id),
+    };
+  }
+
+  it("a carrier drop of a dragged child moves it in one undo step", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    store.placeDeviceSmart(rackId, slug, 5);
+    const child = devicesIn(store, rackId).find((d) => d.container_id)!;
+    const before = snapshotRack(store, rackId);
+
+    dispatchDropAction(
+      {
+        kind: "carrier-drop",
+        rackId,
+        slug,
+        targetU: 8,
+        face: "front",
+        dragData: dragDataFor(store, rackId, child.id),
+      },
+      {},
+      {
+        rack: store.getRackById(rackId)!,
+        deviceLibrary: store.device_types,
+        toastStore: getToastStore(),
+        layoutStore: store,
+      },
+    );
+
+    const moved = devicesIn(store, rackId).find((d) => d.id === child.id)!;
+    const carrier = devicesIn(store, rackId).find(
+      (d) => d.id === moved.container_id,
+    )!;
+    expect(carrier.position).toBe(toInternalUnits(8));
+
+    store.undo();
+    expect(snapshotRack(store, rackId)).toEqual(before);
+  });
+
+  it("a container drop of a dragged child moves it into the cell in one undo step", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    store.placeDevice(rackId, "carrier-1u-2col", 8);
+    const target = carriersIn(store, rackId)[0]!;
+    store.placeDeviceSmart(rackId, slug, 5);
+    const child = devicesIn(store, rackId).find((d) => d.container_id)!;
+    const before = snapshotRack(store, rackId);
+
+    dispatchDropAction(
+      {
+        kind: "container-drop",
+        rackId,
+        slug,
+        containerTarget: {
+          containerId: target.id,
+          slotId: "col-2",
+          position: 0,
+        },
+        dragData: dragDataFor(store, rackId, child.id),
+      },
+      {},
+      {
+        rack: store.getRackById(rackId)!,
+        deviceLibrary: store.device_types,
+        toastStore: getToastStore(),
+        layoutStore: store,
+      },
+    );
+
+    const moved = devicesIn(store, rackId).find((d) => d.id === child.id)!;
+    expect(moved.container_id).toBe(target.id);
+    expect(moved.slot_id).toBe("col-2");
+
+    store.undo();
+    expect(snapshotRack(store, rackId)).toEqual(before);
+  });
+
+  it("refuses a move with no room and changes nothing", () => {
+    const { store, rackId, slug } = setupLifecycle();
+    const server = store.addDeviceType({
+      name: "Server",
+      u_height: 1,
+      category: "server",
+      colour: CATEGORY_COLOURS.server,
+    });
+    store.placeDevice(rackId, server.slug, 8);
+    store.placeDeviceSmart(rackId, slug, 5);
+    const child = devicesIn(store, rackId).find((d) => d.container_id)!;
+    const before = snapshotRack(store, rackId);
+
+    expect(
+      store.moveDeviceSmart(
+        rackId,
+        indexIn(store, rackId, child.id),
+        rackId,
+        8,
+      ),
+    ).toBe(false);
+    expect(snapshotRack(store, rackId)).toEqual(before);
   });
 });

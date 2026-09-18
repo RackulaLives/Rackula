@@ -581,6 +581,101 @@ function rekeyPlacementImage(
 }
 
 /**
+ * Run a device command against a specific rack. Device commands act on the
+ * active rack, so a batch that touches two racks pins each part to its own
+ * rack with this wrapper. The active rack is restored afterwards.
+ */
+export function createInRackCommand(
+  rackId: string,
+  command: Command,
+  store: Pick<CrossRackMoveStore, "getActiveRackId" | "setActiveRackId">,
+): Command {
+  function inRack(run: () => void): void {
+    const savedActiveRack = store.getActiveRackId();
+    store.setActiveRackId(rackId);
+    try {
+      run();
+    } finally {
+      store.setActiveRackId(savedActiveRack);
+    }
+  }
+
+  return {
+    type: command.type,
+    description: command.description,
+    timestamp: command.timestamp,
+    execute() {
+      inRack(() => command.execute());
+    },
+    undo() {
+      inRack(() => command.undo());
+    },
+  };
+}
+
+/** Where a reparented device lands: its position, face and container cell. */
+export type DevicePlacement = Pick<
+  PlacedDevice,
+  "position" | "face" | "container_id" | "slot_id"
+>;
+
+/**
+ * Create a command that moves an existing device into a container cell,
+ * possibly in another rack, keeping its identity (#2295). The id, ports (so
+ * its connections stay valid), name, notes, colour, images and custom fields
+ * all carry over; only the placement changes.
+ *
+ * The device is taken out of the source rack and re-added to the target rack
+ * (the same rack when both ids match). Placement images are never wiped, since
+ * the id does not change. Execute and undo pin themselves to the racks they
+ * touch and restore the active rack, so replay works whichever rack is active.
+ */
+export function createReparentDeviceCommand(
+  sourceRackId: string,
+  targetRackId: string,
+  device: PlacedDevice,
+  placement: DevicePlacement,
+  store: CrossRackMoveStore,
+  deviceName: string = "device",
+  layoutId: string = "",
+): Command {
+  const original = structuredClone(device);
+  const moved: PlacedDevice = { ...structuredClone(device), ...placement };
+
+  // Live id, kept in sync if placeDeviceRaw remaps it on a collision (#1363).
+  let currentId = original.id;
+
+  function relocate(fromRackId: string, toRackId: string, next: PlacedDevice) {
+    const savedActiveRack = store.getActiveRackId();
+    store.setActiveRackId(fromRackId);
+    const index = resolveIndexById(store, currentId);
+    if (index !== undefined) {
+      store.removeDeviceAtIndexRaw(index);
+      store.setActiveRackId(toRackId);
+      const placedIndex = store.placeDeviceRaw({ ...next, id: currentId });
+      const actualId = store.getDeviceAtIndex(placedIndex)?.id ?? currentId;
+      if (actualId !== currentId) {
+        rekeyPlacementImage(currentId, actualId, layoutId);
+        currentId = actualId;
+      }
+    }
+    store.setActiveRackId(savedActiveRack);
+  }
+
+  return {
+    type: "REPARENT_DEVICE",
+    description: `Move ${deviceName}`,
+    timestamp: Date.now(),
+    execute() {
+      relocate(sourceRackId, targetRackId, moved);
+    },
+    undo() {
+      relocate(targetRackId, sourceRackId, original);
+    },
+  };
+}
+
+/**
  * Create a command to move a device (and its container children) from one rack to another.
  * Atomic undo/redo — one Ctrl+Z restores the device to its original rack.
  *

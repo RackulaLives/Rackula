@@ -6,6 +6,7 @@
 
 import type { DeviceFace } from "$lib/types";
 import type { DropAction } from "$lib/utils/rack-drop-coordinator";
+import type { DragData } from "$lib/utils/dragdrop";
 import {
   buildCollisionMessage,
   resolveDropAction,
@@ -61,6 +62,51 @@ export interface DropDispatchContext {
   dims?: RackDimensions;
 }
 
+/** The rack and index of a placed device being dragged, or null for a palette drag. */
+function placedDragSource(
+  dragData: DragData,
+): { rackId: string; index: number } | null {
+  if (
+    dragData.type === "rack-device" &&
+    dragData.sourceRackId &&
+    dragData.sourceIndex !== undefined
+  ) {
+    return { rackId: dragData.sourceRackId, index: dragData.sourceIndex };
+  }
+  return null;
+}
+
+/**
+ * Commit a container drop: a placed device being dragged moves into the cell
+ * with its identity intact in one undo step (#2295); a palette drag places a
+ * new device there. Returns false when the cell refused the device, so the
+ * caller can fall back to a rack-level drop.
+ */
+export function placeContainerDrop(
+  layoutStore: ReturnType<typeof getLayoutStore>,
+  action: Extract<DropAction, { kind: "container-drop" }>,
+): boolean {
+  const { containerId, slotId, position } = action.containerTarget;
+  const source = placedDragSource(action.dragData);
+  if (source) {
+    return layoutStore.moveDeviceIntoContainer(
+      source.rackId,
+      source.index,
+      action.rackId,
+      containerId,
+      slotId,
+      position,
+    );
+  }
+  return layoutStore.placeInContainer(
+    action.rackId,
+    action.slug,
+    containerId,
+    slotId,
+    position,
+  );
+}
+
 /**
  * Dispatch a resolved drop action by firing the appropriate custom event.
  * Handles invalid drops with toast messages and haptic feedback.
@@ -109,26 +155,7 @@ export function dispatchDropAction(
     case "container-drop": {
       if (!collisionContext?.layoutStore) break;
       const { layoutStore } = collisionContext;
-      const success = layoutStore.placeInContainer(
-        action.rackId,
-        action.slug,
-        action.containerTarget.containerId,
-        action.containerTarget.slotId,
-        action.containerTarget.position,
-      );
-      if (success) {
-        if (
-          action.dragData.type === "rack-device" &&
-          action.dragData.sourceRackId &&
-          action.dragData.sourceIndex !== undefined
-        ) {
-          layoutStore.removeDeviceFromRack(
-            action.dragData.sourceRackId,
-            action.dragData.sourceIndex,
-          );
-        }
-        break;
-      }
+      if (placeContainerDrop(layoutStore, action)) break;
       // Container placement failed — re-resolve without container detection
       if (collisionContext.coords && collisionContext.dims) {
         const fallbackAction = resolveDropAction(
@@ -147,26 +174,27 @@ export function dispatchDropAction(
     case "carrier-drop": {
       if (!collisionContext?.layoutStore) break;
       const { layoutStore } = collisionContext;
-      const success = layoutStore.placeDeviceSmart(
-        action.rackId,
-        action.slug,
-        action.targetU,
-        action.face,
-      );
+      // A placed device being dragged moves with its identity intact (id,
+      // fields, ports, connections) in one undo step; a palette drop places a
+      // new device (#2295).
+      const source = placedDragSource(action.dragData);
+      const success = source
+        ? layoutStore.moveDeviceSmart(
+            source.rackId,
+            source.index,
+            action.rackId,
+            action.targetU,
+            action.face,
+          )
+        : layoutStore.placeDeviceSmart(
+            action.rackId,
+            action.slug,
+            action.targetU,
+            action.face,
+          );
       if (!success) {
         hapticError();
         collisionContext.toastStore.showToast(NO_ROOM_MESSAGE, "warning", 3000);
-        break;
-      }
-      if (
-        action.dragData.type === "rack-device" &&
-        action.dragData.sourceRackId &&
-        action.dragData.sourceIndex !== undefined
-      ) {
-        layoutStore.removeDeviceFromRack(
-          action.dragData.sourceRackId,
-          action.dragData.sourceIndex,
-        );
       }
       break;
     }
