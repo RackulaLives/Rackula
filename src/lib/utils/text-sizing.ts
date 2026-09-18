@@ -140,6 +140,35 @@ export function truncateWithEllipsis(
 }
 
 /**
+ * Greedy word wrap for SVG text, which cannot wrap on its own. Breaks only at
+ * whitespace; a single word wider than the available width gets its own line.
+ *
+ * @param text - The text to wrap
+ * @param availableWidth - The maximum line width in pixels
+ * @param fontSize - The font size in pixels
+ * @returns The wrapped lines, empty when the text has no words
+ */
+export function wrapText(
+  text: string,
+  availableWidth: number,
+  fontSize: number,
+): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && estimateTextWidth(candidate, fontSize) > availableWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/**
  * Fits text to available width by first scaling font size,
  * then truncating with ellipsis if still too long at minimum size.
  *

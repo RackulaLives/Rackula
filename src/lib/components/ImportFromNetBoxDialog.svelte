@@ -31,6 +31,11 @@
     open: boolean;
     /** Slugs already in the device library, so an import gets a unique slug. */
     existingSlugs?: string[];
+    /**
+     * Receives the converted device type. When `result.warnings` is non-empty
+     * the dialog switches to a view listing them, so the parent should leave
+     * it open; Done then calls `oncancel`.
+     */
     onimport?: (result: ImportResult) => void;
     oncancel?: () => void;
   }
@@ -54,6 +59,13 @@
   let colourOverride = $state<string | null>(null);
   let userChangedColour = $state(false);
   let rackWidthSelection = $state<RackWidthOption>("19");
+
+  // Set after an import that raised warnings (#3335). The device type is
+  // already in the library; the dialog lists every warning until Done.
+  let importedWithWarnings = $state<{
+    model: string;
+    warnings: string[];
+  } | null>(null);
 
   // Computed values
   let inferredCategory = $derived(
@@ -82,6 +94,7 @@
     userChangedColour = false;
     rackWidthSelection = "19";
     isParsing = false;
+    importedWithWarnings = null;
   }
 
   function getCategoryLabel(cat: DeviceCategory): string {
@@ -205,7 +218,11 @@
       return;
     }
 
+    const { warnings } = converted.result;
     onimport?.(converted.result);
+    if (warnings.length > 0) {
+      importedWithWarnings = { model: parsedData.model, warnings };
+    }
   }
 
   function handleCancel() {
@@ -215,26 +232,46 @@
 
 <Dialog {open} title="Import from NetBox" size="M" onclose={handleCancel}>
   <div class="import-dialog">
-    <!-- Input Mode Tabs -->
-    <Tabs.Root
-      value={inputMode}
-      onValueChange={(value) => {
-        if (value) inputMode = value as InputMode;
-      }}
-      orientation="horizontal"
-      class="input-tabs-root"
-    >
-      <Tabs.List class="input-tabs" aria-label="Import input mode">
-        <Tabs.Trigger value="paste" class="tab">Paste YAML</Tabs.Trigger>
-        <Tabs.Trigger value="upload" class="tab">Upload File</Tabs.Trigger>
-      </Tabs.List>
+    {#if importedWithWarnings}
+      {@const count = importedWithWarnings.warnings.length}
+      <!-- The focused Import button is gone once this view renders, so focus
+           moves to the summary for keyboard and screen reader users. -->
+      <p class="result-summary" tabindex="-1" {@attach (node) => node.focus()}>
+        Imported "{importedWithWarnings.model}" to Devices with {count}
+        {count === 1 ? "warning" : "warnings"}.
+      </p>
+      <p class="result-hint" id="netbox-import-warnings-label">
+        Some NetBox fields were skipped or changed:
+      </p>
+      <ul class="warning-list" aria-labelledby="netbox-import-warnings-label">
+        {#each importedWithWarnings.warnings as warning, i (i)}
+          <li>{warning}</li>
+        {/each}
+      </ul>
+      <div class="form-actions">
+        <Button variant="primary" onclick={handleCancel}>Done</Button>
+      </div>
+    {:else}
+      <!-- Input Mode Tabs -->
+      <Tabs.Root
+        value={inputMode}
+        onValueChange={(value) => {
+          if (value) inputMode = value as InputMode;
+        }}
+        orientation="horizontal"
+        class="input-tabs-root"
+      >
+        <Tabs.List class="input-tabs" aria-label="Import input mode">
+          <Tabs.Trigger value="paste" class="tab">Paste YAML</Tabs.Trigger>
+          <Tabs.Trigger value="upload" class="tab">Upload File</Tabs.Trigger>
+        </Tabs.List>
 
-      <!-- Input Area -->
-      <Tabs.Content value="paste" class="input-area">
-        <textarea
-          class="yaml-input"
-          bind:value={yamlInput}
-          placeholder="Paste NetBox device type YAML here...
+        <!-- Input Area -->
+        <Tabs.Content value="paste" class="input-area">
+          <textarea
+            class="yaml-input"
+            bind:value={yamlInput}
+            placeholder="Paste NetBox device type YAML here...
 
 Example:
 manufacturer: Ubiquiti
@@ -242,165 +279,172 @@ model: USW-Pro-24
 slug: ubiquiti-usw-pro-24
 u_height: 1
 is_full_depth: false"
-          rows="10"></textarea>
-      </Tabs.Content>
+            rows="10"></textarea>
+        </Tabs.Content>
 
-      <Tabs.Content value="upload" class="input-area">
-        <div class="file-upload">
-          <input
-            type="file"
-            accept=".yaml,.yml"
-            onchange={handleFileUpload}
-            class="file-input"
-            id="yaml-file"
-          />
-          <label for="yaml-file" class="file-label">
-            <IconUpload />
-            <span>Choose a .yaml or .yml file</span>
-          </label>
-          {#if yamlInput}
-            <p class="file-loaded">
-              File loaded - {yamlInput.split("\n").length} lines
-            </p>
-          {/if}
-        </div>
-      </Tabs.Content>
-    </Tabs.Root>
-
-    <!-- Parse Button -->
-    {#if !parsedData}
-      <Button
-        variant="primary"
-        class="parse-btn"
-        onclick={handleParse}
-        disabled={isParsing || !yamlInput.trim()}
-      >
-        {isParsing ? "Parsing..." : "Parse YAML"}
-      </Button>
-    {/if}
-
-    <!-- Error Message -->
-    {#if parseError}
-      <div class="error-message">
-        {parseError}
-      </div>
-    {/if}
-
-    <!-- Preview Section -->
-    {#if parsedData}
-      <div class="preview-section">
-        <h3 class="preview-title">Preview</h3>
-
-        <div class="preview-card" style="border-left-color: {effectiveColour}">
-          <div class="preview-header">
-            <span class="preview-manufacturer">{parsedData.manufacturer}</span>
-            <span class="preview-model">{parsedData.model}</span>
-          </div>
-
-          <div class="preview-details">
-            <div class="detail-item">
-              <span class="detail-label">Slug:</span>
-              <code class="detail-value">{parsedData.slug}</code>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Height:</span>
-              <span class="detail-value">{parsedData.u_height ?? 1}U</span>
-            </div>
-            {#if parsedData.interfaces?.length}
-              <div class="detail-item">
-                <span class="detail-label">Interfaces:</span>
-                <span class="detail-value">{parsedData.interfaces.length}</span>
-              </div>
-            {/if}
-            {#if parsedData.airflow}
-              <div class="detail-item">
-                <span class="detail-label">Airflow:</span>
-                <span class="detail-value">{parsedData.airflow}</span>
-              </div>
+        <Tabs.Content value="upload" class="input-area">
+          <div class="file-upload">
+            <input
+              type="file"
+              accept=".yaml,.yml"
+              onchange={handleFileUpload}
+              class="file-input"
+              id="yaml-file"
+            />
+            <label for="yaml-file" class="file-label">
+              <IconUpload />
+              <span>Choose a .yaml or .yml file</span>
+            </label>
+            {#if yamlInput}
+              <p class="file-loaded">
+                File loaded - {yamlInput.split("\n").length} lines
+              </p>
             {/if}
           </div>
-        </div>
+        </Tabs.Content>
+      </Tabs.Root>
 
-        <!-- Category and Colour Overrides -->
-        <div class="override-row">
-          <div class="override-group">
-            <label for="category-override">Category</label>
-            <select
-              id="category-override"
-              class="input-field"
-              value={effectiveCategory}
-              onchange={handleCategoryChange}
-            >
-              {#each ALL_CATEGORIES as cat (cat)}
-                <option value={cat}>
-                  {getCategoryLabel(cat)}
-                  {cat === inferredCategory ? "(inferred)" : ""}
-                </option>
-              {/each}
-            </select>
-          </div>
-
-          <div class="override-group">
-            <label for="colour-override">Colour</label>
-            <div class="colour-input-wrapper">
-              <input
-                type="color"
-                id="colour-override"
-                value={effectiveColour}
-                onchange={handleColourChange}
-                class="colour-input"
-              />
-              <span class="colour-hex">{effectiveColour}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Rack Width Selection -->
-        <div class="override-group">
-          <span class="group-label" id="rack-width-label"
-            >Rack Width Compatibility</span
-          >
-          <div
-            class="rack-width-selector"
-            role="radiogroup"
-            aria-labelledby="rack-width-label"
-          >
-            {#each RACK_WIDTH_OPTIONS as option (option.value)}
-              <button
-                type="button"
-                class="rack-width-btn"
-                class:selected={rackWidthSelection === option.value}
-                onclick={() => (rackWidthSelection = option.value)}
-                role="radio"
-                aria-checked={rackWidthSelection === option.value}
-              >
-                {option.label}
-              </button>
-            {/each}
-          </div>
-        </div>
-
-        <!-- Reset to Parse New -->
+      <!-- Parse Button -->
+      {#if !parsedData}
         <Button
-          variant="secondary"
-          class="reset-btn"
-          onclick={() => {
-            parsedData = null;
-            parseError = "";
-          }}
+          variant="primary"
+          class="parse-btn"
+          onclick={handleParse}
+          disabled={isParsing || !yamlInput.trim()}
         >
-          Parse Different YAML
+          {isParsing ? "Parsing..." : "Parse YAML"}
+        </Button>
+      {/if}
+
+      <!-- Error Message -->
+      {#if parseError}
+        <div class="error-message">
+          {parseError}
+        </div>
+      {/if}
+
+      <!-- Preview Section -->
+      {#if parsedData}
+        <div class="preview-section">
+          <h3 class="preview-title">Preview</h3>
+
+          <div
+            class="preview-card"
+            style="border-left-color: {effectiveColour}"
+          >
+            <div class="preview-header">
+              <span class="preview-manufacturer">{parsedData.manufacturer}</span
+              >
+              <span class="preview-model">{parsedData.model}</span>
+            </div>
+
+            <div class="preview-details">
+              <div class="detail-item">
+                <span class="detail-label">Slug:</span>
+                <code class="detail-value">{parsedData.slug}</code>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Height:</span>
+                <span class="detail-value">{parsedData.u_height ?? 1}U</span>
+              </div>
+              {#if parsedData.interfaces?.length}
+                <div class="detail-item">
+                  <span class="detail-label">Interfaces:</span>
+                  <span class="detail-value"
+                    >{parsedData.interfaces.length}</span
+                  >
+                </div>
+              {/if}
+              {#if parsedData.airflow}
+                <div class="detail-item">
+                  <span class="detail-label">Airflow:</span>
+                  <span class="detail-value">{parsedData.airflow}</span>
+                </div>
+              {/if}
+            </div>
+          </div>
+
+          <!-- Category and Colour Overrides -->
+          <div class="override-row">
+            <div class="override-group">
+              <label for="category-override">Category</label>
+              <select
+                id="category-override"
+                class="input-field"
+                value={effectiveCategory}
+                onchange={handleCategoryChange}
+              >
+                {#each ALL_CATEGORIES as cat (cat)}
+                  <option value={cat}>
+                    {getCategoryLabel(cat)}
+                    {cat === inferredCategory ? "(inferred)" : ""}
+                  </option>
+                {/each}
+              </select>
+            </div>
+
+            <div class="override-group">
+              <label for="colour-override">Colour</label>
+              <div class="colour-input-wrapper">
+                <input
+                  type="color"
+                  id="colour-override"
+                  value={effectiveColour}
+                  onchange={handleColourChange}
+                  class="colour-input"
+                />
+                <span class="colour-hex">{effectiveColour}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rack Width Selection -->
+          <div class="override-group">
+            <span class="group-label" id="rack-width-label"
+              >Rack Width Compatibility</span
+            >
+            <div
+              class="rack-width-selector"
+              role="radiogroup"
+              aria-labelledby="rack-width-label"
+            >
+              {#each RACK_WIDTH_OPTIONS as option (option.value)}
+                <button
+                  type="button"
+                  class="rack-width-btn"
+                  class:selected={rackWidthSelection === option.value}
+                  onclick={() => (rackWidthSelection = option.value)}
+                  role="radio"
+                  aria-checked={rackWidthSelection === option.value}
+                >
+                  {option.label}
+                </button>
+              {/each}
+            </div>
+          </div>
+
+          <!-- Reset to Parse New -->
+          <Button
+            variant="secondary"
+            class="reset-btn"
+            onclick={() => {
+              parsedData = null;
+              parseError = "";
+            }}
+          >
+            Parse Different YAML
+          </Button>
+        </div>
+      {/if}
+
+      <!-- Action Buttons -->
+      <div class="form-actions">
+        <Button variant="secondary" onclick={handleCancel}>Cancel</Button>
+        <Button variant="primary" onclick={handleImport} disabled={!parsedData}>
+          Import
         </Button>
       </div>
     {/if}
-
-    <!-- Action Buttons -->
-    <div class="form-actions">
-      <Button variant="secondary" onclick={handleCancel}>Cancel</Button>
-      <Button variant="primary" onclick={handleImport} disabled={!parsedData}>
-        Import
-      </Button>
-    </div>
   </div>
 </Dialog>
 
@@ -531,6 +575,45 @@ is_full_depth: false"
     border-radius: var(--radius-md);
     color: var(--colour-error);
     font-size: var(--font-size-sm);
+  }
+
+  .result-summary {
+    margin: 0;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--colour-text);
+  }
+
+  /* Programmatic focus target (tabindex -1) when the result view opens. */
+  .result-summary:focus {
+    outline: none;
+  }
+
+  .result-summary:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  .result-hint {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--colour-text-muted);
+  }
+
+  .warning-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-6);
+    background: var(--colour-warning-bg);
+    border: 1px solid var(--colour-border);
+    border-left: 4px solid var(--colour-warning);
+    border-radius: var(--radius-md);
+    color: var(--colour-text);
+    font-size: var(--font-size-sm);
+    overflow-wrap: anywhere;
   }
 
   .preview-section {

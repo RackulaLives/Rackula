@@ -426,6 +426,9 @@
   function handleNetBoxImport(result: ImportResult) {
     layoutStore.addDeviceTypeRaw(result.deviceType);
     layoutStore.markDirty();
+    // With warnings the dialog stays open and lists them; its Done button
+    // closes it through oncancel (#3335).
+    if (result.warnings.length > 0) return;
     toastStore.showToast(
       `Imported "${result.deviceType.model}" to Devices`,
       "success",
