@@ -71,7 +71,8 @@ docs/
 ├── reference/
 │   ├── SPEC.md              → Technical overview and design principles
 │   ├── BRAND.md             → Design system quick reference
-│   └── GITHUB-WORKFLOW.md   → GitHub Issues workflow
+│   ├── GITHUB-WORKFLOW.md   → GitHub Issues workflow
+│   └── NETBOX-FIELD-MAPPING.md → Rackula to NetBox field mapping
 ├── planning/
 │   └── ROADMAP.md           → Version planning
 ├── plans/                   → Implementation plans (YYYY-MM-DD-kebab-case.md)

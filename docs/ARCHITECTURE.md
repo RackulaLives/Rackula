@@ -194,6 +194,7 @@ Both return `{ version, commit, buildTime }`. The git tag is the single source o
 | `docs/reference/SPEC.md` | Technical overview and design principles |
 | `docs/reference/BRAND.md` | Design system quick reference |
 | `docs/reference/GITHUB-WORKFLOW.md` | GitHub Issues workflow |
+| `docs/reference/NETBOX-FIELD-MAPPING.md` | Rackula to NetBox field mapping |
 | `docs/guides/TESTING.md` | Testing patterns and commands |
 | `docs/guides/ACCESSIBILITY.md` | A11y compliance checklist |
 | `docs/planning/ROADMAP.md` | Version planning and vision |
