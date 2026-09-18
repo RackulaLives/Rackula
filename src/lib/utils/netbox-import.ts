@@ -14,17 +14,18 @@ import { CATEGORY_COLOURS } from "$lib/types/constants";
 import {
   DeviceBaySchema,
   DeviceTypeSchema,
-  InterfaceTypeSchema,
   InventoryItemSchema,
   PoEModeSchema,
   PoETypeSchema,
   PowerOutletSchema,
   PowerPortSchema,
   SubdeviceRoleSchema,
+  TolerantInterfaceTypeSchema,
   WeightUnitSchema,
 } from "$lib/schemas";
 import type { z } from "$lib/zod";
 import { parseYaml } from "./yaml";
+import { isKnownInterfaceType } from "./port-utils";
 import { ensureUniqueSlug, generateDeviceSlug, slugify } from "./slug";
 
 const FeedLegSchema = PowerOutletSchema.shape.feed_leg;
@@ -479,9 +480,15 @@ function mapInterface(
   netbox: NetBoxInterface,
   warnings: string[],
 ): InterfaceTemplate {
-  const typeResult = InterfaceTypeSchema.safeParse(netbox.type);
+  // Keep an unknown type string unchanged (#3289); only a value the layout
+  // schema would refuse (empty, over-long, not a string) falls back to "other".
+  const typeResult = TolerantInterfaceTypeSchema.safeParse(netbox.type);
   if (!typeResult.success) {
     warnings.push(`Unknown interface type: ${netbox.type}, using "other"`);
+  } else if (!isKnownInterfaceType(typeResult.data)) {
+    warnings.push(
+      `Unknown interface type: ${typeResult.data}, shown as a generic port`,
+    );
   }
 
   const template: InterfaceTemplate = {

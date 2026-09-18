@@ -199,6 +199,49 @@ describe("YAML layout round-trip", () => {
     expect(device?.ports?.[0]?.label).toBe("Uplink");
   });
 
+  it("preserves an unknown interface and port type through save and reload (#3289)", async () => {
+    const UNKNOWN_TYPE = "400gbase-x-osfp";
+    const deviceType: DeviceType = {
+      ...createTestDeviceType({ slug: "osfp-switch", u_height: 1 }),
+      interfaces: [{ name: "osfp1", type: UNKNOWN_TYPE }],
+    };
+
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({
+          id: "rack-1",
+          devices: [
+            createTestDevice({
+              id: "device-1",
+              device_type: deviceType.slug,
+              position: 10,
+              ports: [
+                createTestPlacedPort({
+                  id: "port-1",
+                  template_name: "osfp1",
+                  type: UNKNOWN_TYPE,
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+      device_types: [deviceType],
+    });
+
+    const restored = await parseLayoutYaml(await serializeLayoutToYaml(layout));
+    const restoredType = restored.device_types.find(
+      (dt) => dt.slug === deviceType.slug,
+    );
+    const restoredDevice = restored.racks[0]?.devices.find(
+      (d) => d.id === "device-1",
+    );
+
+    // Nothing coerces the unknown value to "other" on either side.
+    expect(restoredType?.interfaces?.[0]?.type).toBe(UNKNOWN_TYPE);
+    expect(restoredDevice?.ports?.[0]?.type).toBe(UNKNOWN_TYPE);
+  });
+
   it("preserves rack.show_rear = false through a round-trip (#2701)", async () => {
     const layout = createTestLayout({
       racks: [createTestRack({ id: "rack-1", show_rear: false })],

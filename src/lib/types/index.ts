@@ -124,10 +124,11 @@ export type SlotWidth = 1 | 2;
 export type RackWidth = 10 | 19 | 21 | 23;
 
 /**
- * Network interface type (NetBox-compatible subset)
- * Common physical interface types for rack equipment
+ * Network interface type (NetBox-compatible subset) this build knows.
+ * Common physical interface types for rack equipment. Mirrors
+ * InterfaceTypeSchema in $lib/schemas.
  */
-export type InterfaceType =
+export type KnownInterfaceType =
   // Copper Ethernet
   | "100base-tx" // 100 Mbps RJ45
   | "1000base-t" // 1 GbE RJ45
@@ -183,6 +184,14 @@ export type InterfaceType =
   | "dante" // Dante audio-over-IP
   // Other
   | "other"; // Catch-all for unlisted types
+
+/**
+ * Interface type as stored on a template or placed port: a known type, or an
+ * unknown string from a newer build, kept unchanged (#3289). Mirrors
+ * TolerantInterfaceTypeSchema. `string & {}` keeps editor completion for the
+ * known values.
+ */
+export type InterfaceType = KnownInterfaceType | (string & {});
 
 /**
  * PoE type (NetBox-compatible)

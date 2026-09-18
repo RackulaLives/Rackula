@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { render } from "@testing-library/svelte";
+import PortTooltip from "$lib/components/PortTooltip.svelte";
 import {
   showPortTooltip,
   hidePortTooltip,
@@ -208,4 +210,25 @@ describe("Port Tooltip Store", () => {
       expect(state.y).toBe(789.012);
     });
   });
+});
+
+// Tolerant reader (#3289): a type this build does not know has no friendly
+// label, so the tooltip shows the raw string. Types named after Object
+// prototype members must not resolve to inherited properties.
+describe("PortTooltip unknown interface types", () => {
+  beforeEach(() => {
+    hidePortTooltip();
+  });
+
+  it.each(["400gbase-x-osfp", "constructor", "toString"])(
+    "shows the raw type string for %s",
+    (type) => {
+      showPortTooltip({ name: "osfp1", type }, 100, 200);
+
+      const { getByRole } = render(PortTooltip);
+
+      expect(getByRole("tooltip")).toHaveTextContent(type);
+      expect(getByRole("tooltip")).not.toHaveTextContent("native code");
+    },
+  );
 });
