@@ -74,14 +74,15 @@ A device type without slots but with `device_bays` (for example, one imported fr
 A parent device type with `device-bays` imports as a container with one slot per bay.
 
 - When the slug matches a starter library container (the `carrier-*` carriers, the slotted shelves, `blade-chassis-4u`) with the same number of slots, the importer reuses that container's slot geometry and names the slots after the bays, in order.
-- Otherwise it generates one slot per bay in a single row: each slot is `1/N` of the width and the full height of the device, named after its bay. The import warns that the geometry is approximate, so check the slot layout in the device editor.
+- Otherwise it generates one slot per bay, named after its bay, in a grid of at most two columns filled from the bottom row up. Rows share the device height equally. Every slot is at least half width, the narrowest device Rackula can place, and an odd last bay spans the full width. The import warns that the slot layout is approximate.
+- Slot names are capped at 100 characters. The device bay keeps its full name.
 
 ### Round trip
 
 | Exported type | Re-imported as |
 | --- | --- |
 | Starter library container | A container with the same slot count, bay names and slot geometry. |
-| Other container | A container with the same slot count and bay names. Slots become a single row of equal widths. |
+| Other container | A container with the same slot count and bay names. Slots become the two-column grid described above. |
 
 ## Child device types
 

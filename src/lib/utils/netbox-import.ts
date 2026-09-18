@@ -550,8 +550,10 @@ function mapInterface(
  * Container slots for a NetBox parent's device bays, one slot per bay named
  * after it. When the slug matches a starter library container with the same
  * number of slots, that container's slot geometry is reused, which is how a
- * carrier exported by Rackula round-trips exactly. Otherwise the bays become
- * a single row of equal-width, full-height slots, with a warning.
+ * carrier exported by Rackula round-trips exactly. Otherwise the bays fill a
+ * grid of at most two columns from the bottom row up, with a warning. Two
+ * columns keep every slot at least half width, the narrowest device Rackula
+ * can place; an odd last bay spans the full width.
  */
 function slotsForDeviceBays(
   slug: string,
@@ -559,21 +561,29 @@ function slotsForDeviceBays(
   uHeight: number,
   warnings: string[],
 ): Slot[] {
+  // SlotSchema caps slot names at 100 characters; device bay names are not.
+  const slotName = (i: number) => bays[i]!.name.slice(0, 100);
+
   const starterSlots = findStarterDevice(slug)?.slots;
   if (starterSlots && starterSlots.length === bays.length) {
-    return starterSlots.map((slot, i) => ({ ...slot, name: bays[i]!.name }));
+    return starterSlots.map((slot, i) => ({ ...slot, name: slotName(i) }));
   }
 
+  const columns = Math.min(bays.length, 2);
+  const rows = Math.ceil(bays.length / columns);
   warnings.push(
-    `${bays.length} device bay(s) imported as slots in a single row: the slot geometry is approximate, check it in the device editor`,
+    `${bays.length} device bay(s) imported as slots in a ${rows} by ${columns} grid: the slot layout is approximate`,
   );
-  return bays.map((bay, i) => ({
-    id: `bay-${i + 1}`,
-    name: bay.name,
-    position: { row: 0, col: i },
-    width_fraction: 1 / bays.length,
-    height_units: uHeight,
-  }));
+  return bays.map((_, i) => {
+    const spansRow = i === bays.length - 1 && bays.length % columns !== 0;
+    return {
+      id: `bay-${i + 1}`,
+      name: slotName(i),
+      position: { row: Math.floor(i / columns), col: i % columns },
+      width_fraction: spansRow ? 1 : 1 / columns,
+      height_units: uHeight / rows,
+    };
+  });
 }
 
 /**

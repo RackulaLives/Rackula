@@ -1324,18 +1324,54 @@ device-bays:
       const slots = result.deviceType.slots ?? [];
       expect(slots.map((s) => s.name)).toEqual(["Bay A", "Bay B", "Bay C"]);
       expect(new Set(slots.map((s) => s.id)).size).toBe(slots.length);
-      expect(slots.every((s) => s.position.row === 0)).toBe(true);
-      expect(slots.map((s) => s.position.col)).toEqual([0, 1, 2]);
-      const totalWidth = slots.reduce(
-        (sum, s) => sum + (s.width_fraction ?? 1),
-        0,
-      );
-      expect(totalWidth).toBeCloseTo(1);
-      expect(slots.every((s) => s.height_units === 2)).toBe(true);
+      const cells = slots.map((s) => `${s.position.row},${s.position.col}`);
+      expect(new Set(cells).size).toBe(slots.length);
       expect(result.deviceType.device_bays).toContainEqual({ name: "Bay A" });
       expect(result.warnings).toContainEqual(
         expect.stringContaining("approximate"),
       );
+    });
+
+    it("sizes generated slots so a half-width device fits each one", async () => {
+      const bays = Array.from({ length: 5 }, (_, i) => `  - name: Bay ${i}`);
+      const result = await importOk(`
+manufacturer: Acme
+model: Chassis 5
+slug: acme-chassis-5
+u_height: 6
+subdevice_role: parent
+device-bays:
+${bays.join("\n")}
+`);
+
+      const slots = result.deviceType.slots ?? [];
+      expect(slots.length).toBeGreaterThan(0);
+      for (const slot of slots) {
+        // A half-width (slot_width 1) device needs width_fraction >= 0.5.
+        expect(slot.width_fraction ?? 1).toBeGreaterThanOrEqual(0.5);
+        expect(slot.height_units ?? 1).toBeGreaterThanOrEqual(1);
+      }
+      // The slots tile the device: their combined area is the whole face.
+      const area = slots.reduce(
+        (sum, s) => sum + (s.width_fraction ?? 1) * (s.height_units ?? 1),
+        0,
+      );
+      expect(area).toBeCloseTo(6);
+    });
+
+    it("imports a bay whose name is longer than a slot name allows", async () => {
+      const longName = "B".repeat(150);
+      const result = await importOk(`
+manufacturer: Acme
+model: Chassis 1
+slug: acme-chassis-1
+subdevice_role: parent
+device-bays:
+  - name: ${longName}
+`);
+
+      expect(result.deviceType.slots?.[0]?.name).toBe(longName.slice(0, 100));
+      expect(result.deviceType.device_bays).toContainEqual({ name: longName });
     });
 
     it("reuses a starter container's slot geometry when the slug matches", async () => {
