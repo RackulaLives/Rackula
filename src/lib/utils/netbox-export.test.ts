@@ -4,7 +4,9 @@
 
 import { describe, it, expect } from "vitest";
 import { exportToNetBoxYaml } from "./netbox-export";
+import { importFromNetBoxYaml, type ImportResult } from "./netbox-import";
 import { parseYaml } from "./yaml";
+import { getStarterLibrary } from "$lib/data/starterLibrary";
 import type { DeviceType } from "$lib/types";
 import {
   createTestContainerType,
@@ -324,5 +326,115 @@ describe("exportToNetBoxYaml", () => {
       expect(data.model).toBe("Real Model");
       expect(data.slug).toBe(deviceType.slug);
     });
+  });
+});
+
+describe("export then import round trip", () => {
+  async function roundTrip(deviceType: DeviceType): Promise<ImportResult> {
+    const { yaml } = await exportToNetBoxYaml(deviceType);
+    const imported = await importFromNetBoxYaml(yaml);
+    if (!imported.success) {
+      throw new Error(`re-import failed: ${imported.error}`);
+    }
+    return imported.result;
+  }
+
+  it("preserves the NetBox fields of a device type", async () => {
+    const original = fullDeviceType();
+
+    const { deviceType, warnings } = await roundTrip(original);
+
+    expect(deviceType).toMatchObject({
+      manufacturer: original.manufacturer,
+      model: original.model,
+      slug: original.slug,
+      part_number: original.part_number,
+      u_height: original.u_height,
+      is_full_depth: original.is_full_depth,
+      airflow: original.airflow,
+      weight: original.weight,
+      weight_unit: original.weight_unit,
+      subdevice_role: original.subdevice_role,
+      notes: original.notes,
+      power_ports: original.power_ports,
+      power_outlets: original.power_outlets,
+    });
+    expect(deviceType.interfaces).toEqual([
+      { name: "eth0", type: "1000base-t", mgmt_only: true },
+    ]);
+    expect(deviceType.device_bays).toEqual([{ name: "Bay 1" }]);
+    expect(deviceType.inventory_items).toEqual([
+      { name: "Fan Tray", manufacturer: "Acme", part_id: "FT-1" },
+    ]);
+    expect(warnings).not.toContainEqual(expect.stringContaining("Skipped"));
+  });
+
+  it("round-trips every starter container to the same slots and bay names", async () => {
+    const containers = getStarterLibrary().filter(
+      (t) => (t.slots?.length ?? 0) > 0,
+    );
+    expect(containers.length).toBeGreaterThan(0);
+
+    for (const container of containers) {
+      const { deviceType } = await roundTrip(container);
+
+      expect(deviceType.subdevice_role).toBe("parent");
+      expect(deviceType.slots).toEqual(container.slots);
+    }
+  });
+
+  it("round-trips a custom container to the same slot count and bay names", async () => {
+    const container = createTestContainerType({
+      slug: "acme-shelf-3",
+      manufacturer: "Acme",
+      slots: [
+        createTestSlot({ id: "a", name: "Left" }),
+        createTestSlot({
+          id: "b",
+          name: "Middle",
+          position: { row: 0, col: 1 },
+        }),
+        createTestSlot({
+          id: "c",
+          name: "Right",
+          position: { row: 0, col: 2 },
+        }),
+      ],
+    });
+
+    const { deviceType } = await roundTrip(container);
+
+    expect(deviceType.slots?.map((s) => s.name)).toEqual([
+      "Left",
+      "Middle",
+      "Right",
+    ]);
+  });
+
+  it("brings a child type back as 1U with a warning", async () => {
+    const child: DeviceType = {
+      ...createTestDeviceType({ manufacturer: "Acme", model: "Blade" }),
+      u_height: 2,
+      subdevice_role: "child",
+    };
+
+    const { deviceType, warnings } = await roundTrip(child);
+
+    expect(deviceType.subdevice_role).toBe("child");
+    expect(deviceType.u_height).toBe(1);
+    expect(warnings).toContainEqual(expect.stringContaining("match the bay"));
+  });
+
+  it("brings a Rackula-only interface type back as other", async () => {
+    const mixer: DeviceType = {
+      ...createTestDeviceType({ manufacturer: "Acme", model: "Mixer" }),
+      interfaces: [
+        createTestInterfaceTemplate({ name: "Mic 1", type: "xlr-3" }),
+      ],
+    };
+
+    const { deviceType } = await roundTrip(mixer);
+
+    expect(deviceType.interfaces).toEqual([{ name: "Mic 1", type: "other" }]);
   });
 });
