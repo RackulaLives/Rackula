@@ -73,11 +73,12 @@
     }
   }
 
-  // Widest rack the device can go in; a 19 inch device also fits an active 21
-  // or 23 inch rack.
-  function getWidestTargetRackWidth(): number {
-    if (rackWidthOption === "10") return 10;
-    return Math.max(19, activeRackWidth ?? 19);
+  // Narrowest rack the device is declared to fit. A measured width is checked
+  // against this one, not the active rack: rack_widths travels with the device
+  // type, so "Both" must fit a 10 inch opening and "19 inch" a 19 inch one even
+  // when the rack in front of the user is wider.
+  function getNarrowestTargetRackWidth(): number {
+    return Math.min(...optionToRackWidths(rackWidthOption));
   }
 
   // Form state
@@ -182,7 +183,7 @@
     if (hasWidth) {
       // Check the stored value: tiny inputs round to 0 mm.
       const widthMm = toMillimetres(widthValue!, widthUnit);
-      const rackWidth = getWidestTargetRackWidth();
+      const rackWidth = getNarrowestTargetRackWidth();
       const openingMm = getRackOpeningMm(rackWidth);
       if (!(widthMm > 0)) {
         widthError = "Width must be at least 0.1 mm";

@@ -36,6 +36,9 @@ export function majorOf(version: string): number {
   return Number.isFinite(major) ? major : 0;
 }
 
+/** A well-formed MAJOR.MINOR schema_version: the only shape a reader accepts. */
+const SCHEMA_VERSION_PATTERN = /^\d+\.\d+$/;
+
 /**
  * Reject a layout whose data-format MAJOR is newer than the running app (#2205).
  *
@@ -46,8 +49,16 @@ export function majorOf(version: string): number {
  * migration path. The check is read-only and non-destructive: it throws before
  * any parse or write so the original input is never modified.
  *
+ * A stamp present but not shaped MAJOR.MINOR is refused before the MAJOR
+ * comparison. parseInt reads a malformed stamp as MAJOR 0, so "2.O" (letter O)
+ * would otherwise pass the newer-major check and then migrate as a legacy 1.x
+ * document, reading its 2.x additions as this app's own format. Every writer
+ * stamps MAJOR.MINOR digits (schemaVersionForWrite), so no file this app wrote
+ * takes this path. MAJOR 0 stays readable: it is older, not malformed.
+ *
  * @param schemaVersion - The document's metadata.schema_version, if present.
- * @throws Error when the document MAJOR is newer than the app understands.
+ * @throws Error when the stamp is malformed, or its MAJOR is newer than the app
+ *   understands.
  */
 export function assertSchemaVersionSupported(
   schemaVersion: string | undefined,
@@ -56,6 +67,12 @@ export function assertSchemaVersionSupported(
   // versioning is the current MAJOR by construction).
   if (schemaVersion === undefined) {
     return;
+  }
+  if (!SCHEMA_VERSION_PATTERN.test(schemaVersion.trim())) {
+    throw new Error(
+      `This layout has an unreadable data format (${schemaVersion}). ` +
+        `Expected a version such as 1.0. Your file was not changed.`,
+    );
   }
   if (majorOf(schemaVersion) > majorOf(MEASURED_WIDTH_SCHEMA_VERSION)) {
     throw new Error(
@@ -87,9 +104,6 @@ export function compareVersions(a: string, b: string): number {
   }
   return 0;
 }
-
-/** A well-formed MAJOR.MINOR schema_version, the only shape a writer keeps. */
-const SCHEMA_VERSION_PATTERN = /^\d+\.\d+$/;
 
 /**
  * The newest format this app fully understands for a given MAJOR, if it reads
