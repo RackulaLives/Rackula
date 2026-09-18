@@ -1,6 +1,7 @@
 # yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
 # Synthetic: written by a newer same-MAJOR build that knows interface types this
 # build does not (#3289). Every type string must load and survive unchanged.
+# Device positions are internal units, 6 per U: 6 is U1 and 30 is U5.
 metadata:
   id: 7d2e4f10-3b6a-4c8e-9f21-6a5b4c3d2e1f
   name: OSFP Fabric Lab

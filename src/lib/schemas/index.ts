@@ -1139,7 +1139,9 @@ export type Airflow = z.infer<typeof AirflowSchema>;
 export type SubdeviceRole = z.infer<typeof SubdeviceRoleSchema>;
 export type SlotWidth = z.infer<typeof SlotWidthSchema>;
 export type RackWidth = z.infer<typeof RackWidthSchema>;
+/** Interface type this build knows, from the strict InterfaceTypeSchema. */
 export type KnownInterfaceType = z.infer<typeof InterfaceTypeSchema>;
+/** Interface type as read from a layout, from TolerantInterfaceTypeSchema. */
 export type InterfaceType = z.infer<typeof TolerantInterfaceTypeSchema>;
 export type PoEType = z.infer<typeof PoETypeSchema>;
 export type PoEMode = z.infer<typeof PoEModeSchema>;
