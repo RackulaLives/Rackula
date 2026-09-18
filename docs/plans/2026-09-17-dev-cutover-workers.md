@@ -10,11 +10,13 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-17-dev-cutover-workers-design.md` (requirements: #2134 issue body).
 
+**Changes after review (PR #3353):** the Worker locks `/api/*` to `RACKULA_API_HOST=d.racku.la` and answers 404 on any other host, so preview URLs expect 404, not 401. `api/.dev.vars` also blanks `RACKULA_API_HOST` and sets `CORS_ORIGIN=*`. `deploy-dev.yml` runs the browser boot smoke on the preview URL before promoting, deploys only from `main` of this repository, and records whether each version was promoted. `soak-smoke.yml` scopes the Access token to the smoke step. The snippets below reflect these changes.
+
 ## Global Constraints
 
 - Worker name `rackula-dev`; R2 bucket `rackula-layouts-dev`; route `d.racku.la/*` on zone `racku.la`.
 - Access vars: `CF_ACCESS_JWKS_URL=https://gwilym.cloudflareaccess.com/cdn-cgi/access/certs`, `CF_ACCESS_ISSUER=https://gwilym.cloudflareaccess.com`, `CF_ACCESS_AUD=1ea609e49a2f7105b29c169d259406673aaf0c1f51ab5870f16a9c1dc6e87a38`.
-- API vars: `NODE_ENV=production`, `CORS_ORIGIN=https://d.racku.la`.
+- API vars: `NODE_ENV=production`, `CORS_ORIGIN=https://d.racku.la`, `RACKULA_API_HOST=d.racku.la`.
 - `dist/config.js` for dev: `window.__RACKULA_CONFIG__ = { storage: "server", env: "dev" };`
 - Deploy token: existing `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` secrets.
 - Never add `main` to the root `wrangler.jsonc` (`rackula-prod`).
@@ -78,10 +80,11 @@
   "routes": [{ "pattern": "d.racku.la/*", "zone_name": "racku.la" }],
 
   // preview_urls stays on so `wrangler versions upload` yields a workers.dev
-  // URL for the pre-promotion curl smoke: Bot Fight Mode challenges CI on every
-  // racku.la host. The preview URL is outside Access. The SPA there is the same
-  // open-source bundle, and /api/* fails closed (401) without an Access JWT,
-  // which deploy-dev.yml asserts on every deploy.
+  // URL for the pre-promotion smoke: Bot Fight Mode challenges CI on every
+  // racku.la host. Preview URLs are outside Access and outlive their version.
+  // The SPA there is the same open-source bundle, and RACKULA_API_HOST below
+  // locks /api/* to d.racku.la, so a preview URL answers 404 there and never
+  // reaches R2. deploy-dev.yml asserts that on every deploy.
   "workers_dev": false,
   "preview_urls": true,
 
@@ -112,6 +115,7 @@
   "vars": {
     "NODE_ENV": "production",
     "CORS_ORIGIN": "https://d.racku.la",
+    "RACKULA_API_HOST": "d.racku.la",
     "CF_ACCESS_JWKS_URL": "https://gwilym.cloudflareaccess.com/cdn-cgi/access/certs",
     "CF_ACCESS_ISSUER": "https://gwilym.cloudflareaccess.com",
     "CF_ACCESS_AUD": "1ea609e49a2f7105b29c169d259406673aaf0c1f51ab5870f16a9c1dc6e87a38",
@@ -126,13 +130,18 @@
 - [ ] Step 2: Update `api/.dev.vars` so local `wrangler dev` keeps skipping Access and runs non-production. Replace the header comment's last sentence ("Do not add real secrets here; CF_ACCESS_* production values are set by the dev cutover (#2675 / #2134) via `wrangler secret` / CI, not this file.") with "Do not add real secrets here." and append:
 
 ```
-# wrangler.jsonc commits the real CF_ACCESS_* values and NODE_ENV=production as
-# vars, and this file merges over them. Blank the Access values so the opt-out
-# above applies, and run non-production as local dev always has.
+# wrangler.jsonc commits the real CF_ACCESS_* values, NODE_ENV=production,
+# CORS_ORIGIN=https://d.racku.la and the d.racku.la host lock as vars, and this
+# file merges over them. Blank the Access values so the opt-out above applies,
+# blank the host lock so localhost reaches the API, and restore the
+# non-production wildcard CORS local dev always had. (A blank CORS_ORIGIN is
+# rejected at startup, so the wildcard is spelled out.)
 CF_ACCESS_JWKS_URL=
 CF_ACCESS_ISSUER=
 CF_ACCESS_AUD=
+RACKULA_API_HOST=
 NODE_ENV=development
+CORS_ORIGIN=*
 ```
 
 - [ ] Step 3: Delete the placeholder assets directory
@@ -163,8 +172,8 @@ Run: `cd api && bun test && npx vitest run --config vitest.workers.config.ts` Ex
 ```
 #   --surface  which scripts/gen-headers.mjs surface to expect (default prod).
 #              dev also expects server-mode config.js and asserts that
-#              /api/layouts fails closed (401) without Cloudflare Access, so
-#              run it against the workers.dev preview URL, never d.racku.la.
+#              /api/layouts is unreachable (404, the API host lock), so run it
+#              against the workers.dev preview URL, never d.racku.la.
 ```
 
 Parsing, next to `--expect-*`:
@@ -196,16 +205,17 @@ fi
 Check 5: `node "$SCRIPT_DIR/gen-headers.mjs" "$SURFACE"` and add `x-robots-tag` to `SECURITY_HEADERS`, so prod can never emit `noindex` and dev always does. Check 8: message becomes "neither Cloudflare surface has a login backend". New check 10, before the summary:
 
 ```bash
-# --- 10. dev API fails closed without Cloudflare Access ------------------
-# The preview URL is outside Access, so no Cf-Access-Jwt-Assertion reaches the
-# Worker and the API must refuse. On d.racku.la itself Access answers first
-# (302), which is why the dev surface runs against the preview URL.
+# --- 10. dev API is unreachable from a preview URL -----------------------
+# Preview URLs sit outside Cloudflare Access and outlive their version, so the
+# Worker locks /api/* to d.racku.la (RACKULA_API_HOST) and answers 404 anywhere
+# else. On d.racku.la itself Access answers first (302), which is why the dev
+# surface runs against the preview URL.
 if [ "$SURFACE" = "dev" ]; then
   code="$(fetch -o /dev/null -w '%{http_code}' "$BASE_URL/api/layouts")"
-  if [ "$code" = "401" ]; then
-    pass "/api/layouts -> 401 without an Access JWT"
+  if [ "$code" = "404" ]; then
+    pass "/api/layouts -> 404 off the locked host"
   else
-    fail "/api/layouts -> $code without an Access JWT (expected 401: the API must fail closed)"
+    fail "/api/layouts -> $code on a preview URL (expected 404: the API host lock must keep previews away from R2)"
   fi
 fi
 ```
@@ -283,7 +293,7 @@ Delete both `TODO(#2134)` comment blocks and the "No CF_ACCESS_* here" block; up
 - [ ] Step 1: Create R2 bucket `rackula-layouts-dev` (Cloudflare API).
 - [ ] Step 2: From the worktree (clean checkout, so no gitignored files reach `dist/`): `npm run build`, generate `_headers`, `.assetsignore` and the dev `config.js` exactly as the workflow does, strip `login.html`, then `cd api && ./node_modules/.bin/wrangler deploy`. Expected: Worker `rackula-dev` created, route `d.racku.la/*` attached.
 - [ ] Step 3: `curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' https://d.racku.la/api/layouts`. Expected: 302 to the Access login (Access fronts the Worker).
-- [ ] Step 4: Push the branch and dispatch the rewritten workflow on it: `gh workflow run deploy-dev.yml --ref feat/2134-dev-cutover`. Expected: green, including the preview smoke (`--surface dev`, API 401) and the live browser smoke through Access.
+- [ ] Step 4: Push the branch and dispatch the rewritten workflow on it: `gh workflow run deploy-dev.yml --ref feat/2134-dev-cutover`. Expected: green, including the preview smoke (`--surface dev`) and the live browser smoke through Access. (This dispatch ran before review added the main-only guard, which now skips branch dispatches; after the host lock the preview API check expects 404.)
 
 ### Task 6: Docs
 
