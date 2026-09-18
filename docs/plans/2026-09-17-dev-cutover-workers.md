@@ -150,7 +150,7 @@ Run: `/usr/bin/git rm -q api/public-placeholder/index.html`
 
 - [ ] Step 4: Verify the bundle builds against the real config
 
-Run: `npm run build` (repo root), then `cd api && ./node_modules/.bin/wrangler deploy --dry-run --outdir dist-worker` Expected: exit 0; output lists bindings `LAYOUTS (rackula-layouts-dev)`, the five vars, and `ASSETS`. No `@node-rs/argon2` in `dist-worker/`.
+Run: `npm run build` (repo root), then `cd api && ./node_modules/.bin/wrangler deploy --dry-run --outdir dist-worker` Expected: exit 0; output lists bindings `LAYOUTS (rackula-layouts-dev)`, `ASSETS`, and six vars: `NODE_ENV`, `CORS_ORIGIN`, `RACKULA_API_HOST`, `CF_ACCESS_JWKS_URL`, `CF_ACCESS_ISSUER`, `CF_ACCESS_AUD`. No `@node-rs/argon2` in `dist-worker/`.
 
 Run: `cd api && bun test && npx vitest run --config vitest.workers.config.ts` Expected: PASS (the Workers pool uses inline Miniflare config, not wrangler.jsonc).
 
@@ -293,7 +293,7 @@ Delete both `TODO(#2134)` comment blocks and the "No CF_ACCESS_* here" block; up
 - [ ] Step 1: Create R2 bucket `rackula-layouts-dev` (Cloudflare API).
 - [ ] Step 2: From the worktree (clean checkout, so no gitignored files reach `dist/`): `npm run build`, generate `_headers`, `.assetsignore` and the dev `config.js` exactly as the workflow does, strip `login.html`, then `cd api && ./node_modules/.bin/wrangler deploy`. Expected: Worker `rackula-dev` created, route `d.racku.la/*` attached.
 - [ ] Step 3: `curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' https://d.racku.la/api/layouts`. Expected: 302 to the Access login (Access fronts the Worker).
-- [ ] Step 4: Push the branch and dispatch the rewritten workflow on it: `gh workflow run deploy-dev.yml --ref feat/2134-dev-cutover`. Expected: green, including the preview smoke (`--surface dev`) and the live browser smoke through Access. (This dispatch ran before review added the main-only guard, which now skips branch dispatches; after the host lock the preview API check expects 404.)
+- [ ] Step 4: Verify the full pipeline. Deploy Dev runs only on `main` of this repository, so after merge the push-triggered run is the check: expected green, including the preview smoke (`--surface dev`, API 404 from the host lock), the preview browser smoke, and the live browser smoke through Access. (Before review added the main-only guard, this branch was dispatched once as run 35312972498, which went green.)
 
 ### Task 6: Docs
 
