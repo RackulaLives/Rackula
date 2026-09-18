@@ -763,6 +763,321 @@ model: Some Device
     });
   });
 
+  describe("devicetype-library component list keys", () => {
+    // netbox-community/devicetype-library writes every component list except
+    // `interfaces` with hyphens. These fixtures mirror that on-disk form.
+    async function importOk(yaml: string): Promise<ImportResult> {
+      const imported = await importFromNetBoxYaml(yaml);
+      if (!imported.success) {
+        throw new Error(`expected success, got error: ${imported.error}`);
+      }
+      return imported.result;
+    }
+
+    it("keeps power ports, power outlets, device bays and inventory items from hyphenated keys", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Chassis 2000
+slug: generic-chassis-2000
+u_height: 2
+power-ports:
+  - name: PSU1
+    type: iec-60320-c14
+    maximum_draw: 750
+power-outlets:
+  - name: Outlet 1
+    type: iec-60320-c13
+    power_port: PSU1
+    feed_leg: A
+device-bays:
+  - name: Bay 1
+inventory-items:
+  - name: Fan Tray
+    manufacturer: Generic
+    part_id: FT-1
+`);
+
+      expect(result.deviceType.power_ports).toContainEqual({
+        name: "PSU1",
+        type: "iec-60320-c14",
+        maximum_draw: 750,
+      });
+      expect(result.deviceType.power_outlets).toContainEqual({
+        name: "Outlet 1",
+        type: "iec-60320-c13",
+        power_port: "PSU1",
+        feed_leg: "A",
+      });
+      expect(result.deviceType.device_bays).toContainEqual({ name: "Bay 1" });
+      expect(result.deviceType.inventory_items).toContainEqual({
+        name: "Fan Tray",
+        manufacturer: "Generic",
+        part_id: "FT-1",
+      });
+      expect(result.warnings).toEqual([]);
+    });
+
+    it("warns that hyphenated console and console-server ports are not supported", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Serial Box
+slug: generic-serial-box
+console-ports:
+  - name: Console
+    type: rj-45
+console-server-ports:
+  - name: Port 1
+    type: rj-45
+  - name: Port 2
+    type: rj-45
+`);
+
+      expect(result.warnings).toContain(
+        "3 console port(s) are not yet supported by Rackula and were not imported",
+      );
+    });
+
+    it("infers kvm from hyphenated console-server-ports", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Serial Box
+slug: generic-serial-box
+console-server-ports:
+  - name: Port 1
+`);
+
+      expect(result.inferredCategory).toBe("kvm");
+    });
+
+    it("ignores unnamed console port entries for kvm inference and the unsupported count", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Serial Box
+slug: generic-serial-box
+console-server-ports:
+  - {}
+console-ports:
+  - name: ""
+`);
+
+      expect(result.inferredCategory).not.toBe("kvm");
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped console server port: name"),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped console port: name"),
+      );
+      expect(result.warnings).not.toContainEqual(
+        expect.stringContaining("console port(s) are not yet supported"),
+      );
+    });
+
+    it("warns about module bays, front ports and rear ports instead of dropping them silently", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Modular Box
+slug: generic-modular-box
+module-bays:
+  - name: Slot 1
+    position: "1"
+front-ports:
+  - name: Front 1
+    type: 8p8c
+    rear_port: Rear 1
+rear-ports:
+  - name: Rear 1
+    type: 8p8c
+`);
+
+      expect(result.warnings).toContain(
+        "1 module bay(s) are not yet supported by Rackula and were not imported",
+      );
+      expect(result.warnings).toContain(
+        "1 front port(s) are not yet supported by Rackula and were not imported",
+      );
+      expect(result.warnings).toContain(
+        "1 rear port(s) are not yet supported by Rackula and were not imported",
+      );
+    });
+
+    it("still imports underscore keys from files already in circulation", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Chassis 2000
+slug: generic-chassis-2000
+power_ports:
+  - name: PSU1
+device_bays:
+  - name: Bay 1
+module_bays:
+  - name: Slot 1
+`);
+
+      expect(result.deviceType.power_ports).toContainEqual({ name: "PSU1" });
+      expect(result.deviceType.device_bays).toContainEqual({ name: "Bay 1" });
+      expect(result.warnings).toContain(
+        "1 module bay(s) are not yet supported by Rackula and were not imported",
+      );
+    });
+
+    it("prefers the hyphenated list and warns when both spellings are present", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Chassis 2000
+slug: generic-chassis-2000
+power-ports:
+  - name: PSU1
+power_ports:
+  - name: Legacy PSU
+`);
+
+      expect(result.deviceType.power_ports).toContainEqual({ name: "PSU1" });
+      expect(result.deviceType.power_ports).not.toContainEqual({
+        name: "Legacy PSU",
+      });
+      expect(result.warnings).toContain(
+        'Both "power-ports" and "power_ports" are present, using "power-ports"',
+      );
+    });
+
+    it("ignores a component key that is not a list, with a warning", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Chassis 2000
+slug: generic-chassis-2000
+power-ports: iec-60320-c14
+console-ports:
+  name: Console
+`);
+
+      expect(result.deviceType.power_ports).toBeUndefined();
+      expect(result.warnings).toContain(
+        'Ignored "power-ports": expected a list',
+      );
+      expect(result.warnings).toContain(
+        'Ignored "console-ports": expected a list',
+      );
+    });
+
+    it("falls back to the underscore list when the hyphenated key is not a list", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Chassis 2000
+slug: generic-chassis-2000
+power-ports: iec-60320-c14
+power_ports:
+  - name: PSU1
+`);
+
+      expect(result.deviceType.power_ports).toContainEqual({ name: "PSU1" });
+      expect(result.warnings).toContain(
+        'Ignored "power-ports": expected a list',
+      );
+    });
+
+    it("skips list items that are not mappings instead of throwing", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Chassis 2000
+slug: generic-chassis-2000
+power-ports:
+  - null
+  - name: PSU1
+device-bays:
+  - Bay 1
+`);
+
+      expect(result.deviceType.power_ports).toContainEqual({ name: "PSU1" });
+      expect(result.deviceType.device_bays).toBeUndefined();
+      expect(result.warnings).toContain(
+        'Ignored 1 invalid item(s) in "power-ports"',
+      );
+      expect(result.warnings).toContain(
+        'Ignored 1 invalid item(s) in "device-bays"',
+      );
+    });
+
+    it("skips component items that fail validation and keeps the valid ones", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Chassis 2000
+slug: generic-chassis-2000
+power-ports:
+  - {}
+  - name: PSU1
+  - name: PSU2
+    maximum_draw: 750W
+power-outlets:
+  - name: ""
+  - name: Outlet 1
+device-bays:
+  - name: 42
+  - name: Bay 1
+inventory-items:
+  - name: null
+  - name: Fan Tray
+`);
+
+      expect(result.deviceType.power_ports).toContainEqual({ name: "PSU1" });
+      expect(result.deviceType.power_ports).not.toContainEqual(
+        expect.objectContaining({ name: "PSU2" }),
+      );
+      expect(result.deviceType.power_outlets).toContainEqual({
+        name: "Outlet 1",
+      });
+      expect(result.deviceType.device_bays).toContainEqual({ name: "Bay 1" });
+      expect(result.deviceType.inventory_items).toContainEqual({
+        name: "Fan Tray",
+      });
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('Skipped power port "PSU2": maximum_draw'),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped power port: name"),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped power outlet: name"),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped device bay: name"),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped inventory item: name"),
+      );
+    });
+
+    it("imports the null-valued component fields a NetBox device type export writes", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Chassis 2000
+slug: generic-chassis-2000
+power-ports:
+  - name: PSU1
+    type: null
+    maximum_draw: null
+    allocated_draw: null
+    label: null
+power-outlets:
+  - name: Outlet 1
+    type: null
+    power_port: null
+    feed_leg: null
+inventory-items:
+  - name: Fan Tray
+    manufacturer: null
+    part_id: null
+`);
+
+      expect(result.deviceType.power_ports).toContainEqual({ name: "PSU1" });
+      expect(result.deviceType.power_outlets).toContainEqual({
+        name: "Outlet 1",
+      });
+      expect(result.deviceType.inventory_items).toContainEqual({
+        name: "Fan Tray",
+      });
+    });
+  });
+
   describe("convertToDeviceType validation gate", () => {
     it.each([2.7, 0, -1, 99999])(
       "refuses out-of-range u_height %p instead of producing a DeviceType",
