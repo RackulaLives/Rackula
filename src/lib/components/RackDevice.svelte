@@ -15,7 +15,9 @@
   import PortIndicators from "./PortIndicators.svelte";
   import ContainerSlots from "./ContainerSlots.svelte";
   import {
+    colAtX,
     createRackDeviceDragData,
+    rowAtY,
     setCurrentDragData,
   } from "$lib/utils/dragdrop";
   import {
@@ -273,38 +275,48 @@
     return { device, deviceIndex, deviceId: placedDeviceId, position };
   }
 
-  // Whether the pointer is over one of this container's cells on screen, with
-  // the cells split into columns and rows the way drop targeting splits them
-  // (colAtX / rowAtY in dragdrop.ts). Covers the whole cell, not only the
-  // child in it, since a child can be shorter than its cell.
+  // Whether the pointer is over a given cell of this container on screen.
+  // The cell under the pointer is resolved with the same colAtX / rowAtY and
+  // slot lookup as drop targeting (detectContainerDropTarget), so the two
+  // cannot disagree. Covers the whole cell, not only the child in it, since a
+  // child can be shorter than its cell.
   function isPointerOverCell(
     slotId: string | undefined,
     event: PointerEvent,
   ): boolean {
-    const slots = device.slots ?? [];
-    const slot = slots.find((s) => s.id === slotId);
-    if (!slot || !rectElement) return false;
-
+    if (!slotId || !rectElement) return false;
     const rect = rectElement.getBoundingClientRect();
-    const colWidth = (col: number) =>
-      rect.width *
-      (slots.find((s) => s.position.col === col)?.width_fraction ?? 1);
-    const left =
-      rect.left +
-      [...new Set(slots.map((s) => s.position.col))]
-        .filter((col) => col < slot.position.col)
-        .reduce((sum, col) => sum + colWidth(col), 0);
-    const rowCount = new Set(slots.map((s) => s.position.row)).size;
-    const rowHeight = rect.height / rowCount;
-    // Row 0 is the bottom row.
-    const top = rect.top + (rowCount - 1 - slot.position.row) * rowHeight;
+    if (
+      rect.width === 0 ||
+      rect.height === 0 ||
+      event.clientX < rect.left ||
+      event.clientX >= rect.right ||
+      event.clientY < rect.top ||
+      event.clientY >= rect.bottom
+    ) {
+      return false;
+    }
 
-    return (
-      event.clientX >= left &&
-      event.clientX < left + colWidth(slot.position.col) &&
-      event.clientY >= top &&
-      event.clientY < top + rowHeight
+    // The pointer in rack units: x across the interior (this device's width),
+    // y from the top of the rack (this device's top edge is yPosition).
+    const x = ((event.clientX - rect.left) / rect.width) * deviceWidth;
+    const y =
+      yPosition + ((event.clientY - rect.top) / rect.height) * deviceHeight;
+    const slots = device.slots ?? [];
+    const col = colAtX(slots, x, deviceWidth);
+    const row = rowAtY(
+      slots,
+      y,
+      rackHeight,
+      uHeight,
+      positionHuman,
+      device.u_height,
     );
+    const aimed =
+      col === null
+        ? undefined
+        : slots.find((s) => s.position.col === col && s.position.row === row);
+    return aimed?.id === slotId;
   }
 
   // Image overflow: how far device images extend past rack rails (Issue #9)
@@ -753,6 +765,30 @@
     }
   }
 
+  // A context menu on a child is the carrier's (#3340). Select the carrier
+  // before opening it so the selection matches what the menu acts on, also
+  // when the menu comes from the keyboard with no pointer press before it.
+  // Like a pointer tap, it selects nothing while placing, and while creating
+  // a connection handleContextMenu only cancels that mode.
+  function handleChildContextMenu(event: MouseEvent) {
+    // A press still pending on the child (Ctrl+click on macOS opens the menu
+    // before the release) must not then select the child.
+    if (pressedChild) cancelActiveDrag();
+    if (!placementStore.isPlacing && !connectionCreationStore.isCreating) {
+      onselect?.(
+        new CustomEvent("select", {
+          detail: {
+            deviceId: placedDeviceId,
+            slug: device.slug,
+            position,
+            face: currentFace,
+          },
+        }),
+      );
+    }
+    handleContextMenu(event);
+  }
+
   // Placement mode owns this gesture (#2990 follow-up): stopping propagation
   // unconditionally here swallowed the click before it ever reached
   // Rack.svelte's rack-level handleClick -> handlePlacementClick path, so a
@@ -1034,25 +1070,22 @@
               ? `${childAriaLabel}, selected`
               : childAriaLabel}
             aria-pressed={isChildSelected}
-            onpointerdown={(e) =>
-              handlePointerDown(
-                e,
-                // A secondary-button press acts on the carrier: the context
-                // menu it opens is the carrier's, so selecting the child
-                // would leave the menu acting on something else.
-                e.button === 0
-                  ? {
-                      placedDevice: child,
-                      originalIndex: childIndex,
-                      deviceType: childType,
-                    }
-                  : null,
-              )}
+            onpointerdown={(e) => {
+              // Only the main button presses a child. A secondary press
+              // leaves it to handleChildContextMenu, which selects the
+              // carrier whose menu it opens.
+              if (e.button !== 0) return;
+              handlePointerDown(e, {
+                placedDevice: child,
+                originalIndex: childIndex,
+                deviceType: childType,
+              });
+            }}
             onpointermove={handlePointerMove}
             onpointerup={handlePointerUp}
             onpointercancel={handlePointerCancel}
             onclick={handleClick}
-            oncontextmenu={handleContextMenu}
+            oncontextmenu={handleChildContextMenu}
             onkeydown={(e) => handleChildKeyDown(e, child, childType)}
           >
             <!-- Child device rectangle -->

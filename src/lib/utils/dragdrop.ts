@@ -225,7 +225,7 @@ export function hideNativeDragGhost(dataTransfer: DataTransfer): void {
  * @param interiorWidth - Width of rack interior in pixels
  * @returns The matched column index, or null if outside the grid
  */
-function colAtX(
+export function colAtX(
   slots: Slot[],
   xOffsetInRack: number,
   interiorWidth: number,
@@ -259,7 +259,7 @@ function colAtX(
  * @param containerHeightU - Container height in U
  * @returns The matched row index (clamped to the grid)
  */
-function rowAtY(
+export function rowAtY(
   slots: Slot[],
   mouseY: number,
   rackHeight: number,

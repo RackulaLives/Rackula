@@ -221,6 +221,36 @@ describe("selecting a carrier child on the canvas (#3340)", () => {
     });
   });
 
+  it("a keyboard context menu on a child selects the carrier before opening its menu", async () => {
+    // No pointer press first: the menu key or Shift+F10 on a focused child.
+    const { store, rackId, carrier } = setup();
+    const onselect = vi.fn();
+    const oncontextmenuopen = vi.fn();
+    renderCarrier(store, rackId, carrier.id, { onselect, oncontextmenuopen });
+
+    await fireEvent.contextMenu(childButton("Column 1"));
+
+    expect(onselect).toHaveBeenCalledTimes(1);
+    expect(onselect.mock.calls[0]![0].detail.deviceId).toBe(carrier.id);
+    expect(oncontextmenuopen).toHaveBeenCalledTimes(1);
+  });
+
+  it("a Ctrl+click context menu on a child leaves the carrier selected after the release", async () => {
+    // On macOS the menu opens on the press, before the release that would
+    // otherwise complete a tap on the child.
+    const { store, rackId, carrier } = setup();
+    const onselect = vi.fn();
+    renderCarrier(store, rackId, carrier.id, { onselect });
+    const button = childButton("Column 1");
+
+    pointer(button, "pointerdown", 0, 0);
+    await fireEvent.contextMenu(button, { ctrlKey: true });
+    pointer(button, "pointerup", 0, 0);
+
+    expect(onselect).toHaveBeenCalledTimes(1);
+    expect(onselect.mock.calls[0]![0].detail.deviceId).toBe(carrier.id);
+  });
+
   it("a child is its own control, not part of the carrier's button", () => {
     // Content inside a role="button" is presentational, so assistive
     // technology would not expose a child nested in its carrier's button.
@@ -320,6 +350,67 @@ describe("dragging a carrier child on the canvas (#3340)", () => {
     await dragTo(childButton("Column 1"), xForColumn(1), yForU(5));
 
     expect(snapshotRack(store, rackId)).toEqual(before);
+    detach();
+  });
+
+  it("resolves the cell under a release the way drop targeting does, whatever the slot order", async () => {
+    // Slots listed right to left: the cell test must still pick cells by
+    // column index, as drop targeting does, so a release over the free right
+    // cell moves the child and one over its own left cell keeps it.
+    const store = getLayoutStore();
+    const rack = store.addRack("Test Rack", RACK_HEIGHT)!;
+    const shelf = store.addDeviceType({
+      name: "Reversed Shelf",
+      u_height: 1,
+      category: "shelf",
+      colour: CATEGORY_COLOURS.shelf,
+      slots: [
+        {
+          id: "right",
+          name: "Right",
+          position: { row: 0, col: 1 },
+          width_fraction: 0.5,
+          height_units: 1,
+        },
+        {
+          id: "left",
+          name: "Left",
+          position: { row: 0, col: 0 },
+          width_fraction: 0.5,
+          height_units: 1,
+        },
+      ],
+    });
+    const switchType = store.addDeviceType({
+      name: "Mini Switch",
+      u_height: 1,
+      category: "network",
+      colour: CATEGORY_COLOURS.network,
+      slot_width: 1,
+    });
+    store.placeDevice(rack.id, shelf.slug, 5);
+    const container = store.getRackById(rack.id)!.devices[0]!;
+    store.placeInContainer(rack.id, switchType.slug, container.id, "left", 0);
+    const childId = store
+      .getRackById(rack.id)!
+      .devices.find((d) => d.container_id)!.id;
+    const detach = attachDropListeners(store, rack.id);
+    renderCarrier(store, rack.id, container.id);
+    vi.spyOn(
+      screen.getByTestId("rack-device-hitbox"),
+      "getBoundingClientRect",
+    ).mockReturnValue(
+      new DOMRect(RAIL_WIDTH, yForU(5) - U_PX / 2, INTERIOR_WIDTH, U_PX),
+    );
+    const slotOf = () =>
+      store.getRackById(rack.id)!.devices.find((d) => d.id === childId)!
+        .slot_id;
+
+    await dragTo(childButton("Left"), xForColumn(1), yForU(5));
+    expect(slotOf()).toBe("left");
+
+    await dragTo(childButton("Left"), xForColumn(2), yForU(5));
+    expect(slotOf()).toBe("right");
     detach();
   });
 });
