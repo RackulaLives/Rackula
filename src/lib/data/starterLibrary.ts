@@ -14,7 +14,7 @@ import type {
   DeviceType,
   DeviceCategory,
   InterfaceTemplate,
-  InterfaceType,
+  KnownInterfaceType,
   Slot,
   SubdeviceRole,
 } from "$lib/types";
@@ -42,7 +42,7 @@ interface StarterDeviceSpec {
  */
 function portInterfaces(
   count: number,
-  type: InterfaceType,
+  type: KnownInterfaceType,
 ): InterfaceTemplate[] {
   return Array.from({ length: count }, (_, i) => ({
     name: String(i + 1),

@@ -18,6 +18,7 @@ import {
   PoETypeSchema,
   PowerOutletSchema,
   SubdeviceRoleSchema,
+  TolerantInterfaceTypeSchema,
   WeightUnitSchema,
 } from "$lib/schemas";
 import { parseYaml } from "./yaml";
@@ -364,9 +365,15 @@ function mapInterface(
   netbox: NetBoxInterface,
   warnings: string[],
 ): InterfaceTemplate {
-  const typeResult = InterfaceTypeSchema.safeParse(netbox.type);
+  // Keep an unknown type string unchanged (#3289); only a value the layout
+  // schema would refuse (empty, over-long, not a string) falls back to "other".
+  const typeResult = TolerantInterfaceTypeSchema.safeParse(netbox.type);
   if (!typeResult.success) {
-    warnings.push(`Unknown interface type: ${netbox.type}, using "other"`);
+    warnings.push(`Invalid interface type on ${netbox.name}, using "other"`);
+  } else if (!InterfaceTypeSchema.safeParse(typeResult.data).success) {
+    warnings.push(
+      `Unknown interface type: ${typeResult.data}, shown as a generic port`,
+    );
   }
 
   const template: InterfaceTemplate = {

@@ -6,13 +6,30 @@
 import type {
   DeviceType,
   InterfaceType,
+  KnownInterfaceType,
   PlacedPort,
   PortDirection,
   SignalType,
 } from "$lib/types";
+import { InterfaceTypeSchema } from "$lib/schemas";
 import { generateId } from "$lib/utils/device";
 
 export type PortCategory = "network" | "power" | "console" | "av";
+
+const KNOWN_INTERFACE_TYPES: ReadonlySet<string> = new Set(
+  InterfaceTypeSchema.options,
+);
+
+/**
+ * True when this build knows the interface type (#3289). Guard lookups in
+ * per-type maps with it: an unknown type read from a newer file can be any
+ * string, including an Object prototype key such as "constructor".
+ */
+export function isKnownInterfaceType(
+  type: InterfaceType,
+): type is KnownInterfaceType {
+  return KNOWN_INTERFACE_TYPES.has(type);
+}
 
 /**
  * Pro audio / AV interface types (spike #1927 taxonomy). Listed explicitly

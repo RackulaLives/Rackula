@@ -8,6 +8,7 @@ import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/svelte";
 import RackDevice from "$lib/components/RackDevice.svelte";
 import type { DeviceType } from "$lib/types";
+import { HIGH_DENSITY_THRESHOLD } from "$lib/utils/port-geometry";
 import { createTestDeviceType } from "./factories";
 
 describe("RackDevice port indicators (#3009)", () => {
@@ -35,5 +36,46 @@ describe("RackDevice port indicators (#3009)", () => {
 
     expect(getByRole("button", { name: "1 (1000base-t)" })).toBeInTheDocument();
     expect(getByRole("button", { name: "2 (1000base-t)" })).toBeInTheDocument();
+  });
+});
+
+describe("RackDevice port indicators with unknown interface types (#3289)", () => {
+  const props = {
+    position: 6,
+    rackHeight: 42,
+    rackId: "rack-1",
+    deviceIndex: 0,
+    selected: false,
+    uHeight: 30,
+    rackWidth: 300,
+  };
+
+  it("renders a port for an unknown type, named with the raw type string", () => {
+    const device: DeviceType = {
+      ...createTestDeviceType({ slug: "osfp-switch", u_height: 1 }),
+      interfaces: [{ name: "osfp1", type: "400gbase-x-osfp" }],
+    };
+
+    const { getByRole } = render(RackDevice, { props: { ...props, device } });
+
+    expect(
+      getByRole("button", { name: "osfp1 (400gbase-x-osfp)" }),
+    ).toBeInTheDocument();
+  });
+
+  it("groups a high-density device whose type is named after an Object prototype member", () => {
+    const portCount = HIGH_DENSITY_THRESHOLD + 1;
+    const device: DeviceType = {
+      ...createTestDeviceType({ slug: "odd-switch", u_height: 1 }),
+      interfaces: Array.from({ length: portCount }, (_, i) => ({
+        name: String(i + 1),
+        type: "constructor",
+      })),
+    };
+
+    const { getByText } = render(RackDevice, { props: { ...props, device } });
+
+    // One badge counts every port of the shared type.
+    expect(getByText(String(portCount))).toBeInTheDocument();
   });
 });

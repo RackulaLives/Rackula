@@ -192,6 +192,18 @@ export const InterfaceTypeSchema = z.enum([
 ]);
 
 /**
+ * Interface type as read from a layout (#3289). Accepts any known type, or any
+ * other non-empty string up to 100 characters, so a same-MAJOR file from a
+ * newer build that knows more types loads and saves them unchanged instead of
+ * rejecting the whole layout. Unknown values render as generic network ports.
+ * InterfaceTypeSchema stays the strict list of types this build knows.
+ */
+export const TolerantInterfaceTypeSchema = z.union([
+  InterfaceTypeSchema,
+  z.string().min(1).max(100),
+]);
+
+/**
  * PoE type enum (NetBox-compatible)
  */
 export const PoETypeSchema = z.enum([
@@ -314,7 +326,7 @@ export function validateSlugUniqueness(
 export const InterfaceTemplateSchema = z
   .object({
     name: z.string().min(1, "Interface name is required"),
-    type: InterfaceTypeSchema,
+    type: TolerantInterfaceTypeSchema,
     label: z.string().max(64).optional(),
     mgmt_only: z.boolean().optional(),
     position: InterfacePositionSchema.optional(),
@@ -398,7 +410,7 @@ export const PlacedPortSchema = z
       .number()
       .int()
       .min(0, "Template index must be non-negative"),
-    type: InterfaceTypeSchema,
+    type: TolerantInterfaceTypeSchema,
     label: z.string().max(64).optional(),
     direction: PortDirectionSchema.optional(),
     signal_type: SignalTypeSchema.optional(),
@@ -1126,7 +1138,8 @@ export type Airflow = z.infer<typeof AirflowSchema>;
 export type SubdeviceRole = z.infer<typeof SubdeviceRoleSchema>;
 export type SlotWidth = z.infer<typeof SlotWidthSchema>;
 export type RackWidth = z.infer<typeof RackWidthSchema>;
-export type InterfaceType = z.infer<typeof InterfaceTypeSchema>;
+export type KnownInterfaceType = z.infer<typeof InterfaceTypeSchema>;
+export type InterfaceType = z.infer<typeof TolerantInterfaceTypeSchema>;
 export type PoEType = z.infer<typeof PoETypeSchema>;
 export type PoEMode = z.infer<typeof PoEModeSchema>;
 export type InterfacePosition = z.infer<typeof InterfacePositionSchema>;

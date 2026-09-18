@@ -12,7 +12,14 @@
 // while prior-release / current bodies continue to load unchanged.
 import { describe, it, expect } from "vitest";
 import { parseLayoutObject } from "./yaml";
-import { createTestLayout } from "../../tests/factories";
+import {
+  createTestDevice,
+  createTestDeviceType,
+  createTestInterfaceTemplate,
+  createTestLayout,
+  createTestPlacedPort,
+  createTestRack,
+} from "../../tests/factories";
 
 /** A schema-valid runtime body with a current-major schema_version header. */
 function currentVersionBody(): Record<string, unknown> {
@@ -64,5 +71,48 @@ describe("parseLayoutObject: schema validation still rejects malformed bodies", 
     };
     const result = parseLayoutObject(body);
     expect(result).toBeNull();
+  });
+});
+
+describe("parseLayoutObject: unknown interface types (#3289)", () => {
+  it("loads a body with an unknown interface and port type, keeping the string", () => {
+    const UNKNOWN_TYPE = "400gbase-x-osfp";
+    const deviceType = {
+      ...createTestDeviceType({ slug: "osfp-switch" }),
+      interfaces: [
+        createTestInterfaceTemplate({ name: "osfp1", type: UNKNOWN_TYPE }),
+      ],
+    };
+    const layout = createTestLayout({
+      device_types: [deviceType],
+      racks: [
+        createTestRack({
+          id: "rack-1",
+          devices: [
+            createTestDevice({
+              id: "device-1",
+              device_type: deviceType.slug,
+              position: 10,
+              ports: [
+                createTestPlacedPort({
+                  id: "port-1",
+                  template_name: "osfp1",
+                  type: UNKNOWN_TYPE,
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const result = parseLayoutObject(layout);
+
+    expect(result).not.toBeNull();
+    const loadedType = result?.device_types.find(
+      (dt) => dt.slug === deviceType.slug,
+    );
+    expect(loadedType?.interfaces?.[0]?.type).toBe(UNKNOWN_TYPE);
+    expect(result?.racks[0]?.devices[0]?.ports?.[0]?.type).toBe(UNKNOWN_TYPE);
   });
 });
