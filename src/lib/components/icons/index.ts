@@ -61,6 +61,9 @@ export { default as IconBug } from "./IconBug.svelte";
 export { default as IconChat } from "./IconChat.svelte";
 export { default as IconCheck } from "./IconCheck.svelte";
 
+// External link icons
+export { default as IconOpenNewWindow } from "./IconOpenNewWindow.svelte";
+
 // Status icons
 export { default as IconClock } from "./IconClock.svelte";
 export { default as IconWarningTriangle } from "./IconWarningTriangle.svelte";
