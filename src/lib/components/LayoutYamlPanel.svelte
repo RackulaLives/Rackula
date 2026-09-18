@@ -11,9 +11,12 @@
   import type { ImageStoreMap } from "$lib/types/images";
   import { layoutDebug } from "$lib/utils/debug";
   import { getToastStore } from "$lib/stores/toast.svelte";
-  import { IconCopy, IconDownload } from "./icons";
+  import { IconCopy, IconDownload, IconOpenNewWindow } from "./icons";
   import Button from "./ui/Button.svelte";
   import { ICON_SIZE } from "$lib/constants/sizing";
+
+  const SCHEMA_GUIDE_URL =
+    "https://github.com/RackulaLives/Rackula/blob/main/docs/guides/yaml-schema-validation.md";
 
   interface Props {
     open: boolean;
@@ -296,9 +299,21 @@
 
 <div class="yaml-panel">
   <div class="yaml-panel-header">
-    <p class="mode-label" data-testid="yaml-mode-label">
-      {isEditing ? "Editable mode" : "Read-only mode"}
-    </p>
+    <div class="panel-meta">
+      <p class="mode-label" data-testid="yaml-mode-label">
+        {isEditing ? "Editable mode" : "Read-only mode"}
+      </p>
+      <a
+        href={SCHEMA_GUIDE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="schema-guide-link"
+      >
+        Schema validation guide
+        <IconOpenNewWindow size={ICON_SIZE.xs} />
+        <span class="sr-only">(opens in a new tab)</span>
+      </a>
+    </div>
     <div class="panel-actions">
       <button
         type="button"
@@ -385,10 +400,53 @@
     flex-wrap: wrap;
   }
 
+  .panel-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
   .mode-label {
     margin: 0;
     font-size: var(--font-size-xs);
     color: var(--colour-text-muted);
+  }
+
+  .schema-guide-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: var(--space-6);
+    font-size: var(--font-size-xs);
+    color: var(--colour-primary);
+    text-decoration: none;
+    text-underline-offset: var(--space-0-5);
+    border-radius: var(--radius-sm);
+  }
+
+  .schema-guide-link:hover {
+    text-decoration: underline;
+  }
+
+  .schema-guide-link:focus-visible {
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: 1px;
+  }
+
+  /* Mobile (#3001 pattern): keep the rendered size; a transparent overlay
+     grows the tap target to the touch-target minimum. */
+  @media (max-width: 1024px) {
+    .schema-guide-link::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      transform: translateY(-50%);
+      min-height: var(--touch-target-min);
+    }
   }
 
   .panel-actions {
