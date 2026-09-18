@@ -958,6 +958,55 @@ device-bays:
       );
     });
 
+    it("skips component items that fail validation and keeps the valid ones", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Chassis 2000
+slug: generic-chassis-2000
+power-ports:
+  - {}
+  - name: PSU1
+  - name: PSU2
+    maximum_draw: 750W
+power-outlets:
+  - name: ""
+  - name: Outlet 1
+device-bays:
+  - name: 42
+  - name: Bay 1
+inventory-items:
+  - name: null
+  - name: Fan Tray
+`);
+
+      expect(result.deviceType.power_ports).toContainEqual({ name: "PSU1" });
+      expect(result.deviceType.power_ports).not.toContainEqual(
+        expect.objectContaining({ name: "PSU2" }),
+      );
+      expect(result.deviceType.power_outlets).toContainEqual({
+        name: "Outlet 1",
+      });
+      expect(result.deviceType.device_bays).toContainEqual({ name: "Bay 1" });
+      expect(result.deviceType.inventory_items).toContainEqual({
+        name: "Fan Tray",
+      });
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('Skipped power port "PSU2": maximum_draw'),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped power port: name"),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped power outlet: name"),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped device bay: name"),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("Skipped inventory item: name"),
+      );
+    });
+
     it("imports the null-valued component fields a NetBox device type export writes", async () => {
       const result = await importOk(`
 manufacturer: Generic

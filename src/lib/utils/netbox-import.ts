@@ -12,14 +12,18 @@ import type {
 } from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import {
+  DeviceBaySchema,
   DeviceTypeSchema,
   InterfaceTypeSchema,
+  InventoryItemSchema,
   PoEModeSchema,
   PoETypeSchema,
   PowerOutletSchema,
+  PowerPortSchema,
   SubdeviceRoleSchema,
   WeightUnitSchema,
 } from "$lib/schemas";
+import type { z } from "$lib/zod";
 import { parseYaml } from "./yaml";
 import { ensureUniqueSlug, generateDeviceSlug, slugify } from "./slug";
 
@@ -184,6 +188,31 @@ function readComponentList<K extends ComponentListKey>(
     );
   }
   return items as NonNullable<NetBoxDeviceType[K]>;
+}
+
+/**
+ * Keep the mapped component items that pass their Rackula schema. Each
+ * rejected item is skipped with a warning, so one malformed entry does not
+ * fail the whole import at the DeviceTypeSchema gate.
+ */
+function keepValidComponents<T extends { name: unknown }>(
+  items: T[],
+  schema: z.ZodType,
+  noun: string,
+  warnings: string[],
+): T[] {
+  return items.filter((item) => {
+    const parsed = schema.safeParse(item);
+    if (parsed.success) return true;
+    const first = parsed.error.issues[0];
+    const label =
+      typeof item.name === "string" && item.name ? ` "${item.name}"` : "";
+    const field = first?.path.join(".") || "item";
+    warnings.push(
+      `Skipped ${noun}${label}: ${field}: ${first?.message ?? "validation failed"}`,
+    );
+    return false;
+  });
 }
 
 /**
@@ -608,20 +637,24 @@ export function convertToDeviceType(
   }
 
   // Map power ports
-  const powerPorts = readComponentList(netbox, "power-ports", warnings);
-  if (powerPorts && powerPorts.length > 0) {
-    deviceType.power_ports = powerPorts.map((p) => ({
+  const powerPorts = keepValidComponents(
+    (readComponentList(netbox, "power-ports", warnings) ?? []).map((p) => ({
       name: p.name,
       type: p.type ?? undefined,
       maximum_draw: p.maximum_draw ?? undefined,
       allocated_draw: p.allocated_draw ?? undefined,
-    }));
+    })),
+    PowerPortSchema,
+    "power port",
+    warnings,
+  );
+  if (powerPorts.length > 0) {
+    deviceType.power_ports = powerPorts;
   }
 
   // Map power outlets
-  const powerOutlets = readComponentList(netbox, "power-outlets", warnings);
-  if (powerOutlets && powerOutlets.length > 0) {
-    deviceType.power_outlets = powerOutlets.map((o) => {
+  const powerOutlets = keepValidComponents(
+    (readComponentList(netbox, "power-outlets", warnings) ?? []).map((o) => {
       const outlet: NonNullable<DeviceType["power_outlets"]>[number] = {
         name: o.name,
         type: o.type ?? undefined,
@@ -636,25 +669,43 @@ export function convertToDeviceType(
         }
       }
       return outlet;
-    });
+    }),
+    PowerOutletSchema,
+    "power outlet",
+    warnings,
+  );
+  if (powerOutlets.length > 0) {
+    deviceType.power_outlets = powerOutlets;
   }
 
   // Map device bays
-  const deviceBays = readComponentList(netbox, "device-bays", warnings);
-  if (deviceBays && deviceBays.length > 0) {
-    deviceType.device_bays = deviceBays.map((b) => ({
+  const deviceBays = keepValidComponents(
+    (readComponentList(netbox, "device-bays", warnings) ?? []).map((b) => ({
       name: b.name,
-    }));
+    })),
+    DeviceBaySchema,
+    "device bay",
+    warnings,
+  );
+  if (deviceBays.length > 0) {
+    deviceType.device_bays = deviceBays;
   }
 
   // Map inventory items
-  const inventoryItems = readComponentList(netbox, "inventory-items", warnings);
-  if (inventoryItems && inventoryItems.length > 0) {
-    deviceType.inventory_items = inventoryItems.map((item) => ({
-      name: item.name,
-      manufacturer: item.manufacturer ?? undefined,
-      part_id: item.part_id ?? undefined,
-    }));
+  const inventoryItems = keepValidComponents(
+    (readComponentList(netbox, "inventory-items", warnings) ?? []).map(
+      (item) => ({
+        name: item.name,
+        manufacturer: item.manufacturer ?? undefined,
+        part_id: item.part_id ?? undefined,
+      }),
+    ),
+    InventoryItemSchema,
+    "inventory item",
+    warnings,
+  );
+  if (inventoryItems.length > 0) {
+    deviceType.inventory_items = inventoryItems;
   }
 
   // Console ports have no Rackula representation yet. Note the gap in
