@@ -9,8 +9,10 @@ import type {
   Airflow,
   RackWidth,
   InterfaceTemplate,
+  Slot,
 } from "$lib/types";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
+import { findStarterDevice } from "$lib/data/starterLibrary";
 import {
   DeviceBaySchema,
   DeviceTypeSchema,
@@ -545,6 +547,36 @@ function mapInterface(
 }
 
 /**
+ * Container slots for a NetBox parent's device bays, one slot per bay named
+ * after it. When the slug matches a starter library container with the same
+ * number of slots, that container's slot geometry is reused, which is how a
+ * carrier exported by Rackula round-trips exactly. Otherwise the bays become
+ * a single row of equal-width, full-height slots, with a warning.
+ */
+function slotsForDeviceBays(
+  slug: string,
+  bays: { name: string }[],
+  uHeight: number,
+  warnings: string[],
+): Slot[] {
+  const starterSlots = findStarterDevice(slug)?.slots;
+  if (starterSlots && starterSlots.length === bays.length) {
+    return starterSlots.map((slot, i) => ({ ...slot, name: bays[i]!.name }));
+  }
+
+  warnings.push(
+    `${bays.length} device bay(s) imported as slots in a single row: the slot geometry is approximate, check it in the device editor`,
+  );
+  return bays.map((bay, i) => ({
+    id: `bay-${i + 1}`,
+    name: bay.name,
+    position: { row: 0, col: i },
+    width_fraction: 1 / bays.length,
+    height_units: uHeight,
+  }));
+}
+
+/**
  * Convert NetBox device type to Rackula DeviceType
  */
 export function convertToDeviceType(
@@ -595,12 +627,23 @@ export function convertToDeviceType(
     new Set(options?.existingSlugs ?? []),
   );
 
+  // NetBox requires child device types to be 0U, which the schema refuses.
+  // Give the child a height it can load with and ask the user to match it
+  // to the bay it fits.
+  let uHeight = netbox.u_height ?? 1;
+  if (uHeight === 0 && netbox.subdevice_role === "child") {
+    uHeight = 1;
+    warnings.push(
+      "NetBox child types are 0U: imported as 1U, set the height to match the bay it fits",
+    );
+  }
+
   // Build the device type
   const deviceType: DeviceType = {
     slug,
     manufacturer: netbox.manufacturer,
     model: netbox.model,
-    u_height: netbox.u_height ?? 1,
+    u_height: uHeight,
     is_full_depth: netbox.is_full_depth ?? true,
     colour,
     category,
@@ -721,6 +764,15 @@ export function convertToDeviceType(
   );
   if (deviceBays.length > 0) {
     deviceType.device_bays = deviceBays;
+    // A NetBox parent with device bays is a Rackula container.
+    if (deviceType.subdevice_role === "parent") {
+      deviceType.slots = slotsForDeviceBays(
+        normalisedSlug,
+        deviceBays,
+        deviceType.u_height,
+        warnings,
+      );
+    }
   }
 
   // Map inventory items

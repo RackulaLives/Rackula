@@ -18,6 +18,7 @@ import {
 } from "../../tests/factories";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import { DeviceTypeSchema } from "$lib/schemas";
+import { findStarterDevice } from "$lib/data/starterLibrary";
 
 describe("netbox-import", () => {
   describe("parseNetBoxYaml", () => {
@@ -1293,6 +1294,114 @@ slug: generic-unknown-device
     it("returns error for invalid YAML", async () => {
       const yaml = "not: valid: yaml: format";
       const result = await importFromNetBoxYaml(yaml);
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("parent and child device types (#2296)", () => {
+    async function importOk(yaml: string): Promise<ImportResult> {
+      const imported = await importFromNetBoxYaml(yaml);
+      if (!imported.success) {
+        throw new Error(`expected success, got error: ${imported.error}`);
+      }
+      return imported.result;
+    }
+
+    it("imports a parent with device bays as a container with one slot per bay", async () => {
+      const result = await importOk(`
+manufacturer: Acme
+model: Chassis 3
+slug: acme-chassis-3
+u_height: 2
+subdevice_role: parent
+device-bays:
+  - name: Bay A
+  - name: Bay B
+  - name: Bay C
+`);
+
+      const slots = result.deviceType.slots ?? [];
+      expect(slots.map((s) => s.name)).toEqual(["Bay A", "Bay B", "Bay C"]);
+      expect(new Set(slots.map((s) => s.id)).size).toBe(slots.length);
+      expect(slots.every((s) => s.position.row === 0)).toBe(true);
+      expect(slots.map((s) => s.position.col)).toEqual([0, 1, 2]);
+      const totalWidth = slots.reduce(
+        (sum, s) => sum + (s.width_fraction ?? 1),
+        0,
+      );
+      expect(totalWidth).toBeCloseTo(1);
+      expect(slots.every((s) => s.height_units === 2)).toBe(true);
+      expect(result.deviceType.device_bays).toContainEqual({ name: "Bay A" });
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("approximate"),
+      );
+    });
+
+    it("reuses a starter container's slot geometry when the slug matches", async () => {
+      const carrier = findStarterDevice("carrier-1u-2x2");
+      const starterSlots = carrier?.slots ?? [];
+      expect(starterSlots.length).toBeGreaterThan(0);
+      const bayNames = starterSlots.map((_, i) => `Cell ${i + 1}`);
+
+      const result = await importOk(`
+manufacturer: Generic
+model: Carrier
+slug: carrier-1u-2x2
+u_height: 1
+subdevice_role: parent
+device-bays:
+${bayNames.map((name) => `  - name: ${name}`).join("\n")}
+`);
+
+      expect(result.deviceType.slots).toEqual(
+        starterSlots.map((slot, i) => ({ ...slot, name: bayNames[i] })),
+      );
+      expect(result.warnings).not.toContainEqual(
+        expect.stringContaining("approximate"),
+      );
+    });
+
+    it("generates slots when the bay count differs from the matching starter container", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Carrier
+slug: carrier-1u-2x2
+u_height: 1
+subdevice_role: parent
+device-bays:
+  - name: Only Bay
+`);
+
+      expect(result.deviceType.slots?.map((s) => s.name)).toEqual(["Only Bay"]);
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("approximate"),
+      );
+    });
+
+    it("imports a 0U child type with a height of 1 and a warning", async () => {
+      const result = await importOk(`
+manufacturer: Acme
+model: Blade
+slug: acme-blade
+u_height: 0
+subdevice_role: child
+`);
+
+      expect(result.deviceType.u_height).toBe(1);
+      expect(result.deviceType.subdevice_role).toBe("child");
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining("match the bay"),
+      );
+    });
+
+    it("still rejects a 0U type that is not a child", async () => {
+      const result = await importFromNetBoxYaml(`
+manufacturer: Acme
+model: Vertical PDU
+slug: acme-vertical-pdu
+u_height: 0
+`);
 
       expect(result.success).toBe(false);
     });
