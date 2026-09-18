@@ -5,7 +5,12 @@
  */
 
 import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
-import { canPlaceDevice, isContainerChild } from "./collision";
+import {
+  canPlaceDevice,
+  findAdjacentSlotForChild,
+  isContainerChild,
+  type CellDirection,
+} from "./collision";
 import { UNITS_PER_U, heightToInternalUnits } from "./position";
 import { effectiveFace } from "./effective-face";
 
@@ -159,6 +164,47 @@ export function canMoveDown(
 ): boolean {
   const result = findNextValidPosition(rack, deviceTypes, deviceIndex, -1);
   return result.success;
+}
+
+/**
+ * Check if a carrier child can move one cell in a direction within its own
+ * carrier, as the arrow keys do (moveDeviceToAdjacentSlot). Lets the edit panel
+ * and mobile inspector disable a control that would not land (#3340).
+ *
+ * @param rack - The rack containing the child and its carrier
+ * @param deviceTypes - Device type definitions
+ * @param deviceIndex - Index of the child in rack.devices array
+ * @param direction - Which way to move
+ * @returns true if a free, fitting cell lies that way; false for a rack-level device
+ */
+export function canMoveChildCell(
+  rack: Rack,
+  deviceTypes: DeviceType[],
+  deviceIndex: number,
+  direction: CellDirection,
+): boolean {
+  const child = rack.devices[deviceIndex];
+  if (!child?.container_id || !child.slot_id) return false;
+
+  const childType = deviceTypes.find((d) => d.slug === child.device_type);
+  const container = rack.devices.find((d) => d.id === child.container_id);
+  const containerType = deviceTypes.find(
+    (d) => d.slug === container?.device_type,
+  );
+  if (!childType || !containerType) return false;
+
+  const siblings = rack.devices.filter(
+    (d) => d.container_id === child.container_id && d.id !== child.id,
+  );
+  return (
+    findAdjacentSlotForChild(
+      containerType,
+      childType,
+      child.slot_id,
+      siblings,
+      direction,
+    ) !== null
+  );
 }
 
 /**

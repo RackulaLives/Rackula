@@ -80,9 +80,11 @@
     findNextValidPosition,
     canMoveUp,
     canMoveDown,
+    canMoveChildCell,
     getMoveBlockedMessage,
     type MoveDirection,
   } from "$lib/utils/device-movement";
+  import { isContainerChild } from "$lib/utils/collision";
   import { getStorageMode } from "$lib/storage";
 
   const layoutStore = getLayoutStore();
@@ -545,8 +547,13 @@
   const mobileMoveTarget = $derived.by(() => {
     const rack = layoutStore.activeRack;
     if (!rack || selectedDeviceForSheet === null) return null;
-    if (!rack.devices[selectedDeviceForSheet]) return null;
-    return { rack, deviceIndex: selectedDeviceForSheet };
+    const device = rack.devices[selectedDeviceForSheet];
+    if (!device) return null;
+    return {
+      rack,
+      deviceIndex: selectedDeviceForSheet,
+      isChild: isContainerChild(device),
+    };
   });
 
   // The registry's enabledWhen for the move verbs only checks isDeviceSelected,
@@ -559,16 +566,15 @@
     const target = mobileMoveTarget;
     if (!target) return verbs;
 
-    const upBlocked = !canMoveUp(
-      target.rack,
-      layoutStore.device_types,
-      target.deviceIndex,
-    );
-    const downBlocked = !canMoveDown(
-      target.rack,
-      layoutStore.device_types,
-      target.deviceIndex,
-    );
+    // A carrier child moves between the cells of its carrier (#3340).
+    const { rack, deviceIndex, isChild } = target;
+    const deviceTypes = layoutStore.device_types;
+    const upBlocked = isChild
+      ? !canMoveChildCell(rack, deviceTypes, deviceIndex, "up")
+      : !canMoveUp(rack, deviceTypes, deviceIndex);
+    const downBlocked = isChild
+      ? !canMoveChildCell(rack, deviceTypes, deviceIndex, "down")
+      : !canMoveDown(rack, deviceTypes, deviceIndex);
 
     return verbs.map((verb) => {
       if (verb.id === "move-device-up") {
@@ -617,6 +623,17 @@
   function nudgeSelectedDevice(direction: MoveDirection): void {
     const target = mobileMoveTarget;
     if (!target) return;
+
+    // A carrier child moves one cell within its carrier; the shared handler
+    // announces the cell it lands in (#3340).
+    if (target.isChild) {
+      if (direction === 1) {
+        moveSelectedDeviceUp();
+      } else {
+        moveSelectedDeviceDown();
+      }
+      return;
+    }
 
     const result = findNextValidPosition(
       target.rack,

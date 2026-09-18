@@ -7,12 +7,19 @@
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { isContainerChild } from "$lib/utils/collision";
   import { formatDisplayPosition as formatDisplayPositionShared } from "$lib/utils/position";
-  import { canMoveUp, canMoveDown } from "$lib/utils/device-movement";
+  import {
+    canMoveUp,
+    canMoveDown,
+    canMoveChildCell,
+  } from "$lib/utils/device-movement";
   import {
     moveSelectedDeviceUp,
     moveSelectedDeviceDown,
+    moveSelectedDeviceLeft,
+    moveSelectedDeviceRight,
   } from "$lib/actions/selection-actions";
   import type { Rack, SelectedDeviceInfo } from "$lib/types";
+  import type { CellDirection } from "$lib/utils/collision";
 
   interface Props {
     selectedDeviceInfo: SelectedDeviceInfo;
@@ -24,11 +31,25 @@
 
   // Container children use container-relative positions; a rack-level move
   // (what layoutStore.moveDevice does) would detach them from their container.
-  // The vertical Position controls are inert for children, matching the
-  // keyboard nudge path. Deliberate detachment happens via drag-out.
+  // For a child the controls move it between the cells of its carrier instead,
+  // through the same actions as the arrow keys (#3340). Deliberate detachment
+  // happens via drag-out.
   const isChildDevice = $derived(
     isContainerChild(selectedDeviceInfo.placedDevice),
   );
+
+  function canMoveCell(direction: CellDirection): boolean {
+    const { rack, deviceIndex } = selectedDeviceInfo;
+    return canMoveChildCell(
+      rack,
+      layoutStore.device_types,
+      deviceIndex,
+      direction,
+    );
+  }
+
+  const canMoveChildLeft = $derived(isChildDevice && canMoveCell("left"));
+  const canMoveChildRight = $derived(isChildDevice && canMoveCell("right"));
 
   // Format an internal-unit position for display, honouring the rack's U
   // numbering direction and starting_unit offset. Delegates to the shared
@@ -49,13 +70,13 @@
   // collision-aware helpers from device-movement so desktop, keyboard, and
   // mobile all use the same reachability logic.
   const canMoveDeviceUp = $derived.by(() => {
-    if (isChildDevice) return false;
+    if (isChildDevice) return canMoveCell("up");
     const { rack, deviceIndex } = selectedDeviceInfo;
     return canMoveUp(rack, layoutStore.device_types, deviceIndex);
   });
 
   const canMoveDeviceDown = $derived.by(() => {
-    if (isChildDevice) return false;
+    if (isChildDevice) return canMoveCell("down");
     const { rack, deviceIndex } = selectedDeviceInfo;
     return canMoveDown(rack, layoutStore.device_types, deviceIndex);
   });
@@ -142,17 +163,33 @@
 
 <div class="info-section">
   <div class="info-row position-row">
-    <span class="info-label">Position</span>
+    <span class="info-label">{isChildDevice ? "Cell" : "Position"}</span>
     <div class="position-controls">
-      <span class="info-value position-value">{displayPosition}</span>
+      <span class="info-value position-value"
+        >{isChildDevice ? containerContext?.slotName : displayPosition}</span
+      >
       <div class="position-buttons">
+        {#if isChildDevice}
+          <button
+            type="button"
+            class="position-btn"
+            onclick={moveSelectedDeviceLeft}
+            disabled={!canMoveChildLeft}
+            aria-label="Move device to the cell on the left"
+            title="Move to cell left"
+          >
+            <span class="arrow-label">←</span>
+          </button>
+        {/if}
         <button
           type="button"
           class="position-btn"
           onclick={moveSelectedDeviceDown}
           disabled={!canMoveDeviceDown}
-          aria-label="Move device down by 1 rack unit"
-          title="Move down 1U"
+          aria-label={isChildDevice
+            ? "Move device to the cell below"
+            : "Move device down by 1 rack unit"}
+          title={isChildDevice ? "Move to cell below" : "Move down 1U"}
         >
           <span class="arrow-label">↓</span>
         </button>
@@ -161,15 +198,33 @@
           class="position-btn"
           onclick={moveSelectedDeviceUp}
           disabled={!canMoveDeviceUp}
-          aria-label="Move device up by 1 rack unit"
-          title="Move up 1U"
+          aria-label={isChildDevice
+            ? "Move device to the cell above"
+            : "Move device up by 1 rack unit"}
+          title={isChildDevice ? "Move to cell above" : "Move up 1U"}
         >
           <span class="arrow-label">↑</span>
         </button>
+        {#if isChildDevice}
+          <button
+            type="button"
+            class="position-btn"
+            onclick={moveSelectedDeviceRight}
+            disabled={!canMoveChildRight}
+            aria-label="Move device to the cell on the right"
+            title="Move to cell right"
+          >
+            <span class="arrow-label">→</span>
+          </button>
+        {/if}
       </div>
     </div>
   </div>
-  <p class="helper-text position-hint">Use ↑↓ keys to move device</p>
+  <p class="helper-text position-hint">
+    {isChildDevice
+      ? "Use arrow keys to move between cells"
+      : "Use ↑↓ keys to move device"}
+  </p>
 </div>
 
 <style>
