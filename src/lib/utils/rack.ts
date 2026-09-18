@@ -17,24 +17,42 @@ import { wrapText } from "$lib/utils/text-sizing";
 /** Font size of the empty-rack hint, used both to render and to wrap it */
 export const EMPTY_RACK_HINT_FONT_SIZE = 11;
 
-/** Horizontal breathing room between the hint text and each rail */
+/** Distance between the centres of consecutive empty-rack hint lines */
+export const EMPTY_RACK_HINT_LINE_HEIGHT = EMPTY_RACK_HINT_FONT_SIZE * 1.4;
+
+/** Breathing room between the hint text and the rails or top and bottom bars */
 const EMPTY_RACK_HINT_INSET = 4;
+
+export interface EmptyRackHintOptions {
+  face: "front" | "rear";
+  /** Whether the rack holds any device on either face */
+  rackHasDevices: boolean;
+  /** Whether this face renders any device */
+  faceHasDevices: boolean;
+  /** Width between the rails, in pixels */
+  interiorWidth: number;
+  /** Height between the top and bottom bars, in pixels */
+  interiorHeight: number;
+}
 
 /**
  * Lines of the empty-state hint for one face of a face-filtered rack (#3330).
  * A fully empty rack gets a single hint on the front face only, so dual view
  * does not repeat it per face. A face that is empty while the other face has
  * devices gets its own short hint. Each phrase starts a new line and is
- * wrapped to the rack interior, since SVG text does not wrap.
+ * wrapped to the rack interior, since SVG text does not wrap. The hint is
+ * omitted when the wrapped block is taller than the interior (very short
+ * racks), rather than spilling onto the rails.
  *
  * @returns The wrapped lines, empty when this face shows no hint
  */
-export function getEmptyRackHintLines(
-  face: "front" | "rear",
-  rackHasDevices: boolean,
-  faceHasDevices: boolean,
-  interiorWidth: number,
-): string[] {
+export function getEmptyRackHintLines({
+  face,
+  rackHasDevices,
+  faceHasDevices,
+  interiorWidth,
+  interiorHeight,
+}: EmptyRackHintOptions): string[] {
   if (faceHasDevices) return [];
   let phrases: string[];
   if (!rackHasDevices) {
@@ -44,9 +62,13 @@ export function getEmptyRackHintLines(
     phrases = [face === "front" ? "Front is empty." : "Rear is empty."];
   }
   const width = interiorWidth - EMPTY_RACK_HINT_INSET * 2;
-  return phrases.flatMap((phrase) =>
+  const lines = phrases.flatMap((phrase) =>
     wrapText(phrase, width, EMPTY_RACK_HINT_FONT_SIZE),
   );
+  const blockHeight =
+    (lines.length - 1) * EMPTY_RACK_HINT_LINE_HEIGHT +
+    EMPTY_RACK_HINT_FONT_SIZE;
+  return blockHeight + EMPTY_RACK_HINT_INSET * 2 <= interiorHeight ? lines : [];
 }
 
 /**

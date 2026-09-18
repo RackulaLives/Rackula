@@ -41,6 +41,7 @@
   import {
     getEmptyRackHintLines,
     EMPTY_RACK_HINT_FONT_SIZE,
+    EMPTY_RACK_HINT_LINE_HEIGHT,
   } from "$lib/utils/rack";
   import { isChristmas } from "$lib/utils/christmas";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
@@ -306,15 +307,15 @@
 
   const emptyHintLines = $derived(
     faceFilter
-      ? getEmptyRackHintLines(
-          faceFilter,
-          rack.devices.length > 0,
-          visibleDevices.length > 0,
+      ? getEmptyRackHintLines({
+          face: faceFilter,
+          rackHasDevices: rack.devices.length > 0,
+          faceHasDevices: visibleDevices.length > 0,
           interiorWidth,
-        )
+          interiorHeight: totalHeight,
+        })
       : [],
   );
-  const EMPTY_HINT_LINE_HEIGHT = EMPTY_RACK_HINT_FONT_SIZE * 1.4;
   // Placement is armed by the mobile tap-to-place flow and the desktop command
   // palette "Add device" path (#2214/#2352) alike, so the cue surfaces on every
   // viewport. Touch placement is completed by `ontouchend`; pointer placement by
@@ -660,16 +661,16 @@
         y={RACK_PADDING +
           RAIL_WIDTH +
           totalHeight / 2 -
-          ((emptyHintLines.length - 1) * EMPTY_HINT_LINE_HEIGHT) / 2}
+          ((emptyHintLines.length - 1) * EMPTY_RACK_HINT_LINE_HEIGHT) / 2}
         font-size={EMPTY_RACK_HINT_FONT_SIZE}
-        dominant-baseline="middle"
         text-anchor="middle"
         role="note"
-        aria-label={emptyHintLines.join(" ")}
       >
         {#each emptyHintLines as line, i (i)}
-          <tspan x={RACK_WIDTH / 2} dy={i === 0 ? 0 : EMPTY_HINT_LINE_HEIGHT}
-            >{line}</tspan
+          <tspan
+            x={RACK_WIDTH / 2}
+            dy={i === 0 ? 0 : EMPTY_RACK_HINT_LINE_HEIGHT}
+            dominant-baseline="middle">{i === 0 ? "" : " "}{line}</tspan
           >
         {/each}
       </text>
