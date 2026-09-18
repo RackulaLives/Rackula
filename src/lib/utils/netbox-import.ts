@@ -13,7 +13,6 @@ import type {
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import {
   DeviceTypeSchema,
-  InterfaceTypeSchema,
   PoEModeSchema,
   PoETypeSchema,
   PowerOutletSchema,
@@ -22,6 +21,7 @@ import {
   WeightUnitSchema,
 } from "$lib/schemas";
 import { parseYaml } from "./yaml";
+import { isKnownInterfaceType } from "./port-utils";
 import { ensureUniqueSlug, generateDeviceSlug, slugify } from "./slug";
 
 const FeedLegSchema = PowerOutletSchema.shape.feed_leg;
@@ -369,8 +369,8 @@ function mapInterface(
   // schema would refuse (empty, over-long, not a string) falls back to "other".
   const typeResult = TolerantInterfaceTypeSchema.safeParse(netbox.type);
   if (!typeResult.success) {
-    warnings.push(`Invalid interface type on ${netbox.name}, using "other"`);
-  } else if (!InterfaceTypeSchema.safeParse(typeResult.data).success) {
+    warnings.push(`Unknown interface type: ${netbox.type}, using "other"`);
+  } else if (!isKnownInterfaceType(typeResult.data)) {
     warnings.push(
       `Unknown interface type: ${typeResult.data}, shown as a generic port`,
     );

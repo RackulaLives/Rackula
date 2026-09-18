@@ -445,7 +445,7 @@ model: Some Device
 
       expect(result.deviceType.interfaces![0].type).toBe("other");
       expect(result.warnings).toContain(
-        'Invalid interface type on Gi1/0/1, using "other"',
+        'Unknown interface type: , using "other"',
       );
     });
 

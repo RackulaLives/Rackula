@@ -16,7 +16,9 @@ import { generateId } from "$lib/utils/device";
 
 export type PortCategory = "network" | "power" | "console" | "av";
 
-const KNOWN_INTERFACE_TYPES: ReadonlySet<string> = new Set(
+// Typed as the hand-written union so a schema value missing from
+// KnownInterfaceType in $lib/types fails to compile.
+const KNOWN_INTERFACE_TYPES: ReadonlySet<string> = new Set<KnownInterfaceType>(
   InterfaceTypeSchema.options,
 );
 

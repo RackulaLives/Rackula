@@ -188,6 +188,7 @@
   .port-tooltip-type {
     color: var(--colour-text-muted-inverse, rgba(255, 255, 255, 0.7));
     font-size: var(--font-size-xs);
+    word-break: break-word;
   }
 
   .port-tooltip-direction,

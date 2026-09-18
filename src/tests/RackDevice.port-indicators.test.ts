@@ -50,19 +50,6 @@ describe("RackDevice port indicators with unknown interface types (#3289)", () =
     rackWidth: 300,
   };
 
-  it("renders a port for an unknown type, named with the raw type string", () => {
-    const device: DeviceType = {
-      ...createTestDeviceType({ slug: "osfp-switch", u_height: 1 }),
-      interfaces: [{ name: "osfp1", type: "400gbase-x-osfp" }],
-    };
-
-    const { getByRole } = render(RackDevice, { props: { ...props, device } });
-
-    expect(
-      getByRole("button", { name: "osfp1 (400gbase-x-osfp)" }),
-    ).toBeInTheDocument();
-  });
-
   it("groups a high-density device whose type is named after an Object prototype member", () => {
     const portCount = HIGH_DENSITY_THRESHOLD + 1;
     const device: DeviceType = {

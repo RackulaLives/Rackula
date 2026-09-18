@@ -195,8 +195,9 @@ export const InterfaceTypeSchema = z.enum([
  * Interface type as read from a layout (#3289). Accepts any known type, or any
  * other non-empty string up to 100 characters, so a same-MAJOR file from a
  * newer build that knows more types loads and saves them unchanged instead of
- * rejecting the whole layout. Unknown values render as generic network ports.
- * InterfaceTypeSchema stays the strict list of types this build knows.
+ * rejecting the whole layout. Unknown values render in their getPortCategory
+ * category, which is generic network unless the string names USB, serial or
+ * power. InterfaceTypeSchema stays the strict list of types this build knows.
  */
 export const TolerantInterfaceTypeSchema = z.union([
   InterfaceTypeSchema,
