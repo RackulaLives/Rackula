@@ -208,7 +208,34 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The concurrency queue keeps pushes in order, but re-running an older
+      # run would retag an older commit. Skip unless this commit is at or ahead
+      # of the one :main carries now. A missing tag, label or comparison
+      # publishes, so a lookup failure cannot stall :main.
+      - name: Refuse to move :main backwards
+        id: order
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:main
+        run: |
+          # .Image is one config for a single-arch tag and a per-platform map
+          # for a multi-arch one, so search it for the revision label.
+          published="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{json .Image}}' 2>/dev/null \
+            | jq -r '[.. | objects | .Labels? // empty | .["org.opencontainers.image.revision"] // empty] | first // empty' || true)"
+          status=""
+          if [[ "$published" =~ ^[0-9a-f]{40}$ ]]; then
+            status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${published}...${GITHUB_SHA}" --jq .status 2>/dev/null || true)"
+          fi
+          echo "published=${published:-<none>} this=${GITHUB_SHA} status=${status:-<unknown>}"
+          if [ "$status" = "behind" ]; then
+            echo "::notice::Not retagging main: it already carries ${published}, which is newer than ${GITHUB_SHA}."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create :main manifest list and push
+        if: steps.order.outputs.publish == 'true'
         env:
           IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}
         run: |
@@ -220,6 +247,7 @@ jobs:
           docker buildx imagetools create --tag "${IMAGE_REF}:main" "${digest_args[@]}"
 
       - name: Verify multi-arch manifest
+        if: steps.order.outputs.publish == 'true'
         env:
           IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:main
         run: |

@@ -201,7 +201,7 @@ image: ghcr.io/rackulalives/rackula:main
 image: ghcr.io/rackulalives/rackula-api:main
 ```
 
-There is no `:main` build of `:persist`. It is the same frontend image, so `rackula:main` covers both. A `:main` image reports the same version number as the latest release; the `commit` field in `/version.json` identifies the build. Back up `/data` first, as for any upgrade: `main` can carry a data-format change that has not been released yet.
+There is no `:main` build of `:persist`. It is the same frontend image, so `rackula:main` covers both. A `:main` image reports the `package.json` version on `main`, which is normally the latest release even though the image itself is unreleased; the `commit` field in `/version.json` identifies the build. Back up `/data` first, as for any upgrade: `main` can carry a data-format change that has not been released yet.
 
 ---
 
