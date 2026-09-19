@@ -53,7 +53,7 @@ The `/release` skill will:
 - `M002 -- LXC Release & Stability` (in progress)
 - `M003 -- Data Format & Interop` (next)
 - `M004 -- Type Safety, Decomposition & Stability` (planned)
-- `M018 - cloudflare migration` (in progress: prod is on Workers; dev cutover and VPS decommission remain)
+- `M018 - cloudflare migration` (in progress: prod and dev are on Workers; VPS decommission remains)
 
 ---
 
@@ -536,18 +536,18 @@ Two environments with different deployment triggers:
 
 | Environment | URL | Trigger | Infrastructure |
 | --- | --- | --- | --- |
-| **Dev** | d.racku.la | Push to `main` | VPS (Docker) |
+| **Dev** | d.racku.la | Push to `main` | Cloudflare Worker `rackula-dev` (SPA + API, R2), behind Access |
 | **Prod** | count.racku.la | Git tag `v*` | Cloudflare Workers Static Assets |
 
 ### Dev Deployment
 
-Automatically deploys on code pushes to `main`. The Deploy Dev workflow builds and pushes the web and API Docker images, then deploys them via docker-compose to the self-hosted VPS. d.racku.la sits behind Cloudflare Access. Tests are not re-run here (they gate the PR before merge).
+Automatically deploys on code pushes to `main`. The Deploy Dev workflow builds the SPA and publishes it with the persistence API to the `rackula-dev` Worker (`api/wrangler.jsonc`): `wrangler versions upload`, a curl smoke against the preview URL (`scripts/smoke-headers.sh --surface dev`, which also asserts preview URLs cannot reach the API), `versions deploy`, `triggers deploy`, then a browser smoke on d.racku.la through Cloudflare Access. Layouts live in the `rackula-layouts-dev` R2 bucket. Tests are not re-run here (they gate the PR before merge).
 
 ```bash
-git push origin main  # Triggers Deploy Dev: build and push Docker images, then deploy to the VPS
+git push origin main  # Triggers Deploy Dev: build, upload a version, smoke it, promote to d.racku.la
 ```
 
-The Deploy Dev workflow is path-filtered: it runs only when the push changes app inputs (`api/**`, `src/**`, `deploy/**`, `assets/**`, `static/**`, `login.html`, the lockfiles, build configs, `index.html`), and a trailing `!**/*.md` excludes markdown anywhere. Docs-only pushes (markdown-only, or paths outside that list such as `.claude/**`, `docs/**`, `.github/**`) do not trigger a deploy.
+The Deploy Dev workflow is path-filtered: it runs only when the push changes app inputs (`api/**`, `src/**`, `assets/**`, `static/**`, `login.html`, `index.html`, the root lockfiles, build configs, the header generator, the deploy smoke files, or `deploy-dev.yml` itself), and a trailing `!**/*.md` excludes markdown anywhere. Docs-only pushes (markdown-only, or paths outside that list such as `.claude/**`, `docs/**`, and other workflows) do not trigger a deploy.
 
 Do not watch or wait for a dev deploy after a docs-only push: no Deploy Dev run is queued, so there is nothing to go green. To confirm it was skipped, check that the Deploy Dev run is absent for the commit: `gh api "repos/RackulaLives/Rackula/actions/runs?head_sha=$(git rev-parse HEAD)"`.
 

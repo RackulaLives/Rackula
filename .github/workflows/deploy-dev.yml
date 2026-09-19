@@ -1,141 +1,71 @@
 name: Deploy Dev
 
+# Publishes main to d.racku.la: the rackula-dev Cloudflare Worker
+# (api/wrangler.jsonc) serves the SPA as static assets and the persistence API
+# on /api/*, behind the existing Cloudflare Access app (#2134). Tests are not
+# re-run here; they gate the PR before merge.
+#
+# Deploy order, mirroring deploy-prod.yml so a bad build never takes traffic:
+#   1. build main, generate the CF-only artifacts, write server-mode config.js
+#   2. `wrangler versions upload`  -> a per-version preview URL, no traffic
+#   3. curl smoke (smoke-headers.sh --surface dev) and browser boot smoke
+#      against the preview URL
+#   4. `wrangler versions deploy`  -> shifts 100% of dev traffic
+#   5. `wrangler triggers deploy`  -> applies the d.racku.la route
+#   6. browser smoke against d.racku.la through Cloudflare Access
+#
+# Only main of this repository deploys. A dispatch from any other ref, or a
+# fork's main, skips the job: d.racku.la is shared, and its R2 data is real.
+#
+# Rollback: from api/, `wrangler versions deploy <previous-version-id>@100% --yes`.
+# Each run's summary records the version id and whether it was promoted.
+
 on:
   push:
     branches: [main]
     # Globs must be `dir/**` to match files inside a directory; a bare `dir/`
     # matches nothing, which silently disabled push deploys (#1924). Cover every
-    # input that affects the built images and the deploy step.
+    # input to the SPA build, the Worker bundle, and this deploy path.
     paths:
       - api/**
       - src/**
-      - deploy/**
       - assets/**
       - static/**
       - login.html
+      - index.html
       - package.json
       - package-lock.json
-      - docker-compose.yml
       - vite.config.*
       - svelte.config.*
       - tsconfig*.json
-      - index.html
+      - scripts/gen-headers.mjs
+      - scripts/smoke-headers.sh
+      - e2e/deploy-smoke.spec.ts
+      - e2e/playwright.smoke.config.ts
+      - e2e/helpers/**
+      - .github/workflows/deploy-dev.yml
       # Skip docs-only deploys. The dir globs above match every file in a
-      # directory, so a README inside api/, deploy/, etc. would otherwise
-      # trigger a rebuild. This negation (evaluated after the positives) drops
-      # markdown anywhere from the trigger. Mixed code+markdown commits still
-      # match a positive path and deploy normally.
+      # directory, so a README inside api/ would otherwise trigger a deploy.
+      # This negation (evaluated after the positives) drops markdown anywhere.
+      # Mixed code+markdown commits still match a positive path and deploy.
       - "!**/*.md"
   workflow_dispatch:
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+# Serialize dev deploys. A newer push queues behind a running deploy instead of
+# cancelling it mid-promotion.
+concurrency:
+  group: dev-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  # Tests run in PRs before merge - no need to re-run here
-  # For manual test runs, use the test.yml workflow
-
-  build-frontend:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set build commit
-        # Short hash to match the frontend's commit format (rev-parse --short).
-        run: echo "BUILD_COMMIT=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-
-      - name: Build and push
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: deploy/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VITE_ENV=development
-            APP_COMMIT=${{ env.BUILD_COMMIT }}
-
-  build-api:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata for API
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
-          tags: |
-            type=ref,event=branch
-
-      # Pull the base image up front with bounded retry. The build-push-action
-      # below uses the default docker driver (no setup-buildx-action), which
-      # shares the host image store, so with pull: false (the default) the build
-      # reuses this locally-present image and skips the Docker Hub manifest HEAD
-      # that times out under transient registry flakes (#2175).
-      - name: Pre-pull base image
-        working-directory: ./api
-        run: |
-          image="$(awk '/^[[:space:]]*FROM[[:space:]]/ { print $2; exit }' Dockerfile)"
-          echo "Base image: $image"
-          for attempt in 1 2 3 4 5; do
-            if docker pull "$image"; then
-              echo "Pulled $image on attempt $attempt"
-              exit 0
-            fi
-            if [ "$attempt" -lt 5 ]; then
-              delay=$((2 ** (attempt - 1)))
-              echo "::warning::Pull attempt $attempt for $image failed; retrying in ${delay}s"
-              sleep "$delay"
-            fi
-          done
-          echo "::error::Failed to pull $image after 5 attempts"
-          exit 1
-
-      - name: Build and push API
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: ./api
-          file: ./api/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
   deploy:
-    needs: [build-frontend, build-api]
-    runs-on: [self-hosted, vps-rackula]
+    name: Deploy to Cloudflare Workers
+    if: github.repository == 'RackulaLives/Rackula' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     environment:
       name: dev
       url: https://d.racku.la
@@ -143,130 +73,80 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Sync docker-compose.yml to dev
-        run: |
-          cp docker-compose.yml /opt/rackula/rackula-dev/docker-compose.yml
-          install -m 600 /dev/null /opt/rackula/rackula-dev/.env
-          cat > /opt/rackula/rackula-dev/.env << 'EOF'
-          RACKULA_PORT=127.0.0.1:8081
-          RACKULA_IMAGE=ghcr.io/rackulalives/rackula:main
-          RACKULA_API_IMAGE=ghcr.io/rackulalives/rackula-api:main
-          RACKULA_CONTAINER_NAME=rackula-dev
-          RACKULA_API_CONTAINER_NAME=rackula-api-dev
-          CORS_ORIGIN=https://d.racku.la
-          ALLOW_INSECURE_CORS=false
-          RACKULA_STORAGE_MODE=server
-          EOF
-
-      - name: Verify data dir is writable by API container (uid 1001)
-        run: |
-          DATA_DIR=/opt/rackula/rackula-dev/data
-          mkdir -p "$DATA_DIR"
-          if ! docker run --rm -u 1001:1001 -v "$DATA_DIR":/data busybox \
-              sh -c 'touch /data/.write-test && rm -f /data/.write-test'; then
-            echo "::error::$DATA_DIR is not writable by uid 1001 (rackula-api container user)."
-            echo "::error::Fix once on the host: sudo chown -R 1001:1001 $DATA_DIR"
-            exit 1
-          fi
-
-      - name: Deploy to dev
-        run: |
-          cd /opt/rackula/rackula-dev
-          docker compose --profile persist pull
-          docker compose --profile persist up -d --remove-orphans
-          # Each main build supersedes the previous :main image, leaving it
-          # dangling. Prune so untagged images don't accumulate on the VPS.
-          docker image prune -f
-
-  # Determines Cloudflare Access service-token availability up front so a
-  # missing secret (forks, some workflow_dispatch contexts) produces a
-  # distinct "skipped" conclusion on smoke-test instead of a job that runs
-  # to green having done nothing (#2720). Secrets cannot be read directly in
-  # a job-level `if:`, so the presence check runs as a step here and is
-  # published as this job's output.
-  check-cf-access:
-    name: "Check Cloudflare Access secrets"
-    runs-on: ubuntu-latest
-    permissions: {}
-    outputs:
-      available: ${{ steps.check.outputs.available }}
-    steps:
-      - name: Check secret availability
-        id: check
-        env:
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-        run: |
-          if [ -n "$CF_ACCESS_CLIENT_ID" ] && [ -n "$CF_ACCESS_CLIENT_SECRET" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Smoke test skipped: Cloudflare Access service token unavailable (fork or missing secret)"
-            {
-              echo "## Deploy Dev smoke test"
-              echo "Skipped: Cloudflare Access service token unavailable (fork or missing secret)."
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-  smoke-test:
-    needs: [deploy, check-cf-access]
-    # Same fork guard as before (#2346), now gating the whole job so a
-    # missing secret reports as skipped rather than a silent no-op success.
-    if: ${{ needs.check-cf-access.outputs.available == 'true' }}
-    runs-on: [self-hosted, vps-rackula]
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    env:
-      # d.racku.la sits behind Cloudflare Access. Map the service-token secrets
-      # to env so the curl gate and the browser smoke can authenticate.
-      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-
-    steps:
-      # Fast curl gate: fails immediately if the server or API is unreachable,
-      # before we spend time spinning up a browser.
-      - name: Verify deployment responds
-        run: |
-          sleep 5
-          curl -sf --retry 5 --retry-delay 3 \
-            -H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" \
-            -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}" \
-            https://d.racku.la
-          curl -sf --retry 5 --retry-delay 3 \
-            -H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" \
-            -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}" \
-            https://d.racku.la/api/layouts
-
-      # The vps-rackula runner is not ephemeral: it reuses _work across jobs, and
-      # a prior sparse checkout can leave an index that makes actions/checkout's
-      # clean skip restoring package-lock.json. Wipe the workspace first so the
-      # checkout below starts from a clean slate and npm ci finds the lockfile
-      # (#2327). Mirrors the e2e (self-hosted full suite) job in test.yml.
-      - name: Clean self-hosted workspace
-        run: |
-          if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
-            find "$GITHUB_WORKSPACE" -mindepth 1 -delete
-          fi
-
+      # fetch-depth 0 so vite's getGitInfo() populates version.json.commit.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
-      # No cache: "npm" here. The npm cache lookup runs before checkout settles
-      # and hard-errors ("Dependencies lock file is not found", #2327) if a stale
-      # workspace ever slips through. The clean-workspace step above is the root
-      # fix; dropping the cache removes the fragile lockfile-hash dependency.
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version: "22"
+          cache: "npm"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1"
 
       - name: Install dependencies
         run: npm ci
 
+      # The Worker bundle (api/src/worker.ts) and wrangler itself come from the
+      # API's lockfile, so Dependabot's wrangler bumps apply to this deploy.
+      - name: Install API dependencies
+        working-directory: api
+        run: bun install --frozen-lockfile
+
+      - name: Resolve build identity
+        id: build
+        # Short commit, matching what vite writes into version.json.
+        run: |
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build dev bundle
+        env:
+          VITE_ENV: development
+        run: npm run build
+
+      - name: Generate Cloudflare-only artifacts
+        # Emitted into dist/ here and never committed to static/: publicDir
+        # copies static/ verbatim into EVERY dist, including the self-host
+        # images. config.js matches what the Docker dev entrypoint wrote.
+        run: |
+          set -euo pipefail
+          node scripts/gen-headers.mjs dev --out dist/_headers
+          node scripts/gen-headers.mjs --assetsignore dist/.assetsignore
+          printf 'window.__RACKULA_CONFIG__ = { storage: "server", env: "dev" };\n' > dist/config.js
+          echo "--- dist/_headers ---"
+          cat dist/_headers
+
+      - name: Strip login.html from the dev artifact
+        # Dev runs AUTH_MODE=none behind Cloudflare Access, so there is no login
+        # backend; same reasoning as deploy-prod.yml. Afterwards /login resolves
+        # to the SPA shell.
+        run: |
+          test -f dist/login.html || { echo "::error::dist/login.html missing - the self-host artifact would be broken"; exit 1; }
+          rm -f dist/login.html
+
+      - name: Assert artifact integrity before upload
+        env:
+          EXPECTED_VERSION: ${{ steps.build.outputs.version }}
+          EXPECTED_COMMIT: ${{ steps.build.outputs.commit }}
+        run: |
+          set -euo pipefail
+          grep -q 'storage: *"server"' dist/config.js \
+            || { echo "::error::dist/config.js is not in server storage mode"; exit 1; }
+          grep -q "\"version\": *\"${EXPECTED_VERSION}\"" dist/version.json \
+            || { echo "::error::version.json != ${EXPECTED_VERSION}"; cat dist/version.json; exit 1; }
+          grep -q "\"commit\": *\"${EXPECTED_COMMIT}\"" dist/version.json \
+            || { echo "::error::version.json commit != ${EXPECTED_COMMIT}"; cat dist/version.json; exit 1; }
+          echo "artifact OK: ${EXPECTED_VERSION} @ ${EXPECTED_COMMIT}"
+
+      # Installed before upload so nothing slow sits between promotion and the
+      # live verification below.
       - name: Cache Playwright browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -275,17 +155,88 @@ jobs:
           restore-keys: playwright-${{ runner.os }}-chromium-
 
       - name: Install Playwright chromium
-        # --with-deps installs OS libraries via apt and needs root; fall back to a
-        # plain browser install when the self-hosted runner already has them.
-        run: npx playwright install --with-deps chromium || npx playwright install chromium
+        run: npx playwright install --with-deps chromium
 
-      - name: Browser smoke test against deployed app
-        # The CF_ACCESS_* env vars are inherited by the smoke config
-        # (playwright.smoke.config.ts). Without them every request lands on
-        # the login wall (#2346); the job-level check-cf-access gate above
-        # already keeps this job from running in that case.
+      - name: Upload version (no traffic)
+        id: upload
+        working-directory: api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BUILD_VERSION: ${{ steps.build.outputs.version }}
+          BUILD_COMMIT: ${{ steps.build.outputs.commit }}
+        # APP_VERSION and APP_COMMIT feed /api/version, so the API reports the
+        # same build as version.json.
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/wrangler versions upload \
+            --var "APP_VERSION:${BUILD_VERSION}" \
+            --var "APP_COMMIT:${BUILD_COMMIT}" 2>&1 | tee upload.log
+          version_id="$(grep -oE 'Worker Version ID: [0-9a-f-]+' upload.log | tail -1 | awk '{print $NF}')"
+          preview_url="$(grep -oE 'Version Preview URL: https://[^[:space:]]+' upload.log | tail -1 | awk '{print $NF}')"
+          [ -n "$version_id" ] || { echo "::error::could not parse Worker Version ID"; exit 1; }
+          [ -n "$preview_url" ] || { echo "::error::could not parse Version Preview URL (is preview_urls enabled?)"; exit 1; }
+          echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
+          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "uploaded $version_id -> $preview_url"
+
+      # The preview URL is on workers.dev, outside the racku.la zone, so curl is
+      # not challenged there. It is also outside Cloudflare Access, which is why
+      # --surface dev expects /api/layouts to answer 404: the Worker locks the
+      # API to d.racku.la, so no preview URL can reach R2.
+      - name: Smoke headers, content types and API host lock on the preview URL
+        env:
+          PREVIEW_URL: ${{ steps.upload.outputs.preview_url }}
+          BUILD_VERSION: ${{ steps.build.outputs.version }}
+          BUILD_COMMIT: ${{ steps.build.outputs.commit }}
+        run: |
+          scripts/smoke-headers.sh "$PREVIEW_URL" \
+            --surface dev \
+            --expect-version "$BUILD_VERSION" \
+            --expect-commit "$BUILD_COMMIT"
+
+      # Proves the bundle boots in a real browser before it takes traffic,
+      # catching load-time failures the curl smoke cannot see. No Access
+      # credentials and no EXPECT_SERVER_API: the API answers 404 here, and the
+      # app starts cleanly without it.
+      - name: Browser smoke against the preview URL
+        env:
+          SMOKE_TEST_URL: ${{ steps.upload.outputs.preview_url }}
+          EXPECT_VERSION: ${{ steps.build.outputs.version }}
+          EXPECT_COMMIT: ${{ steps.build.outputs.commit }}
+        run: npm run test:e2e:smoke
+
+      # Everything above is fail-closed. Only now does traffic move.
+      - name: Promote version to 100% of traffic
+        id: promote
+        working-directory: api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VERSION_ID: ${{ steps.upload.outputs.version_id }}
+        run: ./node_modules/.bin/wrangler versions deploy "${VERSION_ID}@100%" --yes
+
+      # `versions deploy` does not apply trigger changes. This lands the
+      # d.racku.la route from api/wrangler.jsonc, and any later edit to it.
+      - name: Apply triggers (routes)
+        working-directory: api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: ./node_modules/.bin/wrangler triggers deploy
+
+      # d.racku.la is inside the zone, so CI is challenged there, and it sits
+      # behind Access. Chromium solves the challenge, and the service-token
+      # headers from playwright.smoke.config.ts get it through Access (#2346).
+      # EXPECT_SERVER_API adds the /api/layouts round trip through Access.
+      - name: Verify d.racku.la in a browser
         env:
           SMOKE_TEST_URL: https://d.racku.la
+          EXPECT_VERSION: ${{ steps.build.outputs.version }}
+          EXPECT_COMMIT: ${{ steps.build.outputs.commit }}
+          EXPECT_SERVER_API: "1"
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: npm run test:e2e:smoke
 
       - name: Upload Playwright report
@@ -295,3 +246,29 @@ jobs:
           name: deploy-dev-smoke-report
           path: playwright-report/
           retention-days: 7
+
+      - name: Record the deployed version
+        if: always()
+        env:
+          BUILD_VERSION: ${{ steps.build.outputs.version }}
+          BUILD_COMMIT: ${{ steps.build.outputs.commit }}
+          VERSION_ID: ${{ steps.upload.outputs.version_id }}
+          PREVIEW_URL: ${{ steps.upload.outputs.preview_url }}
+          PROMOTE_OUTCOME: ${{ steps.promote.outcome }}
+        # A version that failed its smoke was uploaded but never served
+        # traffic. Label it so, or a later rollback could pick it by mistake.
+        run: |
+          if [ "$PROMOTE_OUTCOME" = "success" ]; then
+            status="promoted to d.racku.la"
+          else
+            status="NOT promoted (never served traffic; do not roll back to it)"
+          fi
+          {
+            echo "### Dev deploy"
+            echo ""
+            echo "- build: \`${BUILD_VERSION}\` @ \`${BUILD_COMMIT}\`"
+            echo "- Worker version id: \`${VERSION_ID:-none}\`, ${status}"
+            echo "- preview: ${PREVIEW_URL:-none}"
+            echo ""
+            echo "Rollback: from \`api/\`, run \`wrangler versions deploy <previous-promoted-version-id>@100% --yes\`."
+          } >> "$GITHUB_STEP_SUMMARY"

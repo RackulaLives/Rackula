@@ -8,7 +8,8 @@
  * reached and never enters the bundle (app.ts loads it via dynamic import).
  *
  * Cloudflare Access JWT validation (folded in from #2134) runs in front of the
- * app on `/api/*` and `/*` when configured (CF_ACCESS_* env vars). A deployed
+ * app on every request the Worker receives, which with api/wrangler.jsonc's
+ * `run_worker_first` is `/api/*` only; static assets never reach it. A deployed
  * Worker with those absent fails closed (denies every request) unless
  * CF_ACCESS_DISABLED=true is explicitly set, which restores the skip path
  * (smoke endpoints return 200) for local `wrangler dev` (#2913).
@@ -70,6 +71,16 @@ export function createWorkerHandler(): WorkerHandler {
   return {
     async fetch(request: Request, env: WorkerEnv): Promise<Response> {
       const envMap = toEnvMap(env);
+
+      // Host lock: when RACKULA_API_HOST is set, only that host reaches the
+      // app. Version preview URLs sit outside Cloudflare Access and outlive
+      // their version, so without this they would reach R2 guarded by nothing
+      // but that version's JWT check. Unset or blank (local `wrangler dev`)
+      // means no lock.
+      const apiHost = envMap.RACKULA_API_HOST?.trim();
+      if (apiHost && new URL(request.url).hostname !== apiHost) {
+        return Response.json({ error: "Not Found" }, { status: 404 });
+      }
 
       // Cloudflare Access validation runs before the app when configured.
       // Fails closed (denies) when CF_ACCESS_* env vars are absent and no
