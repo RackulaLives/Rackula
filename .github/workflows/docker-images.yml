@@ -173,23 +173,22 @@ jobs:
           retention-days: 1
 
   merge:
-    name: merge :main (${{ matrix.image }})
+    name: merge :main
     needs: [build]
     if: inputs.publish
     strategy:
       matrix:
-        include:
-          - image: frontend
-            name_suffix: ""
-          - image: api
-            name_suffix: "-api"
+        image: [frontend, api]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Set image name
         env:
-          NAME_SUFFIX: ${{ matrix.name_suffix }}
-        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}${NAME_SUFFIX}" >> "$GITHUB_ENV"
+          IMAGE: ${{ matrix.image }}
+        run: |
+          suffix=""
+          if [ "$IMAGE" = "api" ]; then suffix="-api"; fi
+          echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}${suffix}" >> "$GITHUB_ENV"
 
       - name: Download digests
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -209,30 +208,50 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # The concurrency queue keeps pushes in order, but re-running an older
-      # run would retag an older commit. Skip unless this commit is at or ahead
-      # of the one :main carries now. A missing tag, label or comparison
-      # publishes, so a lookup failure cannot stall :main.
+      # run would retag an older commit. Publish only when this commit is at or
+      # ahead of the one :main carries now, or :main does not exist yet. Any
+      # state this cannot establish fails the job rather than guess; re-running
+      # the latest run is always safe.
       - name: Refuse to move :main backwards
         id: order
         env:
           GH_TOKEN: ${{ github.token }}
           IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:main
         run: |
-          # .Image is one config for a single-arch tag and a per-platform map
-          # for a multi-arch one, so search it for the revision label.
-          published="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{json .Image}}' 2>/dev/null \
-            | jq -r '[.. | objects | .Labels? // empty | .["org.opencontainers.image.revision"] // empty] | first // empty' || true)"
-          status=""
-          if [[ "$published" =~ ^[0-9a-f]{40}$ ]]; then
-            status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${published}...${GITHUB_SHA}" --jq .status 2>/dev/null || true)"
-          fi
-          echo "published=${published:-<none>} this=${GITHUB_SHA} status=${status:-<unknown>}"
-          if [ "$status" = "behind" ]; then
-            echo "::notice::Not retagging main: it already carries ${published}, which is newer than ${GITHUB_SHA}."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
+          published=""
+          if image_json="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{json .Image}}' 2>"$RUNNER_TEMP/inspect.err")"; then
+            # .Image is one config for a single-arch tag and a per-platform map
+            # for a multi-arch one, so search it for the revision label.
+            published="$(jq -r '[.. | objects | .Labels? // empty | .["org.opencontainers.image.revision"] // empty] | first // empty' <<< "$image_json")"
+            if ! [[ "$published" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::${IMAGE_TAG} has no usable revision label, so its age is unknown."
+              exit 1
+            fi
+            status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${published}...${GITHUB_SHA}" --jq .status)" || {
+              echo "::error::Could not compare ${published} with ${GITHUB_SHA}."
+              exit 1
+            }
+          elif grep -qi 'not found' "$RUNNER_TEMP/inspect.err"; then
+            status="new"
           else
-            echo "publish=true" >> "$GITHUB_OUTPUT"
+            cat "$RUNNER_TEMP/inspect.err" >&2
+            echo "::error::Could not inspect ${IMAGE_TAG}."
+            exit 1
           fi
+          echo "published=${published:-<none>} this=${GITHUB_SHA} status=${status}"
+          case "$status" in
+            ahead | identical | new)
+              echo "publish=true" >> "$GITHUB_OUTPUT"
+              ;;
+            behind)
+              echo "::notice::Not retagging main: it already carries ${published}, which is newer than ${GITHUB_SHA}."
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Unexpected comparison '${status}' between ${published} and ${GITHUB_SHA}."
+              exit 1
+              ;;
+          esac
 
       - name: Create :main manifest list and push
         if: steps.order.outputs.publish == 'true'
