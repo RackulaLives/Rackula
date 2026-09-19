@@ -257,7 +257,7 @@ export function colAtX(
  * @param uHeight - Height of one U in pixels
  * @param containerBottomU - Container's bottom U position (human U)
  * @param containerHeightU - Container height in U
- * @returns The matched row index (clamped to the grid)
+ * @returns The matched row id (clamped to the grid)
  */
 export function rowAtY(
   slots: Slot[],
@@ -267,8 +267,13 @@ export function rowAtY(
   containerBottomU: number,
   containerHeightU: number,
 ): number {
-  const rowCount = new Set(slots.map((s) => s.position.row)).size;
-  if (rowCount <= 1) return 0;
+  // Distinct row ids, bottom first. Rows are equal slices ranked by id, so
+  // ids 0 and 2 are the lower and upper halves (matches getSlotRects).
+  const rows = [...new Set(slots.map((s) => s.position.row))].sort(
+    (a, b) => a - b,
+  );
+  const rowCount = rows.length;
+  if (rowCount <= 1) return rows[0] ?? 0;
 
   // SVG y grows downward; U1 is at the bottom. A device whose bottom is at U n
   // occupies y in [(rackHeight - n) * uHeight, ...). The container's visual top
@@ -279,9 +284,9 @@ export function rowAtY(
   // Fraction from the top of the container (0 = top, 1 = bottom).
   const fromTop = (mouseY - containerTopY) / containerPxHeight;
   const clamped = Math.max(0, Math.min(fromTop, 0.999));
-  // Row 0 is the bottom; invert so the bottom slice maps to row 0.
+  // The bottom slice is the lowest row id; invert the slice index from the top.
   const rowFromTop = Math.floor(clamped * rowCount);
-  return rowCount - 1 - rowFromTop;
+  return rows[rowCount - 1 - rowFromTop]!;
 }
 
 /**

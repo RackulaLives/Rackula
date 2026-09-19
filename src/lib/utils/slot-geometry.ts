@@ -18,11 +18,11 @@ export interface SlotRect {
 /**
  * Compute every slot's rectangle, keyed by slot id.
  *
- * Rows have uniform height (slot.height_units is not used for layout yet;
- * per-row heights are tracked in #3342). Row 0 is at the bottom. For
- * contiguous rows (0..n-1, true of every starter container) this matches the
- * drop hit-test in dragdrop.ts (colAtX / rowAtY). Within a row, x accumulates
- * from the left in position.col order, so array order does not matter.
+ * Rows are equal slices ranked by row id, lowest id at the bottom, so ids 0
+ * and 2 are the lower and upper halves; rowAtY in dragdrop.ts uses the same
+ * ranking. Within a row, x accumulates from the left in position.col order,
+ * so array order does not matter. Per-row heights from height_units and
+ * irregular column widths across rows are tracked in #3342.
  *
  * @param slots - The container's slots
  * @param containerWidth - Container width in pixels

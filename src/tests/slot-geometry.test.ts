@@ -6,6 +6,8 @@
 import { describe, it, expect } from "vitest";
 import { getChildYInSlot, getSlotRects } from "$lib/utils/slot-geometry";
 import { getStarterLibrary } from "$lib/data/starterLibrary";
+import { colAtX, rowAtY } from "$lib/utils/dragdrop";
+import type { Slot } from "$lib/types";
 import { createTestSlot } from "./factories";
 
 const U = 20;
@@ -146,6 +148,81 @@ describe("getChildYInSlot", () => {
 
     expect(getChildYInSlot(rects.get("r1-c0")!, U, 0, 1, U)).toBe(0);
     expect(getChildYInSlot(rects.get("r0-c0")!, U, 0, 1, U)).toBe(0);
+  });
+});
+
+describe("sparse row ids", () => {
+  it("stacks rows 0 and 2 as the lower and upper halves", () => {
+    const slots = [
+      createTestSlot({ id: "low", position: { row: 0, col: 0 } }),
+      createTestSlot({ id: "high", position: { row: 2, col: 0 } }),
+    ];
+
+    const rects = getSlotRects(slots, WIDTH, U);
+
+    expect(rects.get("low")).toEqual({ x: 0, y: 10, width: 400, height: 10 });
+    expect(rects.get("high")).toEqual({ x: 0, y: 0, width: 400, height: 10 });
+  });
+});
+
+describe("hit-testing matches rendering", () => {
+  // Drop targeting (detectContainerDropTarget / detectContainerHover) and the
+  // child drag guard (isPointerOverCell in RackDevice) resolve a cell with
+  // colAtX + rowAtY and a lookup by (col, row). Aiming at the centre of each
+  // drawn cell must resolve that same cell.
+  function cellAt(slots: Slot[], heightU: number, x: number, y: number) {
+    // Container at U1 in a rack exactly its height, so its top edge is y 0.
+    const col = colAtX(slots, x, WIDTH);
+    const row = rowAtY(slots, y, heightU, U, 1, heightU);
+    return slots.find((s) => s.position.col === col && s.position.row === row)
+      ?.id;
+  }
+
+  const cases: { name: string; heightU: number; slots: Slot[] }[] = [
+    { name: "2x2", heightU: 1, slots: cells2x2() },
+    {
+      name: "sparse rows 0 and 2",
+      heightU: 1,
+      slots: [
+        createTestSlot({ id: "low", position: { row: 0, col: 0 } }),
+        createTestSlot({ id: "high", position: { row: 2, col: 0 } }),
+      ],
+    },
+    {
+      name: "single row with id 1",
+      heightU: 1,
+      slots: [
+        createTestSlot({
+          id: "a",
+          position: { row: 1, col: 0 },
+          width_fraction: 0.5,
+        }),
+        createTestSlot({
+          id: "b",
+          position: { row: 1, col: 1 },
+          width_fraction: 0.5,
+        }),
+      ],
+    },
+    {
+      name: "columns declared right to left",
+      heightU: 1,
+      slots: [...cells2x2()].reverse(),
+    },
+    ...getStarterLibrary()
+      .filter((d) => d.slots?.length)
+      .map((d) => ({ name: d.slug, heightU: d.u_height, slots: d.slots! })),
+  ];
+
+  it.each(cases)("$name", ({ heightU, slots }) => {
+    const rects = getSlotRects(slots, WIDTH, heightU * U);
+
+    for (const slot of slots) {
+      const cell = rects.get(slot.id)!;
+      const x = cell.x + cell.width / 2;
+      const y = cell.y + cell.height / 2;
+      expect(cellAt(slots, heightU, x, y)).toBe(slot.id);
+    }
   });
 });
 
