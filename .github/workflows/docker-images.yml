@@ -1,0 +1,229 @@
+name: Docker Images
+
+# Builds the self-host images, deploy/Dockerfile (rackula) and api/Dockerfile
+# (rackula-api), natively on amd64 and arm64, then runs each image and checks
+# its version endpoint. The :persist image is deploy/Dockerfile with the same
+# build args, so the frontend legs cover it too (#3351).
+#
+# Two callers:
+#   test.yml                  publish: false. PR check. Nothing leaves the
+#                             runner.
+#   publish-main-images.yml   publish: true. Pushes each leg by digest once its
+#                             smoke passes, then merges the multi-arch :main
+#                             manifest.
+#
+# No job here declares permissions, so every job inherits the caller's token
+# and the caller is the privilege boundary. test.yml grants contents: read only.
+#
+# Layer cache: the GitHub Actions cache, one scope per image and arch. Only
+# publish runs (main of this repository) write it. PR runs read main's entries
+# and never write, so PR code cannot seed a layer a later main build reuses.
+
+on:
+  workflow_call:
+    inputs:
+      publish:
+        description: "Push each leg by digest and tag the multi-arch :main manifest."
+        required: true
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: build (${{ matrix.image }}, ${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [frontend, api]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+          - image: frontend
+            context: .
+            file: deploy/Dockerfile
+            name_suffix: ""
+          - image: api
+            context: ./api
+            file: ./api/Dockerfile
+            name_suffix: "-api"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      SMOKE_TAG: rackula-ci/${{ matrix.image }}:smoke
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The API reports APP_VERSION and the frontend reports the root
+      # package.json version, so feeding APP_VERSION from the same file keeps
+      # both images on one version for the smoke to assert. The version is
+      # PR-controlled and lands in GITHUB_ENV, so reject anything that is not a
+      # plain version string (a newline would inject extra variables).
+      - name: Set build metadata
+        env:
+          NAME_SUFFIX: ${{ matrix.name_suffix }}
+        run: |
+          version="$(jq -r .version package.json)"
+          if ! [[ "$version" =~ ^[0-9A-Za-z.+-]+$ ]]; then
+            echo "::error::package.json version is not a plain version string"
+            exit 1
+          fi
+          {
+            echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}${NAME_SUFFIX}"
+            echo "BUILD_COMMIT=$(git rev-parse --short HEAD)"
+            echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "APP_VERSION=${version}"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}
+          tags: |
+            type=raw,value=main
+
+      # Each Dockerfile ignores the args it does not declare (VITE_ENV for the
+      # API, APP_VERSION and APP_BUILD_TIME for the frontend), so both images
+      # share one list.
+      - name: Build and load
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/${{ matrix.arch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ env.SMOKE_TAG }}
+          load: true
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: ${{ inputs.publish && format('type=gha,scope={0}-{1},mode=max', matrix.image, matrix.arch) || '' }}
+          build-args: |
+            VITE_ENV=production
+            APP_VERSION=${{ env.APP_VERSION }}
+            APP_COMMIT=${{ env.BUILD_COMMIT }}
+            APP_BUILD_TIME=${{ env.BUILD_TIME }}
+            APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
+
+      # Proves the image starts: nginx serves the built SPA, or the Bun API
+      # boots with its native modules loaded. A build can pass and still fail
+      # here, for example on a missing arm64 musl binary.
+      - name: Smoke the image
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          if [ "$IMAGE" = "api" ]; then
+            API_IMAGE="$SMOKE_TAG" API_RUN_ENV="-e ALLOW_INSECURE_CORS=true" \
+              bash scripts/verify-version-alignment.sh "$APP_VERSION"
+          else
+            FRONTEND_IMAGE="$SMOKE_TAG" bash scripts/verify-version-alignment.sh "$APP_VERSION"
+          fi
+
+      - name: Log in to Container Registry
+        if: inputs.publish
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same inputs as the smoked build, so every layer comes from the
+      # builder's cache and only the push runs.
+      - name: Push by digest
+        id: push
+        if: inputs.publish
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/${{ matrix.arch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
+          build-args: |
+            VITE_ENV=production
+            APP_VERSION=${{ env.APP_VERSION }}
+            APP_COMMIT=${{ env.BUILD_COMMIT }}
+            APP_BUILD_TIME=${{ env.BUILD_TIME }}
+            APK_CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Export digest
+        if: inputs.publish
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        if: inputs.publish
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: digests-${{ matrix.image }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: merge :main (${{ matrix.image }})
+    needs: [build]
+    if: inputs.publish
+    strategy:
+      matrix:
+        include:
+          - image: frontend
+            name_suffix: ""
+          - image: api
+            name_suffix: "-api"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Set image name
+        env:
+          NAME_SUFFIX: ${{ matrix.name_suffix }}
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}${NAME_SUFFIX}" >> "$GITHUB_ENV"
+
+      - name: Download digests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.image }}-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create :main manifest list and push
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}
+        run: |
+          cd "$RUNNER_TEMP/digests"
+          digest_args=()
+          for digest in *; do
+            digest_args+=("${IMAGE_REF}@sha256:${digest}")
+          done
+          docker buildx imagetools create --tag "${IMAGE_REF}:main" "${digest_args[@]}"
+
+      - name: Verify multi-arch manifest
+        env:
+          IMAGE_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:main
+        run: |
+          platforms="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{range .Manifest.Manifests}}{{println (printf "%s/%s" .Platform.OS .Platform.Architecture)}}{{end}}')"
+          echo "$platforms"
+          echo "$platforms" | grep -qx 'linux/amd64' || { echo "::error::missing linux/amd64 manifest for ${IMAGE_TAG}"; exit 1; }
+          echo "$platforms" | grep -qx 'linux/arm64' || { echo "::error::missing linux/arm64 manifest for ${IMAGE_TAG}"; exit 1; }
