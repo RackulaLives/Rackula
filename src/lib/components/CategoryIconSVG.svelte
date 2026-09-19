@@ -20,8 +20,7 @@
     Cable,
     CircleQuestionMark,
   } from "@lucide/svelte";
-  import type { Component } from "svelte";
-  import type { IconProps } from "@lucide/svelte";
+  import type { LucideIcon } from "@lucide/svelte";
 
   interface Props {
     category: DeviceCategory;
@@ -33,7 +32,7 @@
   let { category, size = 16, x = 0, y = 0 }: Props = $props();
 
   // Map categories to Lucide icon components
-  const iconMap: Record<DeviceCategory, Component<IconProps>> = {
+  const iconMap: Record<DeviceCategory, LucideIcon> = {
     server: Server,
     network: Network,
     firewall: BrickWallFire,
