@@ -190,6 +190,19 @@ Back up `/data` before every upgrade. This is required, not optional.
 
 Layouts written by the previous release load as-is. If a release migrates the data format, the migration runs on load and the upgraded layout is written back on your next save. That rewrite is one-way: once a layout is saved in the new format, the previous on-disk copy is gone. The server keeps per-layout snapshots, but only when a save conflicts with a copy changed elsewhere, so a routine migrating save is not snapshotted. Your `data.bak` is the reliable way back. Keep the directory owned by uid 1001 (`sudo chown -R 1001:1001 data`).
 
+### Trying unreleased changes (`:main`)
+
+`ghcr.io/rackulalives/rackula:main` and `ghcr.io/rackulalives/rackula-api:main` are rebuilt from the `main` branch, for amd64 and arm64, whenever a merge changes the app. They pass PR CI but skip the release gates (the LXC install test and the release image scan). Use them to try a fix before it ships, not for a deployment you rely on. Stay on `:latest` or a version tag for that.
+
+To switch, point both `image:` lines in your `docker-compose.yml` at the `:main` tags, then pull and recreate as above:
+
+```yaml
+image: ghcr.io/rackulalives/rackula:main
+image: ghcr.io/rackulalives/rackula-api:main
+```
+
+There is no `:main` build of `:persist`. It is the same frontend image, so `rackula:main` covers both. A `:main` image reports the same version number as the latest release; the `commit` field in `/version.json` identifies the build. Back up `/data` first, as for any upgrade: `main` can carry a data-format change that has not been released yet.
+
 ---
 
 ## Stop-Gap Authentication Hardening (Docker + NGINX)

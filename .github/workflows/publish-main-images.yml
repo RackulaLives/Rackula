@@ -1,0 +1,56 @@
+name: Publish Main Images
+
+# Publishes the edge images ghcr.io/rackulalives/rackula:main and
+# ghcr.io/rackulalives/rackula-api:main from main (#3351), multi-arch amd64 +
+# arm64. They are unreleased: no LXC gate and no release image scan, so
+# SELF-HOSTING.md points anyone who relies on an image at :latest or a version
+# tag. Release images come from build-images.yml, not here.
+#
+# Each push rebuilds with a fresh APK_CACHEBUST, so :main picks up Alpine
+# security fixes whenever main changes an image input.
+
+on:
+  push:
+    branches: [main]
+    # Every input to either image build. Globs must be `dir/**` (see #1924).
+    paths:
+      - api/**
+      - src/**
+      - deploy/**
+      - assets/**
+      - static/**
+      - login.html
+      - index.html
+      - package.json
+      - package-lock.json
+      - .dockerignore
+      - vite.config.*
+      - svelte.config.*
+      - tsconfig*.json
+      - scripts/verify-version-alignment.sh
+      - .github/workflows/docker-images.yml
+      - .github/workflows/publish-main-images.yml
+      # Markdown never reaches a built image.
+      - "!**/*.md"
+  workflow_dispatch:
+
+# Queue rather than cancel, so an older run can never finish after a newer one
+# and move :main backwards.
+concurrency:
+  group: publish-main-images
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    # Only main of this repository publishes. A dispatch from any other ref, or
+    # a fork's main, skips the job.
+    if: github.repository == 'RackulaLives/Rackula' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-images.yml
+    with:
+      publish: true
