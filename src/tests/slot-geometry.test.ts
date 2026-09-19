@@ -226,16 +226,26 @@ describe("hit-testing matches rendering on regular grids", () => {
     }
   });
 
-  it("aims at no cell when the pointer is not a finite position", () => {
-    const slots = [
-      createTestSlot({ id: "low", position: { row: 0, col: 0 } }),
-      createTestSlot({ id: "high", position: { row: 2, col: 0 } }),
-    ];
+  it.each([
+    {
+      name: "multi-row",
+      slots: [
+        createTestSlot({ id: "low", position: { row: 0, col: 0 } }),
+        createTestSlot({ id: "high", position: { row: 2, col: 0 } }),
+      ],
+    },
+    {
+      name: "single-row",
+      slots: [createTestSlot({ id: "only", position: { row: 0, col: 0 } })],
+    },
+  ])(
+    "aims at no cell in a $name container when the pointer is not a finite position",
+    ({ slots }) => {
+      const row = rowAtY(slots, Number.NaN, 1, U, 1, 1);
 
-    const row = rowAtY(slots, Number.NaN, 1, U, 1, 1);
-
-    expect(slots.find((s) => s.position.row === row)).toBeUndefined();
-  });
+      expect(slots.find((s) => s.position.row === row)).toBeUndefined();
+    },
+  );
 });
 
 describe("starter library containers", () => {

@@ -273,7 +273,6 @@ export function rowAtY(
     (a, b) => a - b,
   );
   const rowCount = rows.length;
-  if (rowCount <= 1) return rows[0] ?? 0;
 
   // SVG y grows downward; U1 is at the bottom. A device whose bottom is at U n
   // occupies y in [(rackHeight - n) * uHeight, ...). The container's visual top
@@ -285,7 +284,11 @@ export function rowAtY(
   const fromTop = (mouseY - containerTopY) / containerPxHeight;
   // A non-finite pointer names no row. Returning NaN matches no slot, so
   // callers fall back instead of aiming at a cell the pointer is not over.
+  // This is checked before the single-row shortcut so an invalid pointer
+  // cannot name that container's only cell either.
   if (!Number.isFinite(fromTop)) return Number.NaN;
+  if (rowCount <= 1) return rows[0] ?? 0;
+
   const clamped = Math.max(0, Math.min(fromTop, 0.999));
   // The bottom slice is the lowest row id; invert the slice index from the top.
   const rowFromTop = Math.floor(clamped * rowCount);
