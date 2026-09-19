@@ -8,6 +8,7 @@
  */
 import type { Slot } from "$lib/types";
 
+/** A container cell in SVG pixels, relative to the container's top-left. */
 export interface SlotRect {
   x: number;
   y: number;
@@ -37,6 +38,8 @@ export function getSlotRects(
   const rows = [...new Set(slots.map((s) => s.position.row))].sort(
     (a, b) => a - b,
   );
+  // Uniform rows on purpose: height_units is only a fit limit, not a row
+  // height, here and in rowAtY. Per-row heights are #3342.
   const rowHeight = containerHeight / Math.max(rows.length, 1);
 
   rows.forEach((row, rowIndex) => {
@@ -45,6 +48,8 @@ export function getSlotRects(
       .filter((s) => s.position.row === row)
       .sort((a, b) => a.position.col - b.position.col);
 
+    // colAtX walks column widths across all rows; the two agree when every
+    // row has the same columns and widths. Irregular grids are #3342.
     let x = 0;
     for (const slot of rowSlots) {
       const width = containerWidth * (slot.width_fraction ?? 1.0);
