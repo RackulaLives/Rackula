@@ -122,7 +122,7 @@
       <text
         class="bay-label"
         x={geometry.x + geometry.width / 2}
-        y={geometry.y + Math.min(12, geometry.height - 2)}
+        y={geometry.y + Math.max(0, Math.min(12, geometry.height - 2))}
         text-anchor="middle"
         font-size="9"
       >
