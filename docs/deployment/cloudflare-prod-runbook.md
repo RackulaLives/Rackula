@@ -52,22 +52,13 @@ Cancelling a deploy is safe. It promotes traffic only after its smoke passes, so
 
 Cloudflare retains the last 100 versions. The previous version id is also in every Deploy Prod run summary.
 
-There is no VPS fallback. The epic design spec assumed the old prod container would stay running as a DNS-level rollback; that origin stopped answering in August 2026 (#3167), which is what forced this cutover. Rolling back means deploying an earlier Worker version.
+There is no VPS fallback. The epic design spec assumed the old prod container would stay running as a DNS-level rollback; that origin stopped answering in August 2026 (#3167), which forced this cutover, and the VPS was destroyed in September 2026 (#1986). Rolling back means deploying an earlier Worker version.
 
-### Rolling back a release vs undoing the cutover
-
-Two different operations, easy to conflate:
-
-|  | Bad release | Bad cutover |
-| --- | --- | --- |
-| Symptom | count.racku.la serves a broken build | Workers hosting itself is wrong for prod |
-| Action | `Rollback Prod` workflow with a version id | Remove the `routes` entry from `wrangler.jsonc`, then `wrangler triggers deploy` |
-| Effect | Hostname stays attached, serves an older build | Hostname detaches; requests fall back to whatever the `count.racku.la` DNS record points at |
-| Automated | Yes | No, deliberately |
+### Never remove the route as a rollback
 
 Routes are _trigger_ state, not _version_ state, so `wrangler versions deploy` never touches them. That is why the rollback workflow leaves the site attached and simply serving an older build, which is what you want for a bad release.
 
-Detaching only helps if the origin behind that DNS record is healthy. At cutover it was not -- it had been returning 522 for three weeks -- so detaching would have restored the outage, not fixed anything.
+There is no cutover rollback. Removing the `routes` entry and running `wrangler triggers deploy` used to hand the hostname back to its origin DNS record, but that origin is gone: the record is now a placeholder with nothing behind it (see below), so detaching takes count.racku.la offline with a Cloudflare 522. The same applies to `d.racku.la` and `api/wrangler.jsonc`.
 
 ## How the hostname is attached
 
@@ -77,7 +68,9 @@ Detaching only helps if the origin behind that DNS record is healthy. At cutover
 "routes": [{ "pattern": "count.racku.la/*", "zone_name": "racku.la" }]
 ```
 
-At cutover the hostname already had a healthy proxied DNS record and edge certificate, and the origin was returning 522. A route intercepts ahead of the origin, so the cutover needed no DNS change, no certificate wait, and no delete-then-attach window (a Custom Domain cannot be created over an existing record, and the zone's SOA minimum is 1800s, so that path risked up to 30 minutes of NXDOMAIN). Rollback is removing the route entry and redeploying.
+At cutover the hostname already had a healthy proxied DNS record and edge certificate, and the origin was returning 522. A route intercepts ahead of the origin, so the cutover needed no DNS change, no certificate wait, and no delete-then-attach window (a Custom Domain cannot be created over an existing record, and the zone's SOA minimum is 1800s, so that path risked up to 30 minutes of NXDOMAIN).
+
+DNS since the VPS was destroyed (2026-09-19): `count`, `d` and the other Worker-served hostnames are proxied CNAMEs pointing at `origin.racku.la`, and `origin` is a single proxied `AAAA 100::` record. `100::` is the IPv6 discard prefix Cloudflare documents for hostnames served only by Workers: the records exist so the names resolve to Cloudflare and the routes can fire, and nothing is behind them. `origin` used to hold the Vultr VPS's A and AAAA addresses; they were replaced so that no hostname can ever route to whoever Vultr reassigns those addresses to. Keep `origin` and the CNAMEs proxied, and do not delete them: without a proxied record the routes never fire and the sites go offline.
 
 The original Custom Domain approach remains valid and is documented in the epic design spec if the route ever needs replacing.
 

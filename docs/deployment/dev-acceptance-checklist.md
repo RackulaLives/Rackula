@@ -10,7 +10,7 @@ Run the curl commands from a residential connection. Cloudflare serves a Managed
 
 ## What this gates
 
-Passing this checklist is the acceptance gate for #2134's done-when. Prod cut over first (#2029, 2026-08-22), so this no longer gates prod. Together with the soak window it gates the VPS decommission (#1986).
+Passing this checklist is the acceptance gate for #2134's done-when. Prod cut over first (#2029, 2026-08-22), so this no longer gates prod. The VPS is gone (#1986), so this is now a per-change acceptance pass.
 
 ## Relationship to soak-smoke
 

@@ -31,10 +31,12 @@
     "run_worker_first": ["/api/*"],
   },
 
-  // A route, not a custom_domain, as for prod (#3216): d.racku.la already has
-  // a proxied record and edge certificate, so the route intercepts ahead of the
-  // VPS origin with no DNS change. Undoing the cutover is removing this entry
-  // and running `wrangler triggers deploy`.
+  // A route, not a custom_domain, as for prod (#3216): d.racku.la already had
+  // a proxied record and edge certificate, so the route intercepted ahead of
+  // the VPS origin with no DNS change. That origin was destroyed (#1986), so
+  // the DNS record is now a proxied placeholder with nothing behind it:
+  // removing this route takes d.racku.la offline. Roll back with
+  // `wrangler versions deploy <previous-version-id>@100%` instead.
   "routes": [{ "pattern": "d.racku.la/*", "zone_name": "racku.la" }],
 
   // preview_urls stays on so `wrangler versions upload` yields a workers.dev

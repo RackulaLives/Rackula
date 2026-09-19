@@ -8,10 +8,10 @@ name: Rollback Prod
 # state, so `versions deploy` leaves count.racku.la attached and serving - just an
 # older build. That is the intended behaviour for a bad release.
 #
-# It is NOT the way to undo the cutover itself. Detaching the hostname means
-# removing the `routes` entry from wrangler.jsonc and running
-# `wrangler triggers deploy`, which hands count.racku.la back to whatever the
-# origin DNS record points at. See docs/deployment/cloudflare-prod-runbook.md.
+# This is the only rollback. The cutover cannot be undone: the VPS origin was
+# destroyed (#1986), so removing the `routes` entry from wrangler.jsonc would
+# take count.racku.la offline, not restore an older host. See
+# docs/deployment/cloudflare-prod-runbook.md.
 #
 # Cloudflare retains the last 100 versions, so any recent release is reachable.
 # List candidates with:

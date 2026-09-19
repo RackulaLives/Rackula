@@ -1,10 +1,9 @@
 name: Soak Smoke
 
 # Scheduled browser smoke check against the live prod and dev deployments,
-# independent of any deploy trigger. Each run is the 7-day soak signal that
-# #1986 (VPS decommission) reads before destroying the Vultr instance: the
-# decommission gate is an unbroken 7-day streak of green runs on this
-# workflow, queryable with:
+# independent of any deploy trigger. It is the standing health signal for both
+# Workers. (Its 7-day green streak was the gate for #1986, the VPS
+# decommission, which is done.) Read recent runs with:
 #
 #   gh run list --workflow=soak-smoke.yml --limit 50
 #
@@ -18,7 +17,7 @@ name: Soak Smoke
 # #2029, so it needs no CF Access token. d.racku.la is the rackula-dev Worker
 # (#2134) behind Cloudflare Access and authenticates via the same service-token
 # secrets deploy-dev.yml uses (CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET,
-# added by #2346). #1986's streak counts from the first run with both legs.
+# added by #2346).
 
 on:
   schedule:
