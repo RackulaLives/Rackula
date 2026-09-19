@@ -35,7 +35,7 @@
   // a proxied record and edge certificate, so the route intercepted ahead of
   // the VPS origin with no DNS change. That origin was destroyed (#1986), so
   // the DNS record is now a proxied placeholder with nothing behind it:
-  // removing this route takes d.racku.la offline. Roll back with
+  // removing this route takes d.racku.la offline. From api/, roll back with
   // `wrangler versions deploy <previous-version-id>@100%` instead.
   "routes": [{ "pattern": "d.racku.la/*", "zone_name": "racku.la" }],
 
