@@ -525,6 +525,10 @@
               "lb"
             ],
             "type": "string"
+          },
+          "width_mm": {
+            "exclusiveMinimum": 0,
+            "type": "number"
           }
         },
         "required": [

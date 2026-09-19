@@ -7,6 +7,7 @@
  * index.ts imports these functions.
  */
 
+import type { DeviceType, Layout } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { heightToInternalUnits } from "$lib/utils/position";
 
@@ -20,11 +21,23 @@ import { heightToInternalUnits } from "$lib/utils/position";
  */
 export const SCHEMA_VERSION = "1.1";
 
+/**
+ * Data-format version stamped on a layout that uses measured device widths
+ * (DeviceType.width_mm, #3310). Releases before the field read a measured
+ * device as full width and would reject its placement in a narrower cell, so
+ * the field is a MAJOR change. It is stamped only when a layout uses it, so a
+ * layout without measured devices stays readable by every 1.x release.
+ */
+export const MEASURED_WIDTH_SCHEMA_VERSION = "2.0";
+
 /** MAJOR component of a MAJOR.MINOR version string (untrusted-input safe). */
 export function majorOf(version: string): number {
   const major = parseInt(version.trim().split(".")[0] ?? "", 10);
   return Number.isFinite(major) ? major : 0;
 }
+
+/** A well-formed MAJOR.MINOR schema_version: the only shape a reader accepts. */
+const SCHEMA_VERSION_PATTERN = /^\d+\.\d+$/;
 
 /**
  * Reject a layout whose data-format MAJOR is newer than the running app (#2205).
@@ -36,8 +49,16 @@ export function majorOf(version: string): number {
  * migration path. The check is read-only and non-destructive: it throws before
  * any parse or write so the original input is never modified.
  *
+ * A stamp present but not shaped MAJOR.MINOR is refused before the MAJOR
+ * comparison. parseInt reads a malformed stamp as MAJOR 0, so "2.O" (letter O)
+ * would otherwise pass the newer-major check and then migrate as a legacy 1.x
+ * document, reading its 2.x additions as this app's own format. Every writer
+ * stamps MAJOR.MINOR digits (schemaVersionForWrite), so no file this app wrote
+ * takes this path. MAJOR 0 stays readable: it is older, not malformed.
+ *
  * @param schemaVersion - The document's metadata.schema_version, if present.
- * @throws Error when the document MAJOR is newer than the app understands.
+ * @throws Error when the stamp is malformed, or its MAJOR is newer than the app
+ *   understands.
  */
 export function assertSchemaVersionSupported(
   schemaVersion: string | undefined,
@@ -47,7 +68,13 @@ export function assertSchemaVersionSupported(
   if (schemaVersion === undefined) {
     return;
   }
-  if (majorOf(schemaVersion) > majorOf(SCHEMA_VERSION)) {
+  if (!SCHEMA_VERSION_PATTERN.test(schemaVersion.trim())) {
+    throw new Error(
+      `This layout has an unreadable data format (${schemaVersion}). ` +
+        `Expected a version such as 1.0. Your file was not changed.`,
+    );
+  }
+  if (majorOf(schemaVersion) > majorOf(MEASURED_WIDTH_SCHEMA_VERSION)) {
     throw new Error(
       `This layout was created by a newer version of Rackula (format ${schemaVersion}). ` +
         `Update Rackula to open it. Your file was not changed.`,
@@ -78,35 +105,94 @@ export function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-/** A well-formed MAJOR.MINOR schema_version, the only shape a writer keeps. */
-const SCHEMA_VERSION_PATTERN = /^\d+\.\d+$/;
+/**
+ * The newest format this app fully understands for a given MAJOR, if it reads
+ * that MAJOR at all. A stamp newer than this carries additions the app does not
+ * know about, so a writer must not restamp it down (see schemaVersionForWrite).
+ */
+function knownVersionForMajor(major: number): string | undefined {
+  if (major === majorOf(SCHEMA_VERSION)) return SCHEMA_VERSION;
+  if (major === majorOf(MEASURED_WIDTH_SCHEMA_VERSION)) {
+    return MEASURED_WIDTH_SCHEMA_VERSION;
+  }
+  return undefined;
+}
 
 /**
  * The schema_version a writer stamps on a saved layout (#3108).
  *
- * A layout re-saved after load and migration is in the current format, so an
- * older, absent, or malformed stamp (anything but MAJOR.MINOR digits) becomes
- * SCHEMA_VERSION. A newer same-MAJOR stamp is kept: unknown fields round-trip
- * on save, so a layout from a newer same-MAJOR app still carries that format's
- * additions, and restamping it down would misdescribe the file. The shape check
- * runs first because compareVersions reads numeric prefixes, so "1.9x" would
- * otherwise compare as newer.
+ * The base stamp is MEASURED_WIDTH_SCHEMA_VERSION when a device type has
+ * width_mm, otherwise SCHEMA_VERSION. A layout re-saved after load and
+ * migration is in the current format, so an older, absent, or malformed stamp
+ * (anything but MAJOR.MINOR digits) becomes the base stamp. The base stamp
+ * tracks the content, so dropping the last measured device restamps the file
+ * back to SCHEMA_VERSION and a 1.x release can open it again.
  *
- * A newer MAJOR is restamped too. Every read door rejects one
- * (assertSchemaVersionSupported), so the body being written is always this
+ * A stamp newer than the newest format this app knows for that MAJOR is kept
+ * instead: unknown fields round-trip on save, so the file still carries that
+ * format's additions and restamping it down would misdescribe it. Since the
+ * read gate accepts two MAJORs (#3310), this is judged per MAJOR rather than
+ * against the base alone, or a 2.x file saved without measured devices would be
+ * stamped 1.x and a 1.x release would then read its unknown 2.x additions as
+ * its own format. A kept stamp is never below the base, so a measured layout
+ * cannot end up stamped 1.x. The shape check runs first because compareVersions
+ * reads numeric prefixes, so "1.9x" would otherwise compare as newer.
+ *
+ * A MAJOR the app cannot read is restamped to the base. Every read door rejects
+ * one (assertSchemaVersionSupported), so the body being written is always this
  * app's format; only a separately supplied stamp, such as archive entry
  * metadata, can carry it. Restamping instead of throwing keeps the layout
  * saveable.
  *
  * @param current - The layout's metadata.schema_version, if any.
+ * @param deviceTypes - The layout's device types, checked for width_mm.
  */
-export function schemaVersionForWrite(current: string | undefined): string {
-  return current !== undefined &&
-    SCHEMA_VERSION_PATTERN.test(current) &&
-    majorOf(current) === majorOf(SCHEMA_VERSION) &&
-    compareVersions(current, SCHEMA_VERSION) > 0
-    ? current
+export function schemaVersionForWrite(
+  current: string | undefined,
+  deviceTypes: Pick<DeviceType, "width_mm">[],
+): string {
+  const base = deviceTypes.some((dt) => dt.width_mm !== undefined)
+    ? MEASURED_WIDTH_SCHEMA_VERSION
     : SCHEMA_VERSION;
+  if (current === undefined || !SCHEMA_VERSION_PATTERN.test(current)) {
+    return base;
+  }
+  const known = knownVersionForMajor(majorOf(current));
+  return known !== undefined &&
+    compareVersions(current, known) > 0 &&
+    compareVersions(current, base) >= 0
+    ? current
+    : base;
+}
+
+/**
+ * The layout a storage door should write, with metadata.schema_version stamped
+ * for write (#3310).
+ *
+ * The file, archive and server doors stamp while building their own metadata
+ * header. Browser storage writes the layout body verbatim, so without this the
+ * stamp would stay at whatever createLayout set and a measured layout would sit
+ * in localStorage claiming 1.x. A release without width_mm would then pass the
+ * version gate and fail on the placement refinement instead of telling the user
+ * to update, which is the outcome the measured-width MAJOR exists to prevent.
+ *
+ * A layout with no metadata section is written unchanged. LayoutMetadataSchema
+ * requires id and name alongside schema_version, so inventing a stamp-only
+ * section here would make the body fail validation on the way back in. Every
+ * layout the app creates or loads carries metadata (createLayout sets it), so
+ * this only spares the bodies that never had a section to stamp.
+ *
+ * Returns the layout unchanged when the stamp already matches, so an unchanged
+ * body is not re-allocated on every autosave.
+ */
+export function stampLayoutForWrite(layout: Layout): Layout {
+  if (layout.metadata === undefined) return layout;
+  const schema_version = schemaVersionForWrite(
+    layout.metadata.schema_version,
+    layout.device_types,
+  );
+  if (layout.metadata.schema_version === schema_version) return layout;
+  return { ...layout, metadata: { ...layout.metadata, schema_version } };
 }
 
 /**

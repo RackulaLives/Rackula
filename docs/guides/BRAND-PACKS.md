@@ -52,7 +52,7 @@ Field notes:
 - `category`: one of `server`, `network`, `firewall`, `patch-panel`, `power`, `storage`, `kvm`, `av-media`, `cooling`, `shelf`, `blank`, `cable-management`, `chassis`, `other`. Categories drive the default colour and behaviour.
 - `colour`: any 6-character hex, but use `CATEGORY_COLOURS.<category>` from [`src/lib/types/constants.ts`](../../src/lib/types/constants.ts) so packs stay consistent with the palette.
 - `airflow` (optional): `passive`, `front-to-rear`, `rear-to-front`, `left-to-right`, `right-to-left`, `side-to-rear`, or `mixed`. Defaults to `front-to-rear`.
-- `slot_width: 1` marks a half-width device; `u_height` below 1 marks sub-U gear. Both mount inside a carrier rather than directly on the rails, which Rackula handles at placement time.
+- `slot_width: 1` marks a half-width device; `width_mm` gives the device's measured physical width in millimetres, whatever that width is, and the device then fits any carrier cell wide enough for it (see the fit rules in [SPEC.md](../reference/SPEC.md#mounting-model)); `u_height` below 1 marks sub-U gear. All of these mount inside a carrier rather than directly on the rails, which Rackula handles at placement time. Give `width_mm` whenever you know it: without it the device is treated as full width and will not fit a narrower cell.
 - `front_image` / `rear_image` (optional booleans): set these only after you have run the image pipeline in [NETBOX-IMPORT.md](NETBOX-IMPORT.md); images are optional and can come in a later PR.
 
 ## Step 2: Register the pack

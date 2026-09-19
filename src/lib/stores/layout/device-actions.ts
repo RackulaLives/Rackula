@@ -15,16 +15,15 @@ import {
   canPlaceDevice,
   canPlaceInContainer,
   canPlaceInSlot,
+  findAdjacentSlotForChild,
+  findChildrenTooWideForRack,
   findValidDropPositions,
   findNextFreeChildPosition,
   findNextSlotForChild,
-  requiresCarrier,
   synthesizeCarrierForDevice,
-} from "$lib/utils/collision";
-import {
-  findAdjacentSlotForChild,
   type CellDirection,
 } from "$lib/utils/collision";
+import { requiresCarrier } from "$lib/utils/device-width";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { generateId } from "$lib/utils/device";
@@ -243,6 +242,7 @@ function duplicateContainerChild(
     childType,
     child.slot_id,
     siblings,
+    rack.width,
   );
   if (!next) {
     const containerName = containerType.model ?? containerType.slug;
@@ -422,6 +422,7 @@ export function moveDeviceToSlot(
     childType,
     child.slot_id,
     siblings,
+    targetRack.width,
   );
   if (!next) return false;
 
@@ -483,6 +484,7 @@ export function moveDeviceToAdjacentSlot(
     child.slot_id,
     siblings,
     direction,
+    targetRack.width,
   );
   if (!next) return false;
 
@@ -540,7 +542,7 @@ export function placeDeviceSmart(
   const deviceType = findDeviceType(deviceTypeSlug, layout.device_types);
   if (!deviceType) return false;
 
-  const carrierSlug = synthesizeCarrierForDevice(deviceType);
+  const carrierSlug = synthesizeCarrierForDevice(deviceType, targetRack.width);
 
   // Whole-U full-width devices mount directly to the rails.
   if (!carrierSlug) {
@@ -563,7 +565,7 @@ export function placeDeviceSmart(
     if (!carrierType) return false;
     // Only consider cells the child actually fits (width/height/category).
     const fittingSlots = (carrierType.slots ?? []).filter((slot) =>
-      canPlaceInSlot(deviceType, slot),
+      canPlaceInSlot(deviceType, slot, targetRack.width),
     );
     if (fittingSlots.length === 0) return false;
     const children = targetRack.devices.filter(
@@ -606,7 +608,7 @@ export function placeDeviceSmart(
   // guarantees a fit for the standard sizes; reject odd dimensions rather than
   // commit an invalid placement.
   const fittingSlots = (carrierType.slots ?? []).filter((slot) =>
-    canPlaceInSlot(deviceType, slot),
+    canPlaceInSlot(deviceType, slot, targetRack.width),
   );
   const free = findNextFreeChildPosition(
     { ...carrierType, slots: fittingSlots },
@@ -772,7 +774,7 @@ export function moveDeviceSmart(
   const deviceType = findDeviceType(device.device_type, layout.device_types);
   if (!deviceType) return false;
 
-  const carrierSlug = synthesizeCarrierForDevice(deviceType);
+  const carrierSlug = synthesizeCarrierForDevice(deviceType, targetRack.width);
   if (!carrierSlug) {
     return moveDeviceToRack(
       ctx,
@@ -793,7 +795,7 @@ export function moveDeviceSmart(
   const carrierCells = {
     ...carrierType,
     slots: (carrierType.slots ?? []).filter((slot) =>
-      canPlaceInSlot(deviceType, slot),
+      canPlaceInSlot(deviceType, slot, targetRack.width),
     ),
   };
   const positionInternal = toInternalUnits(positionU);
@@ -1019,6 +1021,17 @@ export function moveDeviceToRack(
   const children = sourceRack.devices.filter(
     (d) => d.container_id === device.id,
   );
+
+  // Cell fit for measured children depends on the rack opening.
+  if (
+    findChildrenTooWideForRack(
+      [device, ...children],
+      layout.device_types,
+      targetRack.width,
+    ).length > 0
+  ) {
+    return false;
+  }
   const parentSnapshot = snapshotDevice(device);
   const childrenSnapshots = children.map((child) => snapshotDevice(child));
 

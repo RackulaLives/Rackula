@@ -11,6 +11,7 @@ import {
   DEFAULT_RACK_BASE_WEIGHT,
 } from "$lib/types/constants";
 import { VERSION } from "$lib/version";
+import { fitsSlotWidth, requiresCarrier } from "$lib/utils/device-width";
 import {
   SCHEMA_VERSION,
   assertSchemaVersionSupported,
@@ -469,6 +470,7 @@ export const DeviceTypeSchema = z
       .max(50, "Height cannot exceed 50U")
       .refine((val) => val % 0.5 === 0, "Height must be a multiple of 0.5U"),
     slot_width: SlotWidthSchema.optional(),
+    width_mm: z.number().positive().finite().optional(),
     rack_widths: z.array(RackWidthSchema).optional(),
     is_full_depth: z.boolean().optional(),
     is_powered: z.boolean().optional(),
@@ -998,23 +1000,12 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
         }
 
         const railType = deviceTypeBySlug.get(device.device_type);
-        if (railType && railType.category !== "blank") {
-          const isHalfWidth = (railType.slot_width ?? 2) === 1;
-          const isSubU = railType.u_height < 1;
-          const isNonIntegerHeight = !Number.isInteger(railType.u_height);
-          if (isHalfWidth || isSubU || isNonIntegerHeight) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: `Device "${device.name ?? device.id}" is sub-U or half-width and cannot mount directly to the rails. It must be a child of a carrier (set container_id and slot_id).`,
-              path: [
-                "racks",
-                rackIndex,
-                "devices",
-                deviceIndex,
-                "container_id",
-              ],
-            });
-          }
+        if (railType && requiresCarrier(railType)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Device "${device.name ?? device.id}" is sub-U or narrower than full width and cannot mount directly to the rails. It must be a child of a carrier (set container_id and slot_id).`,
+            path: ["racks", rackIndex, "devices", deviceIndex, "container_id"],
+          });
         }
         continue;
       }
@@ -1095,14 +1086,9 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
             });
           }
 
-          // Width fit mirrors canPlaceInSlot exactly, including its 0.01 float
-          // tolerance, so the schema and the store agree on third-width slots
-          // (0.33 / 0.34). Tightening the tolerance here would diverge from the
-          // store's fit check.
-          const requiredFraction =
-            (childForFit.slot_width ?? 2) === 1 ? 0.5 : 1.0;
-          const availableFraction = slot.width_fraction ?? 1.0;
-          if (requiredFraction > availableFraction + 0.01) {
+          // Width fit shares fitsSlotWidth with canPlaceInSlot, so the schema
+          // and the store agree on measured widths and third-width slots.
+          if (!fitsSlotWidth(childForFit, slot.width_fraction, rack.width)) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
               message: `Device "${device.name ?? device.id}" is too wide to fit slot "${device.slot_id}".`,

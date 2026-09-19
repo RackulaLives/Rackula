@@ -33,7 +33,7 @@ export function validStartPositions(
   // A device that can only live in a chassis bay (a chassis child, or a
   // half-width device with no rail carrier) has no valid rail start position:
   // announcing one would be dishonest and Enter would fail (#2854).
-  if (requiresChassisBay(device)) return [];
+  if (requiresChassisBay(device, rack.width)) return [];
 
   // Widen a full-depth pending device to both faces so the keyboard cursor
   // matches the store's placement (#2925); see pendingCollisionFace.
@@ -141,6 +141,9 @@ export function pickUpNoSpaceAnnouncement(
  */
 export function pickUpNeedsChassisAnnouncement(device: DeviceType): string {
   const name = device.model ?? device.slug;
+  if (device.width_mm !== undefined) {
+    return `${name} must be placed in a shelf or carrier cell wide enough for it. Drop it onto a shelf.`;
+  }
   return `${name} must be placed in a chassis bay. Drop it onto a chassis.`;
 }
 

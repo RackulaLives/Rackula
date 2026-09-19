@@ -150,6 +150,39 @@ describe("toMinimalLayout", () => {
     expect(minimal.rs[0].w).toBe(19);
   });
 
+  it("round-trips an exact 21 or 23 inch width through wx", () => {
+    for (const width of [21, 23] as const) {
+      const layout = createTestLayout({
+        racks: [
+          createTestRack({
+            width: width as unknown as 10 | 19,
+            devices: [],
+          }),
+        ],
+      });
+      const decoded = requireDecoded(requireEncoded(layout));
+
+      expect(decoded.racks[0]?.width, String(width)).toBe(width);
+    }
+  });
+
+  it("ignores wx when the fallback width is not 19", () => {
+    // The encoder always writes w: 19 alongside wx, so this pairing is not ours.
+    // An older reader knows nothing of wx and uses w, and honouring wx here
+    // would render a different rack for the same link depending on the reader.
+    const layout = createTestLayout({
+      racks: [createTestRack({ width: 23 as unknown as 10 | 19, devices: [] })],
+    });
+    const minimal = toMinimalLayout(layout);
+    minimal.rs[0]!.w = 10;
+
+    const decoded = decodeLayout(
+      base64UrlEncode(pako.deflate(JSON.stringify(minimal))),
+    ).layout;
+
+    expect(decoded?.racks[0]?.width).toBe(10);
+  });
+
   it("only includes device types that are placed", () => {
     const usedType = createTestDeviceType({ slug: "used-device" });
     const unusedType = createTestDeviceType({ slug: "unused-device" });
