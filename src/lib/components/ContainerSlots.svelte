@@ -106,7 +106,7 @@
       x={geometry.x + insetPadding}
       y={geometry.y + insetPadding}
       width={geometry.width - insetPadding * 2}
-      height={geometry.height - insetPadding * 2}
+      height={Math.max(0, geometry.height - insetPadding * 2)}
       rx="2"
       ry="2"
       onclick={() => handleSlotClick(slot.id)}
@@ -122,7 +122,7 @@
       <text
         class="bay-label"
         x={geometry.x + geometry.width / 2}
-        y={geometry.y + 12}
+        y={geometry.y + Math.min(12, geometry.height - 2)}
         text-anchor="middle"
         font-size="9"
       >

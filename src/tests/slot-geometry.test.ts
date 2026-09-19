@@ -165,11 +165,12 @@ describe("sparse row ids", () => {
   });
 });
 
-describe("hit-testing matches rendering", () => {
+describe("hit-testing matches rendering on regular grids", () => {
   // Drop targeting (detectContainerDropTarget / detectContainerHover) and the
   // child drag guard (isPointerOverCell in RackDevice) resolve a cell with
   // colAtX + rowAtY and a lookup by (col, row). Aiming at the centre of each
-  // drawn cell must resolve that same cell.
+  // drawn cell must resolve that same cell. Grids whose rows have different
+  // columns or widths are not covered yet (#3342).
   function cellAt(slots: Slot[], heightU: number, x: number, y: number) {
     // Container at U1 in a rack exactly its height, so its top edge is y 0.
     const col = colAtX(slots, x, WIDTH);
@@ -223,6 +224,15 @@ describe("hit-testing matches rendering", () => {
       const y = cell.y + cell.height / 2;
       expect(cellAt(slots, heightU, x, y)).toBe(slot.id);
     }
+  });
+
+  it("rowAtY returns one of the container's row ids for a non-finite pointer", () => {
+    const slots = [
+      createTestSlot({ id: "low", position: { row: 0, col: 0 } }),
+      createTestSlot({ id: "high", position: { row: 2, col: 0 } }),
+    ];
+
+    expect([0, 2]).toContain(rowAtY(slots, Number.NaN, 1, U, 1, 1));
   });
 });
 
