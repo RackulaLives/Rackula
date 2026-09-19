@@ -188,4 +188,23 @@ test.describe("Post-deploy smoke", () => {
     expect(hsts).toMatch(/max-age=\d+/);
     expect(hsts).not.toMatch(/max-age=0\b/);
   });
+
+  test("server API answers through Cloudflare Access", async ({ page }) => {
+    // Only the Access-gated dev surface has an API; prod is assets-only. The
+    // deploy-dev workflow and the soak dev leg opt in with EXPECT_SERVER_API.
+    test.skip(!process.env.EXPECT_SERVER_API, "no server API on this surface");
+
+    // Fetched from inside the page for the same reason as version.json above:
+    // only the browser's own network stack carries the challenge clearance.
+    // The Access service-token headers apply to this fetch as well.
+    await page.goto("/");
+    const result = await page.evaluate(async () => {
+      const r = await fetch("/api/layouts", { cache: "no-store" });
+      return { status: r.status, type: r.headers.get("content-type") ?? "" };
+    });
+    expect(result.status, `GET /api/layouts returned ${result.status}`).toBe(
+      200,
+    );
+    expect(result.type).toContain("application/json");
+  });
 });
