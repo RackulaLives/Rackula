@@ -6,21 +6,59 @@
   import type { ImageData } from "$lib/types/images";
   import { validateImageFile, fileToImageData } from "$lib/utils/imageUpload";
   import { SUPPORTED_IMAGE_FORMATS } from "$lib/types/constants";
+  import { getDeviceImageAspect } from "$lib/utils/image-crop";
+  import ImageCropDialog from "./ImageCropDialog.svelte";
 
   interface Props {
     face: "front" | "rear";
     currentImage?: ImageData;
     /** Device name, used to name the device and face in the preview alt text. */
     deviceName?: string;
+    /** Device height in U, sets the crop frame shape. */
+    uHeight: number;
+    /** Nominal rack width in inches, sets the crop frame shape. */
+    rackWidth?: number;
+    /** Other rack widths the image is also drawn in, shown as crop guides. */
+    guideRackWidths?: number[];
+    /** The device's share of the rack interior. */
+    widthFraction?: number;
+    /** How the frame width was decided, for the crop hint. */
+    widthLabel?: string;
     onupload?: (data: ImageData) => void;
     onremove?: () => void;
   }
 
-  let { face, currentImage, deviceName, onupload, onremove }: Props = $props();
+  let {
+    face,
+    currentImage,
+    deviceName,
+    uHeight,
+    rackWidth,
+    guideRackWidths,
+    widthFraction,
+    widthLabel,
+    onupload,
+    onremove,
+  }: Props = $props();
 
   // Local state
   let error = $state<string | null>(null);
   let fileInputRef: HTMLInputElement | null = $state(null);
+  // Original file kept so the crop can be adjusted after upload.
+  let sourceFile = $state<File | null>(null);
+  let cropFile = $state<File | null>(null);
+  // Frame aspect the current image was cropped to.
+  let croppedAspect = $state<number | null>(null);
+
+  const aspect = $derived(
+    getDeviceImageAspect(uHeight, rackWidth, widthFraction),
+  );
+  const cropStale = $derived(
+    currentImage !== undefined &&
+      sourceFile !== null &&
+      croppedAspect !== null &&
+      Math.abs(croppedAspect - aspect) > 1e-9,
+  );
 
   // Computed label
   const faceLabel = $derived(face === "front" ? "Front Image" : "Rear Image");
@@ -39,7 +77,7 @@
     fileInputRef?.click();
   }
 
-  async function handleFileChange(event: Event) {
+  function handleFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
 
@@ -57,19 +95,35 @@
       return;
     }
 
-    try {
-      // Convert to ImageData
-      const imageData = await fileToImageData(file, "device", face);
-      onupload?.(imageData);
-    } catch {
-      error = "Failed to process image";
-    }
+    // Only the crop dialog gets the new file: sourceFile keeps backing the
+    // image on screen until the crop is confirmed, so cancelling leaves the
+    // current image and its Crop button pointing at the file it came from.
+    cropFile = file;
 
     // Reset input for re-selection of same file
     input.value = "";
   }
 
+  async function handleCropConfirm(cropped: File) {
+    const source = cropFile;
+    const framedAspect = aspect;
+    cropFile = null;
+    try {
+      const imageData = await fileToImageData(cropped, "device", face);
+      onupload?.(imageData);
+      // Only now does this file back the visible image: recording the frame
+      // before the conversion would mark a failed re-crop as up to date while
+      // the previous image is still on screen.
+      sourceFile = source;
+      croppedAspect = framedAspect;
+    } catch {
+      error = "Failed to process image";
+    }
+  }
+
   function handleRemove() {
+    sourceFile = null;
+    croppedAspect = null;
     onremove?.();
   }
 </script>
@@ -89,6 +143,16 @@
   {#if currentImage}
     <div class="image-preview">
       <img src={currentImage.dataUrl} alt={previewAlt} class="preview-image" />
+      {#if sourceFile}
+        <button
+          type="button"
+          class="btn btn-choose"
+          onclick={() => (cropFile = sourceFile)}
+          aria-label={`Adjust ${faceLabel.toLowerCase()} crop`}
+        >
+          Crop
+        </button>
+      {/if}
       <button
         type="button"
         class="btn btn-remove"
@@ -104,10 +168,29 @@
     </button>
   {/if}
 
+  {#if cropStale}
+    <span class="crop-stale" role="status">
+      The device shape changed since this image was cropped. Crop it again to
+      fit.
+    </span>
+  {/if}
+
   {#if error}
     <span class="error-message" role="alert">{error}</span>
   {/if}
 </div>
+
+<ImageCropDialog
+  file={cropFile}
+  {face}
+  {uHeight}
+  {rackWidth}
+  {guideRackWidths}
+  {widthFraction}
+  {widthLabel}
+  onconfirm={handleCropConfirm}
+  oncancel={() => (cropFile = null)}
+/>
 
 <style>
   .image-upload {
@@ -137,6 +220,7 @@
 
   .image-preview {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-3);
   }
@@ -184,6 +268,11 @@
   .btn:focus-visible {
     outline: 2px solid var(--colour-selection);
     outline-offset: 2px;
+  }
+
+  .crop-stale {
+    font-size: var(--font-size-sm);
+    color: var(--colour-warning);
   }
 
   .error-message {
