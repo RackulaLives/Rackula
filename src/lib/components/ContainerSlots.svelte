@@ -9,15 +9,14 @@
   - Container selected: Slot grid becomes visible
 -->
 <script lang="ts">
-  import type { DeviceType, Slot } from "$lib/types";
+  import type { DeviceType } from "$lib/types";
+  import type { SlotRect } from "$lib/utils/slot-geometry";
 
   interface Props {
     /** The container device type with slots array */
     containerType: DeviceType;
-    /** Width of the container in pixels */
-    containerWidth: number;
-    /** Height of the container in pixels */
-    containerHeight: number;
+    /** Cell rectangles by slot id, the same ones the children render in */
+    slotRects: Map<string, SlotRect>;
     /** ID of the currently selected slot (null if none) */
     selectedSlotId: string | null;
     /** ID of the slot that is currently a drop target (null if none) */
@@ -30,8 +29,7 @@
 
   let {
     containerType,
-    containerWidth,
-    containerHeight,
+    slotRects,
     selectedSlotId,
     dropTargetSlotId = null,
     isValidDropTarget = false,
@@ -50,46 +48,6 @@
         containerType.category === "chassis" ||
         (containerType.slots?.length ?? 0) > 2), // Many slots suggests blade chassis
   );
-
-  // Pre-compute cumulative x offsets for all slots (O(n) instead of O(n²))
-  // Each slot lookup becomes O(1) since we just read from this array by index
-  const cumulativeXOffsets = $derived.by(() => {
-    const offsets: number[] = [];
-    let cumulative = 0;
-    for (const slot of slots) {
-      offsets.push(cumulative);
-      cumulative += containerWidth * (slot.width_fraction ?? 1.0);
-    }
-    return offsets;
-  });
-
-  /**
-   * Calculate the geometry (position and dimensions) for a slot.
-   * Slots are laid out horizontally based on their width_fraction and column index.
-   * Uses precomputed cumulative x offsets for O(1) lookup per slot.
-   *
-   * @param slot - The slot to calculate geometry for
-   * @param index - The index of the slot in the slots array
-   * @returns Object with x, y, width, height in pixels
-   */
-  function getSlotGeometry(
-    slot: Slot,
-    index: number,
-  ): { x: number; y: number; width: number; height: number } {
-    const widthFraction = slot.width_fraction ?? 1.0;
-    const width = containerWidth * widthFraction;
-
-    // Use precomputed offset (O(1) lookup)
-    const xOffset = cumulativeXOffsets[index] ?? 0;
-
-    // Default slot height to container height (single row)
-    // Future: support multi-row containers via height_units
-    const heightUnits = slot.height_units ?? 1;
-    const totalRowHeight = containerHeight;
-    const height = heightUnits * totalRowHeight;
-
-    return { x: xOffset, y: 0, width, height };
-  }
 
   /**
    * Build CSS class string for a slot based on its state.
@@ -138,8 +96,8 @@
   class:shelf-style={isShelf}
   class:chassis-style={isChassis}
 >
-  {#each slots as slot, index (slot.id)}
-    {@const geometry = getSlotGeometry(slot, index)}
+  {#each slots as slot (slot.id)}
+    {@const geometry = slotRects.get(slot.id)!}
     {@const slotClass = getSlotClass(slot.id)}
     {@const insetPadding = 2}
     <rect
@@ -148,7 +106,7 @@
       x={geometry.x + insetPadding}
       y={geometry.y + insetPadding}
       width={geometry.width - insetPadding * 2}
-      height={geometry.height - insetPadding * 2}
+      height={Math.max(0, geometry.height - insetPadding * 2)}
       rx="2"
       ry="2"
       onclick={() => handleSlotClick(slot.id)}
@@ -164,7 +122,7 @@
       <text
         class="bay-label"
         x={geometry.x + geometry.width / 2}
-        y={geometry.y + 12}
+        y={geometry.y + Math.max(0, Math.min(12, geometry.height - 2))}
         text-anchor="middle"
         font-size="9"
       >

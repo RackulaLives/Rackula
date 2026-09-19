@@ -13,6 +13,8 @@ import {
   createTestRack,
   createTestDevice,
   createTestDeviceType,
+  createTestContainerType,
+  createTestSlot,
 } from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
 
@@ -480,6 +482,45 @@ describe("Drag and Drop Utilities", () => {
         U_HEIGHT,
       );
       expect(target).toBeNull();
+    });
+
+    it("targets the upper row of a container whose row ids are not contiguous", () => {
+      // Rows 0 and 2 render as two stacked halves; the upper half is row 2.
+      const sparse = createTestContainerType({
+        slug: "sparse-carrier",
+        u_height: 1,
+        category: "shelf",
+        slots: [
+          createTestSlot({ id: "low", position: { row: 0, col: 0 } }),
+          createTestSlot({ id: "high", position: { row: 2, col: 0 } }),
+        ],
+      });
+      const rack: Rack = {
+        ...rackWithCarrier(),
+        devices: [
+          {
+            id: "carrier-1",
+            device_type: "sparse-carrier",
+            position: toInternalUnits(5),
+            face: "both",
+          },
+        ],
+      };
+      const fullWidthChild = createTestDeviceType({
+        slug: "half-u",
+        u_height: 0.5,
+      });
+      const target = detectContainerDropTarget(
+        rack,
+        [sparse, fullWidthChild],
+        fullWidthChild,
+        158, // upper half of U5
+        40,
+        RACK_WIDTH,
+        12,
+        U_HEIGHT,
+      );
+      expect(target?.slotId).toBe("high");
     });
 
     it("returns null when no container sits at the target U", () => {

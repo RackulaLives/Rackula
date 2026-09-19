@@ -11,7 +11,7 @@
     PortClickInfo,
     RackView,
   } from "$lib/types";
-  import { SvelteMap } from "svelte/reactivity";
+  import { getChildYInSlot, getSlotRects } from "$lib/utils/slot-geometry";
   import PortIndicators from "./PortIndicators.svelte";
   import ContainerSlots from "./ContainerSlots.svelte";
   import {
@@ -350,23 +350,10 @@
   const deviceWidth = $derived(fullWidth);
   const slotXOffset = 0;
 
-  // Container helper: compute slot x offsets and widths for child positioning
-  const slotGeometry = $derived.by(() => {
-    if (!device.slots?.length)
-      return new SvelteMap<string, { x: number; width: number }>();
-
-    const geometry = new SvelteMap<string, { x: number; width: number }>();
-    let cumulativeX = 0;
-
-    for (const slot of device.slots) {
-      const widthFraction = slot.width_fraction ?? 1.0;
-      const width = deviceWidth * widthFraction;
-      geometry.set(slot.id, { x: cumulativeX, width });
-      cumulativeX += width;
-    }
-
-    return geometry;
-  });
+  // Container helper: each slot's cell rectangle, placed by row and column
+  const slotGeometry = $derived(
+    getSlotRects(device.slots ?? [], deviceWidth, deviceHeight),
+  );
 
   // Helper to get child device type from library
   function getChildDeviceType(slug: string): DeviceType | undefined {
@@ -379,12 +366,6 @@
   function getSlotName(slotId: string | undefined): string {
     const slot = device.slots?.find((s) => s.id === slotId);
     return slot?.name ?? slotId ?? "Unknown";
-  }
-
-  // Calculate child device position within container
-  // Position is 0-indexed from bottom of container, Y is SVG coordinate (origin at top)
-  function getChildY(childPosition: number, childUHeight: number): number {
-    return deviceHeight - (childPosition + childUHeight) * uHeight;
   }
 
   // Calculate available width for centered text (accounting for icon areas)
@@ -1028,8 +1009,7 @@
     {#if isContainer && (selected || isDragOverContainer)}
       <ContainerSlots
         containerType={device}
-        containerWidth={deviceWidth}
-        containerHeight={deviceHeight}
+        slotRects={slotGeometry}
         selectedSlotId={null}
         dropTargetSlotId={isDragOverContainer ? dragTargetSlotId : null}
         isValidDropTarget={isDragTargetValid}
@@ -1047,7 +1027,15 @@
           : undefined}
         {#if childType && slotGeo}
           {@const childHeight = childType.u_height * uHeight}
-          {@const childY = getChildY(child.position, childType.u_height)}
+          {@const childY = getChildYInSlot(
+            slotGeo,
+            deviceHeight,
+            // Container-relative whole U (0-indexed), not internal units:
+            // migrateDevicePositions skips container children.
+            child.position,
+            childType.u_height,
+            uHeight,
+          )}
           {@const childWidth = slotGeo.width}
           {@const childX = slotGeo.x}
           {@const childColour =
