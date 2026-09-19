@@ -137,7 +137,7 @@ No legacy support or migration code. Features are implemented as if they're the 
 
 ## Deployment Architecture
 
-Both hosted environments run on Cloudflare Workers. The Vultr VPS that used to serve them is being decommissioned (#1986). Self-host images (Docker, LXC) are built by the same release pipeline and do not depend on either Worker.
+Both hosted environments run on Cloudflare Workers. The Vultr VPS that used to serve them was destroyed in September 2026 (#1986). Self-host images (Docker, LXC) are built by the same release pipeline and do not depend on either Worker.
 
 ```
 Push to main --> Deploy Dev (deploy-dev.yml) --> rackula-dev Worker --> d.racku.la

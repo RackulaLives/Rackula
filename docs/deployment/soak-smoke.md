@@ -25,7 +25,7 @@ Query recent runs directly:
 gh run list --workflow=soak-smoke.yml --limit 50
 ```
 
-A 7-day green streak is 7 days of consecutive runs (4 per day at the 6-hour cadence) with no `failure` conclusion in between. This is the decommission gate that issue #1986 (destroy the Vultr VPS) reads before proceeding: the VPS stays up until this workflow has shown an unbroken 7-day green run, counted from the first run with both legs (after #2134), alongside #1986's other gate conditions (restorable image insurance, data disposition). The same soak window also satisfies issue #2029's rollback-runbook soak, so it is built once and shared.
+A 7-day green streak is 7 days of consecutive runs (4 per day at the 6-hour cadence) with no `failure` conclusion in between. This was the decommission gate for #1986 (destroy the Vultr VPS). The VPS was destroyed in September 2026, so the workflow now serves as the standing health signal for both Workers; steady-state alerting on top of it is #3095.
 
 ## On failure
 
