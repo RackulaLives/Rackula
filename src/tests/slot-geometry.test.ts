@@ -226,13 +226,15 @@ describe("hit-testing matches rendering on regular grids", () => {
     }
   });
 
-  it("rowAtY returns one of the container's row ids for a non-finite pointer", () => {
+  it("aims at no cell when the pointer is not a finite position", () => {
     const slots = [
       createTestSlot({ id: "low", position: { row: 0, col: 0 } }),
       createTestSlot({ id: "high", position: { row: 2, col: 0 } }),
     ];
 
-    expect([0, 2]).toContain(rowAtY(slots, Number.NaN, 1, U, 1, 1));
+    const row = rowAtY(slots, Number.NaN, 1, U, 1, 1);
+
+    expect(slots.find((s) => s.position.row === row)).toBeUndefined();
   });
 });
 

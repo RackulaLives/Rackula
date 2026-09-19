@@ -283,9 +283,10 @@ export function rowAtY(
   const containerPxHeight = containerHeightU * uHeight;
   // Fraction from the top of the container (0 = top, 1 = bottom).
   const fromTop = (mouseY - containerTopY) / containerPxHeight;
-  // A non-finite pointer (NaN) clamps to the top slice so a real row id is
-  // always returned.
-  const clamped = Math.max(0, Math.min(fromTop, 0.999)) || 0;
+  // A non-finite pointer names no row. Returning NaN matches no slot, so
+  // callers fall back instead of aiming at a cell the pointer is not over.
+  if (!Number.isFinite(fromTop)) return Number.NaN;
+  const clamped = Math.max(0, Math.min(fromTop, 0.999));
   // The bottom slice is the lowest row id; invert the slice index from the top.
   const rowFromTop = Math.floor(clamped * rowCount);
   return rows[rowCount - 1 - rowFromTop]!;
