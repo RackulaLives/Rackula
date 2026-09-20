@@ -510,10 +510,14 @@ smoke_checks() {
   # browser-mode config.js from publicDir; the install and update scripts
   # rewrite it to server. A regression here silently strands layouts in
   # browser localStorage while the API idles (#2060).
+  # pipefail + no grep -q: the command runs in a remote `bash -c`, so this shell's
+  # pipefail does not reach it, and a matching grep would mask a failed curl. Dropping
+  # -q is required with pipefail: -q exits on first match, curl then dies on SIGPIPE
+  # and the pipeline reports failure on a passing check. _check discards output.
   _check "$id" "config.js is JavaScript" \
-    "curl -sfI --max-time 5 http://127.0.0.1/config.js | grep -qiE '^content-type: *(application|text)/javascript'"
+    "set -o pipefail; curl -sfI --max-time 5 http://127.0.0.1/config.js | grep -iE '^content-type: *(application|text)/javascript'"
   _check "$id" "config.js declares server storage" \
-    "curl -sf --max-time 5 http://127.0.0.1/config.js | grep -q 'storage: *\"server\"'"
+    "set -o pipefail; curl -sf --max-time 5 http://127.0.0.1/config.js | grep -E 'storage: *\"server\"'"
   _check "$id" "rackula-api active" "systemctl is-active --quiet rackula-api"
   _check "$id" "nginx active" "systemctl is-active --quiet nginx"
   _check "$id" "no API crash in journal" \
