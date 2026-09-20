@@ -506,6 +506,14 @@ smoke_checks() {
   info "smoke checks on CT $id"
   _check "$id" "API /api/health responds" "curl -sf --max-time 5 http://127.0.0.1/api/health"
   _check "$id" "frontend served" "curl -sf --max-time 5 -o /dev/null http://127.0.0.1/"
+  # Runtime storage mode must reach the client. The release tarball ships a
+  # browser-mode config.js from publicDir; the install and update scripts
+  # rewrite it to server. A regression here silently strands layouts in
+  # browser localStorage while the API idles (#2060).
+  _check "$id" "config.js is JavaScript" \
+    "curl -sfI --max-time 5 http://127.0.0.1/config.js | grep -qiE '^content-type: *(application|text)/javascript'"
+  _check "$id" "config.js declares server storage" \
+    "curl -sf --max-time 5 http://127.0.0.1/config.js | grep -q 'storage: *\"server\"'"
   _check "$id" "rackula-api active" "systemctl is-active --quiet rackula-api"
   _check "$id" "nginx active" "systemctl is-active --quiet nginx"
   _check "$id" "no API crash in journal" \
