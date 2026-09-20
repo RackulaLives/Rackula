@@ -17,6 +17,7 @@ import { resetImageStore } from "$lib/stores/images.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 import { resetViewportStore } from "$lib/utils/viewport.svelte";
+import { saveLayoutBody } from "$lib/storage/browser-workspace";
 import { createTestLayout, createTestRack } from "./factories";
 
 const shareMocks = vi.hoisted(() => ({
@@ -324,6 +325,92 @@ describe(
 
       expect(persistenceApiMocks.listSavedLayouts).not.toHaveBeenCalled();
       expect(persistenceApiMocks.saveLayoutToServer).not.toHaveBeenCalled();
+    });
+
+    // Issue #3381. Browser mode persists to Rackula:workspace and never writes
+    // the legacy session slot, so a deployment that flips to server mode used
+    // to open an empty canvas over layouts the user still had.
+    describe("browser-to-server flip with a populated workspace", () => {
+      beforeEach(() => {
+        localStorage.clear();
+        sessionStorageMocks.detectModeFlip.mockReturnValue("browser-to-server");
+      });
+
+      // Seed the way production does: saveLayoutBody creates the index, sets
+      // activeId to the first id written, and stamps storageMode "browser".
+      function seedWorkspace(): void {
+        saveLayoutBody(
+          "layout-active",
+          createTestLayout({
+            name: "Active Browser Layout",
+            racks: [createTestRack({ id: "rack-active", name: "Rack Active" })],
+          }),
+          { changesSinceExport: 3, hasEverExported: false },
+        );
+        saveLayoutBody(
+          "layout-other",
+          createTestLayout({
+            name: "Other Browser Layout",
+            racks: [createTestRack({ id: "rack-other", name: "Rack Other" })],
+          }),
+          { changesSinceExport: 1, hasEverExported: false },
+        );
+      }
+
+      it("restores the active workspace layout instead of resetting to empty", async () => {
+        seedWorkspace();
+
+        render(App);
+
+        await waitFor(() => {
+          expect(getLayoutStore().layout.name).toBe("Active Browser Layout");
+        });
+        expect(getLayoutStore().rackCount).toBeGreaterThan(0);
+      });
+
+      it("offers to upload the restored layout and names the ones left behind", async () => {
+        seedWorkspace();
+
+        render(App);
+
+        await waitFor(() => {
+          expect(getToastStore().toasts.at(-1)?.action?.label).toBe("Upload");
+        });
+        const toast = getToastStore().toasts.at(-1);
+        expect(toast?.type).toBe("info");
+        expect(toast?.message).toContain("still stored in this browser");
+      });
+
+      it("omits the upload action when the server cannot be reached", async () => {
+        persistenceStoreMocks.initializePersistence.mockResolvedValue(false);
+        persistenceStoreMocks.isApiAvailable.mockReturnValue(false);
+        seedWorkspace();
+
+        render(App);
+
+        await waitFor(() => {
+          expect(getLayoutStore().layout.name).toBe("Active Browser Layout");
+        });
+        const toast = getToastStore().toasts.at(-1);
+        expect(toast?.type).toBe("warning");
+        expect(toast?.action).toBeUndefined();
+      });
+
+      it("still opens the empty canvas when the workspace is empty", async () => {
+        render(App);
+
+        await waitFor(() => {
+          expect(
+            persistenceStoreMocks.initializePersistence,
+          ).toHaveBeenCalled();
+        });
+        expect(getLayoutStore().rackCount).toBe(0);
+        // A dev-build toast fires under vitest, so assert on the flip
+        // affordance specifically rather than on an empty toast queue.
+        expect(
+          getToastStore().toasts.some((t) => t.action?.label === "Upload"),
+        ).toBe(false);
+      });
     });
   },
 );

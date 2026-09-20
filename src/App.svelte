@@ -53,6 +53,8 @@
     setServerBaseUpdatedAt,
     resolveBrowserLaunch,
     deleteLayoutBody,
+    loadWorkspaceIndex,
+    loadLayoutBody,
   } from "$lib/storage";
   import { serializeLayoutToYaml } from "$lib/utils/yaml";
   import { maybeExport, handleFitAll } from "$lib/utils/app-actions";
@@ -168,6 +170,16 @@
     toastStore.showToast(message, type, duration, action);
   }
 
+  // Recenter on a restored layout: keep the saved viewport when there is one,
+  // otherwise frame everything.
+  function recenterAfterRestore(): void {
+    requestAnimationFrame(() => {
+      if (!canvasStore.restoreViewport()) {
+        canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
+      }
+    });
+  }
+
   // Restore an autosaved working copy into the store and recenter the view.
   function restoreLocalSession(
     session: NonNullable<ReturnType<typeof loadSessionWithTimestamp>>,
@@ -179,11 +191,72 @@
       changesSinceExport: session.changesSinceExport,
       hasEverExported: session.hasEverExported,
     });
-    requestAnimationFrame(() => {
-      if (!canvasStore.restoreViewport()) {
-        canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
-      }
+    recenterAfterRestore();
+  }
+
+  // A deployment that flips from browser to server storage strands the user's
+  // layouts: browser mode persists to the multi-layout workspace and never
+  // writes the legacy session slot that server boot reads, so the canvas would
+  // open empty over data still in localStorage (#3381).
+  //
+  // Restore the active workspace layout and offer to upload it. Scope is the
+  // active layout, matching the upload scope server-opt-in already documents;
+  // the rest stay in this browser and are named in the toast.
+  //
+  // Returns true when a layout was restored, false to fall through to the
+  // normal empty-canvas path.
+  async function restoreWorkspaceOnFlip(
+    initPromise: Promise<boolean>,
+  ): Promise<boolean> {
+    const index = loadWorkspaceIndex();
+    const activeId = index?.activeId;
+    if (!index || !activeId) return false;
+
+    const entry = index.library[activeId];
+    if (!entry || detectModeFlip(entry.storageMode) !== "browser-to-server") {
+      return false;
+    }
+
+    const body = loadLayoutBody(activeId);
+    if (!body.ok) return false;
+
+    layoutStore.loadLayout(body.layout);
+    // The workspace copy was never saved to this server, so it starts dirty.
+    layoutStore.markDirty();
+    layoutStore.restoreBackupState({
+      changesSinceExport: entry.changesSinceExport,
+      hasEverExported: entry.hasEverExported,
     });
+    recenterAfterRestore();
+
+    const others = Object.keys(index.library).length - 1;
+    const remainder =
+      others > 0
+        ? ` ${others} other ${others === 1 ? "layout is" : "layouts are"} still stored in this browser.`
+        : "";
+
+    // Offering Upload against an unreachable server would fail on click, so
+    // mirror the reachable/unreachable split the legacy-session flip uses.
+    if (await initPromise) {
+      showStorageToast(
+        `This deployment now stores layouts on the server. Upload this layout to keep it here.${remainder}`,
+        "info",
+        0,
+        {
+          label: "Upload",
+          onClick: () => {
+            void handleSaveToServer(true);
+          },
+        },
+      );
+    } else {
+      showStorageToast(
+        `Cannot reach ${getServerInstanceLabel()}. Restored the layout stored in this browser; reload to retry.${remainder}`,
+        "warning",
+        0,
+      );
+    }
+    return true;
   }
 
   // Auto-open new rack dialog when no racks exist (first-load experience)
@@ -369,7 +442,11 @@
       // blocking modal while the health check resolves.
       // Reset layout to clear any stale hasStarted flag from a previous session (#1326)
       if (!localSession) {
-        layoutStore.resetLayout();
+        // A browser-mode deployment that flipped to server storage has no
+        // legacy session but may still hold layouts in the workspace (#3381).
+        if (!(await restoreWorkspaceOnFlip(persistenceInitPromise))) {
+          layoutStore.resetLayout();
+        }
         return;
       }
 
