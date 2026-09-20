@@ -35,6 +35,7 @@
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { debounce } from "$lib/utils/debounce";
   import { truncateWithEllipsis } from "$lib/utils/searchHighlight";
+  import { CUSTOM_CARRIER_SLUG_PATTERN } from "$lib/utils/custom-carrier";
   import { getBrandPacks, getBrandSlugs } from "$lib/data/brandPacks";
   import { getStarterLibrary, getStarterSlugs } from "$lib/data/starterLibrary";
   import DevicePaletteItem from "./DevicePaletteItem.svelte";
@@ -306,7 +307,21 @@
   // Brand devices are excluded - they appear in their respective brand sections
   const allGenericDevices = $derived.by(() => {
     const starter = getStarterLibrary();
-    const placed = layoutStore.device_types;
+    // A generated carrier describes one row's split, not a device anyone
+    // would reach for, so it stays out of the catalogue. Matched on the slug
+    // rather than the auto_created flag: on a $state proxy, reading a key
+    // most device types lack subscribes this derived to that missing key.
+    // A generated carrier describes one row's split, not a device anyone
+    // would reach for, so it stays out of the catalogue. Matched on the slug,
+    // and the array is only rebuilt when there is something to hide: this
+    // derived feeds an effect that reassigns accordion state, so handing it a
+    // fresh array on every read costs renders for nothing.
+    const allPlaced = layoutStore.device_types;
+    const placed = allPlaced.some((d) =>
+      CUSTOM_CARRIER_SLUG_PATTERN.test(d.slug),
+    )
+      ? allPlaced.filter((d) => !CUSTOM_CARRIER_SLUG_PATTERN.test(d.slug))
+      : allPlaced;
     const placedSlugs = new Set(placed.map((d) => d.slug));
     const starterSlugs = getStarterSlugs();
     const brandSlugs = getBrandSlugs();
