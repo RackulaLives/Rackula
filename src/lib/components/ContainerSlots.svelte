@@ -45,6 +45,10 @@
   // Get slots from container type, defaulting to empty array
   const slots = $derived(containerType.slots ?? []);
 
+  // Below this a dimension would not read, so the gap goes uncoted rather
+  // than printing digits on top of each other.
+  const MIN_GAP_LABEL_PX = 14;
+
   // Detect container type for visual styling variants
   const isShelf = $derived(containerType.category === "shelf");
   // Chassis-style: blade chassis, modular switches, or subdevice_role="parent"
@@ -116,6 +120,53 @@
   class:shelf-style={isShelf}
   class:chassis-style={isChassis}
 >
+  <defs>
+    <pattern
+      id="slot-gap-hatch-{containerType.slug}"
+      width="6"
+      height="6"
+      patternUnits="userSpaceOnUse"
+      patternTransform="rotate(45)"
+    >
+      <line x1="0" y1="0" x2="0" y2="6" class="gap-hatch-line" />
+    </pattern>
+  </defs>
+
+  <!-- A gap is reserved space: hatched and dimensioned, nothing drops in it. -->
+  {#each layout.gaps as gap (gap.index)}
+    <rect
+      class="slot-gap"
+      x={gap.x}
+      y={0}
+      width={gap.width}
+      height={containerHeight}
+      fill="url(#slot-gap-hatch-{containerType.slug})"
+    />
+    {#if gap.width >= MIN_GAP_LABEL_PX}
+      <text
+        class="gap-label"
+        x={gap.x + gap.width / 2}
+        y={containerHeight / 2}
+        text-anchor="middle"
+        dominant-baseline="middle"
+        font-size="7">{gap.mm}</text
+      >
+    {/if}
+  {/each}
+
+  <!-- Free space is an invitation, not a reservation: dashed, no dimension. -->
+  {#if layout.free}
+    <rect
+      class="slot-free"
+      x={layout.free.x + 1}
+      y={1}
+      width={Math.max(layout.free.width - 2, 0)}
+      height={Math.max(containerHeight - 2, 0)}
+      rx="2"
+      ry="2"
+    />
+  {/if}
+
   {#each slots as slot (slot.id)}
     {@const geometry = cells.get(slot.id)!}
     {@const slotClass = getSlotClass(slot.id)}
@@ -153,6 +204,32 @@
 </g>
 
 <style>
+  .gap-hatch-line {
+    stroke: var(--neutral-500);
+    stroke-width: 1;
+    opacity: 0.5;
+  }
+
+  .slot-gap {
+    pointer-events: none;
+  }
+
+  .gap-label {
+    fill: var(--neutral-500);
+    font-family: var(--font-family, system-ui, sans-serif);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .slot-free {
+    fill: none;
+    stroke: var(--neutral-500);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
   .container-slots {
     pointer-events: none;
   }
