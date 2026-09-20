@@ -225,8 +225,18 @@ export async function persistBrowserWorkspace(
       openTabs,
       library,
     });
-    if (!indexWrite.ok && indexWrite.failure !== null && failure !== "quota") {
-      failure = indexWrite.failure;
+    if (!indexWrite.ok) {
+      if (indexWrite.failure !== null && failure !== "quota") {
+        failure = indexWrite.failure;
+      }
+      // Without the index nothing references any body written this pass, so
+      // every layout attempted here is unsaved, not just the ones whose own
+      // write was refused. Reporting only the latter would clear the chip for
+      // the rest and leave the toast -- which dialogs can dismiss -- as the
+      // only trace of a lost workspace.
+      for (const layoutId of attemptedLayoutIds) {
+        if (!failedLayoutIds.includes(layoutId)) failedLayoutIds.push(layoutId);
+      }
     }
 
     if (openTabs.length > 0) markEverHadLayouts();

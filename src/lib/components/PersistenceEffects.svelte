@@ -17,6 +17,7 @@
     getTwinTabGuard,
     setForeignWriteNotifier,
     setBrowserWriteFailures,
+    hasBrowserWriteFailures,
     type PersistTab,
     type PersistResult,
   } from "$lib/storage";
@@ -148,12 +149,17 @@
       result.attemptedLayoutIds,
     );
 
-    if (result.ok) {
+    // This pass succeeding does not mean every layout is saved: a layout it
+    // skipped (paused by the twin-tab guard) can still be unsaved, and its chip
+    // still says so. Clearing the warning then would contradict the chip, so
+    // the warning only goes once nothing is outstanding.
+    if (result.ok && !hasBrowserWriteFailures()) {
       if (quotaToastId) toastStore.dismissToast(quotaToastId);
       quotaToastId = undefined;
       quotaToastSignature = undefined;
       return;
     }
+    if (result.ok) return;
 
     // Re-raise when WHAT failed or WHY changes, so a quota failure following an
     // "unavailable" one cannot leave the earlier, wrong wording on screen.

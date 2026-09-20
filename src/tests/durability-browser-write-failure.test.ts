@@ -4,6 +4,7 @@ import { createHistoryStore } from "$lib/stores/history.svelte";
 import {
   getLayoutDurability,
   setBrowserWriteFailures,
+  hasBrowserWriteFailures,
   resetBrowserWriteFailures,
 } from "$lib/storage/durability.svelte";
 import {
@@ -82,5 +83,20 @@ describe("browser write failure reaches layout durability", () => {
 
     setBrowserWriteFailures([], "quota", ["lay-other"]);
     expect(durability.status).toBe("error");
+  });
+
+  // The toast is dismissed off this predicate, so a pass that succeeded for
+  // one layout must not report "nothing outstanding" while another is unsaved.
+  it("still reports outstanding failures after an unrelated layout succeeds", () => {
+    setBrowserWriteFailures(["lay-paused"], "quota");
+    expect(hasBrowserWriteFailures()).toBe(true);
+
+    // A later pass attempted only lay-other, and it succeeded.
+    setBrowserWriteFailures([], "quota", ["lay-other"]);
+    expect(hasBrowserWriteFailures()).toBe(true);
+
+    // Once the paused layout is attempted and succeeds, nothing is outstanding.
+    setBrowserWriteFailures([], "quota", ["lay-paused"]);
+    expect(hasBrowserWriteFailures()).toBe(false);
   });
 });

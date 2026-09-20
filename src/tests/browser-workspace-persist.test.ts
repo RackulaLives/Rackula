@@ -171,6 +171,9 @@ describe("persistBrowserWorkspace", () => {
 
     expect(result.ok).toBe(false);
     expect(result.failure).toBe("quota");
+    // Without the index, the written body is unreferenced and therefore lost,
+    // so the layout must be reported as failed or its chip clears to healthy.
+    expect(result.failedLayoutIds).toEqual(["a"]);
   });
 
   it("reports which layouts it actually attempted", async () => {

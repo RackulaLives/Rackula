@@ -73,6 +73,7 @@ export {
   setBrowserWriteFailures,
   isBrowserWriteFailed,
   browserWriteFailureReason,
+  hasBrowserWriteFailures,
   resetBrowserWriteFailures,
   type DurabilityStatus,
   type DurabilityKind,

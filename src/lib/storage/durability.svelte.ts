@@ -63,6 +63,11 @@ export function browserWriteFailureReason(
   return id === undefined ? null : (browserWriteFailures.get(id) ?? null);
 }
 
+/** Whether any layout is still recorded as unsaved to browser storage. */
+export function hasBrowserWriteFailures(): boolean {
+  return browserWriteFailures.size > 0;
+}
+
 /** Test seam: forget every recorded browser write failure. */
 export function resetBrowserWriteFailures(): void {
   browserWriteFailures.clear();
