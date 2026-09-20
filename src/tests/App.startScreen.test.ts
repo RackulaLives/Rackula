@@ -388,12 +388,14 @@ describe(
 
         render(App);
 
+        // The toast lands a microtask after the layout loads, behind the
+        // availability await, so wait on the toast itself.
         await waitFor(() => {
           expect(getLayoutStore().layout.name).toBe("Active Browser Layout");
+          const toast = getToastStore().toasts.at(-1);
+          expect(toast?.type).toBe("warning");
+          expect(toast?.action).toBeUndefined();
         });
-        const toast = getToastStore().toasts.at(-1);
-        expect(toast?.type).toBe("warning");
-        expect(toast?.action).toBeUndefined();
       });
 
       // The index stores no checksum, so one unreadable body must not hide the

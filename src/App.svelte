@@ -216,9 +216,15 @@
     // while its siblings are fine. Server mode lists only the server library,
     // so anything skipped here is unreachable from the canvas.
     const activeId = index.activeId;
-    const candidates = activeId
+    const openOrder = activeId
       ? [activeId, ...index.openTabs.filter((id) => id !== activeId)]
-      : index.openTabs;
+      : [...index.openTabs];
+    // Closed layouts keep their library entry but are not in openTabs, and
+    // server mode never lists them either, so they are candidates too.
+    const candidates = [
+      ...openOrder,
+      ...Object.keys(index.library).filter((id) => !openOrder.includes(id)),
+    ];
 
     let flipped = false;
     for (const id of candidates) {
