@@ -27,6 +27,7 @@ function status(
   changesSinceExport: number,
   hasEverExported: boolean,
   apiEverReached = false,
+  browserWriteFailed: "quota" | "unavailable" | boolean = false,
 ) {
   return computeLayoutStatus(
     saveStatus,
@@ -36,10 +37,51 @@ function status(
     changesSinceExport,
     hasEverExported,
     apiEverReached,
+    browserWriteFailed,
   );
 }
 
 describe("computeLayoutStatus — browser mode", () => {
+  // #3375: the browser branch used to decide durability purely from export
+  // state, so a layout whose localStorage write had failed still reported
+  // "Saved". A failed write outranks every other browser-mode state.
+  it("reports an error when the browser write failed, never Saved", () => {
+    const result = status("idle", 0, BROWSER, null, 0, true, false, true);
+    expect(result.status).toBe("error");
+    expect(result.label).not.toBe("Saved");
+    expect(result.shortLabel).not.toBe("Saved");
+    expect(result.icon).toBe("error");
+  });
+
+  it("tells the user to export when the browser write failed", () => {
+    const result = status("idle", 0, BROWSER, null, 4, false, false, "quota");
+    expect(result.status).toBe("error");
+    expect(result.detail.toLowerCase()).toContain("export");
+  });
+
+  // Blocked storage is not a space problem: telling that user to free space is
+  // advice that can never work, so the two classes keep separate copy.
+  it("blames space only for quota, not for blocked storage", () => {
+    const quota = status("idle", 0, BROWSER, null, 0, true, false, "quota");
+    expect(quota.kind).toBe("storage-full");
+    expect(quota.detail.toLowerCase()).toContain("out of space");
+
+    const blocked = status(
+      "idle",
+      0,
+      BROWSER,
+      null,
+      0,
+      true,
+      false,
+      "unavailable",
+    );
+    expect(blocked.status).toBe("error");
+    expect(blocked.kind).toBe("storage-blocked");
+    expect(blocked.detail.toLowerCase()).not.toContain("out of space");
+    expect(blocked.detail.toLowerCase()).toContain("export");
+  });
+
   it("is saved only when exported and no changes since", () => {
     const result = status("idle", 0, BROWSER, null, 0, true);
     expect(result.status).toBe("saved");

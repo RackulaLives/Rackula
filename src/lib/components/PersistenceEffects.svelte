@@ -16,8 +16,12 @@
     persistBrowserWorkspace,
     getTwinTabGuard,
     setForeignWriteNotifier,
+    setBrowserWriteFailures,
+    hasBrowserWriteFailures,
     type PersistTab,
+    type PersistResult,
   } from "$lib/storage";
+  import { storageWriteFailureMessage } from "$lib/utils/storage-errors";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -126,10 +130,79 @@
   // persisting a DIFFERENT layout (and thus holding a different per-layout
   // lock) cannot interleave its own read-modify-write of the shared
   // `Rackula:workspace` index with this one.
+  // A refused write is the only way browser mode loses data, and nothing below
+  // this component can reach the UI, so the persist result is reported here
+  // (#3375). The toast asks for duration 0 because the layout is not on disk
+  // and a notice that fades after five seconds would be its own silent loss;
+  // it is not truly permanent though, since dialogs clear toasts and the
+  // visible-toast cap can evict it. The storage chip is the durable signal,
+  // which is why the failure also goes to setBrowserWriteFailures.
+  let quotaToastId: string | undefined;
+  let quotaToastSignature: string | undefined;
+  // Persists can overlap: the pagehide flush runs while a debounced pass is
+  // still awaiting its locks, so results can arrive out of order. Each pass
+  // takes a ticket and a result older than the newest already reported is
+  // dropped, otherwise a stale success would clear a newer failure (or a stale
+  // failure would resurrect a warning the user has since resolved).
+  let persistTicket = 0;
+  let reportedTicket = 0;
+  function nextPersistTicket(): number {
+    return ++persistTicket;
+  }
+  function reportPersistResult(result: PersistResult, ticket: number): void {
+    if (ticket < reportedTicket) return;
+    reportedTicket = ticket;
+
+    // Only refresh the layouts this pass actually tried to write: a layout
+    // skipped by the twin-tab guard keeps the failure it already had rather
+    // than being silently declared healthy.
+    setBrowserWriteFailures(
+      result.failedLayoutIds,
+      result.failure ?? "unavailable",
+      result.attemptedLayoutIds,
+    );
+
+    // This pass succeeding does not mean every layout is saved: a layout it
+    // skipped (paused by the twin-tab guard) can still be unsaved, and its chip
+    // still says so. Clearing the warning then would contradict the chip, so
+    // the warning only goes once nothing is outstanding.
+    if (result.ok && !hasBrowserWriteFailures()) {
+      if (quotaToastId) toastStore.dismissToast(quotaToastId);
+      quotaToastId = undefined;
+      quotaToastSignature = undefined;
+      return;
+    }
+    if (result.ok) return;
+
+    // Re-raise when WHAT failed or WHY changes, so a quota failure following an
+    // "unavailable" one cannot leave the earlier, wrong wording on screen.
+    const signature = `${result.failure ?? "unavailable"}:${[...result.failedLayoutIds].sort().join(",")}`;
+    const stillVisible =
+      quotaToastId !== undefined &&
+      toastStore.toasts.some((toast) => toast.id === quotaToastId);
+    if (stillVisible && signature === quotaToastSignature) return;
+    if (stillVisible && quotaToastId) toastStore.dismissToast(quotaToastId);
+
+    // Match snapshotWorkspaceTabs' key, which falls back to the layout's own
+    // metadata id for a tab that has no layoutId yet (a first-run blank tab).
+    const failedName = workspaceStore.tabs.find((tab) => {
+      const layoutId = tab.layoutId ?? tab.store.layout.metadata?.id;
+      return (
+        layoutId !== undefined && result.failedLayoutIds.includes(layoutId)
+      );
+    })?.store.layout.name;
+    quotaToastSignature = signature;
+    quotaToastId = toastStore.showToast(
+      storageWriteFailureMessage(result.failure ?? "unavailable", failedName),
+      "error",
+      0,
+    );
+  }
+
   function persistWorkspaceGuarded(snapshot: {
     tabs: PersistTab[];
     activeLayoutId: string | null;
-  }): Promise<void> {
+  }): Promise<PersistResult> {
     return persistBrowserWorkspace({
       ...snapshot,
       isPaused: (layoutId) => twinTabGuard.isPaused(layoutId),
@@ -138,6 +211,45 @@
       withWorkspaceIndexLock: (write) =>
         twinTabGuard.withWorkspaceIndexLock(write),
     });
+  }
+
+  /**
+   * The layouts a persist of this snapshot would actually try to write: the
+   * same hydrated, non-paused set persistBrowserWorkspace attempts. Used to
+   * describe a REJECTED persist, which never got far enough to report for
+   * itself. Naming every tab there would mark shells and paused layouts as
+   * failed and invent durability errors for layouts nothing tried to write.
+   */
+  function attemptableLayoutIds(snapshot: { tabs: PersistTab[] }): string[] {
+    return snapshot.tabs
+      .filter((tab) => tab.hydrated && !twinTabGuard.isPaused(tab.layoutId))
+      .map((tab) => tab.layoutId);
+  }
+
+  /**
+   * Run a persist and report its outcome, whichever path asked for it. Fails
+   * closed: a rejected persist (navigator.locks throwing, say) must not leave
+   * the previous "saved" reading standing unchallenged.
+   */
+  function persistAndReport(snapshot: {
+    tabs: PersistTab[];
+    activeLayoutId: string | null;
+  }): Promise<void> {
+    const ticket = nextPersistTicket();
+    return persistWorkspaceGuarded(snapshot)
+      .then((result) => reportPersistResult(result, ticket))
+      .catch(() => {
+        const attempted = attemptableLayoutIds(snapshot);
+        reportPersistResult(
+          {
+            ok: false,
+            failure: "unavailable",
+            failedLayoutIds: attempted,
+            attemptedLayoutIds: attempted,
+          },
+          ticket,
+        );
+      });
   }
 
   $effect(() => {
@@ -150,7 +262,7 @@
 
     if (workspaceSaveTimer) clearTimeout(workspaceSaveTimer);
     workspaceSaveTimer = setTimeout(() => {
-      void persistWorkspaceGuarded(snapshot);
+      void persistAndReport(snapshot);
       workspaceSaveTimer = null;
     }, 1000);
 
@@ -177,10 +289,30 @@
       // either Web Lock (pagehide cannot wait on async work), including the
       // workspace-index lock (#2930). A simultaneous pagehide flush across
       // tabs remains a residual, accepted risk for the same reason.
-      persistBrowserWorkspace({
+      //
+      // The result is still reported (#3375). The writes themselves have
+      // already run by the time the promise settles, so this costs nothing on
+      // a real unload; it matters when the page is not actually going away,
+      // which is most visibilitychange firings and every bfcache restore.
+      // Without it a refused write there would leave the chip reading "Saved".
+      const ticket = nextPersistTicket();
+      void persistBrowserWorkspace({
         ...snapshot,
         isPaused: (layoutId) => twinTabGuard.isPaused(layoutId),
-      });
+      })
+        .then((result) => reportPersistResult(result, ticket))
+        .catch(() => {
+          const attempted = attemptableLayoutIds(snapshot);
+          reportPersistResult(
+            {
+              ok: false,
+              failure: "unavailable",
+              failedLayoutIds: attempted,
+              attemptedLayoutIds: attempted,
+            },
+            ticket,
+          );
+        });
     }
   }
 

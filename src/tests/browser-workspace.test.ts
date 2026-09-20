@@ -79,7 +79,7 @@ describe("browser-workspace storage", () => {
   describe("index round-trip", () => {
     it("saves and loads the workspace index", () => {
       const index = makeIndex();
-      expect(saveWorkspaceIndex(index)).toBe(true);
+      expect(saveWorkspaceIndex(index).ok).toBe(true);
       expect(loadWorkspaceIndex()).toEqual(index);
     });
 
@@ -111,7 +111,7 @@ describe("browser-workspace storage", () => {
       const loaded = saveWorkspaceIndex(
         makeIndex({ openTabs: ["a", "ghost"], activeId: "a" }),
       );
-      expect(loaded).toBe(true);
+      expect(loaded.ok).toBe(true);
       const index = loadWorkspaceIndex();
       expect(index!.openTabs).toEqual(["a"]);
     });
@@ -167,7 +167,9 @@ describe("browser-workspace storage", () => {
     it("saves a body and updates the index entry", () => {
       saveWorkspaceIndex(makeIndex());
       const layout = makeLayout("a", "Homelab");
-      expect(saveLayoutBody("a", layout, { changesSinceExport: 3 })).toBe(true);
+      expect(saveLayoutBody("a", layout, { changesSinceExport: 3 }).ok).toBe(
+        true,
+      );
 
       const result = loadLayoutBody("a");
       expect(result.ok).toBe(true);
@@ -312,12 +314,150 @@ describe("browser-workspace storage", () => {
         }
         original.call(localStorage, key, value);
       });
-      expect(
+      let result;
+      try {
+        result = saveLayoutBody("a", makeLayout("a", "Homelab"), {
+          changesSinceExport: 0,
+        });
+      } finally {
+        localStorage.setItem = original;
+      }
+      expect(result.ok).toBe(false);
+      expect(result.failure).toBe("quota");
+    });
+
+    // #3375: the index must never advertise a layout whose body is not there.
+    // A first write that fails quota has nothing on disk to point at, so the
+    // entry (and the open-tab reference) must not be created at all; otherwise
+    // the next launch restores a named tab over an empty canvas.
+    it("records no library entry when the first body write fails", () => {
+      const original = localStorage.setItem;
+      localStorage.setItem = vi.fn((key: string, value: string) => {
+        if (key === bodyKey("new")) {
+          const err = new Error("QuotaExceededError");
+          err.name = "QuotaExceededError";
+          throw err;
+        }
+        original.call(localStorage, key, value);
+      });
+      let result;
+      try {
+        result = saveLayoutBody("new", makeLayout("new", "Fresh"), {
+          changesSinceExport: 0,
+        });
+      } finally {
+        localStorage.setItem = original;
+      }
+
+      expect(result.ok).toBe(false);
+      const index = loadWorkspaceIndex();
+      expect(index?.library.new).toBeUndefined();
+      expect(index?.openTabs ?? []).not.toContain("new");
+    });
+
+    // A shell entry carries no updatedAt, so trusting updatedAt alone left it
+    // in place when its first body write failed, and the next launch restored
+    // a named tab over an empty canvas: the phantom tab, via the other door.
+    it("removes an existing shell entry when its first body write fails", () => {
+      saveWorkspaceIndex(
+        makeIndex({
+          activeId: "shell",
+          openTabs: ["shell"],
+          library: {
+            shell: {
+              name: "Shell",
+              updatedAt: "",
+              changesSinceExport: 0,
+              hasEverExported: false,
+              lastExportedAt: null,
+              writeFailed: false,
+              storageMode: "browser",
+            },
+          },
+        }),
+      );
+
+      const original = localStorage.setItem;
+      localStorage.setItem = vi.fn((key: string, value: string) => {
+        if (key === bodyKey("shell")) {
+          const err = new Error("QuotaExceededError");
+          err.name = "QuotaExceededError";
+          throw err;
+        }
+        original.call(localStorage, key, value);
+      });
+      try {
+        saveLayoutBody("shell", makeLayout("shell", "Shell"), {
+          changesSinceExport: 0,
+        });
+      } finally {
+        localStorage.setItem = original;
+      }
+
+      const index = loadWorkspaceIndex();
+      expect(index?.library.shell).toBeUndefined();
+      expect(index?.openTabs ?? []).not.toContain("shell");
+    });
+
+    // updatedAt only records that a write once succeeded. If that body has
+    // since been evicted, keeping the entry restores a named, empty tab.
+    it("removes the entry when updatedAt is set but the body is gone", () => {
+      saveWorkspaceIndex(makeIndex());
+      expect(loadLayoutBody("a").ok).toBe(false); // no body was ever written
+
+      const original = localStorage.setItem;
+      localStorage.setItem = vi.fn((key: string, value: string) => {
+        if (key === bodyKey("a")) {
+          const err = new Error("QuotaExceededError");
+          err.name = "QuotaExceededError";
+          throw err;
+        }
+        original.call(localStorage, key, value);
+      });
+      try {
         saveLayoutBody("a", makeLayout("a", "Homelab"), {
           changesSinceExport: 0,
-        }),
-      ).toBe(false);
-      localStorage.setItem = original;
+        });
+      } finally {
+        localStorage.setItem = original;
+      }
+
+      const index = loadWorkspaceIndex();
+      expect(index?.library.a).toBeUndefined();
+      expect(index?.openTabs ?? []).not.toContain("a");
+    });
+
+    // The mirror case: a layout that HAS a good body on disk keeps its
+    // catalogue record when a later write fails. Dropping it would discard a
+    // real, still-loadable layout, which is the very loss this issue is about.
+    it("keeps the entry and prior timestamp when a later write fails", () => {
+      saveWorkspaceIndex(makeIndex());
+      saveLayoutBody("a", makeLayout("a", "Homelab"), {
+        changesSinceExport: 0,
+      });
+      const savedAt = loadWorkspaceIndex()!.library.a!.updatedAt;
+
+      const original = localStorage.setItem;
+      localStorage.setItem = vi.fn((key: string, value: string) => {
+        if (key === bodyKey("a")) {
+          const err = new Error("QuotaExceededError");
+          err.name = "QuotaExceededError";
+          throw err;
+        }
+        original.call(localStorage, key, value);
+      });
+      try {
+        saveLayoutBody("a", makeLayout("a", "Homelab"), {
+          changesSinceExport: 3,
+        });
+      } finally {
+        localStorage.setItem = original;
+      }
+
+      const entry = loadWorkspaceIndex()!.library.a!;
+      expect(entry.writeFailed).toBe(true);
+      expect(entry.updatedAt).toBe(savedAt);
+      expect(loadLayoutBody("a").ok).toBe(true);
     });
 
     it("deletes a body key and its library entry", () => {
@@ -328,6 +468,38 @@ describe("browser-workspace storage", () => {
       deleteLayoutBody("a");
       expect(loadLayoutBody("a").ok).toBe(false);
       expect(loadWorkspaceIndex()!.library.a).toBeUndefined();
+    });
+
+    // Deleting the body first and failing to write the index would leave an
+    // entry pointing at nothing: the same phantom tab a failed save produces.
+    // A refused index write must abort the deletion whole instead.
+    it("keeps the body when the index write is refused", () => {
+      saveWorkspaceIndex(makeIndex());
+      saveLayoutBody("a", makeLayout("a", "Homelab"), {
+        changesSinceExport: 0,
+      });
+
+      const original = localStorage.setItem;
+      localStorage.setItem = vi.fn((key: string, value: string) => {
+        if (key === WORKSPACE_KEY) {
+          const err = new Error("QuotaExceededError");
+          err.name = "QuotaExceededError";
+          throw err;
+        }
+        original.call(localStorage, key, value);
+      });
+      let result;
+      try {
+        result = deleteLayoutBody("a");
+      } finally {
+        localStorage.setItem = original;
+      }
+
+      expect(result.ok).toBe(false);
+      // Both halves survive, so the user can retry rather than being left with
+      // an entry that points at a body which is no longer there.
+      expect(loadLayoutBody("a").ok).toBe(true);
+      expect(loadWorkspaceIndex()!.library.a).toBeDefined();
     });
   });
 
