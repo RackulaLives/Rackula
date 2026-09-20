@@ -21,6 +21,7 @@ import {
   getRackOpeningMm,
 } from "$lib/utils/device-width";
 import { adaptLegacyLayout } from "$lib/storage";
+import { buildCustomCarrierType } from "$lib/utils/custom-carrier";
 import {
   filterDevicesByAttributes,
   type HeightBucket,
@@ -353,5 +354,87 @@ describe("width_mm persistence", () => {
       decoded?.device_types.find((dt) => dt.slug === device.slug)?.width_mm,
     ).toBe(180);
     expect(decoded?.racks[0]?.width).toBe(23);
+  });
+});
+
+describe("custom splits survive a round trip", () => {
+  it("carries the cells and their gaps through a share link", () => {
+    const type = buildCustomCarrierType(
+      1,
+      [
+        { widthFraction: 0.25, heightUnits: 1 },
+        { widthFraction: 0.25, heightUnits: 1 },
+      ],
+      [20],
+    );
+    const child = measuredDevice(110);
+    const layout = createTestLayout({
+      device_types: [type, child],
+      racks: [
+        createTestRack({
+          width: 19,
+          devices: [
+            createTestDevice({
+              id: "carrier-1",
+              device_type: type.slug,
+              position: 5,
+            }),
+            createTestContainerChild({
+              id: "child-1",
+              device_type: child.slug,
+              container_id: "carrier-1",
+              slot_id: "col-1",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const encoded = encodeLayout(layout);
+    const { layout: decoded } = decodeLayout(encoded as string);
+    const restoredType = decoded?.device_types.find(
+      (dt) => dt.slug === type.slug,
+    );
+
+    expect(restoredType?.slot_gaps).toEqual([20]);
+    expect(restoredType?.slots?.map((s) => s.width_fraction)).toEqual([
+      0.25, 0.25,
+    ]);
+    expect(restoredType?.auto_created).toBe(true);
+  });
+
+  it("wraps a measured rail device too wide for a half cell in its own carrier", () => {
+    const wide = { ...measuredDevice(300), slug: "wide-thing" };
+    const legacy = createTestLayout({
+      device_types: [wide],
+      racks: [
+        createTestRack({
+          id: "r1",
+          width: 19,
+          devices: [
+            createTestDevice({
+              id: "d1",
+              device_type: wide.slug,
+              position: 6,
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const adapted = adaptLegacyLayout(legacy) as Layout;
+    const child = adapted.racks[0]!.devices.find((d) => d.container_id)!;
+    const carrier = adapted.racks[0]!.devices.find(
+      (d) => d.id === child.container_id,
+    )!;
+    const carrierType = adapted.device_types.find(
+      (dt) => dt.slug === carrier.device_type,
+    )!;
+
+    expect(carrierType.slots?.[0]?.width_fraction).toBeCloseTo(
+      300 / getRackOpeningMm(19),
+      6,
+    );
+    expect(() => LayoutSchema.parse(adapted)).not.toThrow();
   });
 });

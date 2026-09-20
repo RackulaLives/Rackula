@@ -136,6 +136,8 @@ function convertDeviceTypes(dt: MinimalDeviceType[]): DeviceType[] {
           })),
         }
       : {}),
+    ...(item.sg ? { slot_gaps: item.sg } : {}),
+    ...(item.ac ? { auto_created: true } : {}),
     ...(item.sw !== undefined ? { slot_width: item.sw } : {}),
     ...(item.wm !== undefined ? { width_mm: item.wm } : {}),
     ...(item.sr ? { subdevice_role: item.sr } : {}),
@@ -251,6 +253,12 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
             })),
           }
         : {}),
+      // A generated split travels with its cells; an all-zero list is the
+      // shipped look, so it is left out rather than padding every link.
+      ...(deviceType.slot_gaps && deviceType.slot_gaps.some((mm) => mm > 0)
+        ? { sg: deviceType.slot_gaps }
+        : {}),
+      ...(deviceType.auto_created ? { ac: true } : {}),
       ...(deviceType.slot_width !== undefined
         ? { sw: deviceType.slot_width }
         : {}),
