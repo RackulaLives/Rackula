@@ -8,8 +8,12 @@
   import SegmentedControl from "./SegmentedControl.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import SavedIndicator from "./ui/SavedIndicator.svelte";
+  import { IconChevronLeft, IconChevronRight, IconPlus } from "./icons";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { getUIStore } from "$lib/stores/ui.svelte";
+  import { bayRack } from "$lib/actions/selection-actions";
+  import { getRackSlotControls } from "$lib/utils/rack-row";
   import {
     canResizeRackTo,
     getConflictDetails,
@@ -27,6 +31,32 @@
 
   const layoutStore = getLayoutStore();
   const canvasStore = getCanvasStore();
+  const uiStore = getUIStore();
+
+  // Reorder and bay for this rack's row slot (#2833). The canvas verb bar
+  // carries them on desktop but is suppressed on mobile, so this sheet is
+  // their touch path. Gating matches the verb bar: reorder needs two or more
+  // row slots, baying follows the slot's bay source (an empty standalone rack,
+  // or a bayed group extending from this rack) and the bayed-racks setting,
+  // and both are mutations withheld in read-only mode.
+  const slotControls = $derived(
+    getRackSlotControls(
+      layoutStore.racks,
+      layoutStore.rack_groups,
+      rack.id,
+      rack.id,
+    ),
+  );
+  const showReorder = $derived(!uiStore.readOnly && slotControls.canReorder);
+  const baySource = $derived(
+    !uiStore.readOnly && uiStore.enableBayedRacks
+      ? slotControls.baySource
+      : null,
+  );
+
+  function handleBay() {
+    if (baySource) bayRack(baySource);
+  }
 
   // Local state for form fields (synced from rack prop)
   // Using untrack() to capture initial values - the $effect below handles reactive updates
@@ -184,6 +214,44 @@
 
 <div class="rack-edit-sheet">
   <div class="edit-form">
+    {#if showReorder || baySource}
+      <div class="row-actions" role="group" aria-label="Rack row actions">
+        {#if showReorder}
+          <button
+            type="button"
+            class="row-action"
+            onclick={() => layoutStore.moveRackInRow(rack.id, "left")}
+            disabled={!slotControls.canMoveLeft}
+            aria-label="Move rack left"
+          >
+            <IconChevronLeft />
+            <span>Left</span>
+          </button>
+          <button
+            type="button"
+            class="row-action"
+            onclick={() => layoutStore.moveRackInRow(rack.id, "right")}
+            disabled={!slotControls.canMoveRight}
+            aria-label="Move rack right"
+          >
+            <IconChevronRight />
+            <span>Right</span>
+          </button>
+        {/if}
+        {#if baySource}
+          <button
+            type="button"
+            class="row-action"
+            onclick={handleBay}
+            aria-label="Bay rack"
+          >
+            <IconPlus />
+            <span>Bay</span>
+          </button>
+        {/if}
+      </div>
+    {/if}
+
     <!-- Rack Name -->
     <div class="form-group">
       <label for="rack-name-mobile">
@@ -380,6 +448,49 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
+  }
+
+  .row-actions {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .row-action {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1-5);
+    min-height: var(--touch-target-min);
+    padding: var(--space-2);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--colour-text);
+    background: var(--colour-surface-secondary);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  .row-action :global(svg) {
+    width: var(--icon-size-sm);
+    height: var(--icon-size-sm);
+    flex-shrink: 0;
+  }
+
+  .row-action:hover:not(:disabled) {
+    background: var(--colour-surface-hover);
+  }
+
+  .row-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .row-action:focus-visible {
+    outline: 2px solid var(--colour-focus-ring);
+    outline-offset: 2px;
   }
 
   .form-group label,
