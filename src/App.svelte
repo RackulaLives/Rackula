@@ -201,7 +201,7 @@
   //
   // Restore the active workspace layout and offer to upload it. Scope is the
   // active layout, matching the upload scope server-opt-in already documents;
-  // the rest stay in this browser and are named in the toast.
+  // the rest stay in this browser and are counted in the toast.
   //
   // Returns true when a layout was restored, false to fall through to the
   // normal empty-canvas path.
