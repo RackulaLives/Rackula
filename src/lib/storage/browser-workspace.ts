@@ -177,13 +177,18 @@ export function loadWorkspaceIndex(): WorkspaceIndex | null {
   };
 }
 
-/** Persist the workspace index. Returns false on quota or storage failure. */
-export function saveWorkspaceIndex(index: WorkspaceIndex): boolean {
+/**
+ * Persist the workspace index. Reports why the write failed, because a refused
+ * index write loses data exactly like a refused body write does: the body may
+ * be on disk, but nothing points at it, so it is gone on the next launch
+ * (#3375).
+ */
+export function saveWorkspaceIndex(index: WorkspaceIndex): StorageWriteResult {
   try {
-    return safeSetItem(WORKSPACE_KEY, JSON.stringify(index));
+    return safeSetItemWithStatus(WORKSPACE_KEY, JSON.stringify(index));
   } catch (error) {
     log("failed to serialize workspace index: %O", error);
-    return false;
+    return { ok: false, failure: "unavailable" };
   }
 }
 
@@ -333,7 +338,11 @@ export function saveLayoutBody(
     storageMode: previous?.storageMode ?? "browser",
   };
   if (!index.openTabs.includes(id)) index.openTabs.push(id);
-  saveWorkspaceIndex(index);
+  // A body on disk that the index does not reference is lost on the next
+  // launch just as surely as a body that was never written, so a refused index
+  // write is reported as a failed save too (#3375).
+  const indexWrite = saveWorkspaceIndex(index);
+  if (!indexWrite.ok) return indexWrite;
 
   return write;
 }
@@ -420,7 +429,7 @@ export function adoptLegacyAutosave(): WorkspaceIndex | null {
     writeFailed: false,
     storageMode: session.storageMode,
   };
-  if (!saveWorkspaceIndex(index)) return null;
+  if (!saveWorkspaceIndex(index).ok) return null;
 
   markEverHadLayouts();
   safeRemoveItem(AUTOSAVE_KEY);

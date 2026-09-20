@@ -133,6 +133,55 @@ describe("persistBrowserWorkspace", () => {
       expect(index!.openTabs).toEqual(["a"]);
       expect(index!.activeId).toBe("a");
     });
+
+    // The open-set filter has to test own keys. isSafeLayoutId only rejects
+    // __proto__/constructor/prototype, so an id like "toString" reaches here
+    // and an `in` test would wave it through on Object.prototype alone.
+    it("drops an unwritten layout whose id collides with an Object prototype key", async () => {
+      failBodyWrites(["toString"]);
+      await persistBrowserWorkspace({
+        tabs: [tab({ layoutId: "toString" })],
+        activeLayoutId: "toString",
+      });
+
+      // Read the raw key, not loadWorkspaceIndex(): the read door sanitises
+      // with the same hasOwnProperty test, so reading through it would hide a
+      // write-side regression here.
+      const raw = localStorageMock.getItem("Rackula:workspace");
+      const stored = JSON.parse(raw ?? "{}") as { openTabs?: string[] };
+      expect(stored.openTabs ?? []).not.toContain("toString");
+    });
+  });
+
+  // A body on disk that the index does not reference is lost next launch just
+  // as surely as one that was never written, so this must not report success.
+  it("reports failure when the index write is refused even though bodies fit", async () => {
+    localStorageMock.setItem = (key: string, value: string) => {
+      if (key === "Rackula:workspace") {
+        const err = new Error("QuotaExceededError");
+        err.name = "QuotaExceededError";
+        throw err;
+      }
+      realSetItem(key, value);
+    };
+    const result = await persistBrowserWorkspace({
+      tabs: [tab({ layoutId: "a" })],
+      activeLayoutId: "a",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.failure).toBe("quota");
+  });
+
+  it("reports which layouts it actually attempted", async () => {
+    const result = await persistBrowserWorkspace({
+      tabs: [tab({ layoutId: "a" }), tab({ layoutId: "b" })],
+      activeLayoutId: "a",
+      isPaused: (layoutId) => layoutId === "b",
+    });
+    // b was paused, so it was never tried; saying otherwise would let the
+    // caller clear a failure it has no evidence was resolved.
+    expect(result.attemptedLayoutIds).toEqual(["a"]);
   });
 
   it("resolves ok when every body is written", async () => {
@@ -140,7 +189,12 @@ describe("persistBrowserWorkspace", () => {
       tabs: [tab({ layoutId: "a" })],
       activeLayoutId: "a",
     });
-    expect(result).toEqual({ ok: true, failure: null, failedLayoutIds: [] });
+    expect(result).toEqual({
+      ok: true,
+      failure: null,
+      failedLayoutIds: [],
+      attemptedLayoutIds: ["a"],
+    });
   });
 
   it("writes the ordered open set and active id to the index", () => {

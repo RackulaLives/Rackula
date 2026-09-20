@@ -33,6 +33,12 @@ export interface PersistResult {
   failure: StorageWriteFailure | null;
   /** Layouts whose body could not be written, so are not persisted at all. */
   failedLayoutIds: string[];
+  /**
+   * Layouts this pass actually tried to write. A layout skipped by the
+   * twin-tab guard is absent, so a caller tracking failures can leave its
+   * previous state alone instead of declaring it healthy on no evidence.
+   */
+  attemptedLayoutIds: string[];
 }
 
 /** A tab snapshot for persistence. A shell has no layout body to write. */
@@ -108,6 +114,7 @@ export async function persistBrowserWorkspace(
   } = args;
 
   const failedLayoutIds: string[] = [];
+  const attemptedLayoutIds: string[] = [];
   let failure: StorageWriteFailure | null = null;
 
   const run = async (): Promise<PersistResult> => {
@@ -126,6 +133,7 @@ export async function persistBrowserWorkspace(
     // safe against a peer tab persisting a different layout.
     for (const tab of tabs) {
       if (tab.hydrated && !isPaused?.(tab.layoutId)) {
+        attemptedLayoutIds.push(tab.layoutId);
         const write = () =>
           saveLayoutBody(tab.layoutId, tab.layout, {
             changesSinceExport: tab.changesSinceExport,
@@ -138,8 +146,11 @@ export async function persistBrowserWorkspace(
         if (!result.ok) {
           failedLayoutIds.push(tab.layoutId);
           // Quota outranks "unavailable": if any write was refused for space,
-          // that is the actionable thing to tell the user about.
-          if (failure !== "quota") failure = result.failure;
+          // that is the actionable thing to tell the user about. Only ever
+          // upgrade the reason, so a later result cannot blank out a known one.
+          if (result.failure !== null && failure !== "quota") {
+            failure = result.failure;
+          }
         }
       }
     }
@@ -190,24 +201,42 @@ export async function persistBrowserWorkspace(
     // is dropped from the open set and can never be restored as an empty tab
     // wearing its name (#3375). Everything else, including shells and paused
     // tabs, has an entry by now and is unaffected.
+    //
+    // hasOwnProperty, not `in`: this library is a spread (so it inherits
+    // Object.prototype) and isSafeLayoutId only rejects __proto__/constructor/
+    // prototype, so `in` would keep an id like "toString" that has no entry --
+    // reinstating the phantom tab this filter exists to prevent. Same test
+    // loadWorkspaceIndex uses on the read side.
     const openTabs = tabs
       .map((tab) => tab.layoutId)
-      .filter((layoutId) => layoutId in library);
+      .filter((layoutId) =>
+        Object.prototype.hasOwnProperty.call(library, layoutId),
+      );
     const activeId =
       activeLayoutId !== null && openTabs.includes(activeLayoutId)
         ? activeLayoutId
         : null;
 
-    saveWorkspaceIndex({
+    // The index is the only thing that makes a written body findable, so a
+    // refused index write is a failed persist even when every body fit.
+    const indexWrite = saveWorkspaceIndex({
       schemaVersion: 2,
       activeId,
       openTabs,
       library,
     });
+    if (!indexWrite.ok && indexWrite.failure !== null && failure !== "quota") {
+      failure = indexWrite.failure;
+    }
 
     if (openTabs.length > 0) markEverHadLayouts();
 
-    return { ok: failedLayoutIds.length === 0, failure, failedLayoutIds };
+    return {
+      ok: failedLayoutIds.length === 0 && indexWrite.ok,
+      failure,
+      failedLayoutIds,
+      attemptedLayoutIds,
+    };
   };
 
   return withWorkspaceIndexLock

@@ -129,33 +129,50 @@
   // persisting a DIFFERENT layout (and thus holding a different per-layout
   // lock) cannot interleave its own read-modify-write of the shared
   // `Rackula:workspace` index with this one.
-  // A refused body write is the only way browser mode loses data, and nothing
-  // below this component can reach the UI, so the persist result is reported
-  // here (#3375). The toast is permanent (duration 0): the layout is not on
-  // disk, so a notice that fades after five seconds would be its own silent
-  // loss. Deduped like the foreign-write toast, and cleared once a later
-  // autosave succeeds so a recovered layout does not keep warning.
+  // A refused write is the only way browser mode loses data, and nothing below
+  // this component can reach the UI, so the persist result is reported here
+  // (#3375). The toast asks for duration 0 because the layout is not on disk
+  // and a notice that fades after five seconds would be its own silent loss;
+  // it is not truly permanent though, since dialogs clear toasts and the
+  // visible-toast cap can evict it. The storage chip is the durable signal,
+  // which is why the failure also goes to setBrowserWriteFailures.
   let quotaToastId: string | undefined;
+  let quotaToastSignature: string | undefined;
   function reportPersistResult(result: PersistResult): void {
-    setBrowserWriteFailures(result.failedLayoutIds);
+    // Only refresh the layouts this pass actually tried to write: a layout
+    // skipped by the twin-tab guard keeps the failure it already had rather
+    // than being silently declared healthy.
+    setBrowserWriteFailures(
+      result.failedLayoutIds,
+      result.failure ?? "unavailable",
+      result.attemptedLayoutIds,
+    );
 
     if (result.ok) {
-      if (quotaToastId) {
-        toastStore.dismissToast(quotaToastId);
-        quotaToastId = undefined;
-      }
+      if (quotaToastId) toastStore.dismissToast(quotaToastId);
+      quotaToastId = undefined;
+      quotaToastSignature = undefined;
       return;
     }
 
-    if (
-      quotaToastId &&
-      toastStore.toasts.some((toast) => toast.id === quotaToastId)
-    ) {
-      return;
-    }
-    const failedName = workspaceStore.tabs.find(
-      (tab) => tab.layoutId && result.failedLayoutIds.includes(tab.layoutId),
-    )?.store.layout.name;
+    // Re-raise when WHAT failed or WHY changes, so a quota failure following an
+    // "unavailable" one cannot leave the earlier, wrong wording on screen.
+    const signature = `${result.failure ?? "unavailable"}:${[...result.failedLayoutIds].sort().join(",")}`;
+    const stillVisible =
+      quotaToastId !== undefined &&
+      toastStore.toasts.some((toast) => toast.id === quotaToastId);
+    if (stillVisible && signature === quotaToastSignature) return;
+    if (stillVisible && quotaToastId) toastStore.dismissToast(quotaToastId);
+
+    // Match snapshotWorkspaceTabs' key, which falls back to the layout's own
+    // metadata id for a tab that has no layoutId yet (a first-run blank tab).
+    const failedName = workspaceStore.tabs.find((tab) => {
+      const layoutId = tab.layoutId ?? tab.store.layout.metadata?.id;
+      return (
+        layoutId !== undefined && result.failedLayoutIds.includes(layoutId)
+      );
+    })?.store.layout.name;
+    quotaToastSignature = signature;
     quotaToastId = toastStore.showToast(
       storageWriteFailureMessage(result.failure ?? "unavailable", failedName),
       "error",
@@ -187,7 +204,18 @@
 
     if (workspaceSaveTimer) clearTimeout(workspaceSaveTimer);
     workspaceSaveTimer = setTimeout(() => {
-      void persistWorkspaceGuarded(snapshot).then(reportPersistResult);
+      // Fail closed: a rejected persist (for example navigator.locks throwing)
+      // must not leave the previous "saved" reading standing unchallenged.
+      void persistWorkspaceGuarded(snapshot)
+        .then(reportPersistResult)
+        .catch(() =>
+          reportPersistResult({
+            ok: false,
+            failure: "unavailable",
+            failedLayoutIds: snapshot.tabs.map((tab) => tab.layoutId),
+            attemptedLayoutIds: snapshot.tabs.map((tab) => tab.layoutId),
+          }),
+        );
       workspaceSaveTimer = null;
     }, 1000);
 

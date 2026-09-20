@@ -72,6 +72,7 @@ export {
   rollupDurabilities,
   setBrowserWriteFailures,
   isBrowserWriteFailed,
+  browserWriteFailureReason,
   resetBrowserWriteFailures,
   type DurabilityStatus,
   type DurabilityKind,

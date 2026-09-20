@@ -79,7 +79,7 @@ describe("browser-workspace storage", () => {
   describe("index round-trip", () => {
     it("saves and loads the workspace index", () => {
       const index = makeIndex();
-      expect(saveWorkspaceIndex(index)).toBe(true);
+      expect(saveWorkspaceIndex(index).ok).toBe(true);
       expect(loadWorkspaceIndex()).toEqual(index);
     });
 
@@ -111,7 +111,7 @@ describe("browser-workspace storage", () => {
       const loaded = saveWorkspaceIndex(
         makeIndex({ openTabs: ["a", "ghost"], activeId: "a" }),
       );
-      expect(loaded).toBe(true);
+      expect(loaded.ok).toBe(true);
       const index = loadWorkspaceIndex();
       expect(index!.openTabs).toEqual(["a"]);
     });

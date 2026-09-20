@@ -20,7 +20,8 @@ import {
   type StorageMode,
 } from "./availability.svelte";
 import type { LayoutStore } from "$lib/stores/layout.svelte";
-import { SvelteSet } from "svelte/reactivity";
+import { SvelteMap } from "svelte/reactivity";
+import type { StorageWriteFailure } from "$lib/utils/safe-storage";
 
 const MAX_SAVE_FAILURES = 3;
 
@@ -31,19 +32,35 @@ const MAX_SAVE_FAILURES = 3;
  * records its failures here and the status formula reads them. Reactive so the
  * chip flips the moment an autosave is refused.
  */
-const browserWriteFailures = new SvelteSet<string>();
+const browserWriteFailures = new SvelteMap<string, StorageWriteFailure>();
 
-/** Replace the set of layouts whose last browser write failed. */
-export function setBrowserWriteFailures(ids: readonly string[]): void {
-  for (const id of [...browserWriteFailures]) {
-    if (!ids.includes(id)) browserWriteFailures.delete(id);
+/**
+ * Record which layouts failed and why. `attempted` is the set of layouts this
+ * pass actually tried to write: only their flags are refreshed, so a layout
+ * that was skipped (paused by the twin-tab guard, or not open) keeps the
+ * failure it already had rather than being silently declared healthy.
+ */
+export function setBrowserWriteFailures(
+  failedIds: readonly string[],
+  failure: StorageWriteFailure = "unavailable",
+  attempted: readonly string[] = failedIds,
+): void {
+  for (const id of attempted) {
+    if (!failedIds.includes(id)) browserWriteFailures.delete(id);
   }
-  for (const id of ids) browserWriteFailures.add(id);
+  for (const id of failedIds) browserWriteFailures.set(id, failure);
 }
 
 /** Whether this layout's last browser write was refused. */
 export function isBrowserWriteFailed(id: string | undefined): boolean {
   return id !== undefined && browserWriteFailures.has(id);
+}
+
+/** Why this layout's last browser write was refused, if it was. */
+export function browserWriteFailureReason(
+  id: string | undefined,
+): StorageWriteFailure | null {
+  return id === undefined ? null : (browserWriteFailures.get(id) ?? null);
 }
 
 /** Test seam: forget every recorded browser write failure. */
@@ -62,7 +79,14 @@ export type DurabilityStatus = "saved" | "pending" | "error";
  * deployment).
  */
 export type DurabilityKind =
-  "saved" | "pending" | "offline" | "server-not-found" | "storage-full";
+  | "saved"
+  | "pending"
+  | "offline"
+  | "server-not-found"
+  /** Browser mode: the origin is full. Freeing space or exporting helps. */
+  | "storage-full"
+  /** Browser mode: storage is blocked outright. Only exporting helps. */
+  | "storage-blocked";
 
 export interface LayoutDurability {
   status: DurabilityStatus;
@@ -103,7 +127,7 @@ export function computeLayoutStatus(
   changesSinceExport: number,
   hasEverExported: boolean,
   apiEverReached: boolean,
-  browserWriteFailed = false,
+  browserWriteFailed: StorageWriteFailure | boolean = false,
 ): {
   status: DurabilityStatus;
   kind: DurabilityKind;
@@ -120,14 +144,18 @@ export function computeLayoutStatus(
     // file has changesSinceExport 0 and hasEverExported true, so a full origin
     // used to report "Saved" while nothing at all had been written.
     if (browserWriteFailed) {
+      // Blocked storage is not a space problem, so telling that user to free
+      // space would be advice that can never work. Only the quota case says it.
+      const outOfSpace = browserWriteFailed !== "unavailable";
       return {
         status: "error",
-        kind: "storage-full",
+        kind: outOfSpace ? "storage-full" : "storage-blocked",
         label: "Not saved to browser",
         shortLabel: "Not saved",
         showLocation: false,
-        detail:
-          "This browser is out of space. Export to a file to keep this layout.",
+        detail: outOfSpace
+          ? "This browser is out of space. Export to a file to keep this layout."
+          : "This browser is blocking storage. Export to a file to keep this layout.",
         icon: "error",
       };
     }
@@ -301,7 +329,9 @@ export function getLayoutDurability(
       layoutStore.changesSinceExport,
       layoutStore.hasEverExported,
       getApiEverReached(),
-      isBrowserWriteFailed(layoutStore.layout.metadata?.id),
+      // Pass the reason, not just a flag, so the popover copy matches the
+      // actual failure instead of always blaming space (#3375).
+      browserWriteFailureReason(layoutStore.layout.metadata?.id) ?? false,
     );
   return {
     get mode(): StorageMode {
