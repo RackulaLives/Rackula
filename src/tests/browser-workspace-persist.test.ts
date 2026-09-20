@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { Layout } from "$lib/types";
 import {
   persistBrowserWorkspace,
@@ -63,9 +63,84 @@ function tab(over: Partial<PersistTab> & { layoutId: string }): PersistTab {
   };
 }
 
+/**
+ * Make the named layouts' body writes throw a quota error while index writes
+ * keep working, which is how a full localStorage actually behaves: the 1.5 MB
+ * body is refused, the few-hundred-byte index still fits. Always undone by the
+ * afterEach below, so a failing assertion cannot leak the stub into later tests.
+ */
+const realSetItem = localStorageMock.setItem;
+function failBodyWrites(ids: string[]): void {
+  localStorageMock.setItem = (key: string, value: string) => {
+    if (ids.some((id) => key === `Rackula:layout:${id}`)) {
+      const err = new Error("QuotaExceededError");
+      err.name = "QuotaExceededError";
+      throw err;
+    }
+    realSetItem(key, value);
+  };
+}
+
 describe("persistBrowserWorkspace", () => {
   beforeEach(() => {
     localStorageMock.clear();
+  });
+
+  afterEach(() => {
+    localStorageMock.setItem = realSetItem;
+  });
+
+  // #3375: the autosave path discarded every failure, so a full localStorage
+  // produced a "Saved" UI and an index pointing at a body that was never
+  // written. The persist has to hand its caller something to report.
+  describe("when a body write fails on quota", () => {
+    it("resolves with the failure and the layouts that were lost", async () => {
+      failBodyWrites(["a"]);
+      const result = await persistBrowserWorkspace({
+        tabs: [tab({ layoutId: "a" })],
+        activeLayoutId: "a",
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.failure).toBe("quota");
+      expect(result.failedLayoutIds).toEqual(["a"]);
+    });
+
+    it("does not list the unwritten layout in the index", async () => {
+      failBodyWrites(["a"]);
+      await persistBrowserWorkspace({
+        tabs: [tab({ layoutId: "a" })],
+        activeLayoutId: "a",
+      });
+
+      const index = loadWorkspaceIndex();
+      expect(index?.library.a).toBeUndefined();
+      expect(index?.openTabs ?? []).not.toContain("a");
+      expect(index?.activeId ?? null).not.toBe("a");
+    });
+
+    it("still persists the layouts that did fit", async () => {
+      failBodyWrites(["b"]);
+      const result = await persistBrowserWorkspace({
+        tabs: [tab({ layoutId: "a" }), tab({ layoutId: "b" })],
+        activeLayoutId: "a",
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.failedLayoutIds).toEqual(["b"]);
+      expect(loadLayoutBody("a").ok).toBe(true);
+      const index = loadWorkspaceIndex();
+      expect(index!.openTabs).toEqual(["a"]);
+      expect(index!.activeId).toBe("a");
+    });
+  });
+
+  it("resolves ok when every body is written", async () => {
+    const result = await persistBrowserWorkspace({
+      tabs: [tab({ layoutId: "a" })],
+      activeLayoutId: "a",
+    });
+    expect(result).toEqual({ ok: true, failure: null, failedLayoutIds: [] });
   });
 
   it("writes the ordered open set and active id to the index", () => {

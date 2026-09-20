@@ -20,6 +20,20 @@ import {
   markEverHadLayouts,
   type LibraryEntry,
 } from "./browser-workspace";
+import type { StorageWriteFailure } from "$lib/utils/safe-storage";
+
+/**
+ * The outcome of a persist. Browser mode has no other failure channel: the
+ * caller (PersistenceEffects) turns a non-ok result into the storage-full
+ * warning, because nothing below here can reach the UI (#3375).
+ */
+export interface PersistResult {
+  ok: boolean;
+  /** Why the failed writes failed; the most severe reason seen this pass. */
+  failure: StorageWriteFailure | null;
+  /** Layouts whose body could not be written, so are not persisted at all. */
+  failedLayoutIds: string[];
+}
 
 /** A tab snapshot for persistence. A shell has no layout body to write. */
 export type PersistTab =
@@ -84,7 +98,7 @@ export interface PersistWorkspaceArgs {
  */
 export async function persistBrowserWorkspace(
   args: PersistWorkspaceArgs,
-): Promise<void> {
+): Promise<PersistResult> {
   const {
     tabs,
     activeLayoutId,
@@ -93,11 +107,16 @@ export async function persistBrowserWorkspace(
     withWorkspaceIndexLock,
   } = args;
 
-  const run = async (): Promise<void> => {
+  const failedLayoutIds: string[] = [];
+  let failure: StorageWriteFailure | null = null;
+
+  const run = async (): Promise<PersistResult> => {
     // Write each hydrated body first. saveLayoutBody also refreshes that layout's
-    // library entry in the index (updatedAt, durability); it returns false on
-    // quota, leaving the in-memory copy intact and surfacing the flag via the
-    // index. Shells have no body to write. A paused layout (twin-tab guard) is
+    // library entry in the index (updatedAt, durability); on a refused write it
+    // reports the reason and leaves the in-memory copy intact, and it creates no
+    // entry at all when the layout has never been written, so the failures
+    // collected here are the only record that the layout did not persist.
+    // Shells have no body to write. A paused layout (twin-tab guard) is
     // skipped so a foreign peer's copy is never clobbered. Each write runs under
     // its own per-layout lock when one is supplied; the locks are distinct per
     // layout id so writing many bodies in this loop cannot nest the same lock.
@@ -113,10 +132,14 @@ export async function persistBrowserWorkspace(
             hasEverExported: tab.hasEverExported,
             lastExportedAt: tab.lastExportedAt,
           });
-        if (withLayoutLock) {
-          await withLayoutLock(tab.layoutId, write);
-        } else {
-          write();
+        const result = withLayoutLock
+          ? await withLayoutLock(tab.layoutId, write)
+          : write();
+        if (!result.ok) {
+          failedLayoutIds.push(tab.layoutId);
+          // Quota outranks "unavailable": if any write was refused for space,
+          // that is the actionable thing to tell the user about.
+          if (failure !== "quota") failure = result.failure;
         }
       }
     }
@@ -162,19 +185,32 @@ export async function persistBrowserWorkspace(
       };
     }
 
+    // Only advertise tabs that resolve to a library entry. A layout whose first
+    // body write failed has none (saveLayoutBody refuses to create one), so it
+    // is dropped from the open set and can never be restored as an empty tab
+    // wearing its name (#3375). Everything else, including shells and paused
+    // tabs, has an entry by now and is unaffected.
+    const openTabs = tabs
+      .map((tab) => tab.layoutId)
+      .filter((layoutId) => layoutId in library);
+    const activeId =
+      activeLayoutId !== null && openTabs.includes(activeLayoutId)
+        ? activeLayoutId
+        : null;
+
     saveWorkspaceIndex({
       schemaVersion: 2,
-      activeId: activeLayoutId,
-      openTabs: tabs.map((tab) => tab.layoutId),
+      activeId,
+      openTabs,
       library,
     });
 
-    if (tabs.length > 0) markEverHadLayouts();
+    if (openTabs.length > 0) markEverHadLayouts();
+
+    return { ok: failedLayoutIds.length === 0, failure, failedLayoutIds };
   };
 
-  if (withWorkspaceIndexLock) {
-    await withWorkspaceIndexLock(run);
-  } else {
-    await run();
-  }
+  return withWorkspaceIndexLock
+    ? await withWorkspaceIndexLock(run)
+    : await run();
 }

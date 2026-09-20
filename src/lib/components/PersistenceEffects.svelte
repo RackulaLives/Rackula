@@ -16,8 +16,11 @@
     persistBrowserWorkspace,
     getTwinTabGuard,
     setForeignWriteNotifier,
+    setBrowserWriteFailures,
     type PersistTab,
+    type PersistResult,
   } from "$lib/storage";
+  import { storageWriteFailureMessage } from "$lib/utils/storage-errors";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -126,10 +129,44 @@
   // persisting a DIFFERENT layout (and thus holding a different per-layout
   // lock) cannot interleave its own read-modify-write of the shared
   // `Rackula:workspace` index with this one.
+  // A refused body write is the only way browser mode loses data, and nothing
+  // below this component can reach the UI, so the persist result is reported
+  // here (#3375). The toast is permanent (duration 0): the layout is not on
+  // disk, so a notice that fades after five seconds would be its own silent
+  // loss. Deduped like the foreign-write toast, and cleared once a later
+  // autosave succeeds so a recovered layout does not keep warning.
+  let quotaToastId: string | undefined;
+  function reportPersistResult(result: PersistResult): void {
+    setBrowserWriteFailures(result.failedLayoutIds);
+
+    if (result.ok) {
+      if (quotaToastId) {
+        toastStore.dismissToast(quotaToastId);
+        quotaToastId = undefined;
+      }
+      return;
+    }
+
+    if (
+      quotaToastId &&
+      toastStore.toasts.some((toast) => toast.id === quotaToastId)
+    ) {
+      return;
+    }
+    const failedName = workspaceStore.tabs.find(
+      (tab) => tab.layoutId && result.failedLayoutIds.includes(tab.layoutId),
+    )?.store.layout.name;
+    quotaToastId = toastStore.showToast(
+      storageWriteFailureMessage(result.failure ?? "unavailable", failedName),
+      "error",
+      0,
+    );
+  }
+
   function persistWorkspaceGuarded(snapshot: {
     tabs: PersistTab[];
     activeLayoutId: string | null;
-  }): Promise<void> {
+  }): Promise<PersistResult> {
     return persistBrowserWorkspace({
       ...snapshot,
       isPaused: (layoutId) => twinTabGuard.isPaused(layoutId),
@@ -150,7 +187,7 @@
 
     if (workspaceSaveTimer) clearTimeout(workspaceSaveTimer);
     workspaceSaveTimer = setTimeout(() => {
-      void persistWorkspaceGuarded(snapshot);
+      void persistWorkspaceGuarded(snapshot).then(reportPersistResult);
       workspaceSaveTimer = null;
     }, 1000);
 

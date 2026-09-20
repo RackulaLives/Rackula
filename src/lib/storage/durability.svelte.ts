@@ -20,8 +20,36 @@ import {
   type StorageMode,
 } from "./availability.svelte";
 import type { LayoutStore } from "$lib/stores/layout.svelte";
+import { SvelteSet } from "svelte/reactivity";
 
 const MAX_SAVE_FAILURES = 3;
+
+/**
+ * Layouts whose most recent browser-mode body write was refused (#3375).
+ * Browser mode has no save-status channel of its own -- saveStatus and the
+ * failure circuit breaker are server-mode concepts -- so the persist path
+ * records its failures here and the status formula reads them. Reactive so the
+ * chip flips the moment an autosave is refused.
+ */
+const browserWriteFailures = new SvelteSet<string>();
+
+/** Replace the set of layouts whose last browser write failed. */
+export function setBrowserWriteFailures(ids: readonly string[]): void {
+  for (const id of [...browserWriteFailures]) {
+    if (!ids.includes(id)) browserWriteFailures.delete(id);
+  }
+  for (const id of ids) browserWriteFailures.add(id);
+}
+
+/** Whether this layout's last browser write was refused. */
+export function isBrowserWriteFailed(id: string | undefined): boolean {
+  return id !== undefined && browserWriteFailures.has(id);
+}
+
+/** Test seam: forget every recorded browser write failure. */
+export function resetBrowserWriteFailures(): void {
+  browserWriteFailures.clear();
+}
 
 export type DurabilityStatus = "saved" | "pending" | "error";
 
@@ -34,7 +62,7 @@ export type DurabilityStatus = "saved" | "pending" | "error";
  * deployment).
  */
 export type DurabilityKind =
-  "saved" | "pending" | "offline" | "server-not-found";
+  "saved" | "pending" | "offline" | "server-not-found" | "storage-full";
 
 export interface LayoutDurability {
   status: DurabilityStatus;
@@ -75,6 +103,7 @@ export function computeLayoutStatus(
   changesSinceExport: number,
   hasEverExported: boolean,
   apiEverReached: boolean,
+  browserWriteFailed = false,
 ): {
   status: DurabilityStatus;
   kind: DurabilityKind;
@@ -85,6 +114,23 @@ export function computeLayoutStatus(
   icon: DurabilityStatus;
 } {
   if (storageMode === "browser") {
+    // A refused browser write outranks everything below (#3375). The rest of
+    // this branch reasons about export state, which says nothing about whether
+    // the working copy actually reached localStorage: a layout opened from a
+    // file has changesSinceExport 0 and hasEverExported true, so a full origin
+    // used to report "Saved" while nothing at all had been written.
+    if (browserWriteFailed) {
+      return {
+        status: "error",
+        kind: "storage-full",
+        label: "Not saved to browser",
+        shortLabel: "Not saved",
+        showLocation: false,
+        detail:
+          "This browser is out of space. Export to a file to keep this layout.",
+        icon: "error",
+      };
+    }
     // Durable iff exported AND no edits since. The hasEverExported guard is
     // critical: a never-exported cold start has changesSinceExport === 0 yet is
     // not durable. Browser mode never reads saveStatus / apiAvailable for the
@@ -255,6 +301,7 @@ export function getLayoutDurability(
       layoutStore.changesSinceExport,
       layoutStore.hasEverExported,
       getApiEverReached(),
+      isBrowserWriteFailed(layoutStore.layout.metadata?.id),
     );
   return {
     get mode(): StorageMode {

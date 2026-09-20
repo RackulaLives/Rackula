@@ -70,6 +70,9 @@ export {
   computeServerHint,
   getLayoutDurability,
   rollupDurabilities,
+  setBrowserWriteFailures,
+  isBrowserWriteFailed,
+  resetBrowserWriteFailures,
   type DurabilityStatus,
   type DurabilityKind,
   type LayoutDurability,
@@ -92,6 +95,7 @@ export { resolveBrowserLaunch, type BrowserLaunch } from "./browser-launch";
 export {
   persistBrowserWorkspace,
   type PersistTab,
+  type PersistResult,
 } from "./browser-workspace-persist";
 export {
   getTwinTabGuard,

@@ -23,7 +23,9 @@ import type { Layout } from "$lib/types";
 import {
   safeGetItem,
   safeSetItem,
+  safeSetItemWithStatus,
   safeRemoveItem,
+  type StorageWriteResult,
 } from "$lib/utils/safe-storage";
 import { generateId } from "$lib/utils/device";
 import { sessionDebug } from "$lib/utils/debug";
@@ -249,18 +251,27 @@ export function loadLayoutBody(id: string): LayoutBodyResult {
 
 /**
  * Write a layout body and update its index entry (updatedAt, durability).
- * Returns false when the body write fails (quota or storage unavailable); the
- * caller keeps the in-memory copy and surfaces the failure (quota strategy).
+ * Returns `ok: false` with the reason when the body write fails (quota or
+ * storage unavailable); the caller keeps the in-memory copy and surfaces the
+ * failure (quota strategy).
+ *
+ * On a failed write the index is only touched when this layout already has a
+ * body on disk from an earlier successful write: that entry is a pointer to
+ * real, still-loadable data, so it is kept (flagged `writeFailed`, with its
+ * previous `updatedAt`). A layout whose FIRST write fails has nothing to point
+ * at, so no entry is created and the id is not added to the open set (#3375).
+ * Writing one anyway is what made a full localStorage restore a named tab over
+ * an empty canvas.
  */
 export function saveLayoutBody(
   id: string,
   layout: Layout,
   durability: DurabilityInput,
-): boolean {
+): StorageWriteResult {
   // Reject a prototype-polluting id before it is used as an index key.
   if (!isSafeLayoutId(id)) {
     log("refusing to save layout body for unsafe id %s", id);
-    return false;
+    return { ok: false, failure: "unavailable" };
   }
   const savedAt = new Date().toISOString();
   let serialized: string;
@@ -278,10 +289,11 @@ export function saveLayoutBody(
     });
   } catch (error) {
     log("failed to serialize layout body for %s: %O", id, error);
-    return false;
+    return { ok: false, failure: "unavailable" };
   }
 
-  const wrote = safeSetItem(layoutBodyKey(id), serialized);
+  const write = safeSetItemWithStatus(layoutBodyKey(id), serialized);
+  const wrote = write.ok;
   const index = loadWorkspaceIndex() ?? {
     schemaVersion: SCHEMA_VERSION,
     activeId: id,
@@ -289,6 +301,20 @@ export function saveLayoutBody(
     library: Object.create(null) as Record<string, LibraryEntry>,
   };
   const previous = index.library[id];
+
+  // A failed write with no prior body leaves nothing worth pointing at. Drop
+  // out before the index is touched so the layout is simply absent next launch
+  // rather than present-but-empty (#3375). `updatedAt` is the index's own
+  // record that a body was once written, so an entry without one has no body.
+  if (!wrote && !previous?.updatedAt) {
+    log(
+      "discarding index entry for %s: first body write failed (%s)",
+      id,
+      write.failure,
+    );
+    return write;
+  }
+
   index.library[id] = {
     name: layout.name,
     updatedAt: wrote ? savedAt : (previous?.updatedAt ?? ""),
@@ -309,7 +335,7 @@ export function saveLayoutBody(
   if (!index.openTabs.includes(id)) index.openTabs.push(id);
   saveWorkspaceIndex(index);
 
-  return wrote;
+  return write;
 }
 
 /**
@@ -373,7 +399,7 @@ export function adoptLegacyAutosave(): WorkspaceIndex | null {
     changesSinceExport: session.changesSinceExport,
     hasEverExported: session.hasEverExported,
   });
-  if (!wroteBody) {
+  if (!wroteBody.ok) {
     // Never delete the only copy on a failed migration; leave the autosave and
     // any partial index for a clean retry next launch.
     safeRemoveItem(WORKSPACE_KEY);

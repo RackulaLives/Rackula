@@ -167,7 +167,9 @@ describe("browser-workspace storage", () => {
     it("saves a body and updates the index entry", () => {
       saveWorkspaceIndex(makeIndex());
       const layout = makeLayout("a", "Homelab");
-      expect(saveLayoutBody("a", layout, { changesSinceExport: 3 })).toBe(true);
+      expect(saveLayoutBody("a", layout, { changesSinceExport: 3 }).ok).toBe(
+        true,
+      );
 
       const result = loadLayoutBody("a");
       expect(result.ok).toBe(true);
@@ -312,12 +314,78 @@ describe("browser-workspace storage", () => {
         }
         original.call(localStorage, key, value);
       });
-      expect(
-        saveLayoutBody("a", makeLayout("a", "Homelab"), {
+      let result;
+      try {
+        result = saveLayoutBody("a", makeLayout("a", "Homelab"), {
           changesSinceExport: 0,
-        }),
-      ).toBe(false);
-      localStorage.setItem = original;
+        });
+      } finally {
+        localStorage.setItem = original;
+      }
+      expect(result.ok).toBe(false);
+      expect(result.failure).toBe("quota");
+    });
+
+    // #3375: the index must never advertise a layout whose body is not there.
+    // A first write that fails quota has nothing on disk to point at, so the
+    // entry (and the open-tab reference) must not be created at all; otherwise
+    // the next launch restores a named tab over an empty canvas.
+    it("records no library entry when the first body write fails", () => {
+      const original = localStorage.setItem;
+      localStorage.setItem = vi.fn((key: string, value: string) => {
+        if (key === bodyKey("new")) {
+          const err = new Error("QuotaExceededError");
+          err.name = "QuotaExceededError";
+          throw err;
+        }
+        original.call(localStorage, key, value);
+      });
+      let result;
+      try {
+        result = saveLayoutBody("new", makeLayout("new", "Fresh"), {
+          changesSinceExport: 0,
+        });
+      } finally {
+        localStorage.setItem = original;
+      }
+
+      expect(result.ok).toBe(false);
+      const index = loadWorkspaceIndex();
+      expect(index?.library.new).toBeUndefined();
+      expect(index?.openTabs ?? []).not.toContain("new");
+    });
+
+    // The mirror case: a layout that HAS a good body on disk keeps its
+    // catalogue record when a later write fails. Dropping it would discard a
+    // real, still-loadable layout, which is the very loss this issue is about.
+    it("keeps the entry and prior timestamp when a later write fails", () => {
+      saveWorkspaceIndex(makeIndex());
+      saveLayoutBody("a", makeLayout("a", "Homelab"), {
+        changesSinceExport: 0,
+      });
+      const savedAt = loadWorkspaceIndex()!.library.a!.updatedAt;
+
+      const original = localStorage.setItem;
+      localStorage.setItem = vi.fn((key: string, value: string) => {
+        if (key === bodyKey("a")) {
+          const err = new Error("QuotaExceededError");
+          err.name = "QuotaExceededError";
+          throw err;
+        }
+        original.call(localStorage, key, value);
+      });
+      try {
+        saveLayoutBody("a", makeLayout("a", "Homelab"), {
+          changesSinceExport: 3,
+        });
+      } finally {
+        localStorage.setItem = original;
+      }
+
+      const entry = loadWorkspaceIndex()!.library.a!;
+      expect(entry.writeFailed).toBe(true);
+      expect(entry.updatedAt).toBe(savedAt);
+      expect(loadLayoutBody("a").ok).toBe(true);
     });
 
     it("deletes a body key and its library entry", () => {

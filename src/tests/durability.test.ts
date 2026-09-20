@@ -27,6 +27,7 @@ function status(
   changesSinceExport: number,
   hasEverExported: boolean,
   apiEverReached = false,
+  browserWriteFailed = false,
 ) {
   return computeLayoutStatus(
     saveStatus,
@@ -36,10 +37,28 @@ function status(
     changesSinceExport,
     hasEverExported,
     apiEverReached,
+    browserWriteFailed,
   );
 }
 
 describe("computeLayoutStatus — browser mode", () => {
+  // #3375: the browser branch used to decide durability purely from export
+  // state, so a layout whose localStorage write had failed still reported
+  // "Saved". A failed write outranks every other browser-mode state.
+  it("reports an error when the browser write failed, never Saved", () => {
+    const result = status("idle", 0, BROWSER, null, 0, true, false, true);
+    expect(result.status).toBe("error");
+    expect(result.label).not.toBe("Saved");
+    expect(result.shortLabel).not.toBe("Saved");
+    expect(result.icon).toBe("error");
+  });
+
+  it("tells the user to export when the browser write failed", () => {
+    const result = status("idle", 0, BROWSER, null, 4, false, false, true);
+    expect(result.status).toBe("error");
+    expect(result.detail.toLowerCase()).toContain("export");
+  });
+
   it("is saved only when exported and no changes since", () => {
     const result = status("idle", 0, BROWSER, null, 0, true);
     expect(result.status).toBe("saved");
