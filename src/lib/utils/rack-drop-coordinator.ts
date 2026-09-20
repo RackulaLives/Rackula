@@ -19,6 +19,7 @@ import {
   findCollisions,
   synthesizeCarrierForDevice,
   requiresChassisBay,
+  type CarrierPlan,
 } from "$lib/utils/collision";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { getDeviceDisplayName } from "$lib/utils/device";
@@ -32,10 +33,14 @@ import { pendingCollisionFace } from "$lib/utils/effective-face";
  * validate the same rail footprint.
  */
 function getCarrierHeight(
-  carrierSlug: string,
+  carrierPlan: CarrierPlan,
   deviceLibrary: DeviceType[],
 ): number {
-  return findDeviceType(carrierSlug, deviceLibrary)?.u_height ?? 1;
+  return (
+    carrierPlan.type?.u_height ??
+    findDeviceType(carrierPlan.slug, deviceLibrary)?.u_height ??
+    1
+  );
 }
 
 /** Pixel-based measurements of a rack, used by the drop calculation pipeline. */
@@ -214,12 +219,12 @@ export function resolveDropTarget(
   // synthesisable (a chassis child) is INVALID on bare rails: it can only go
   // into an existing bay. This mirrors placeDeviceSmart so preview and placement
   // agree.
-  const carrierSlug = synthesizeCarrierForDevice(device, rack.width);
+  const carrierPlan = synthesizeCarrierForDevice(device, rack.width);
   const needsBay = requiresChassisBay(device, rack.width);
   // Both a carrier-synthesising device and a bay-only device can drop into an
   // existing container cell under the cursor.
   const resolvableContainerTarget =
-    carrierSlug !== null || needsBay
+    carrierPlan !== null || needsBay
       ? detectContainerDropTarget(
           rack,
           deviceLibrary,
@@ -236,9 +241,9 @@ export function resolveDropTarget(
   let feedback: DropFeedback;
   if (resolvableContainerTarget) {
     feedback = "valid";
-  } else if (carrierSlug) {
+  } else if (carrierPlan) {
     // Synthesise a rail carrier at this U: validate its full rail footprint.
-    const carrierHeight = getCarrierHeight(carrierSlug, deviceLibrary);
+    const carrierHeight = getCarrierHeight(carrierPlan, deviceLibrary);
     feedback = getDropFeedback(
       rack,
       deviceLibrary,
@@ -300,7 +305,7 @@ export function resolveDropAction(
   );
 
   // Carrier-first: a sub-U / half-width device must land inside a carrier.
-  const carrierSlug = synthesizeCarrierForDevice(dragData.device, rack.width);
+  const carrierPlan = synthesizeCarrierForDevice(dragData.device, rack.width);
 
   // Drop into the cell under the cursor when hovering a container with a free,
   // fitting cell (y-aware: both column and row). Skipped on the failed-container
@@ -334,8 +339,8 @@ export function resolveDropAction(
   // No container under the cursor: a carriable device synthesises (or fills) a
   // carrier at the target U via the store. Validate the carrier's full rail
   // footprint (height-matched: a 2U carrier needs 2U of clear rail).
-  if (carrierSlug) {
-    const carrierHeight = getCarrierHeight(carrierSlug, deviceLibrary);
+  if (carrierPlan) {
+    const carrierHeight = getCarrierHeight(carrierPlan, deviceLibrary);
     const carrierFeedback = getDropFeedback(
       rack,
       deviceLibrary,

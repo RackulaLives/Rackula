@@ -20,6 +20,7 @@ import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { effectiveFace } from "./effective-face";
 import { fitsSlotWidth, isNarrowDevice, requiresCarrier } from "./device-width";
+import { buildCustomCarrierType, cellForDevice } from "./custom-carrier";
 
 /**
  * Check if a placed device is a container child.
@@ -423,6 +424,13 @@ export function findChildrenTooWideForRack(
   });
 }
 
+/** How a device gets a carrier: a shipped slug, or a type to generate. */
+export interface CarrierPlan {
+  slug: string;
+  /** Present only for a generated carrier; import it before placing. */
+  type?: DeviceType;
+}
+
 /**
  * Stable slugs of the synthesised carriers (defined in the starter library).
  * The drag/drop layer and the import adapter both target these exact slugs.
@@ -447,9 +455,6 @@ export function isWholeURailPosition(positionInternal: number): boolean {
   return positionInternal % UNITS_PER_U === 0;
 }
 
-/** Width fraction of every cell in the synthesised carriers. */
-const SYNTHESIZED_CELL_FRACTION = 0.5;
-
 /**
  * Pick the carrier slug that a narrow device (half-width, or measured) must
  * mount inside, based on its height. Every synthesised carrier has half-width
@@ -472,18 +477,13 @@ const SYNTHESIZED_CELL_FRACTION = 0.5;
  *
  * @param deviceType - The device being placed
  * @param rackWidth - Nominal width in inches of the target rack
- * @returns The carrier slug to synthesise, or null when no rail carrier applies
+ * @returns How to carry it, or null when no rail carrier applies
  */
 export function synthesizeCarrierForDevice(
   deviceType: DeviceType,
   rackWidth: number,
-): string | null {
+): CarrierPlan | null {
   if (!isNarrowDevice(deviceType)) {
-    return null;
-  }
-
-  // A measured device wider than a half-width cell has no carrier to fit.
-  if (!fitsSlotWidth(deviceType, SYNTHESIZED_CELL_FRACTION, rackWidth)) {
     return null;
   }
 
@@ -493,11 +493,23 @@ export function synthesizeCarrierForDevice(
     return null;
   }
 
+  // A measured device gets a cell cut to its own width, so the shipped half
+  // cell is no longer the ceiling. Only the whole opening can refuse it.
+  if (deviceType.width_mm !== undefined) {
+    if (deviceType.u_height < 1 || !Number.isInteger(deviceType.u_height)) {
+      return null;
+    }
+    const cell = cellForDevice(deviceType, rackWidth);
+    if (cell.widthFraction > 1) return null;
+    const type = buildCustomCarrierType(deviceType.u_height, [cell], []);
+    return { slug: type.slug, type };
+  }
+
   // Sub-1U gear uses the 2x2 grid carrier (its cells are half-U tall). A
   // non-integer height at or above 1U has no matching carrier, so it falls
   // through to null rather than a too-small carrier.
   if (deviceType.u_height < 1) {
-    return CARRIER_2X2_SLUG;
+    return { slug: CARRIER_2X2_SLUG };
   }
   if (!Number.isInteger(deviceType.u_height)) {
     return null;
@@ -505,8 +517,8 @@ export function synthesizeCarrierForDevice(
 
   // Whole-U half-width gear uses a height-matched column carrier. Heights with
   // no matching carrier return null rather than a too-small carrier.
-  if (deviceType.u_height === 1) return CARRIER_2COL_SLUG;
-  if (deviceType.u_height === 2) return CARRIER_2U_2COL_SLUG;
+  if (deviceType.u_height === 1) return { slug: CARRIER_2COL_SLUG };
+  if (deviceType.u_height === 2) return { slug: CARRIER_2U_2COL_SLUG };
   return null;
 }
 

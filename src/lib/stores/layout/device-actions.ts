@@ -542,10 +542,11 @@ export function placeDeviceSmart(
   const deviceType = findDeviceType(deviceTypeSlug, layout.device_types);
   if (!deviceType) return false;
 
-  const carrierSlug = synthesizeCarrierForDevice(deviceType, targetRack.width);
+  const carrierPlan = synthesizeCarrierForDevice(deviceType, targetRack.width);
+  const carrierSlug = carrierPlan?.slug ?? null;
 
   // Whole-U full-width devices mount directly to the rails.
-  if (!carrierSlug) {
+  if (!carrierPlan || !carrierSlug) {
     return placeDeviceRecorded(ctx, rackId, deviceTypeSlug, positionU, face);
   }
 
@@ -561,7 +562,8 @@ export function placeDeviceSmart(
   );
 
   if (existingCarrier) {
-    const carrierType = findDeviceType(carrierSlug, layout.device_types);
+    const carrierType =
+      findDeviceType(carrierSlug, layout.device_types) ?? carrierPlan.type;
     if (!carrierType) return false;
     // Only consider cells the child actually fits (width/height/category).
     const fittingSlots = (carrierType.slots ?? []).filter((slot) =>
@@ -587,7 +589,8 @@ export function placeDeviceSmart(
   }
 
   // Synthesise a new carrier and place the child inside it.
-  const carrierType = findDeviceType(carrierSlug, layout.device_types);
+  const carrierType =
+    findDeviceType(carrierSlug, layout.device_types) ?? carrierPlan.type;
   if (!carrierType) return false;
 
   // Carriers are whole-U full-width: validate the rail slot is free.
@@ -774,8 +777,9 @@ export function moveDeviceSmart(
   const deviceType = findDeviceType(device.device_type, layout.device_types);
   if (!deviceType) return false;
 
-  const carrierSlug = synthesizeCarrierForDevice(deviceType, targetRack.width);
-  if (!carrierSlug) {
+  const carrierPlan = synthesizeCarrierForDevice(deviceType, targetRack.width);
+  const carrierSlug = carrierPlan?.slug ?? null;
+  if (!carrierPlan || !carrierSlug) {
     return moveDeviceToRack(
       ctx,
       fromRackId,
@@ -790,7 +794,8 @@ export function moveDeviceSmart(
   // Containers never nest (single-level nesting, LayoutSchema).
   if (deviceType.slots?.length) return false;
 
-  const carrierType = findDeviceType(carrierSlug, layout.device_types);
+  const carrierType =
+    findDeviceType(carrierSlug, layout.device_types) ?? carrierPlan.type;
   if (!carrierType) return false;
   const carrierCells = {
     ...carrierType,

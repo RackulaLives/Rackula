@@ -64,13 +64,13 @@ const fullWidthSubU = createTestDeviceType({
 
 describe("synthesizeCarrierForDevice", () => {
   it("returns the 2x2 carrier slug for a half-width half-height device", () => {
-    expect(synthesizeCarrierForDevice(halfWidthHalfHeight, 19)).toBe(
+    expect(synthesizeCarrierForDevice(halfWidthHalfHeight, 19)?.slug).toBe(
       "carrier-1u-2x2",
     );
   });
 
   it("returns the 2-col carrier slug for a half-width full-height device", () => {
-    expect(synthesizeCarrierForDevice(halfWidthFullHeight, 19)).toBe(
+    expect(synthesizeCarrierForDevice(halfWidthFullHeight, 19)?.slug).toBe(
       "carrier-1u-2col",
     );
   });

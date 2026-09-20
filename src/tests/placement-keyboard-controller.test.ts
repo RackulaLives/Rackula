@@ -66,12 +66,16 @@ describe("keyboard placement controller — full rack no-room toast (#2990)", ()
 });
 
 describe("keyboard placement controller: no rail target in the rack (#3310)", () => {
-  /** A 140 mm device: fits a half cell in a 19 inch rack, not in a 10 inch one. */
+  /**
+   * A 300 mm device: a custom split carries it in a 19 inch rack (451 mm of
+   * opening) but nothing can in a 10 inch one (222 mm), so the layout still
+   * holds a rack the device cannot use.
+   */
   const measured = createTestDeviceType({
     slug: "mini-pc",
     model: "Mini PC",
     u_height: 1,
-    width_mm: 140,
+    width_mm: 300,
   });
 
   function racks() {

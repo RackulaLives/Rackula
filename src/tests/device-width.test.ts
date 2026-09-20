@@ -15,7 +15,11 @@ import {
   synthesizeCarrierForDevice,
   CARRIER_2COL_SLUG,
 } from "$lib/utils/collision";
-import { requiresCarrier, toMillimetres } from "$lib/utils/device-width";
+import {
+  requiresCarrier,
+  toMillimetres,
+  getRackOpeningMm,
+} from "$lib/utils/device-width";
 import { adaptLegacyLayout } from "$lib/storage";
 import {
   filterDevicesByAttributes,
@@ -81,22 +85,49 @@ describe("canPlaceInSlot with width_mm", () => {
 });
 
 describe("carrier-first rule for measured devices", () => {
-  it("requires a carrier and synthesises the column carrier when it fits", () => {
+  it("cuts the carrier to the device's own width, not to a half cell", () => {
     const device = measuredDevice(72);
+    const plan = synthesizeCarrierForDevice(device, 19);
+
     expect(requiresCarrier(device)).toBe(true);
-    expect(synthesizeCarrierForDevice(device, 19)).toBe(CARRIER_2COL_SLUG);
+    expect(requiresChassisBay(device, 19)).toBe(false);
+    expect(plan?.type?.slots?.[0]?.width_fraction).toBeCloseTo(
+      72 / getRackOpeningMm(19),
+      6,
+    );
+    expect(plan?.slug).toBe(plan?.type?.slug);
+  });
+
+  it("carries a device too wide for any shipped cell, up to the full opening", () => {
+    // 300 mm beats the 225 mm half cell the shipped carriers offer, and still
+    // fits the 451 mm opening: the whole point of a custom split.
+    const device = measuredDevice(300);
+
+    expect(synthesizeCarrierForDevice(device, 19)?.type).toBeDefined();
     expect(requiresChassisBay(device, 19)).toBe(false);
   });
 
-  it("synthesises no carrier when the device is wider than a half-width cell", () => {
+  it("synthesises no carrier when the device is wider than the whole opening", () => {
     for (const [widthMm, rackWidth] of [
-      [300, 19],
-      [140, 10],
+      [600, 19],
+      [300, 10],
     ] as const) {
       const device = measuredDevice(widthMm);
       expect(synthesizeCarrierForDevice(device, rackWidth)).toBeNull();
       expect(requiresChassisBay(device, rackWidth)).toBe(true);
     }
+  });
+
+  it("keeps the shipped carrier for half-width gear with no measured width", () => {
+    const device = createTestDeviceType({
+      slug: "half",
+      u_height: 1,
+      slot_width: 1,
+    });
+    const plan = synthesizeCarrierForDevice(device, 19);
+
+    expect(plan?.slug).toBe(CARRIER_2COL_SLUG);
+    expect(plan?.type).toBeUndefined();
   });
 });
 

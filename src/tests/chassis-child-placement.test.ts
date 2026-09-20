@@ -84,7 +84,9 @@ describe("synthesizeCarrierForDevice (height-matched, child-aware)", () => {
   });
 
   it("returns the 2U carrier for a generic 2U half-width device", () => {
-    expect(synthesizeCarrierForDevice(genericTwoU, 19)).toBe("carrier-2u-2col");
+    expect(synthesizeCarrierForDevice(genericTwoU, 19)?.slug).toBe(
+      "carrier-2u-2col",
+    );
   });
 
   it("still returns the 1U carrier for a generic 1U half-width device", () => {
@@ -96,7 +98,7 @@ describe("synthesizeCarrierForDevice (height-matched, child-aware)", () => {
       category: "network",
       colour: "#4A90D9",
     };
-    expect(synthesizeCarrierForDevice(oneU, 19)).toBe("carrier-1u-2col");
+    expect(synthesizeCarrierForDevice(oneU, 19)?.slug).toBe("carrier-1u-2col");
   });
 
   it("still returns the 2x2 carrier for a sub-U half-width device", () => {
@@ -108,7 +110,7 @@ describe("synthesizeCarrierForDevice (height-matched, child-aware)", () => {
       category: "network",
       colour: "#4A90D9",
     };
-    expect(synthesizeCarrierForDevice(halfU, 19)).toBe("carrier-1u-2x2");
+    expect(synthesizeCarrierForDevice(halfU, 19)?.slug).toBe("carrier-1u-2x2");
   });
 
   it("returns null (not a too-small carrier) for an integer height with no carrier", () => {
