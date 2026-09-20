@@ -127,6 +127,7 @@ import {
 import {
   duplicateDevice as duplicateDeviceImpl,
   placeInContainer as placeInContainerImpl,
+  extendCustomCarrier as extendCustomCarrierImpl,
   placeDeviceSmart as placeDeviceSmartImpl,
   moveDeviceToRack as moveDeviceToRackImpl,
   moveDeviceToSlot as moveDeviceToSlotImpl,
@@ -342,6 +343,7 @@ export function createLayoutStore(
     // Placement actions
     placeDevice,
     placeInContainer,
+    extendCustomCarrier,
     placeDeviceSmart,
     moveDevice,
     moveDeviceToRack,
@@ -733,6 +735,23 @@ export function createLayoutStore(
       containerId,
       slotId,
       position,
+    );
+  }
+
+  /**
+   * Add a cell to a generated carrier and place a device in it, in one undo
+   * step. Refuses when the row cannot take the width, naming what is left.
+   */
+  function extendCustomCarrier(
+    rackId: string,
+    carrierId: string,
+    deviceTypeSlug: string,
+  ): boolean {
+    return extendCustomCarrierImpl(
+      stateAccess,
+      rackId,
+      carrierId,
+      deviceTypeSlug,
     );
   }
 

@@ -13,6 +13,7 @@ import { RAIL_WIDTH } from "$lib/constants/layout";
 import { toInternalUnits, toHumanUnits } from "./position";
 import { effectiveFace } from "./effective-face";
 import { slotLayout } from "./slot-layout";
+import { CUSTOM_CARRIER_SLUG_PATTERN } from "./custom-carrier";
 
 /**
  * Shared drag state - workaround for browser security restriction
@@ -316,6 +317,12 @@ export function rowAtY(
 }
 
 /**
+ * Slot id meaning "make a new cell at the end of this row". A generated
+ * carrier is never full: the drop grows the split instead of bouncing.
+ */
+export const NEW_CELL_SLOT_ID = "__new-cell__";
+
+/**
  * Container drop target information
  * Returned when a drop position is detected within a container slot
  */
@@ -429,6 +436,17 @@ export function detectContainerDropTarget(
         containerId: container.id,
         slotId: free.slotId,
         position: free.position,
+      };
+    }
+
+    // A generated carrier can grow a cell, so aim past the last one instead
+    // of reporting the container full. The store rechecks the row's budget
+    // and refuses with a measured message when it cannot take the width.
+    if (CUSTOM_CARRIER_SLUG_PATTERN.test(container.device_type)) {
+      return {
+        containerId: container.id,
+        slotId: NEW_CELL_SLOT_ID,
+        position: 0,
       };
     }
 

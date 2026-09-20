@@ -670,3 +670,37 @@ export function removeConnectionRaw(ctx: LayoutStateAccess, id: string): void {
     connections: (layout.connections ?? []).filter((c) => c.id !== id),
   });
 }
+
+/**
+ * Point a placed device at a different device type directly (raw).
+ *
+ * Used by the copy-on-write a custom split performs: growing, shrinking or
+ * re-gapping a row produces a different generated type, and the carrier has
+ * to follow it while keeping its own id so its children stay attached.
+ * Addressed by device id rather than index because the carrier can sit in any
+ * rack and indices shift as the same batch places and removes children.
+ *
+ * @param ctx - Layout state access
+ * @param deviceId - The placed device to retype
+ * @param slug - The device type slug it should use
+ */
+export function retypeDeviceRaw(
+  ctx: LayoutStateAccess,
+  deviceId: string,
+  slug: string,
+): void {
+  const layout = ctx.getLayout();
+  ctx.setLayout({
+    ...layout,
+    racks: layout.racks.map((rack) =>
+      rack.devices.some((d) => d.id === deviceId)
+        ? {
+            ...rack,
+            devices: rack.devices.map((d) =>
+              d.id === deviceId ? { ...d, device_type: slug } : d,
+            ),
+          }
+        : rack,
+    ),
+  });
+}
