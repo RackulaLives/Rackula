@@ -689,8 +689,11 @@ export function createLayoutStore(
    * Update a device type in the library
    * Uses undo/redo support via updateDeviceTypeRecorded
    */
-  function updateDeviceType(slug: string, updates: Partial<DeviceType>): void {
-    updateDeviceTypeRecorded(slug, updates);
+  function updateDeviceType(
+    slug: string,
+    updates: Partial<DeviceType>,
+  ): boolean {
+    return updateDeviceTypeRecorded(slug, updates);
   }
 
   /**
@@ -1241,8 +1244,8 @@ export function createLayoutStore(
   function updateDeviceTypeRecorded(
     slug: string,
     updates: Partial<DeviceType>,
-  ): void {
-    updateDeviceTypeRecordedImpl(stateAccess, slug, updates);
+  ): boolean {
+    return updateDeviceTypeRecordedImpl(stateAccess, slug, updates);
   }
 
   function deleteDeviceTypeRecorded(slug: string): void {

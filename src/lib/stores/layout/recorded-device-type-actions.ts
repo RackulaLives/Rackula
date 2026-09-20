@@ -31,7 +31,8 @@ import {
   buildCustomCarrierType,
   isGeneratedCarrier,
 } from "$lib/utils/custom-carrier";
-import { remainingMm } from "$lib/utils/slot-layout";
+import { gapsFor, remainingMm } from "$lib/utils/slot-layout";
+import { getRackOpeningMm } from "$lib/utils/device-width";
 import { getToastStore } from "$lib/stores/toast.svelte";
 
 /** Rounding slack when a row is compared to its opening, in millimetres. */
@@ -68,10 +69,10 @@ export function updateDeviceTypeRecorded(
   ctx: LayoutStateAccess,
   slug: string,
   updates: Partial<DeviceType>,
-): void {
+): boolean {
   const layout = ctx.getLayout();
   const existing = findDeviceTypeInArray(layout.device_types, slug);
-  if (!existing) return;
+  if (!existing) return false;
 
   // Capture before state for the fields being updated
   const before: Partial<DeviceType> = {};
@@ -82,9 +83,124 @@ export function updateDeviceTypeRecorded(
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
+  // A measured width and the cell holding it must agree, so a width change
+  // rewrites every generated carrier holding this device, in the same undo
+  // step. Refused outright rather than left inconsistent when a row overflows.
+  const widthChanged =
+    updates.width_mm !== undefined && updates.width_mm !== existing.width_mm;
+  const recompute = widthChanged
+    ? recomputeCarriersForWidth(ctx, slug, updates.width_mm!, adapter)
+    : { commands: [], blocked: [], carrierCount: 0 };
+
+  if (recompute.blocked.length > 0) {
+    getToastStore().showToast(
+      `That width does not fit in ${recompute.blocked.join(", ")}`,
+      "warning",
+    );
+    return false;
+  }
+
   const command = createUpdateDeviceTypeCommand(slug, before, updates, adapter);
-  history.execute(command);
+  history.execute(
+    recompute.commands.length > 0
+      ? createBatchCommand(`Update ${slug}`, [command, ...recompute.commands])
+      : command,
+  );
   ctx.markDirty();
+
+  // The recompute can move devices in a rack the user is not looking at, so
+  // say how many carriers moved rather than change them silently.
+  if (recompute.carrierCount > 0) {
+    getToastStore().showToast(
+      `Width changed, ${recompute.carrierCount} carrier${
+        recompute.carrierCount === 1 ? "" : "s"
+      } adjusted`,
+      "info",
+    );
+  }
+
+  return true;
+}
+
+/**
+ * Rewrite every generated carrier holding `slug` so its cells match the new
+ * measured width.
+ *
+ * @param ctx - Layout state access
+ * @param slug - The device type whose width is changing
+ * @param widthMm - The new width in millimetres
+ * @param adapter - Command store adapter
+ * @returns The retype commands, the carriers that cannot take the width, and
+ *   how many carriers the change touches
+ */
+function recomputeCarriersForWidth(
+  ctx: LayoutStateAccess,
+  slug: string,
+  widthMm: number,
+  adapter: ReturnType<typeof getCommandStoreAdapter>,
+): { commands: Command[]; blocked: string[]; carrierCount: number } {
+  const layout = ctx.getLayout();
+  const commands: Command[] = [];
+  const blocked: string[] = [];
+  let carrierCount = 0;
+
+  for (const rack of layout.racks) {
+    for (const carrier of rack.devices) {
+      if (carrier.container_id) continue;
+      const carrierType = findDeviceTypeInArray(
+        layout.device_types,
+        carrier.device_type,
+      );
+      if (!carrierType || !isGeneratedCarrier(carrierType)) continue;
+
+      const slots = carrierType.slots ?? [];
+      const holdsIt = rack.devices.some(
+        (d) => d.container_id === carrier.id && d.device_type === slug,
+      );
+      if (!holdsIt) continue;
+
+      const cells = slots.map((slot) => {
+        const child = rack.devices.find(
+          (d) => d.container_id === carrier.id && d.slot_id === slot.id,
+        );
+        return child?.device_type === slug
+          ? {
+              widthFraction: widthMm / getRackOpeningMm(rack.width),
+              heightUnits: slot.height_units ?? 1,
+            }
+          : {
+              widthFraction: slot.width_fraction ?? 1.0,
+              heightUnits: slot.height_units ?? 1,
+            };
+      });
+
+      const candidate = buildCustomCarrierType(
+        carrierType.u_height,
+        cells,
+        gapsFor(carrierType),
+      );
+      if (remainingMm(candidate, rack.width) < -ROW_FIT_SLACK_MM) {
+        blocked.push(carrier.name ?? carrierType.model ?? carrierType.slug);
+        continue;
+      }
+      if (candidate.slug === carrierType.slug) continue;
+
+      carrierCount++;
+      if (!layout.device_types.some((dt) => dt.slug === candidate.slug)) {
+        commands.push(createAddDeviceTypeCommand(candidate, adapter));
+      }
+      commands.push(
+        createRetypeDeviceCommand(
+          carrier.id,
+          carrierType.slug,
+          candidate.slug,
+          adapter,
+        ),
+      );
+    }
+  }
+
+  return { commands, blocked, carrierCount };
 }
 
 /**
