@@ -145,7 +145,10 @@ function resolveCoordinates(
     coords.clientX,
     coords.clientY,
   );
-  const mouseY = svgCoords.y - dims.rackPadding;
+  // The U grid starts below the top rail (RackFrame draws row i at
+  // i * uHeight + rackPadding + railWidth), so both rails come off here:
+  // the top one on y, the left one on x.
+  const mouseY = svgCoords.y - dims.rackPadding - dims.railWidth;
   const xOffsetInRack = svgCoords.x - dims.railWidth;
   return { mouseY, xOffsetInRack, svgCoords };
 }

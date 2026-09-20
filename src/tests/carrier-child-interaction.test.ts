@@ -126,8 +126,10 @@ function childButton(slotName: string) {
 
 // Client coordinates for the rack under the fake SVG below: the SVG sits at
 // the viewport origin with no viewBox scaling or top padding, so a client
-// point maps straight onto rack pixels.
-const yForU = (u: number) => (RACK_HEIGHT - u) * U_PX + U_PX / 2;
+// point maps straight onto rack pixels. The U grid starts below the top rail
+// (RackFrame draws row i at i * uHeight + rackPadding + railWidth), so both
+// helpers below clear a rail: yForU the top one, xForColumn the left one.
+const yForU = (u: number) => RAIL_WIDTH + (RACK_HEIGHT - u) * U_PX + U_PX / 2;
 const xForColumn = (col: 1 | 2) =>
   RAIL_WIDTH + (col === 1 ? INTERIOR_WIDTH * 0.25 : INTERIOR_WIDTH * 0.75);
 
