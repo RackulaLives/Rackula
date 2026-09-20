@@ -30,6 +30,7 @@ import { getPlacedDevicesWithRackForType } from "./mutators";
 import {
   buildCustomCarrierType,
   isGeneratedCarrier,
+  isOrphanedAfterRetype,
 } from "$lib/utils/custom-carrier";
 import { gapsFor, remainingMm } from "$lib/utils/slot-layout";
 import { getRackOpeningMm } from "$lib/utils/device-width";
@@ -197,6 +198,16 @@ function recomputeCarriersForWidth(
           adapter,
         ),
       );
+      if (isOrphanedAfterRetype(layout.racks, carrierType.slug, carrier.id)) {
+        commands.push(
+          createDeleteDeviceTypeCommand(
+            carrierType,
+            [],
+            adapter,
+            layout.metadata?.id ?? "",
+          ),
+        );
+      }
     }
   }
 
@@ -561,6 +572,17 @@ export function updateDeviceTypeSlotGaps(
       adapter,
     ),
   );
+  // The gaps the carrier just left behind are a split of their own.
+  if (isOrphanedAfterRetype(layout.racks, carrierType.slug, carrier.id)) {
+    commands.push(
+      createDeleteDeviceTypeCommand(
+        carrierType,
+        [],
+        adapter,
+        layout.metadata?.id ?? "",
+      ),
+    );
+  }
 
   ctx.getHistory().execute(createBatchCommand("Set carrier gaps", commands));
   ctx.markDirty();

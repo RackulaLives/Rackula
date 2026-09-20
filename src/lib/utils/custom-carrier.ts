@@ -145,3 +145,22 @@ export function orphanGeneratedTypes(
     .filter((dt) => isGeneratedCarrier(dt) && !inUse.has(dt.slug))
     .map((dt) => dt.slug);
 }
+
+/**
+ * Whether a generated type should be collected once `carrierId` stops using
+ * it. A retype leaves the old split behind: growing a carrier from one cell
+ * to four otherwise strands three types in the file's library.
+ *
+ * @param racks - Every rack in the layout
+ * @param slug - The generated type being left behind
+ * @param carrierId - The placed carrier that is moving off it
+ */
+export function isOrphanedAfterRetype(
+  racks: Rack[],
+  slug: string,
+  carrierId: string,
+): boolean {
+  return !racks.some((rack) =>
+    rack.devices.some((d) => d.id !== carrierId && d.device_type === slug),
+  );
+}

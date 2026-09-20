@@ -91,6 +91,16 @@ describe("custom split", () => {
     expect(type.slot_gaps).toEqual([0]);
   });
 
+  it("leaves one generated type behind, however many cells the row grew", () => {
+    const { store, rackId, slug } = setup(100);
+
+    for (let i = 0; i < 4; i++) store.placeDeviceSmart(rackId, slug, 5);
+
+    // Each growth retypes the carrier, so without collecting the split it
+    // just left, a row grown to four cells strands three dead types.
+    expect(store.device_types.filter((dt) => dt.auto_created).length).toBe(1);
+  });
+
   it("undoes a grown cell in one step", () => {
     const { store, rackId, slug } = setup(100);
     store.placeDeviceSmart(rackId, slug, 5);

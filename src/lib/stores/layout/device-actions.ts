@@ -28,6 +28,7 @@ import {
   buildCustomCarrierType,
   cellForDevice,
   isGeneratedCarrier,
+  isOrphanedAfterRetype,
   CUSTOM_CARRIER_SLUG_PATTERN,
 } from "$lib/utils/custom-carrier";
 import { fitsInRow, gapsFor, remainingMm } from "$lib/utils/slot-layout";
@@ -39,6 +40,7 @@ import { instantiatePorts } from "$lib/utils/port-utils";
 import {
   createPlaceDeviceCommand,
   createAddDeviceTypeCommand,
+  createDeleteDeviceTypeCommand,
   createRetypeDeviceCommand,
   createBatchCommand,
   createCrossRackMoveCommand,
@@ -776,6 +778,18 @@ export function extendCustomCarrier(
       adapter,
     ),
   );
+  // The split the carrier just left is a type of its own. Without this a row
+  // grown from one cell to four strands three types in the file's library.
+  if (isOrphanedAfterRetype(layout.racks, carrierType.slug, carrier.id)) {
+    commands.push(
+      createDeleteDeviceTypeCommand(
+        carrierType,
+        [],
+        adapter,
+        layout.metadata?.id ?? "",
+      ),
+    );
+  }
   commands.push(
     createPlaceDeviceCommand(
       {
