@@ -13,6 +13,11 @@ import { UNITS_PER_U, DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
 import { canPlaceDevice } from "$lib/utils/collision";
 import { requiresCarrier } from "$lib/utils/device-width";
+import {
+  buildCustomCarrierType,
+  isGeneratedCarrier,
+} from "$lib/utils/custom-carrier";
+import { gapsFor } from "$lib/utils/slot-layout";
 import { effectiveFace } from "$lib/utils/effective-face";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
@@ -25,6 +30,9 @@ import { generateId } from "$lib/utils/device";
 import { instantiatePorts } from "$lib/utils/port-utils";
 import {
   createAddDeviceTypeCommand,
+  createDeleteDeviceTypeCommand,
+  createRetypeDeviceCommand,
+  createReslotDeviceCommand,
   createPlaceDeviceCommand,
   createMoveDeviceCommand,
   createRemoveDeviceCommand,
@@ -412,6 +420,154 @@ export function findEmptiedAutoCarrier(
 }
 
 /**
+ * Whether any placed device other than `exceptId` still uses a device type.
+ * The exception is the carrier about to be retyped or removed: it is what
+ * makes the difference between a type still in use and an orphan.
+ *
+ * @param layout - The layout to scan
+ * @param slug - The device type slug in question
+ * @param exceptId - Placed device id to ignore
+ */
+function isTypeUsedElsewhere(
+  layout: ReturnType<LayoutStateAccess["getLayout"]>,
+  slug: string,
+  exceptId: string,
+): boolean {
+  return layout.racks.some((rack) =>
+    rack.devices.some((d) => d.id !== exceptId && d.device_type === slug),
+  );
+}
+
+/**
+ * The split a generated carrier keeps once the child in `slotId` leaves.
+ *
+ * The cell goes, and the gap to its left goes with it so the cells to its
+ * right do not slide left by an amount nobody chose. The first cell has no
+ * left gap, so it takes the one on its right instead.
+ *
+ * @param carrierType - The generated carrier's type
+ * @param slotId - The cell being vacated
+ * @returns The shrunk type, or null when that was the only cell
+ */
+function shrinkCustomCarrier(
+  carrierType: DeviceType,
+  slotId: string,
+): DeviceType | null {
+  const slots = carrierType.slots ?? [];
+  const index = slots.findIndex((s) => s.id === slotId);
+  if (index === -1) return carrierType;
+  if (slots.length <= 1) return null;
+
+  const cells = slots
+    .filter((_, i) => i !== index)
+    .map((slot) => ({
+      widthFraction: slot.width_fraction ?? 1.0,
+      heightUnits: slot.height_units ?? 1,
+    }));
+  const gaps = [...gapsFor(carrierType)];
+  gaps.splice(index > 0 ? index - 1 : 0, 1);
+
+  return buildCustomCarrierType(carrierType.u_height, cells, gaps);
+}
+
+/**
+ * Commands that shrink the generated carrier a child is leaving: retype it to
+ * the smaller split, renumber the survivors onto the new cell ids, and drop
+ * the old type when nothing references it any more.
+ *
+ * Returns an empty list for anything that is not a child of a generated
+ * carrier, or when the carrier is being removed along with its last child
+ * (handled by the emptied-carrier path).
+ *
+ * @param ctx - Layout state access
+ * @param rack - The rack holding the carrier
+ * @param removed - The child being removed
+ * @param adapter - Command store adapter
+ */
+function shrinkCommandsForRemovedChild(
+  ctx: LayoutStateAccess,
+  rack: Rack,
+  removed: PlacedDevice,
+  adapter: ReturnType<typeof getCommandStoreAdapter>,
+): Command[] {
+  if (!removed.container_id || !removed.slot_id) return [];
+
+  const layout = ctx.getLayout();
+  const carrier = rack.devices.find((d) => d.id === removed.container_id);
+  const carrierType = carrier
+    ? findDeviceTypeInArray(layout.device_types, carrier.device_type)
+    : undefined;
+  if (!carrier || !carrierType || !isGeneratedCarrier(carrierType)) return [];
+
+  const commands: Command[] = [];
+  const shrunk = shrinkCustomCarrier(carrierType, removed.slot_id);
+
+  // The last cell: the emptied-auto-carrier path removes the carrier itself,
+  // which leaves its generated type referenced by nothing. Collect it here,
+  // composed after that removal so the type is genuinely unused by then.
+  if (shrunk === null) {
+    if (!isTypeUsedElsewhere(layout, carrierType.slug, carrier.id)) {
+      commands.push(
+        createDeleteDeviceTypeCommand(
+          carrierType,
+          [],
+          adapter,
+          layout.metadata?.id ?? "",
+        ),
+      );
+    }
+    return commands;
+  }
+
+  if (!layout.device_types.some((dt) => dt.slug === shrunk.slug)) {
+    commands.push(createAddDeviceTypeCommand(shrunk, adapter));
+  }
+  commands.push(
+    createRetypeDeviceCommand(
+      carrier.id,
+      carrierType.slug,
+      shrunk.slug,
+      adapter,
+    ),
+  );
+
+  // Cells are numbered left to right, so removing one renumbers its
+  // right-hand neighbours. Move the survivors in the same step.
+  const slots = carrierType.slots ?? [];
+  const removedIndex = slots.findIndex((s) => s.id === removed.slot_id);
+  slots
+    .filter((_, i) => i !== removedIndex)
+    .forEach((slot, newIndex) => {
+      const child = rack.devices.find(
+        (d) => d.container_id === carrier.id && d.slot_id === slot.id,
+      );
+      const newSlotId = `col-${newIndex + 1}`;
+      if (child && child.slot_id !== newSlotId) {
+        commands.push(
+          createReslotDeviceCommand(child.id, slot.id, newSlotId, adapter),
+        );
+      }
+    });
+
+  // Nothing else on the old split: drop the type rather than let the file's
+  // library grow once per edit.
+  if (!isTypeUsedElsewhere(layout, carrierType.slug, carrier.id)) {
+    // Composed after the retype, so by the time it runs nothing is placed
+    // on the old split: the empty list is the truth, not a shortcut.
+    commands.push(
+      createDeleteDeviceTypeCommand(
+        carrierType,
+        [],
+        adapter,
+        layout.metadata?.id ?? "",
+      ),
+    );
+  }
+
+  return commands;
+}
+
+/**
  * Remove a device with undo/redo support
  * @param ctx - Layout state access
  * @param rackId - Rack ID
@@ -521,12 +677,25 @@ export function removeDeviceRecorded(
       ]
     : [];
 
+  // A child leaving a custom split takes its cell, and the cell takes the gap
+  // to its left. Composed after the removal so undo restores the device into
+  // the split it came from.
+  const shrinkCommands = shrinkCommandsForRemovedChild(
+    ctx,
+    targetRack,
+    device,
+    adapter,
+  );
+
   const command =
-    connectionCommands.length > 0 || carrierCommands.length > 0
+    connectionCommands.length > 0 ||
+    carrierCommands.length > 0 ||
+    shrinkCommands.length > 0
       ? createBatchCommand(`Remove ${deviceName}`, [
           ...connectionCommands,
           removeCommand,
           ...carrierCommands,
+          ...shrinkCommands,
         ])
       : removeCommand;
 

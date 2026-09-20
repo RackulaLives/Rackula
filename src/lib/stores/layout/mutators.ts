@@ -704,3 +704,35 @@ export function retypeDeviceRaw(
     ),
   });
 }
+
+/**
+ * Move a placed child to a different cell of its container directly (raw).
+ *
+ * Cells are numbered left to right, so dropping one renumbers every cell after
+ * it and the survivors have to follow. Addressed by device id for the same
+ * reason retypeDeviceRaw is: indices shift while the batch runs.
+ *
+ * @param ctx - Layout state access
+ * @param deviceId - The placed child to move
+ * @param slotId - The cell id it should reference
+ */
+export function reslotDeviceRaw(
+  ctx: LayoutStateAccess,
+  deviceId: string,
+  slotId: string,
+): void {
+  const layout = ctx.getLayout();
+  ctx.setLayout({
+    ...layout,
+    racks: layout.racks.map((rack) =>
+      rack.devices.some((d) => d.id === deviceId)
+        ? {
+            ...rack,
+            devices: rack.devices.map((d) =>
+              d.id === deviceId ? { ...d, slot_id: slotId } : d,
+            ),
+          }
+        : rack,
+    ),
+  });
+}

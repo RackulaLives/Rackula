@@ -25,6 +25,7 @@ import {
   removeDeviceTypeRaw,
   updateDeviceTypeRaw,
   retypeDeviceRaw,
+  reslotDeviceRaw,
   placeDeviceRaw,
   removeDeviceAtIndexRaw,
   moveDeviceRaw,
@@ -99,6 +100,8 @@ export function getCommandStoreAdapter(
     updateDeviceTypeRaw: (slug, updates) =>
       updateDeviceTypeRaw(ctx, slug, updates),
     retypeDeviceRaw: (deviceId, slug) => retypeDeviceRaw(ctx, deviceId, slug),
+    reslotDeviceRaw: (deviceId, slotId) =>
+      reslotDeviceRaw(ctx, deviceId, slotId),
     placeDeviceRaw: (device) => placeDeviceRaw(ctx, device),
     removeDeviceAtIndexRaw: (index) => removeDeviceAtIndexRaw(ctx, index),
     getPlacedDevicesForType: (slug) => getPlacedDevicesForType(ctx, slug),

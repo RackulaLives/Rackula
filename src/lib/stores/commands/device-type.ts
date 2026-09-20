@@ -16,6 +16,7 @@ export interface DeviceTypeCommandStore {
   removeDeviceTypeRaw(slug: string): void;
   updateDeviceTypeRaw(slug: string, updates: Partial<DeviceType>): void;
   retypeDeviceRaw(deviceId: string, slug: string): void;
+  reslotDeviceRaw(deviceId: string, slotId: string): void;
   placeDeviceRaw(device: PlacedDevice): number;
   removeDeviceAtIndexRaw(index: number): void;
   getPlacedDevicesForType(slug: string): PlacedDevice[];
@@ -204,6 +205,37 @@ export function createRetypeDeviceCommand(
     },
     undo() {
       store.retypeDeviceRaw(deviceId, fromSlug);
+    },
+  };
+}
+
+/**
+ * Move a placed child to a different cell of its container.
+ *
+ * Dropping a cell from a custom split renumbers every cell after it, so the
+ * survivors move with it in the same step: without this they would reference
+ * a cell id that no longer exists and the layout would fail to load.
+ *
+ * @param deviceId - The placed child to move
+ * @param fromSlotId - The cell it occupies now, restored on undo
+ * @param toSlotId - The cell it should occupy
+ * @param store - Command store adapter
+ */
+export function createReslotDeviceCommand(
+  deviceId: string,
+  fromSlotId: string,
+  toSlotId: string,
+  store: DeviceTypeCommandStore,
+): Command {
+  return {
+    type: "MOVE_TO_SLOT",
+    description: `Move ${deviceId} to ${toSlotId}`,
+    timestamp: Date.now(),
+    execute() {
+      store.reslotDeviceRaw(deviceId, toSlotId);
+    },
+    undo() {
+      store.reslotDeviceRaw(deviceId, fromSlotId);
     },
   };
 }
