@@ -396,6 +396,36 @@ describe(
         expect(toast?.action).toBeUndefined();
       });
 
+      // The index stores no checksum, so one unreadable body must not hide the
+      // layouts beside it: server mode lists only the server library.
+      it("falls back to another open tab when the active body is unreadable", async () => {
+        seedWorkspace();
+        localStorage.setItem("Rackula:layout:layout-active", "{ not json");
+
+        render(App);
+
+        await waitFor(() => {
+          expect(getLayoutStore().layout.name).toBe("Other Browser Layout");
+        });
+      });
+
+      it("warns instead of opening empty when no body can be read", async () => {
+        seedWorkspace();
+        localStorage.setItem("Rackula:layout:layout-active", "{ not json");
+        localStorage.setItem("Rackula:layout:layout-other", "{ not json");
+
+        render(App);
+
+        await waitFor(() => {
+          expect(
+            getToastStore().toasts.some((t) =>
+              t.message.includes("Could not read the layouts"),
+            ),
+          ).toBe(true);
+        });
+        expect(getLayoutStore().rackCount).toBe(0);
+      });
+
       it("still opens the empty canvas when the workspace is empty", async () => {
         render(App);
 

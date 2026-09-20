@@ -209,54 +209,78 @@
     initPromise: Promise<boolean>,
   ): Promise<boolean> {
     const index = loadWorkspaceIndex();
-    const activeId = index?.activeId;
-    if (!index || !activeId) return false;
+    if (!index) return false;
 
-    const entry = index.library[activeId];
-    if (!entry || detectModeFlip(entry.storageMode) !== "browser-to-server") {
-      return false;
+    // Try the active layout first, then the other open tabs. The index stores
+    // no checksum, so a body can be unreadable (truncated or partial write)
+    // while its siblings are fine. Server mode lists only the server library,
+    // so anything skipped here is unreachable from the canvas.
+    const activeId = index.activeId;
+    const candidates = activeId
+      ? [activeId, ...index.openTabs.filter((id) => id !== activeId)]
+      : index.openTabs;
+
+    let flipped = false;
+    for (const id of candidates) {
+      const entry = index.library[id];
+      if (!entry || detectModeFlip(entry.storageMode) !== "browser-to-server") {
+        continue;
+      }
+      flipped = true;
+
+      const body = loadLayoutBody(id);
+      if (!body.ok) continue;
+
+      layoutStore.loadLayout(body.layout);
+      // The workspace copy was never saved to this server, so it starts dirty.
+      layoutStore.markDirty();
+      layoutStore.restoreBackupState({
+        changesSinceExport: entry.changesSinceExport,
+        hasEverExported: entry.hasEverExported,
+      });
+      recenterAfterRestore();
+
+      const others = Object.keys(index.library).length - 1;
+      const remainder =
+        others > 0
+          ? ` ${others} other ${others === 1 ? "layout is" : "layouts are"} still stored in this browser.`
+          : "";
+
+      // Offering Upload against an unreachable server would fail on click, so
+      // mirror the reachable/unreachable split the legacy-session flip uses.
+      if (await initPromise) {
+        showStorageToast(
+          `This deployment now stores layouts on the server. Upload this layout to keep it here.${remainder}`,
+          "info",
+          0,
+          {
+            label: "Upload",
+            onClick: () => {
+              void handleSaveToServer(true);
+            },
+          },
+        );
+      } else {
+        showStorageToast(
+          `Cannot reach ${getServerInstanceLabel()}. Restored the layout stored in this browser; reload to retry.${remainder}`,
+          "warning",
+          0,
+        );
+      }
+      return true;
     }
 
-    const body = loadLayoutBody(activeId);
-    if (!body.ok) return false;
-
-    layoutStore.loadLayout(body.layout);
-    // The workspace copy was never saved to this server, so it starts dirty.
-    layoutStore.markDirty();
-    layoutStore.restoreBackupState({
-      changesSinceExport: entry.changesSinceExport,
-      hasEverExported: entry.hasEverExported,
-    });
-    recenterAfterRestore();
-
-    const others = Object.keys(index.library).length - 1;
-    const remainder =
-      others > 0
-        ? ` ${others} other ${others === 1 ? "layout is" : "layouts are"} still stored in this browser.`
-        : "";
-
-    // Offering Upload against an unreachable server would fail on click, so
-    // mirror the reachable/unreachable split the legacy-session flip uses.
-    if (await initPromise) {
+    // The workspace holds flipped layouts but none of their bodies could be
+    // read. Say so rather than opening an empty canvas as though this browser
+    // had never held anything.
+    if (flipped) {
       showStorageToast(
-        `This deployment now stores layouts on the server. Upload this layout to keep it here.${remainder}`,
-        "info",
-        0,
-        {
-          label: "Upload",
-          onClick: () => {
-            void handleSaveToServer(true);
-          },
-        },
-      );
-    } else {
-      showStorageToast(
-        `Cannot reach ${getServerInstanceLabel()}. Restored the layout stored in this browser; reload to retry.${remainder}`,
+        "Could not read the layouts stored in this browser. They remain in browser storage; open this deployment in browser mode to export them.",
         "warning",
         0,
       );
     }
-    return true;
+    return false;
   }
 
   // Auto-open new rack dialog when no racks exist (first-load experience)
