@@ -74,6 +74,7 @@ export {
   isBrowserWriteFailed,
   browserWriteFailureReason,
   hasBrowserWriteFailures,
+  clearBrowserWriteFailure,
   resetBrowserWriteFailures,
   type DurabilityStatus,
   type DurabilityKind,

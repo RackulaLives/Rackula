@@ -63,6 +63,16 @@ export function browserWriteFailureReason(
   return id === undefined ? null : (browserWriteFailures.get(id) ?? null);
 }
 
+/**
+ * Forget one layout's failure, for a layout that no longer exists (#3375).
+ * Deletion is the only case: a closed tab keeps its body and its entry, so a
+ * layout that is merely closed must keep reporting that it is not saved.
+ * Without this the flag outlives the layout and the warning never clears.
+ */
+export function clearBrowserWriteFailure(id: string): void {
+  browserWriteFailures.delete(id);
+}
+
 /** Whether any layout is still recorded as unsaved to browser storage. */
 export function hasBrowserWriteFailures(): boolean {
   return browserWriteFailures.size > 0;
