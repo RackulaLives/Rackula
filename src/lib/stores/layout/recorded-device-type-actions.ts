@@ -21,11 +21,21 @@ import {
   createBatchCommand,
   createInRackCommand,
   createRemoveDeviceCommand,
+  createRetypeDeviceCommand,
   type Command,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
 import { getCommandStoreAdapter } from "./command-adapters";
 import { getPlacedDevicesWithRackForType } from "./mutators";
+import {
+  buildCustomCarrierType,
+  isGeneratedCarrier,
+} from "$lib/utils/custom-carrier";
+import { remainingMm } from "$lib/utils/slot-layout";
+import { getToastStore } from "$lib/stores/toast.svelte";
+
+/** Rounding slack when a row is compared to its opening, in millimetres. */
+const ROW_FIT_SLACK_MM = 0.5;
 
 /**
  * Add a device type with undo/redo support
@@ -366,4 +376,77 @@ export function deleteMultipleDeviceTypesRecorded(
   );
 
   return count;
+}
+
+/**
+ * Set the gaps on a placed generated carrier, in one undo step.
+ *
+ * A gap belongs to the carrier and to a position between two cells, so this
+ * rewrites that carrier's split. The new split fingerprints differently, which
+ * is the copy-on-write: only this carrier is retyped, and any other carrier
+ * still on the old split keeps it.
+ *
+ * Refuses when the row cannot hold its cells plus the requested gaps, naming
+ * what is free rather than silently clipping.
+ *
+ * @param ctx - Layout state access
+ * @param rackId - Rack holding the carrier
+ * @param carrierId - The placed generated carrier
+ * @param gapsMm - One value per boundary, n - 1 for n cells
+ * @returns true when the carrier carries those gaps afterwards
+ */
+export function updateDeviceTypeSlotGaps(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  carrierId: string,
+  gapsMm: number[],
+): boolean {
+  const layout = ctx.getLayout();
+  const rack = layout.racks.find((r) => r.id === rackId);
+  const carrier = rack?.devices.find((d) => d.id === carrierId);
+  const carrierType = carrier
+    ? findDeviceTypeInArray(layout.device_types, carrier.device_type)
+    : undefined;
+  if (!rack || !carrier || !carrierType || !isGeneratedCarrier(carrierType)) {
+    return false;
+  }
+
+  const slots = carrierType.slots ?? [];
+  if (gapsMm.length !== Math.max(slots.length - 1, 0)) return false;
+  if (gapsMm.some((mm) => mm < 0 || !Number.isFinite(mm))) return false;
+
+  const cells = slots.map((slot) => ({
+    widthFraction: slot.width_fraction ?? 1.0,
+    heightUnits: slot.height_units ?? 1,
+  }));
+  const candidate = buildCustomCarrierType(carrierType.u_height, cells, gapsMm);
+
+  if (remainingMm(candidate, rack.width) < -ROW_FIT_SLACK_MM) {
+    getToastStore().showToast(
+      `That gap does not fit: ${Math.round(remainingMm(carrierType, rack.width))} mm free in this carrier`,
+      "warning",
+    );
+    return false;
+  }
+
+  if (candidate.slug === carrierType.slug) return true;
+
+  ctx.setActiveRackId(rackId);
+  const adapter = getCommandStoreAdapter(ctx);
+  const commands: Command[] = [];
+  if (!layout.device_types.some((dt) => dt.slug === candidate.slug)) {
+    commands.push(createAddDeviceTypeCommand(candidate, adapter));
+  }
+  commands.push(
+    createRetypeDeviceCommand(
+      carrier.id,
+      carrierType.slug,
+      candidate.slug,
+      adapter,
+    ),
+  );
+
+  ctx.getHistory().execute(createBatchCommand("Set carrier gaps", commands));
+  ctx.markDirty();
+  return true;
 }

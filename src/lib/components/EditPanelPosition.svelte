@@ -20,6 +20,8 @@
   } from "$lib/actions/selection-actions";
   import type { Rack, SelectedDeviceInfo } from "$lib/types";
   import type { CellDirection } from "$lib/utils/collision";
+  import { isGeneratedCarrier } from "$lib/utils/custom-carrier";
+  import { gapsFor } from "$lib/utils/slot-layout";
 
   interface Props {
     selectedDeviceInfo: SelectedDeviceInfo;
@@ -123,7 +125,55 @@
       slotName: slot?.name ?? placedDevice.slot_id ?? "Unknown",
     };
   });
+
+  // The gaps of a selected generated carrier. A gap belongs to the carrier and
+  // to a position between two cells, so it is edited here, on the carrier,
+  // and never on one of the devices sitting in it.
+  const editableGaps = $derived.by(() => {
+    const { placedDevice } = selectedDeviceInfo;
+    if (placedDevice.container_id) return null;
+    const type = layoutStore.device_types.find(
+      (d) => d.slug === placedDevice.device_type,
+    );
+    if (!type || !isGeneratedCarrier(type)) return null;
+    const gaps = gapsFor(type);
+    return gaps.length > 0 ? gaps : null;
+  });
+
+  function setGap(index: number, mm: number): void {
+    const gaps = editableGaps;
+    if (!gaps) return;
+    const next = [...gaps];
+    next[index] = Math.max(0, mm);
+    layoutStore.updateDeviceTypeSlotGaps(
+      selectedDeviceInfo.rack.id,
+      selectedDeviceInfo.placedDevice.id,
+      next,
+    );
+  }
 </script>
+
+<!-- Gaps between the cells of a custom split -->
+{#if editableGaps}
+  <div class="info-section gap-editor">
+    <h4 class="section-title">Gaps (mm)</h4>
+    {#each editableGaps as gap, index (index)}
+      <div class="gap-row">
+        <label for="slot-gap-{index}">
+          Between cell {index + 1} and cell {index + 2}
+        </label>
+        <input
+          id="slot-gap-{index}"
+          type="number"
+          min="0"
+          step="1"
+          value={gap}
+          onchange={(e) => setGap(index, Number(e.currentTarget.value))}
+        />
+      </div>
+    {/each}
+  </div>
+{/if}
 
 <!-- Container context for child devices -->
 {#if containerContext}
@@ -228,6 +278,22 @@
 </div>
 
 <style>
+  .gap-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  .gap-row label {
+    font-size: var(--font-size-sm, 0.8125rem);
+    color: var(--neutral-400);
+  }
+
+  .gap-row input {
+    width: 5rem;
+  }
+
   .info-section {
     display: flex;
     flex-direction: column;

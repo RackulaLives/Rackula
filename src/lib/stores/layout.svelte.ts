@@ -99,6 +99,7 @@ import {
 import {
   addDeviceTypeRecorded as addDeviceTypeRecordedImpl,
   updateDeviceTypeRecorded as updateDeviceTypeRecordedImpl,
+  updateDeviceTypeSlotGaps as updateDeviceTypeSlotGapsImpl,
   deleteDeviceTypeRecorded as deleteDeviceTypeRecordedImpl,
   deleteMultipleDeviceTypesRecorded as deleteMultipleDeviceTypesRecordedImpl,
 } from "./layout/recorded-device-type-actions";
@@ -344,6 +345,7 @@ export function createLayoutStore(
     placeDevice,
     placeInContainer,
     extendCustomCarrier,
+    updateDeviceTypeSlotGaps,
     placeDeviceSmart,
     moveDevice,
     moveDeviceToRack,
@@ -736,6 +738,18 @@ export function createLayoutStore(
       slotId,
       position,
     );
+  }
+
+  /**
+   * Set the gaps between the cells of a placed generated carrier, in one undo
+   * step. Refuses a set that would overflow the row.
+   */
+  function updateDeviceTypeSlotGaps(
+    rackId: string,
+    carrierId: string,
+    gapsMm: number[],
+  ): boolean {
+    return updateDeviceTypeSlotGapsImpl(stateAccess, rackId, carrierId, gapsMm);
   }
 
   /**
