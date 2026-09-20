@@ -1,34 +1,36 @@
-# Rackula community-scripts (canonical)
+# Rackula community-scripts (mirror)
 
-These three files are the canonical source of truth for the Rackula PVE Community Scripts entry:
+These two files mirror the Rackula PVE Community Scripts entry:
 
 - `ct/rackula.sh`
 - `install/rackula-install.sh`
-- `json/rackula.json`
 
-## Sync direction: canonical to fork, one way only
+## Sync direction: mirror of upstream
 
-The upstream submission goes through the `ggfevans/ProxmoxVED` fork on branch `feat/add-rackula` (which targets `community-scripts/ProxmoxVED`). That fork is a downstream mirror, not a second source of truth.
+Upstream is [`community-scripts/ProxmoxVE`](https://github.com/community-scripts/ProxmoxVE). These copies stopped being the canonical source of truth on 2026-06-12, when Rackula was promoted out of ProxmoxVED. They are kept here so `scripts/lxc-smoke-test.sh` can run the real install and update paths from a checkout, and so changes can be drafted before they go upstream.
 
-Always edit these files here first, then copy them to the fork. Never edit the fork first. Editing fork-first is what caused past drift, where install and runtime fixes landed in the fork or on feature branches but never reached these canonical copies.
+Reconciling these copies against upstream is tracked in [#3382](https://github.com/RackulaLives/Rackula/issues/3382). Until that lands, treat any difference from upstream as drift to investigate, not as an intended local change.
 
-To re-sync after changing anything here:
+Draft a change here, then carry it upstream via a PR against `community-scripts/ProxmoxVE`:
 
 ```bash
 SRC=deploy/lxc/community-scripts
-DST=/path/to/ggfevans/ProxmoxVED
-cp "$SRC/ct/rackula.sh"             "$DST/ct/rackula.sh"
+DST=/path/to/community-scripts/ProxmoxVE
+cp "$SRC/ct/rackula.sh"              "$DST/ct/rackula.sh"
 cp "$SRC/install/rackula-install.sh" "$DST/install/rackula-install.sh"
-cp "$SRC/json/rackula.json"         "$DST/json/rackula.json"
 ```
 
-After syncing, the fork trio must be byte-identical to these files, with one intentional exception described below.
+App catalogue metadata is no longer a file in the repo. It lives in upstream's PocketBase instance and is edited with `/pocketbase rackula ...` bot commands, so there is nothing to copy for it.
+
+After syncing, the two files must be byte-identical to upstream, with one intentional exception described below.
 
 ## Intentional divergence: no dev override upstream
 
-The canonical copies include the env-gated `RACKULA_PREBUILD_TARBALL` dev override (deploys a local tarball for smoke testing, used by the gated release pipeline). The upstream submission does not: community-scripts wants lean scripts with no dev-only paths, so the override blocks and their comments are stripped from the fork branch.
+These copies include the env-gated `RACKULA_PREBUILD_TARBALL` dev override (deploys a local tarball for smoke testing, used by the gated release pipeline). Upstream does not: community-scripts wants lean scripts with no dev-only paths, so the override blocks and their comments are stripped before submission.
 
-In short: canonical = upstream + dev override. When syncing, carry every other change over verbatim, then re-remove the override on the fork side. It lives in three places: the fail-loud guard in `update_script()` in `ct/rackula.sh`, the deploy branch in the same function, and the deploy branch in `install/rackula-install.sh`.
+In short: local = upstream + dev override. When syncing, carry every other change over verbatim, then re-remove the override on the upstream side. It lives in three places: the fail-loud guard in `update_script()` in `ct/rackula.sh`, the deploy branch in the same function, and the deploy branch in `install/rackula-install.sh`.
+
+This is the only allowed difference. #3382 turns it into a parity allowlist so the rest can be checked automatically.
 
 ## URL note: ProxmoxVE vs ProxmoxVED
 
