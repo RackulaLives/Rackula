@@ -18,8 +18,29 @@ import {
   saveWorkspaceIndex,
   saveLayoutBody,
   markEverHadLayouts,
+  hasLayoutBody,
   type LibraryEntry,
 } from "./browser-workspace";
+import type { StorageWriteFailure } from "$lib/utils/safe-storage";
+
+/**
+ * The outcome of a persist. Browser mode has no other failure channel: the
+ * caller (PersistenceEffects) turns a non-ok result into the storage-full
+ * warning, because nothing below here can reach the UI (#3375).
+ */
+export interface PersistResult {
+  ok: boolean;
+  /** Why the failed writes failed; the most severe reason seen this pass. */
+  failure: StorageWriteFailure | null;
+  /** Layouts whose body could not be written, so are not persisted at all. */
+  failedLayoutIds: string[];
+  /**
+   * Layouts this pass actually tried to write. A layout skipped by the
+   * twin-tab guard is absent, so a caller tracking failures can leave its
+   * previous state alone instead of declaring it healthy on no evidence.
+   */
+  attemptedLayoutIds: string[];
+}
 
 /** A tab snapshot for persistence. A shell has no layout body to write. */
 export type PersistTab =
@@ -84,7 +105,7 @@ export interface PersistWorkspaceArgs {
  */
 export async function persistBrowserWorkspace(
   args: PersistWorkspaceArgs,
-): Promise<void> {
+): Promise<PersistResult> {
   const {
     tabs,
     activeLayoutId,
@@ -93,11 +114,17 @@ export async function persistBrowserWorkspace(
     withWorkspaceIndexLock,
   } = args;
 
-  const run = async (): Promise<void> => {
+  const failedLayoutIds: string[] = [];
+  const attemptedLayoutIds: string[] = [];
+  let failure: StorageWriteFailure | null = null;
+
+  const run = async (): Promise<PersistResult> => {
     // Write each hydrated body first. saveLayoutBody also refreshes that layout's
-    // library entry in the index (updatedAt, durability); it returns false on
-    // quota, leaving the in-memory copy intact and surfacing the flag via the
-    // index. Shells have no body to write. A paused layout (twin-tab guard) is
+    // library entry in the index (updatedAt, durability); on a refused write it
+    // reports the reason and leaves the in-memory copy intact, and it creates no
+    // entry at all when the layout has never been written, so the failures
+    // collected here are the only record that the layout did not persist.
+    // Shells have no body to write. A paused layout (twin-tab guard) is
     // skipped so a foreign peer's copy is never clobbered. Each write runs under
     // its own per-layout lock when one is supplied; the locks are distinct per
     // layout id so writing many bodies in this loop cannot nest the same lock.
@@ -107,16 +134,24 @@ export async function persistBrowserWorkspace(
     // safe against a peer tab persisting a different layout.
     for (const tab of tabs) {
       if (tab.hydrated && !isPaused?.(tab.layoutId)) {
+        attemptedLayoutIds.push(tab.layoutId);
         const write = () =>
           saveLayoutBody(tab.layoutId, tab.layout, {
             changesSinceExport: tab.changesSinceExport,
             hasEverExported: tab.hasEverExported,
             lastExportedAt: tab.lastExportedAt,
           });
-        if (withLayoutLock) {
-          await withLayoutLock(tab.layoutId, write);
-        } else {
-          write();
+        const result = withLayoutLock
+          ? await withLayoutLock(tab.layoutId, write)
+          : write();
+        if (!result.ok) {
+          failedLayoutIds.push(tab.layoutId);
+          // Quota outranks "unavailable": if any write was refused for space,
+          // that is the actionable thing to tell the user about. Only ever
+          // upgrade the reason, so a later result cannot blank out a known one.
+          if (result.failure !== null && failure !== "quota") {
+            failure = result.failure;
+          }
         }
       }
     }
@@ -162,19 +197,70 @@ export async function persistBrowserWorkspace(
       };
     }
 
-    saveWorkspaceIndex({
+    // Only advertise tabs that resolve to a library entry. A layout whose first
+    // body write failed has none (saveLayoutBody refuses to create one), so it
+    // is dropped from the open set and can never be restored as an empty tab
+    // wearing its name (#3375). Everything else, including shells and paused
+    // tabs, has an entry by now and is unaffected.
+    //
+    // hasOwnProperty, not `in`: this library is a spread (so it inherits
+    // Object.prototype) and isSafeLayoutId only rejects __proto__/constructor/
+    // prototype, so `in` would keep an id like "toString" that has no entry --
+    // reinstating the phantom tab this filter exists to prevent. Same test
+    // loadWorkspaceIndex uses on the read side.
+    // A layout whose write failed may still have an entry here: saveLayoutBody
+    // tries to remove it, but that cleanup write can be refused too, and this
+    // merge reads the index back from storage. Re-check the body for exactly
+    // those layouts, so a refused cleanup cannot put a bodiless entry back into
+    // the index by the back door. Healthy layouts just wrote their body, so
+    // they are never re-read.
+    for (const layoutId of failedLayoutIds) {
+      if (!hasLayoutBody(layoutId)) delete library[layoutId];
+    }
+
+    const openTabs = tabs
+      .map((tab) => tab.layoutId)
+      .filter((layoutId) =>
+        Object.prototype.hasOwnProperty.call(library, layoutId),
+      );
+    const activeId =
+      activeLayoutId !== null && openTabs.includes(activeLayoutId)
+        ? activeLayoutId
+        : null;
+
+    // The index is the only thing that makes a written body findable, so a
+    // refused index write is a failed persist even when every body fit.
+    const indexWrite = saveWorkspaceIndex({
       schemaVersion: 2,
-      activeId: activeLayoutId,
-      openTabs: tabs.map((tab) => tab.layoutId),
+      activeId,
+      openTabs,
       library,
     });
+    if (!indexWrite.ok) {
+      if (indexWrite.failure !== null && failure !== "quota") {
+        failure = indexWrite.failure;
+      }
+      // Without the index nothing references any body written this pass, so
+      // every layout attempted here is unsaved, not just the ones whose own
+      // write was refused. Reporting only the latter would clear the chip for
+      // the rest and leave the toast -- which dialogs can dismiss -- as the
+      // only trace of a lost workspace.
+      for (const layoutId of attemptedLayoutIds) {
+        if (!failedLayoutIds.includes(layoutId)) failedLayoutIds.push(layoutId);
+      }
+    }
 
-    if (tabs.length > 0) markEverHadLayouts();
+    if (openTabs.length > 0) markEverHadLayouts();
+
+    return {
+      ok: failedLayoutIds.length === 0 && indexWrite.ok,
+      failure,
+      failedLayoutIds,
+      attemptedLayoutIds,
+    };
   };
 
-  if (withWorkspaceIndexLock) {
-    await withWorkspaceIndexLock(run);
-  } else {
-    await run();
-  }
+  return withWorkspaceIndexLock
+    ? await withWorkspaceIndexLock(run)
+    : await run();
 }

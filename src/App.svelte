@@ -53,6 +53,7 @@
     setServerBaseUpdatedAt,
     resolveBrowserLaunch,
     deleteLayoutBody,
+    clearBrowserWriteFailure,
     loadWorkspaceIndex,
     loadLayoutBody,
   } from "$lib/storage";
@@ -451,7 +452,16 @@
         workspaceStore.restoreWorkspace({
           index: launch.index,
           loadBody: launch.loadBody,
-          deleteBody: deleteLayoutBody,
+          // Deleting a layout also retires any unsaved-write flag it carried
+          // (#3375); otherwise the flag, and the warning it drives, outlive the
+          // layout. Closing a tab deliberately does not, since a closed layout
+          // keeps its body and is still genuinely unsaved.
+          deleteBody: (id) => {
+            // Only retire the flag once the deletion was actually recorded. A
+            // refused index write leaves the layout in place, so clearing here
+            // would drop the one signal saying it is not saved.
+            if (deleteLayoutBody(id).ok) clearBrowserWriteFailure(id);
+          },
         });
         requestAnimationFrame(() => {
           if (!canvasStore.restoreViewport()) {

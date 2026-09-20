@@ -23,7 +23,9 @@ import type { Layout } from "$lib/types";
 import {
   safeGetItem,
   safeSetItem,
+  safeSetItemWithStatus,
   safeRemoveItem,
+  type StorageWriteResult,
 } from "$lib/utils/safe-storage";
 import { generateId } from "$lib/utils/device";
 import { sessionDebug } from "$lib/utils/debug";
@@ -175,13 +177,18 @@ export function loadWorkspaceIndex(): WorkspaceIndex | null {
   };
 }
 
-/** Persist the workspace index. Returns false on quota or storage failure. */
-export function saveWorkspaceIndex(index: WorkspaceIndex): boolean {
+/**
+ * Persist the workspace index. Reports why the write failed, because a refused
+ * index write loses data exactly like a refused body write does: the body may
+ * be on disk, but nothing points at it, so it is gone on the next launch
+ * (#3375).
+ */
+export function saveWorkspaceIndex(index: WorkspaceIndex): StorageWriteResult {
   try {
-    return safeSetItem(WORKSPACE_KEY, JSON.stringify(index));
+    return safeSetItemWithStatus(WORKSPACE_KEY, JSON.stringify(index));
   } catch (error) {
     log("failed to serialize workspace index: %O", error);
-    return false;
+    return { ok: false, failure: "unavailable" };
   }
 }
 
@@ -249,18 +256,27 @@ export function loadLayoutBody(id: string): LayoutBodyResult {
 
 /**
  * Write a layout body and update its index entry (updatedAt, durability).
- * Returns false when the body write fails (quota or storage unavailable); the
- * caller keeps the in-memory copy and surfaces the failure (quota strategy).
+ * Returns `ok: false` with the reason when the body write fails (quota or
+ * storage unavailable); the caller keeps the in-memory copy and surfaces the
+ * failure (quota strategy).
+ *
+ * On a failed write the index is only touched when this layout already has a
+ * body on disk from an earlier successful write: that entry is a pointer to
+ * real, still-loadable data, so it is kept (flagged `writeFailed`, with its
+ * previous `updatedAt`). A layout whose FIRST write fails has nothing to point
+ * at, so no entry is created and the id is not added to the open set (#3375).
+ * Writing one anyway is what made a full localStorage restore a named tab over
+ * an empty canvas.
  */
 export function saveLayoutBody(
   id: string,
   layout: Layout,
   durability: DurabilityInput,
-): boolean {
+): StorageWriteResult {
   // Reject a prototype-polluting id before it is used as an index key.
   if (!isSafeLayoutId(id)) {
     log("refusing to save layout body for unsafe id %s", id);
-    return false;
+    return { ok: false, failure: "unavailable" };
   }
   const savedAt = new Date().toISOString();
   let serialized: string;
@@ -278,10 +294,11 @@ export function saveLayoutBody(
     });
   } catch (error) {
     log("failed to serialize layout body for %s: %O", id, error);
-    return false;
+    return { ok: false, failure: "unavailable" };
   }
 
-  const wrote = safeSetItem(layoutBodyKey(id), serialized);
+  const write = safeSetItemWithStatus(layoutBodyKey(id), serialized);
+  const wrote = write.ok;
   const index = loadWorkspaceIndex() ?? {
     schemaVersion: SCHEMA_VERSION,
     activeId: id,
@@ -289,6 +306,46 @@ export function saveLayoutBody(
     library: Object.create(null) as Record<string, LibraryEntry>,
   };
   const previous = index.library[id];
+
+  // A failed write leaves nothing worth pointing at unless a body is genuinely
+  // on disk from an earlier write. Ask storage, rather than trusting the index:
+  // `updatedAt` only records that a write once succeeded, so it is still set
+  // for a body that has since been evicted, and it is EMPTY for a shell entry
+  // whose body has never been written. Either way the entry would survive into
+  // the next launch as a named tab over an empty canvas (#3375). Reading the
+  // body back is only on the failure path, so its cost never touches a healthy
+  // autosave.
+  if (!wrote && safeGetItem(layoutBodyKey(id)) === null) {
+    log(
+      "dropping index entry for %s: body write failed (%s) and no body on disk",
+      id,
+      write.failure,
+    );
+    // Remove any entry and open-tab reference this layout already had, then
+    // save the reduced index. Returning early instead would leave a stale shell
+    // entry behind, which is the phantom tab this guard exists to prevent.
+    //
+    // This cleanup write can itself be refused, in which case the stale entry
+    // survives. The caller still learns the save failed (the body-write result
+    // below is already not ok), and persistBrowserWorkspace re-checks the body
+    // for every failed layout before rebuilding the open set, so the entry
+    // cannot slip back into the index by that route either.
+    if (previous || index.openTabs.includes(id)) {
+      delete index.library[id];
+      index.openTabs = index.openTabs.filter((openId) => openId !== id);
+      if (index.activeId === id) index.activeId = index.openTabs[0] ?? null;
+      const cleanup = saveWorkspaceIndex(index);
+      if (!cleanup.ok) {
+        log(
+          "index cleanup for %s failed (%s); entry is stale until the next persist",
+          id,
+          cleanup.failure,
+        );
+      }
+    }
+    return write;
+  }
+
   index.library[id] = {
     name: layout.name,
     updatedAt: wrote ? savedAt : (previous?.updatedAt ?? ""),
@@ -307,9 +364,13 @@ export function saveLayoutBody(
     storageMode: previous?.storageMode ?? "browser",
   };
   if (!index.openTabs.includes(id)) index.openTabs.push(id);
-  saveWorkspaceIndex(index);
+  // A body on disk that the index does not reference is lost on the next
+  // launch just as surely as a body that was never written, so a refused index
+  // write is reported as a failed save too (#3375).
+  const indexWrite = saveWorkspaceIndex(index);
+  if (!indexWrite.ok) return indexWrite;
 
-  return wrote;
+  return write;
 }
 
 /**
@@ -326,13 +387,38 @@ export function getLayoutSavedAt(id: string): string | null {
     : null;
 }
 
-/** Remove a layout body and drop its library entry. Open set is left to the caller. */
-export function deleteLayoutBody(id: string): void {
-  safeRemoveItem(layoutBodyKey(id));
+/**
+ * Whether a layout body is actually present in storage. The index cannot answer
+ * this: `updatedAt` survives an evicted body, and a shell entry never had one
+ * (#3375). Callers use it to keep an entry out of the index when the body it
+ * would point at is not there.
+ */
+export function hasLayoutBody(id: string): boolean {
+  return safeGetItem(layoutBodyKey(id)) !== null;
+}
+
+/**
+ * Remove a layout body and drop its library entry. Open set is left to the
+ * caller. Reports whether the deletion was actually recorded.
+ *
+ * The index is written BEFORE the body is removed (#3375). The other order can
+ * delete the body and then fail to write the index, leaving an entry that
+ * points at nothing: the same phantom tab a failed save produces. Writing the
+ * index first means a refused write aborts the deletion whole, with both the
+ * body and its entry still intact for the user to retry.
+ */
+export function deleteLayoutBody(id: string): StorageWriteResult {
   const index = loadWorkspaceIndex();
-  if (!index) return;
-  delete index.library[id];
-  saveWorkspaceIndex(index);
+  if (index) {
+    delete index.library[id];
+    const wrote = saveWorkspaceIndex(index);
+    if (!wrote.ok) {
+      log("delete of %s aborted: index write failed (%s)", id, wrote.failure);
+      return wrote;
+    }
+  }
+  safeRemoveItem(layoutBodyKey(id));
+  return { ok: true, failure: null };
 }
 
 /** Whether any layout has ever existed in this browser (returning-user marker). */
@@ -373,7 +459,7 @@ export function adoptLegacyAutosave(): WorkspaceIndex | null {
     changesSinceExport: session.changesSinceExport,
     hasEverExported: session.hasEverExported,
   });
-  if (!wroteBody) {
+  if (!wroteBody.ok) {
     // Never delete the only copy on a failed migration; leave the autosave and
     // any partial index for a clean retry next launch.
     safeRemoveItem(WORKSPACE_KEY);
@@ -394,7 +480,7 @@ export function adoptLegacyAutosave(): WorkspaceIndex | null {
     writeFailed: false,
     storageMode: session.storageMode,
   };
-  if (!saveWorkspaceIndex(index)) return null;
+  if (!saveWorkspaceIndex(index).ok) return null;
 
   markEverHadLayouts();
   safeRemoveItem(AUTOSAVE_KEY);
