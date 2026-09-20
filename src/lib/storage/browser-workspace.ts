@@ -307,16 +307,29 @@ export function saveLayoutBody(
   };
   const previous = index.library[id];
 
-  // A failed write with no prior body leaves nothing worth pointing at. Drop
-  // out before the index is touched so the layout is simply absent next launch
-  // rather than present-but-empty (#3375). `updatedAt` is the index's own
-  // record that a body was once written, so an entry without one has no body.
-  if (!wrote && !previous?.updatedAt) {
+  // A failed write leaves nothing worth pointing at unless a body is genuinely
+  // on disk from an earlier write. Ask storage, rather than trusting the index:
+  // `updatedAt` only records that a write once succeeded, so it is still set
+  // for a body that has since been evicted, and it is EMPTY for a shell entry
+  // whose body has never been written. Either way the entry would survive into
+  // the next launch as a named tab over an empty canvas (#3375). Reading the
+  // body back is only on the failure path, so its cost never touches a healthy
+  // autosave.
+  if (!wrote && safeGetItem(layoutBodyKey(id)) === null) {
     log(
-      "discarding index entry for %s: first body write failed (%s)",
+      "dropping index entry for %s: body write failed (%s) and no body on disk",
       id,
       write.failure,
     );
+    // Remove any entry and open-tab reference this layout already had, then
+    // save the reduced index. Returning early instead would leave a stale shell
+    // entry behind, which is the phantom tab this guard exists to prevent.
+    if (previous || index.openTabs.includes(id)) {
+      delete index.library[id];
+      index.openTabs = index.openTabs.filter((openId) => openId !== id);
+      if (index.activeId === id) index.activeId = index.openTabs[0] ?? null;
+      saveWorkspaceIndex(index);
+    }
     return write;
   }
 
@@ -361,13 +374,28 @@ export function getLayoutSavedAt(id: string): string | null {
     : null;
 }
 
-/** Remove a layout body and drop its library entry. Open set is left to the caller. */
-export function deleteLayoutBody(id: string): void {
-  safeRemoveItem(layoutBodyKey(id));
+/**
+ * Remove a layout body and drop its library entry. Open set is left to the
+ * caller. Reports whether the deletion was actually recorded.
+ *
+ * The index is written BEFORE the body is removed (#3375). The other order can
+ * delete the body and then fail to write the index, leaving an entry that
+ * points at nothing: the same phantom tab a failed save produces. Writing the
+ * index first means a refused write aborts the deletion whole, with both the
+ * body and its entry still intact for the user to retry.
+ */
+export function deleteLayoutBody(id: string): StorageWriteResult {
   const index = loadWorkspaceIndex();
-  if (!index) return;
-  delete index.library[id];
-  saveWorkspaceIndex(index);
+  if (index) {
+    delete index.library[id];
+    const wrote = saveWorkspaceIndex(index);
+    if (!wrote.ok) {
+      log("delete of %s aborted: index write failed (%s)", id, wrote.failure);
+      return wrote;
+    }
+  }
+  safeRemoveItem(layoutBodyKey(id));
+  return { ok: true, failure: null };
 }
 
 /** Whether any layout has ever existed in this browser (returning-user marker). */

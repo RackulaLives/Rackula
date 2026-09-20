@@ -354,8 +354,10 @@
           // layout. Closing a tab deliberately does not, since a closed layout
           // keeps its body and is still genuinely unsaved.
           deleteBody: (id) => {
-            deleteLayoutBody(id);
-            clearBrowserWriteFailure(id);
+            // Only retire the flag once the deletion was actually recorded. A
+            // refused index write leaves the layout in place, so clearing here
+            // would drop the one signal saying it is not saved.
+            if (deleteLayoutBody(id).ok) clearBrowserWriteFailure(id);
           },
         });
         requestAnimationFrame(() => {
