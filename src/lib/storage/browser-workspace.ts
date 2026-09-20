@@ -324,11 +324,24 @@ export function saveLayoutBody(
     // Remove any entry and open-tab reference this layout already had, then
     // save the reduced index. Returning early instead would leave a stale shell
     // entry behind, which is the phantom tab this guard exists to prevent.
+    //
+    // This cleanup write can itself be refused, in which case the stale entry
+    // survives. The caller still learns the save failed (the body-write result
+    // below is already not ok), and persistBrowserWorkspace re-checks the body
+    // for every failed layout before rebuilding the open set, so the entry
+    // cannot slip back into the index by that route either.
     if (previous || index.openTabs.includes(id)) {
       delete index.library[id];
       index.openTabs = index.openTabs.filter((openId) => openId !== id);
       if (index.activeId === id) index.activeId = index.openTabs[0] ?? null;
-      saveWorkspaceIndex(index);
+      const cleanup = saveWorkspaceIndex(index);
+      if (!cleanup.ok) {
+        log(
+          "index cleanup for %s failed (%s); entry is stale until the next persist",
+          id,
+          cleanup.failure,
+        );
+      }
     }
     return write;
   }
@@ -372,6 +385,16 @@ export function getLayoutSavedAt(id: string): string | null {
   return entry && !entry.writeFailed && entry.updatedAt
     ? entry.updatedAt
     : null;
+}
+
+/**
+ * Whether a layout body is actually present in storage. The index cannot answer
+ * this: `updatedAt` survives an evicted body, and a shell entry never had one
+ * (#3375). Callers use it to keep an entry out of the index when the body it
+ * would point at is not there.
+ */
+export function hasLayoutBody(id: string): boolean {
+  return safeGetItem(layoutBodyKey(id)) !== null;
 }
 
 /**

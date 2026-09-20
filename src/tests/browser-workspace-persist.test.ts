@@ -153,6 +153,63 @@ describe("persistBrowserWorkspace", () => {
     });
   });
 
+  // saveLayoutBody tries to remove the entry of a layout whose body is not on
+  // disk, but that cleanup write can be refused too. The final merge reads the
+  // index back from storage, so without a re-check the stale entry walks right
+  // back into the open set and the phantom tab returns.
+  it("excludes a bodiless layout even when the cleanup index write is refused", async () => {
+    // Seed an entry for "a" with a timestamp but no body, so only a direct
+    // body check can tell that it points at nothing.
+    realSetItem(
+      "Rackula:workspace",
+      JSON.stringify({
+        schemaVersion: 2,
+        activeId: "a",
+        openTabs: ["a"],
+        library: {
+          a: {
+            name: "Ghost",
+            updatedAt: "2026-06-14T09:00:00.000Z",
+            changesSinceExport: 0,
+            hasEverExported: true,
+            lastExportedAt: null,
+            writeFailed: false,
+            storageMode: "browser",
+          },
+        },
+      }),
+    );
+
+    // Refuse a's body always, and refuse the FIRST index write only: that is
+    // saveLayoutBody's cleanup. The final merge write is allowed through.
+    let indexWrites = 0;
+    localStorageMock.setItem = (key: string, value: string) => {
+      if (key === "Rackula:layout:a") {
+        const err = new Error("QuotaExceededError");
+        err.name = "QuotaExceededError";
+        throw err;
+      }
+      if (key === "Rackula:workspace") {
+        indexWrites += 1;
+        if (indexWrites === 1) {
+          const err = new Error("QuotaExceededError");
+          err.name = "QuotaExceededError";
+          throw err;
+        }
+      }
+      realSetItem(key, value);
+    };
+
+    await persistBrowserWorkspace({
+      tabs: [tab({ layoutId: "a" })],
+      activeLayoutId: "a",
+    });
+
+    const index = loadWorkspaceIndex();
+    expect(index?.library.a).toBeUndefined();
+    expect(index?.openTabs ?? []).not.toContain("a");
+  });
+
   // A body on disk that the index does not reference is lost next launch just
   // as surely as one that was never written, so this must not report success.
   it("reports failure when the index write is refused even though bodies fit", async () => {

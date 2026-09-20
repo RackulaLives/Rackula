@@ -18,6 +18,7 @@ import {
   saveWorkspaceIndex,
   saveLayoutBody,
   markEverHadLayouts,
+  hasLayoutBody,
   type LibraryEntry,
 } from "./browser-workspace";
 import type { StorageWriteFailure } from "$lib/utils/safe-storage";
@@ -207,6 +208,16 @@ export async function persistBrowserWorkspace(
     // prototype, so `in` would keep an id like "toString" that has no entry --
     // reinstating the phantom tab this filter exists to prevent. Same test
     // loadWorkspaceIndex uses on the read side.
+    // A layout whose write failed may still have an entry here: saveLayoutBody
+    // tries to remove it, but that cleanup write can be refused too, and this
+    // merge reads the index back from storage. Re-check the body for exactly
+    // those layouts, so a refused cleanup cannot put a bodiless entry back into
+    // the index by the back door. Healthy layouts just wrote their body, so
+    // they are never re-read.
+    for (const layoutId of failedLayoutIds) {
+      if (!hasLayoutBody(layoutId)) delete library[layoutId];
+    }
+
     const openTabs = tabs
       .map((tab) => tab.layoutId)
       .filter((layoutId) =>
