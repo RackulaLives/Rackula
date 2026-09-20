@@ -1,0 +1,166 @@
+diff --git a/src/lib/components/RackDualView.svelte b/src/lib/components/RackDualView.svelte
+index dd031f6c..cc140445 100644
+--- a/src/lib/components/RackDualView.svelte
++++ b/src/lib/components/RackDualView.svelte
+@@ -287,6 +287,22 @@
+       }),
+     );
+   }
++
++  // PROTOTYPE #3293: viewport culling. Starts culled; the IntersectionObserver
++  // mounts the rack once its placeholder enters the viewport plus a margin.
++  let cullVisible = $state(false);
++  function cullWatch(node: HTMLElement) {
++    const io = new IntersectionObserver(
++      (entries) => {
++        for (const e of entries) cullVisible = e.isIntersecting;
++      },
++      { root: null, rootMargin: "400px" },
++    );
++    io.observe(node);
++    return { destroy: () => io.disconnect() };
++  }
++  const cullWidth = $derived(rack.show_rear ? 480 : 228);
++  const cullHeight = $derived(rack.height * 22 + 64);
+ </script>
+ 
+ <RackContextMenu
+@@ -309,6 +325,7 @@
+     <div
+       {...triggerProps}
+       bind:this={containerElement}
++      use:cullWatch
+       class="rack-dual-view"
+       data-rack-id={rack.id}
+       class:selected
+@@ -329,6 +346,13 @@
+       <!-- Rack name centered above both views -->
+       <div class="rack-dual-view-name">{rack.name}</div>
+ 
++      {#if !cullVisible}
++        <div
++          class="rack-dual-view-container cull-placeholder"
++          style:width="{cullWidth}px"
++          style:height="{cullHeight}px"
++        ></div>
++      {:else}
+       <div class="rack-dual-view-container" class:single-view={!rack.show_rear}>
+         <!-- Annotation column (left of front view) -->
+         {#if showAnnotations}
+@@ -400,6 +424,7 @@
+           <div class="annotation-spacer" aria-hidden="true"></div>
+         {/if}
+       </div>
++      {/if}
+     </div>
+   {/snippet}
+ </RackContextMenu>
+diff --git a/src/lib/components/RackFrame.svelte b/src/lib/components/RackFrame.svelte
+index f3bddba0..f18c3dd2 100644
+--- a/src/lib/components/RackFrame.svelte
++++ b/src/lib/components/RackFrame.svelte
+@@ -96,6 +96,25 @@
+       rackPadding,
+     }),
+   );
++
++  // PROTOTYPE #3293: one path each for grid lines and rail holes.
++  const top0 = $derived(rackPadding + railWidth);
++  const gridPath = $derived(
++    Array.from(
++      { length: rackHeight + 1 },
++      (_, i) => `M${railWidth} ${i * uHeight + top0}H${rackWidth - railWidth}`,
++    ).join(""),
++  );
++  const holePath = $derived.by(() => {
++    const parts: string[] = [];
++    const xs = [railWidth - 4, rackWidth - railWidth + 1];
++    for (let i = 0; i < rackHeight; i++) {
++      const baseY = i * uHeight + top0 + 4;
++      for (const x of xs)
++        for (const dy of [-2, 5, 12]) parts.push(`M${x} ${baseY + dy}h3v4h-3z`);
++    }
++    return parts.join("");
++  });
+ </script>
+ 
+ <!-- Rack background (interior)
+@@ -176,75 +195,13 @@
+ {/each}
+ 
+ <!-- Horizontal grid lines (U dividers) -->
+-{#each Array(rackHeight + 1).fill(null) as _gridLine, i (i)}
+-  <line
+-    x1={railWidth}
+-    y1={i * uHeight + rackPadding + railWidth}
+-    x2={rackWidth - railWidth}
+-    y2={i * uHeight + rackPadding + railWidth}
+-    class="rack-grid-line"
+-  />
+-{/each}
++<path d={gridPath} class="rack-grid-line" />
+ 
+ <!-- Rail mounting holes (3 per U on each rail) - rendered first so labels appear on top -->
+-{#each Array(rackHeight).fill(null) as _hole, i (i)}
+-  {@const baseY = i * uHeight + rackPadding + railWidth + 4}
+-  {@const leftHoleX = railWidth - 4}
+-  {@const rightHoleX = rackWidth - railWidth + 1}
+-  <!-- Left rail holes (behind U labels) -->
+-  <rect
+-    x={leftHoleX}
+-    y={baseY - 2}
+-    width="3"
+-    height="4"
+-    rx="0.5"
+-    class="rack-hole"
+-  />
+-  <rect
+-    x={leftHoleX}
+-    y={baseY + 5}
+-    width="3"
+-    height="4"
+-    rx="0.5"
+-    class="rack-hole"
+-  />
+-  <rect
+-    x={leftHoleX}
+-    y={baseY + 12}
+-    width="3"
+-    height="4"
+-    rx="0.5"
+-    class="rack-hole"
+-  />
+-  <!-- Right rail holes -->
+-  <rect
+-    x={rightHoleX}
+-    y={baseY - 2}
+-    width="3"
+-    height="4"
+-    rx="0.5"
+-    class="rack-hole"
+-  />
+-  <rect
+-    x={rightHoleX}
+-    y={baseY + 5}
+-    width="3"
+-    height="4"
+-    rx="0.5"
+-    class="rack-hole"
+-  />
+-  <rect
+-    x={rightHoleX}
+-    y={baseY + 12}
+-    width="3"
+-    height="4"
+-    rx="0.5"
+-    class="rack-hole"
+-  />
+-{/each}
++<path d={holePath} class="rack-hole" />
+ 
+ <!-- U labels (always on left rail) - hidden when bayed rack view shows shared labels -->
+-{#if !hideULabels}
++{#if false && !hideULabels}
+   {#each uLabels as { uNumber, yPosition } (uNumber)}
+     <text
+       x={railWidth / 2}
