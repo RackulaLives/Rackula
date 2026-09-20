@@ -11,7 +11,9 @@
     PortClickInfo,
     RackView,
   } from "$lib/types";
-  import { getChildYInSlot, getSlotRects } from "$lib/utils/slot-geometry";
+  import { getChildYInSlot } from "$lib/utils/slot-geometry";
+  import { SvelteMap } from "svelte/reactivity";
+  import { slotLayout, type SlotBand } from "$lib/utils/slot-layout";
   import PortIndicators from "./PortIndicators.svelte";
   import ContainerSlots from "./ContainerSlots.svelte";
   import {
@@ -58,6 +60,8 @@
     selected: boolean;
     uHeight: number;
     rackWidth: number;
+    /** Nominal rack width in inches, to size gaps in millimetres */
+    nominalRackWidth: number;
     displayMode?: DisplayMode;
     rackView?: RackView;
     showLabelsOnImages?: boolean;
@@ -122,6 +126,7 @@
     selected,
     uHeight,
     rackWidth,
+    nominalRackWidth,
     displayMode = "label",
     rackView = "front",
     showLabelsOnImages = false,
@@ -350,10 +355,23 @@
   const deviceWidth = $derived(fullWidth);
   const slotXOffset = 0;
 
-  // Container helper: each slot's cell rectangle, placed by row and column
-  const slotGeometry = $derived(
-    getSlotRects(device.slots ?? [], deviceWidth, deviceHeight),
-  );
+  // Container helper: each slot's cell rectangle, from the shared layout so
+  // the drawn child, the drawn cell and the drop target agree about gaps.
+  const slotGeometry = $derived.by(() => {
+    const geometry = new SvelteMap<string, SlotBand>();
+    if (!device.slots?.length) return geometry;
+
+    for (const band of slotLayout(
+      device,
+      deviceWidth,
+      nominalRackWidth,
+      deviceHeight,
+    ).slots) {
+      geometry.set(band.id, band);
+    }
+
+    return geometry;
+  });
 
   // Helper to get child device type from library
   function getChildDeviceType(slug: string): DeviceType | undefined {
@@ -1009,7 +1027,9 @@
     {#if isContainer && (selected || isDragOverContainer)}
       <ContainerSlots
         containerType={device}
-        slotRects={slotGeometry}
+        containerWidth={deviceWidth}
+        {nominalRackWidth}
+        containerHeight={deviceHeight}
         selectedSlotId={null}
         dropTargetSlotId={isDragOverContainer ? dragTargetSlotId : null}
         isValidDropTarget={isDragTargetValid}

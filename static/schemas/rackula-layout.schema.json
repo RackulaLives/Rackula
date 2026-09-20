@@ -58,6 +58,9 @@
             "maxLength": 100,
             "type": "string"
           },
+          "auto_created": {
+            "type": "boolean"
+          },
           "category": {
             "enum": [
               "server",
@@ -401,6 +404,13 @@
           "serial_number": {
             "maxLength": 100,
             "type": "string"
+          },
+          "slot_gaps": {
+            "items": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "type": "array"
           },
           "slot_width": {
             "anyOf": [

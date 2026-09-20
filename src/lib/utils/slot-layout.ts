@@ -13,12 +13,11 @@
 
 import type { DeviceType } from "$lib/types";
 import { getRackOpeningMm } from "./device-width";
+import { getSlotRects, type SlotRect } from "./slot-geometry";
 
-/** A drawn cell: where it starts and how wide it is, in pixels. */
-export interface SlotBand {
+/** A drawn cell: where it sits and how big it is, in pixels. */
+export interface SlotBand extends SlotRect {
   id: string;
-  x: number;
-  width: number;
 }
 
 /** A drawn gap between cell `index` and cell `index + 1`. */
@@ -67,42 +66,55 @@ export function gapsFor(containerType: DeviceType): number[] {
 /**
  * Place every cell and gap across the container's interior.
  *
+ * Rows and columns come from getSlotRects, so a grid carrier keeps the rows
+ * the children and the drop targeting already use. Gaps then shift the cells
+ * of a single row along, which is the only shape they apply to.
+ *
  * @param containerType - The container DeviceType (with slots[])
  * @param interiorWidth - Drawn width of the container interior, in pixels
  * @param rackWidth - Nominal rack width in inches, to size gaps in millimetres
+ * @param containerHeight - Drawn height of the container, in pixels; only the
+ *   callers that draw need it, the drop targeting reads x and width alone
  * @returns Cell bands, gap bands, and any free space left at the end
  */
 export function slotLayout(
   containerType: DeviceType,
   interiorWidth: number,
   rackWidth: number,
+  containerHeight = 0,
 ): SlotLayout {
   const slots = containerType.slots ?? [];
+  const rects = getSlotRects(slots, interiorWidth, containerHeight);
   const gapsMm = gapsFor(containerType);
   const openingMm = getRackOpeningMm(rackWidth);
   const pxPerMm = openingMm > 0 ? interiorWidth / openingMm : 0;
 
   const bands: SlotBand[] = [];
   const gapBands: GapBand[] = [];
-  let x = 0;
+  let shift = 0;
 
   slots.forEach((slot, index) => {
+    const rect = rects.get(slot.id);
+    if (!rect) return;
+
     const gapMm = index > 0 ? (gapsMm[index - 1] ?? 0) : 0;
     if (gapMm > 0) {
       const width = gapMm * pxPerMm;
-      gapBands.push({ index: index - 1, x, width, mm: gapMm });
-      x += width;
+      gapBands.push({ index: index - 1, x: rect.x + shift, width, mm: gapMm });
+      shift += width;
     }
-    const width = interiorWidth * (slot.width_fraction ?? 1.0);
-    bands.push({ id: slot.id, x, width });
-    x += width;
+    bands.push({ ...rect, id: slot.id, x: rect.x + shift });
   });
 
-  const leftover = interiorWidth - x;
+  const last = bands[bands.length - 1];
+  const used = last ? last.x + last.width : 0;
+  const leftover = interiorWidth - used;
+  const hasFree =
+    isSingleRow(containerType) && leftover > FREE_SPACE_EPSILON_PX;
   return {
     slots: bands,
     gaps: gapBands,
-    free: leftover > FREE_SPACE_EPSILON_PX ? { x, width: leftover } : null,
+    free: hasFree ? { x: used, width: leftover } : null,
   };
 }
 

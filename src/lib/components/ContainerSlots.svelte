@@ -10,13 +10,17 @@
 -->
 <script lang="ts">
   import type { DeviceType } from "$lib/types";
-  import type { SlotRect } from "$lib/utils/slot-geometry";
+  import { slotLayout } from "$lib/utils/slot-layout";
 
   interface Props {
     /** The container device type with slots array */
     containerType: DeviceType;
-    /** Cell rectangles by slot id, the same ones the children render in */
-    slotRects: Map<string, SlotRect>;
+    /** Width of the container in pixels */
+    containerWidth: number;
+    /** Nominal rack width in inches, to size gaps in millimetres */
+    nominalRackWidth: number;
+    /** Height of the container in pixels */
+    containerHeight: number;
     /** ID of the currently selected slot (null if none) */
     selectedSlotId: string | null;
     /** ID of the slot that is currently a drop target (null if none) */
@@ -29,7 +33,9 @@
 
   let {
     containerType,
-    slotRects,
+    containerWidth,
+    nominalRackWidth,
+    containerHeight,
     selectedSlotId,
     dropTargetSlotId = null,
     isValidDropTarget = false,
@@ -48,6 +54,20 @@
         containerType.category === "chassis" ||
         (containerType.slots?.length ?? 0) > 2), // Many slots suggests blade chassis
   );
+
+  // Cells, gaps and any free space at the end of the row, from the shared
+  // layout so this grid, the drawn children and the drop target agree.
+  const layout = $derived(
+    slotLayout(
+      containerType,
+      containerWidth,
+      nominalRackWidth,
+      containerHeight,
+    ),
+  );
+
+  // Cell rectangles by slot id, the same ones the children render in.
+  const cells = $derived(new Map(layout.slots.map((band) => [band.id, band])));
 
   /**
    * Build CSS class string for a slot based on its state.
@@ -97,7 +117,7 @@
   class:chassis-style={isChassis}
 >
   {#each slots as slot (slot.id)}
-    {@const geometry = slotRects.get(slot.id)!}
+    {@const geometry = cells.get(slot.id)!}
     {@const slotClass = getSlotClass(slot.id)}
     {@const insetPadding = 2}
     <rect

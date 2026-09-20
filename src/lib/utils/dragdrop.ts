@@ -12,6 +12,7 @@ import {
 import { RAIL_WIDTH } from "$lib/constants/layout";
 import { toInternalUnits, toHumanUnits } from "./position";
 import { effectiveFace } from "./effective-face";
+import { slotLayout } from "./slot-layout";
 
 /**
  * Shared drag state - workaround for browser security restriction
@@ -227,13 +228,28 @@ export function hideNativeDragGhost(dataTransfer: DataTransfer): void {
  * @param slots - Array of slots in the container
  * @param xOffsetInRack - X position relative to rack interior (0 = left edge)
  * @param interiorWidth - Width of rack interior in pixels
+ * @param containerType - The container, when its gaps should be honoured
+ * @param rackWidth - Nominal rack width in inches, required with containerType
  * @returns The matched column index, or null if outside the grid
  */
 export function colAtX(
   slots: Slot[],
   xOffsetInRack: number,
   interiorWidth: number,
+  containerType?: DeviceType,
+  rackWidth?: number,
 ): number | null {
+  // With the container in hand, walk the real drawn bands so a point landing
+  // in a gap or in the free space at the end of the row claims no column.
+  if (containerType && rackWidth !== undefined) {
+    const layout = slotLayout(containerType, interiorWidth, rackWidth);
+    const hit = layout.slots.find(
+      (band) => xOffsetInRack >= band.x && xOffsetInRack < band.x + band.width,
+    );
+    if (!hit) return null;
+    return slots.find((s) => s.id === hit.id)?.position.col ?? null;
+  }
+
   // Columns share their width_fraction within a row; use the bottom row (the
   // first occurrence of each col) to walk the column boundaries left to right.
   const cols = [...new Set(slots.map((s) => s.position.col))].sort(
@@ -364,7 +380,13 @@ export function detectContainerDropTarget(
     if (targetU < containerBottomU || targetU > containerTopU) continue;
 
     const interiorWidth = rackWidth - RAIL_WIDTH * 2;
-    const col = colAtX(slots, xOffsetInRack, interiorWidth);
+    const col = colAtX(
+      slots,
+      xOffsetInRack,
+      interiorWidth,
+      containerType,
+      rack.width,
+    );
     const row = rowAtY(
       slots,
       mouseY,
@@ -495,7 +517,13 @@ export function detectContainerHover(
 
     // Found a container at this position - resolve the cell under the cursor.
     const interiorWidth = rackWidth - RAIL_WIDTH * 2;
-    const col = colAtX(slots, xOffsetInRack, interiorWidth);
+    const col = colAtX(
+      slots,
+      xOffsetInRack,
+      interiorWidth,
+      deviceType,
+      rack.width,
+    );
     const row = rowAtY(
       slots,
       mouseY,

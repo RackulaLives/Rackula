@@ -14,6 +14,7 @@ import {
   fitsInRow,
 } from "$lib/utils/slot-layout";
 import { getRackOpeningMm } from "$lib/utils/device-width";
+import { colAtX } from "$lib/utils/dragdrop";
 import type { DeviceType } from "$lib/types";
 
 const INTERIOR = 186;
@@ -118,5 +119,29 @@ describe("row budget", () => {
 
     expect(fitsInRow(c, RACK_19, 0)).toBe(true);
     expect(fitsInRow(c, RACK_19, 10)).toBe(false);
+  });
+});
+
+describe("colAtX with gaps", () => {
+  it("returns no column for a point inside a gap", () => {
+    const c = carrier({
+      slots: [
+        { id: "col-1", position: { row: 0, col: 0 }, width_fraction: 0.25 },
+        { id: "col-2", position: { row: 0, col: 1 }, width_fraction: 0.25 },
+      ],
+      slot_gaps: [20],
+    });
+    const firstCellWidth = INTERIOR * 0.25;
+
+    expect(colAtX(c.slots!, firstCellWidth / 2, INTERIOR, c, RACK_19)).toBe(0);
+    expect(
+      colAtX(c.slots!, firstCellWidth + 1, INTERIOR, c, RACK_19),
+    ).toBeNull();
+  });
+
+  it("keeps the gapless answer when no container is passed", () => {
+    const c = carrier();
+
+    expect(colAtX(c.slots!, INTERIOR * 0.75, INTERIOR)).toBe(1);
   });
 });
