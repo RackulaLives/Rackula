@@ -215,6 +215,45 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  # Build and run the self-host Docker images on amd64 and arm64 (#3351), so a
+  # change that breaks deploy/Dockerfile or api/Dockerfile fails here instead of
+  # at release staging. Nothing is pushed; the token is read-only.
+  docker-build:
+    name: docker build
+    needs: changes
+    # Fail closed like validate: skip only on a confirmed docs-only PR.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/docker-images.yml
+    with:
+      publish: false
+
+  # The required check for the image build. A reusable-workflow job skipped by
+  # its `if` reports only its own name, never the nested build legs, so the legs
+  # cannot be required directly. This job always reports one stable result.
+  docker-images:
+    name: docker images
+    needs: [changes, docker-build]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          CODE: ${{ needs.changes.outputs.code }}
+          RESULT: ${{ needs.docker-build.result }}
+        run: |
+          echo "changes.code=${CODE:-<unset>} docker-build=${RESULT}"
+          if [ "$RESULT" = "success" ]; then
+            exit 0
+          fi
+          if [ "$RESULT" = "skipped" ] && [ "$CODE" = "false" ]; then
+            echo "Docs-only PR; image build skipped."
+            exit 0
+          fi
+          echo "::error::Self-host image build did not pass (${RESULT})."
+          exit 1
+
   # Tier 2/3 of the two-tier E2E model (spike #1994). The full browser suite
   # runs on the self-hosted e2e runner only after the baseline smoke passes.
   # Org PRs use the e2e-trusted environment (auto-runs); fork PRs use

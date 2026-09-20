@@ -26,9 +26,11 @@ The install script (`install/rackula-install.sh`) can be tested against a new ve
 # On your Proxmox host, run the install with a custom script URL pointing at your fork.
 # The CT fetches rackula-install.sh from the URL you provide, then pulls the latest
 # release tarball from GitHub.
-COMMUNITY_SCRIPTS_URL=https://raw.githubusercontent.com/<your-fork>/ProxmoxVED/<branch> \
-  bash -c "$(curl -fsSL https://raw.githubusercontent.com/<your-fork>/ProxmoxVED/<branch>/ct/rackula.sh)"
+COMMUNITY_SCRIPTS_URL=https://raw.githubusercontent.com/<your-fork>/ProxmoxVE/<branch> \
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/<your-fork>/ProxmoxVE/<branch>/ct/rackula.sh)"
 ```
+
+Fork `community-scripts/ProxmoxVE`, not ProxmoxVED. Rackula was promoted to ProxmoxVE, and ProxmoxVED has since dropped `misc/`, so `ProxmoxVED/<branch>/misc/build.func` and `misc/install.func` 404 and the run fails before it reaches the install script.
 
 This is sufficient for changes to script structure, dependency installs, and nginx/systemd wiring.
 
