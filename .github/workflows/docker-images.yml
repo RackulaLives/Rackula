@@ -222,7 +222,16 @@ jobs:
           if image_json="$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{json .Image}}' 2>"$RUNNER_TEMP/inspect.err")"; then
             # .Image is one config for a single-arch tag and a per-platform map
             # for a multi-arch one, so search it for the revision label.
-            published="$(jq -r '[.. | objects | .Labels? // empty | .["org.opencontainers.image.revision"] // empty] | first // empty' <<< "$image_json")"
+            # Every platform config of a tag we published carries the same
+            # revision, so more than one distinct value means the tag was
+            # assembled from mixed commits and its age is not a single answer.
+            revisions="$(jq -r '[.. | objects | .Labels? // empty | .["org.opencontainers.image.revision"] // empty] | unique | .[]' <<< "$image_json")"
+            count="$(grep -c . <<< "$revisions" || true)"
+            if [ "$count" -ne 1 ]; then
+              echo "::error::${IMAGE_TAG} carries ${count} distinct revision labels, expected exactly one, so its age is unknown."
+              exit 1
+            fi
+            published="$revisions"
             if ! [[ "$published" =~ ^[0-9a-f]{40}$ ]]; then
               echo "::error::${IMAGE_TAG} has no usable revision label, so its age is unknown."
               exit 1
