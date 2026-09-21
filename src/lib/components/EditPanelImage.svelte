@@ -49,6 +49,15 @@
   // the dialog title does not change during its exit transition.
   let cropFile = $state<File | null>(null);
   let cropFace = $state<"front" | "rear">("front");
+  // Where a confirmed crop is written, pinned when the file is chosen: the
+  // selection and the active layout can both change while the dialog is open,
+  // and the image belongs to the device it was chosen for.
+  let cropTarget: {
+    slug: string;
+    key: string;
+    rackId: string;
+    deviceIndex: number;
+  } | null = null;
 
   // Current placement overrides (if any)
   const placementFrontImage = $derived(
@@ -106,6 +115,12 @@
     }
 
     cropFace = face;
+    cropTarget = {
+      slug: selectedDeviceInfo.device.slug,
+      key: placementKey(layoutId, selectedDeviceInfo.placedDevice.id),
+      rackId: selectedDeviceInfo.rack.id,
+      deviceIndex: selectedDeviceInfo.deviceIndex,
+    };
     cropFile = file;
 
     // Reset so the same file can be selected again
@@ -114,18 +129,15 @@
 
   async function handleCropConfirm(cropped: File) {
     const face = cropFace;
-    // Read the file asynchronously, so pin the target first: the user can
-    // select another device while it is read, and the image belongs to the
-    // device that was being edited when the crop was confirmed.
-    const { device, placedDevice, rack, deviceIndex } = selectedDeviceInfo;
-    const key = placementKey(layoutId, placedDevice.id);
+    const target = cropTarget;
     cropFile = null;
+    if (!target) return;
     try {
-      const data = await fileToImageData(cropped, device.slug, face);
-      imageStore.setDeviceImage(key, face, data);
+      const data = await fileToImageData(cropped, target.slug, face);
+      imageStore.setDeviceImage(target.key, face, data);
       layoutStore.updateDevicePlacementImage(
-        rack.id,
-        deviceIndex,
+        target.rackId,
+        target.deviceIndex,
         face,
         data.filename,
       );

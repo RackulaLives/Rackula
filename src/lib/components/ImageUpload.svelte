@@ -105,6 +105,10 @@
   }
 
   async function handleCropConfirm(cropped: File) {
+    // A failed conversion leaves its alert on screen; the Crop button reopens
+    // the dialog without passing through handleFileChange, so clear it here or
+    // a successful re-crop still reads as failed.
+    error = null;
     const source = cropFile;
     const framedAspect = aspect;
     cropFile = null;
