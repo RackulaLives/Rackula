@@ -106,12 +106,14 @@ describe("resolveDropTarget / resolveDropAction agree for a full-depth device ov
     is_full_depth: false,
   });
 
-  // These dims/coords resolve to targetU 3 (mirrors chassis-child-placement.test.ts).
-  function rackWithRearNeighbourAtU3() {
+  // The mocked SVG y of 200 resolves to targetU 4: the U grid starts at
+  // rackPadding + railWidth, so (200 - 0 - 17) / 22 is 8 rows down from the
+  // top of a 12U rack. The neighbour sits at that U so the drop meets it.
+  function rackWithRearNeighbourAtU4() {
     return createTestRack({
       height: 12,
       devices: [
-        createTestDevice({ device_type: "shallow", position: 3, face: "rear" }),
+        createTestDevice({ device_type: "shallow", position: 4, face: "rear" }),
       ],
     });
   }
@@ -120,7 +122,7 @@ describe("resolveDropTarget / resolveDropAction agree for a full-depth device ov
     const result = resolveDropTarget(
       coords,
       dims,
-      rackWithRearNeighbourAtU3(),
+      rackWithRearNeighbourAtU4(),
       [fullDepth, halfDepthRearNeighbour],
       fullDepth,
       "front",
@@ -134,7 +136,7 @@ describe("resolveDropTarget / resolveDropAction agree for a full-depth device ov
     const action = resolveDropAction(
       coords,
       dims,
-      rackWithRearNeighbourAtU3(),
+      rackWithRearNeighbourAtU4(),
       [fullDepth, halfDepthRearNeighbour],
       { type: "palette", device: fullDepth },
       "front",
