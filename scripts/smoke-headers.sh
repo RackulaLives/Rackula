@@ -190,12 +190,22 @@ fi
 #
 # X-Robots-Tag is compared the same way, against the chosen surface: prod must
 # never emit noindex, and dev always must.
+#
+# Except on *.workers.dev: Cloudflare adds X-Robots-Tag: noindex to every
+# response there, whatever _headers says. The v26.9.0 preview URL started
+# returning it between 2026-09-14 and 2026-09-21, while count.racku.la serving
+# the same build did not (#3392). On those hosts the header describes the
+# platform, not this build, so it is left out of the comparison.
 SECURITY_HEADERS='^(content-security-policy|x-frame-options|x-content-type-options|referrer-policy|permissions-policy|strict-transport-security|x-robots-tag):'
+IGNORED_HEADERS='^$'
+case "$BASE_URL" in
+  *://*.workers.dev) IGNORED_HEADERS='^x-robots-tag:' ;;
+esac
 expected="$(node "$SCRIPT_DIR/gen-headers.mjs" "$SURFACE" \
   | sed -n '/^\/\*/,/^$/p' | sed -n 's/^  //p' \
-  | tr 'A-Z' 'a-z' | grep -E "$SECURITY_HEADERS" | sort)"
+  | tr 'A-Z' 'a-z' | grep -E "$SECURITY_HEADERS" | grep -vE "$IGNORED_HEADERS" | sort)"
 actual="$(headers_of "$BASE_URL/" | tr 'A-Z' 'a-z' \
-  | grep -E "$SECURITY_HEADERS" | sort)"
+  | grep -E "$SECURITY_HEADERS" | grep -vE "$IGNORED_HEADERS" | sort)"
 if [ "$expected" = "$actual" ]; then
   pass "security headers match scripts/gen-headers.mjs by value"
 else
