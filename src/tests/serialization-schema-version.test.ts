@@ -190,6 +190,15 @@ describe("schemaVersionForWrite", () => {
     expect(schemaVersionForWrite(`${major! + 1}.0`, [])).toBe(SCHEMA_VERSION);
   });
 
+  it("keeps a padded stamp the read gate accepts, normalised", () => {
+    const newer = newerMinorStamp();
+
+    // assertSchemaVersionSupported trims before it judges a stamp, so a padded
+    // one loads. Restamping it down would misdescribe a body that still
+    // carries that format's additions.
+    expect(schemaVersionForWrite(` ${newer} `, [])).toBe(newer);
+  });
+
   it("keeps a stamp newer than the measured-width format it can read", () => {
     const [major, minor] = MEASURED_WIDTH_SCHEMA_VERSION.split(".").map(Number);
     const newer = `${major}.${minor! + 1}`;

@@ -144,6 +144,11 @@ function knownVersionForMajor(major: number): string | undefined {
  * metadata, can carry it. Restamping instead of throwing keeps the layout
  * saveable.
  *
+ * The stamp is trimmed first, as the read gate trims before judging it: a
+ * padded stamp loads, so reading it untrimmed here would call it malformed and
+ * restamp a newer format down while the body still carries its additions. The
+ * trimmed form is what a kept stamp is written back as.
+ *
  * @param current - The layout's metadata.schema_version, if any.
  * @param deviceTypes - The layout's device types, checked for width_mm.
  */
@@ -154,14 +159,15 @@ export function schemaVersionForWrite(
   const base = deviceTypes.some((dt) => dt.width_mm !== undefined)
     ? MEASURED_WIDTH_SCHEMA_VERSION
     : SCHEMA_VERSION;
-  if (current === undefined || !SCHEMA_VERSION_PATTERN.test(current)) {
+  const stamp = current?.trim();
+  if (stamp === undefined || !SCHEMA_VERSION_PATTERN.test(stamp)) {
     return base;
   }
-  const known = knownVersionForMajor(majorOf(current));
+  const known = knownVersionForMajor(majorOf(stamp));
   return known !== undefined &&
-    compareVersions(current, known) > 0 &&
-    compareVersions(current, base) >= 0
-    ? current
+    compareVersions(stamp, known) > 0 &&
+    compareVersions(stamp, base) >= 0
+    ? stamp
     : base;
 }
 
