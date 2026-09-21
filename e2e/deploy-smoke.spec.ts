@@ -106,10 +106,12 @@ test.describe("Post-deploy smoke", () => {
     // not assumed. Only a fetch issued by the page itself reuses the browser's
     // network stack, fingerprint and clearance cookie together.
     await page.goto("/");
-    const result = await page.evaluate(async () => {
-      const r = await fetch("/version.json", { cache: "no-store" });
-      return { ok: r.ok, status: r.status, text: await r.text() };
-    });
+    const readVersionJson = () =>
+      page.evaluate(async () => {
+        const r = await fetch("/version.json", { cache: "no-store" });
+        return { ok: r.ok, status: r.status, text: await r.text() };
+      });
+    const result = await readVersionJson();
     expect(result.ok, `GET /version.json returned ${result.status}`).toBe(true);
 
     const body = JSON.parse(result.text) as {
@@ -135,13 +137,26 @@ test.describe("Post-deploy smoke", () => {
     // failed to promote would still pass. The commit is the real discriminator:
     // a re-deploy of the same tag shares its version but not its commit.
     // Absent for the scheduled soak, which has no expectation to compare to.
+    //
+    // Polled rather than asserted once: `wrangler versions deploy` returns
+    // before every colo has switched, and d.racku.la has been seen serving the
+    // previous version 12 seconds after it (#3393). A build that never arrives
+    // still fails when the poll runs out, inside the 60s test timeout.
     const expectedVersion = process.env.EXPECT_VERSION;
-    if (expectedVersion) {
-      expect(body.version).toBe(expectedVersion);
-    }
     const expectedCommit = process.env.EXPECT_COMMIT;
-    if (expectedCommit) {
-      expect(body.commit).toBe(expectedCommit);
+    if (expectedVersion || expectedCommit) {
+      await expect(async () => {
+        const served = JSON.parse((await readVersionJson()).text) as {
+          version?: unknown;
+          commit?: unknown;
+        };
+        if (expectedVersion) {
+          expect(served.version).toBe(expectedVersion);
+        }
+        if (expectedCommit) {
+          expect(served.commit).toBe(expectedCommit);
+        }
+      }).toPass({ timeout: 45_000, intervals: [2_000, 3_000, 5_000] });
     }
   });
 
