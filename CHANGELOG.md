@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [26.9.1] - 2026-09-20
+
+### IT SAID SAVED BECAUSE IT WAS BEING POLITE
+
+When your browser ran out of room, Rackula said Saved and kept nothing. That is not lying. That is manners. You don't tell a guest their layout didn't fit. Apparently this is called 'data loss' and it's 'bad', so now it tells you the truth, which I still think is rude.
+
+### This release
+
+Carriers are complete: their devices can be selected, dragged, duplicated and moved with the arrow keys, and they round-trip to NetBox as device bays. Drag and drop lands on the U under the cursor, a browser that refuses a save now says so instead of reporting Saved, and phones get rack reorder and bay back.
+
+### Added
+
+- Export a device type to NetBox devicetype-library YAML from the command palette. Carriers export as a parent type with one device bay per slot (#2296, #1209, PR #3343)
+- The NetBox importer reads a parent type with device bays as a carrier, and imports a 0U child type as 1U with a warning instead of rejecting it (#2296, PR #3343)
+- Layouts with an interface or port type this release does not recognise load, show it as a generic port, and save it back unchanged, instead of failing to load (#3289, PR #3337)
+- The View YAML panel links to the YAML schema validation guide (#2421, PR #3332)
+- The first time a placement or move adds a carrier automatically, a toast explains that the device mounts in a carrier, not on the rails (#2165, PR #3346)
+
+### Changed
+
+- Carrier behaviour: removing a carrier names the devices removed with it in the undo toast, duplicating a carrier copies its devices, duplicating a device in a carrier places the copy in the next free cell, arrow keys move a device between cells of its carrier, and an empty auto-created carrier is removed with its last device (#2295, PR #3339)
+- Dragging a placed device into or out of a carrier keeps its identity, ports, connections and details, including between racks (#2295, PR #3339)
+
+### Fixed
+
+- Drag and drop lands a device on the U under the cursor, not one U below it (#3348, PR #3387)
+- When browser storage refuses a save, the status reports storage full or storage blocked instead of Saved, and a layout that was never stored no longer reopens as an empty canvas under its name (#3375, PR #3383)
+- Switching a deployment from browser to server storage restores the active browser layout and offers to upload it, instead of opening an empty canvas (#3381, PR #3384)
+- Phones can move a rack left or right and bay it from the rack sheet again (#2833, PR #3390)
+- Devices inside carriers can be selected and dragged on the canvas (#3340, PR #3347)
+- Two-row carriers draw their top-row devices inside the carrier (#3341, PR #3360)
+- An empty rack shows one wrapped hint instead of overlapping text on its front and rear faces (#3330, PR #3333)
+- The NetBox importer reads devicetype-library component lists with hyphenated keys, so power ports, power outlets, console ports, device bays and inventory items are no longer dropped (#3327, PR #3334)
+- NetBox importer warnings are shown in the import dialog (#3335, PR #3338)
+
+### Technical
+
+- d.racku.la runs on the `rackula-dev` Cloudflare Worker with layouts in R2, after being offline since August, and the Vultr VPS is decommissioned (#2134, PR #3353; #1986, PR #3359)
+- Pull requests build and smoke-test the self-host Docker images on amd64 and arm64 again, and `rackula:main` and `rackula-api:main` resume as unreleased multi-arch edge images (#3351, PR #3361)
+- The LXC smoke test asserts the storage mode in `config.js`, and stale ProxmoxVED references are retired (PR #3385)
+- better-auth is held at 1.6.x until OIDC login is migrated (PR #3324)
+- An upgrade-corpus fixture covers a layout with an unknown interface type (PR #3337)
+- Research findings for layouts of about 100 racks (#3293, PR #3379)
+- Category icon maps are typed for @lucide/svelte 1.46 (PR #3345)
+- Dependency updates across zod, @lucide/svelte, bits-ui, dompurify, marked, simple-icons, svg2pdf.js, hono, jose, wrangler, better-auth, @node-rs/argon2, vitest, happy-dom, GitHub Actions, and the development dependency group (19 PRs, PR #3300 through PR #3358)
+
 ## [26.9.0] - 2026-09-13
 
 ### I DID A LOT, ACTUALLY

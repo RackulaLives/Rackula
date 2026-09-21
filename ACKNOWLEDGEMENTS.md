@@ -96,6 +96,10 @@ To add yourself to this list, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Contributors who made merged pull requests in each release. For the full contributors table, see above.
 
+### v26.9.1
+
+- @p-paul: fix: land a drop on the U under the cursor (#3387, #3345)
+
 ### v26.9.0
 
 - No external contributors in this release
