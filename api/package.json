@@ -1,6 +1,6 @@
 {
   "name": "@rackula/api",
-  "version": "26.9.0",
+  "version": "26.9.1",
   "private": true,
   "type": "module",
   "engines": {
