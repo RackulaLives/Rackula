@@ -146,7 +146,12 @@ test.describe("Post-deploy smoke", () => {
     const expectedCommit = process.env.EXPECT_COMMIT;
     if (expectedVersion || expectedCommit) {
       await expect(async () => {
-        const served = JSON.parse((await readVersionJson()).text) as {
+        const response = await readVersionJson();
+        expect(
+          response.ok,
+          `GET /version.json returned ${response.status}`,
+        ).toBe(true);
+        const served = JSON.parse(response.text) as {
           version?: unknown;
           commit?: unknown;
         };
