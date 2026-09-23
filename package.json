@@ -81,7 +81,7 @@
     ]
   },
   "dependencies": {
-    "@lucide/svelte": "^1.46.0",
+    "@lucide/svelte": "^1.47.0",
     "bits-ui": "^2.19.2",
     "browser-fs-access": "^0.38.0",
     "debug": "^4.4.3",
@@ -96,7 +96,7 @@
     "pako": "^3.0.2",
     "panzoom": "^9.4.4",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.31.0",
+    "simple-icons": "^16.32.0",
     "svg2pdf.js": "^2.8.1",
     "zod": "^4.6.5"
   }
