@@ -14,9 +14,9 @@
     cropImageToFile,
     fitFrame,
     getCoverScale,
-    getCropRect,
     getCropUnitHeight,
     getDeviceImageAspect,
+    getFitScale,
     getVisibleFraction,
     panView,
     wheelDeltaPixels,
@@ -118,6 +118,12 @@
   );
   const frameLeft = $derived((stageWidth - frame.width) / 2);
   const frameTop = $derived((STAGE_HEIGHT - frame.height) / 2);
+
+  // Lowest zoom, where the whole image fits the frame. Below 1 when the image
+  // and frame differ in shape: the uncovered bands are exported transparent.
+  const fitZoom = $derived(
+    natural ? getFitScale(natural, frame) / getCoverScale(natural, frame) : 1,
+  );
 
   const view = $derived.by<CropView | null>(() => {
     if (!natural) return null;
@@ -303,14 +309,22 @@
     event.preventDefault();
   }
 
+  // Keep the whole image rather than cropping it: fit it in the frame and apply.
+  function useFullImage() {
+    if (!natural) return;
+    zoom = fitZoom;
+    centreX = natural.width / 2;
+    centreY = natural.height / 2;
+    void handleApply();
+  }
+
   async function handleApply() {
     if (!file || !imageEl || !natural || !view) return;
     const started = session;
     applying = true;
     loadError = null;
     try {
-      const crop = getCropRect(view, natural, frame);
-      const cropped = await cropImageToFile(imageEl, crop, aspect, file);
+      const cropped = await cropImageToFile(imageEl, view, frame, file);
       if (started !== session || !file) return;
       const validation = validateImageFile(cropped);
       if (!validation.valid) {
@@ -335,7 +349,8 @@
 >
   <div class="crop">
     <p class="crop-hint">
-      Drag to move the image. Scroll, pinch, or use the slider to zoom. The
+      Drag to move the image. Scroll, pinch, or use the slider to zoom. Zoom out
+      to fit the whole image, and any space around it stays transparent. The
       frame matches {frameDescription}.
       {#each guides as guide (guide.width)}
         The dashed box shows the part visible in a {guide.width} inch rack.
@@ -393,7 +408,7 @@
         type="button"
         class="zoom-step"
         aria-label="Zoom out"
-        disabled={!natural || zoom <= 1}
+        disabled={!natural || zoom <= fitZoom}
         onclick={() => zoomAtCentre(zoom / KEY_ZOOM_FACTOR)}>-</button
       >
       <input
@@ -401,7 +416,7 @@
         class="zoom-slider"
         aria-label="Zoom"
         aria-valuetext="{zoom.toFixed(1)} times"
-        min="1"
+        min={fitZoom}
         max={MAX_CROP_ZOOM}
         step="0.01"
         value={zoom}
@@ -425,6 +440,14 @@
     <div class="crop-actions">
       <Button variant="secondary" disabled={!natural} onclick={resetView}>
         Reset
+      </Button>
+      <Button
+        variant="secondary"
+        data-testid="btn-use-full-image"
+        disabled={!natural || applying}
+        onclick={useFullImage}
+      >
+        Use full image
       </Button>
       <span class="crop-actions-spacer"></span>
       <Button variant="secondary" onclick={() => oncancel?.()}>Cancel</Button>

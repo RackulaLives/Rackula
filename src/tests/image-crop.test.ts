@@ -1,18 +1,18 @@
 /**
  * Tests for the device image cropper geometry
  *
- * Covers the crop frame aspect (U height by rack width), cover clamping while
- * panning and zooming, anchored zoom, and mapping the view back to a source
- * rectangle in natural image pixels.
+ * Covers the crop frame aspect (U height by rack width), clamping while panning
+ * and zooming out as far as the whole image fitting the frame, anchored zoom,
+ * and the size and type of the exported crop.
  */
 import { describe, it, expect } from "vitest";
 import {
   clampView,
   fitFrame,
-  getCoverScale,
   getCropOutputSize,
-  getCropRect,
+  getCropOutputType,
   getDeviceImageAspect,
+  getFitScale,
   getVisibleFraction,
   MAX_CROP_OUTPUT_EDGE,
   MAX_CROP_ZOOM,
@@ -71,10 +71,26 @@ describe("fitFrame", () => {
   });
 });
 
+describe("getFitScale", () => {
+  it("fits the whole image inside the frame", () => {
+    const scale = getFitScale(image, frame);
+    expect(image.width * scale).toBeLessThanOrEqual(frame.width);
+    expect(image.height * scale).toBe(frame.height);
+  });
+});
+
 describe("clampView", () => {
-  it("never zooms out past the cover scale", () => {
+  it("zooms out no further than the whole image fitting the frame", () => {
     const view = clampView({ x: 0, y: 0, scale: 0.01 }, image, frame);
-    expect(view.scale).toBe(getCoverScale(image, frame));
+    expect(view.scale).toBe(getFitScale(image, frame));
+  });
+
+  it("centres the image on an axis where it is smaller than the frame", () => {
+    // At 0.1 the image is 200 wide in a 400 wide frame, so it sits centred
+    // with a band either side, and cannot be dragged off centre.
+    const view = clampView({ x: -50, y: 0, scale: 0.1 }, image, frame);
+    expect(view.x).toBe(100);
+    expect(view.y).toBe(0);
   });
 
   it("caps zoom at the maximum", () => {
@@ -124,35 +140,48 @@ describe("zoomView", () => {
   });
 });
 
-describe("getCropRect", () => {
-  it("maps the view to natural pixels with the frame aspect", () => {
-    const crop = getCropRect({ x: -200, y: -100, scale: 0.5 }, image, frame);
-    expect(crop).toEqual({ x: 400, y: 200, width: 800, height: 200 });
-    expect(crop.width / crop.height).toBe(frame.width / frame.height);
-  });
-
-  it("stays inside the image", () => {
-    const view = clampView({ x: -1e6, y: -1e6, scale: 1 }, image, frame);
-    const crop = getCropRect(view, image, frame);
-    expect(crop.x + crop.width).toBeLessThanOrEqual(image.width);
-    expect(crop.y + crop.height).toBeLessThanOrEqual(image.height);
-  });
-});
-
 describe("getCropOutputSize", () => {
   it("keeps natural resolution for small crops", () => {
-    expect(
-      getCropOutputSize({ x: 0, y: 0, width: 800, height: 200 }, 4),
-    ).toEqual({ width: 800, height: 200 });
+    expect(getCropOutputSize({ x: -200, y: -100, scale: 0.5 }, frame)).toEqual({
+      width: 800,
+      height: 200,
+    });
   });
 
   it("limits the longest edge for large crops", () => {
-    const size = getCropOutputSize(
-      { x: 0, y: 0, width: 6000, height: 1500 },
-      4,
-    );
+    const size = getCropOutputSize({ x: 0, y: 0, scale: 400 / 6000 }, frame);
     expect(size.width).toBe(MAX_CROP_OUTPUT_EDGE);
     expect(size.height).toBe(MAX_CROP_OUTPUT_EDGE / 4);
+  });
+
+  it("keeps the image's resolution when the whole image is letterboxed", () => {
+    // A 2:1 image fitted into a 4:1 frame: the output spans the frame, so it
+    // is wider than the image, with bands either side at full resolution.
+    const small = { width: 800, height: 400 };
+    const view = clampView({ x: 0, y: 0, scale: 0 }, small, frame);
+    const size = getCropOutputSize(view, frame);
+    expect(size.height).toBe(small.height);
+    expect(size.width / size.height).toBe(frame.width / frame.height);
+  });
+});
+
+describe("getCropOutputType", () => {
+  const fitted = clampView({ x: 0, y: 0, scale: 0 }, image, frame);
+  const covering = clampView({ x: 0, y: 0, scale: 0.2 }, image, frame);
+
+  it("saves a JPEG with transparent bands as PNG", () => {
+    expect(getCropOutputType(fitted, image, frame, "image/jpeg")).toBe(
+      "image/png",
+    );
+  });
+
+  it("keeps the source type when it can hold the bands or has none", () => {
+    expect(getCropOutputType(covering, image, frame, "image/jpeg")).toBe(
+      "image/jpeg",
+    );
+    expect(getCropOutputType(fitted, image, frame, "image/webp")).toBe(
+      "image/webp",
+    );
   });
 });
 

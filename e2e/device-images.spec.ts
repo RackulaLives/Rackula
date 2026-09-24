@@ -1,5 +1,6 @@
 import { test, expect } from "./helpers/base-test";
 import fs from "fs";
+import sharp from "sharp";
 import {
   gotoWithRack,
   locators,
@@ -68,6 +69,43 @@ test.describe("Device Images", () => {
         .getByTestId("device-palette-item")
         .filter({ hasText: "Server with Image" }),
     ).toBeVisible();
+  });
+
+  test("Use full image keeps the whole photo instead of cropping it", async ({
+    page,
+  }) => {
+    await page.click('[data-testid="btn-create-custom-device"]');
+    const dialog = page.locator(locators.dialog.root);
+    await page.fill("#device-name", "Mini PC");
+
+    // A JPEG shaped like a mini PC front, a different shape from the frame
+    const buffer = await sharp({
+      create: { width: 560, height: 100, channels: 3, background: "#808080" },
+    })
+      .jpeg()
+      .toBuffer();
+    await dialog
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles({ name: "mini-pc.jpg", mimeType: "image/jpeg", buffer });
+
+    const cropDialog = page.getByTestId("image-crop-dialog");
+    await cropDialog.getByTestId("btn-use-full-image").click();
+    await expect(cropDialog).toBeHidden();
+
+    // The whole photo is kept at its resolution: one side matches it and the
+    // other grows with transparent bands to the frame shape, so the JPEG is
+    // saved as PNG. A crop would have cut one side below the photo's size.
+    const preview = dialog.locator(locators.deviceDetail.imagePreview).first();
+    await expect(preview).toBeVisible();
+    await expect(preview).toHaveAttribute("src", /^data:image\/png/);
+    const size = await preview.evaluate((img: HTMLImageElement) => ({
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+    }));
+    expect(size.width).toBeGreaterThanOrEqual(560);
+    expect(size.height).toBeGreaterThanOrEqual(100);
+    expect(size.width === 560 || size.height === 100).toBe(true);
   });
 
   test("Enter on the Crop button reopens the crop without adding the device", async ({

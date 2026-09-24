@@ -2,8 +2,9 @@
  * Image crop utilities
  * Geometry for the device image cropper: the crop frame takes the drawn shape
  * of the device image (U height by interior rack width plus the image
- * overflow), and the image is panned and zoomed behind it. The frame is always
- * fully covered by the image.
+ * overflow), and the image is panned and zoomed behind it. The image can be
+ * zoomed out until it fits inside the frame, and the part of the frame it
+ * leaves uncovered is exported transparent.
  */
 
 import {
@@ -35,14 +36,6 @@ export interface CropView {
   y: number;
   /** Frame pixels per natural image pixel. */
   scale: number;
-}
-
-/** Source rectangle in natural image pixels. */
-export interface CropRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
 }
 
 /**
@@ -109,10 +102,30 @@ export function getCoverScale(image: Size, frame: Size): number {
   return Math.max(frame.width / image.width, frame.height / image.height);
 }
 
-/** Keep a scale within [cover, cover * MAX_CROP_ZOOM]. */
+/** Scale at which the whole image fits inside the frame. */
+export function getFitScale(image: Size, frame: Size): number {
+  return Math.min(frame.width / image.width, frame.height / image.height);
+}
+
+/** Keep a scale within [fit, cover * MAX_CROP_ZOOM]. */
 function clampScale(scale: number, image: Size, frame: Size): number {
-  const minScale = getCoverScale(image, frame);
-  return Math.min(Math.max(scale, minScale), minScale * MAX_CROP_ZOOM);
+  return Math.min(
+    Math.max(scale, getFitScale(image, frame)),
+    getCoverScale(image, frame) * MAX_CROP_ZOOM,
+  );
+}
+
+/**
+ * Offset of the image along one axis. An image smaller than the frame on that
+ * axis is centred, leaving a band either side; a larger one covers the frame.
+ */
+function clampOffset(
+  offset: number,
+  imageSize: number,
+  frameSize: number,
+): number {
+  if (imageSize <= frameSize) return (frameSize - imageSize) / 2;
+  return Math.min(0, Math.max(frameSize - imageSize, offset));
 }
 
 /** Pixels a wheel notch reported in DOM_DELTA_LINE units stands for. */
@@ -141,16 +154,14 @@ export function wheelDeltaPixels(
 }
 
 /**
- * Keep the scale within [cover, cover * MAX_CROP_ZOOM] and the image covering
- * the frame on every side.
+ * Keep the scale within [fit, cover * MAX_CROP_ZOOM], and on each axis the
+ * image either covering the frame or centred in it.
  */
 export function clampView(view: CropView, image: Size, frame: Size): CropView {
   const scale = clampScale(view.scale, image, frame);
-  const minX = frame.width - image.width * scale;
-  const minY = frame.height - image.height * scale;
   return {
-    x: Math.min(0, Math.max(minX, view.x)),
-    y: Math.min(0, Math.max(minY, view.y)),
+    x: clampOffset(view.x, image.width * scale, frame.width),
+    y: clampOffset(view.y, image.height * scale, frame.height),
     scale,
   };
 }
@@ -195,29 +206,14 @@ export function panView(
   );
 }
 
-/** The part of the natural image visible inside the frame. */
-export function getCropRect(
-  view: CropView,
-  image: Size,
-  frame: Size,
-): CropRect {
-  const width = Math.min(image.width, frame.width / view.scale);
-  const height = Math.min(image.height, frame.height / view.scale);
-  return {
-    x: Math.min(image.width - width, Math.max(0, -view.x / view.scale)),
-    y: Math.min(image.height - height, Math.max(0, -view.y / view.scale)),
-    width,
-    height,
-  };
-}
-
 /**
- * Output size for a crop: the crop's natural resolution, scaled down so the
- * longest edge is at most MAX_CROP_OUTPUT_EDGE, keeping the frame aspect.
+ * Output size for a crop: the frame at the image's natural resolution, scaled
+ * down so the longest edge is at most MAX_CROP_OUTPUT_EDGE. A letterboxed image
+ * keeps its resolution and the bands around it are added to the output.
  */
-export function getCropOutputSize(crop: CropRect, aspect: number): Size {
-  let width = crop.width;
-  let height = width / aspect;
+export function getCropOutputSize(view: CropView, frame: Size): Size {
+  let width = frame.width / view.scale;
+  let height = frame.height / view.scale;
   const longest = Math.max(width, height);
   if (longest > MAX_CROP_OUTPUT_EDGE) {
     const ratio = MAX_CROP_OUTPUT_EDGE / longest;
@@ -231,22 +227,42 @@ export function getCropOutputSize(crop: CropRect, aspect: number): Size {
 }
 
 /**
- * Draw the crop of an image into a new file of the same type. A crop of the
- * whole image at its natural size returns the source file untouched, so it is
- * not re-encoded.
+ * File type for a crop. An image zoomed out below the cover scale leaves bands
+ * of the frame transparent, which JPEG cannot hold, so a JPEG is saved as PNG.
+ */
+export function getCropOutputType(
+  view: CropView,
+  image: Size,
+  frame: Size,
+  sourceType: string,
+): string {
+  const covers = view.scale >= getCoverScale(image, frame) * (1 - 1e-9);
+  return !covers && sourceType === "image/jpeg" ? "image/png" : sourceType;
+}
+
+/**
+ * Draw the framed view of an image into a new file, of the same type unless
+ * transparent bands need PNG. A view of the whole image at its natural size
+ * returns the source file untouched, so it is not re-encoded.
  */
 export function cropImageToFile(
   image: HTMLImageElement,
-  crop: CropRect,
-  aspect: number,
+  view: CropView,
+  frame: Size,
   source: File,
 ): Promise<File> {
-  const output = getCropOutputSize(crop, aspect);
+  const natural = { width: image.naturalWidth, height: image.naturalHeight };
+  const output = getCropOutputSize(view, frame);
+  // Output pixels per frame pixel, per axis so rounding cannot skew the image.
+  const kx = output.width / frame.width;
+  const ky = output.height / frame.height;
+  const x = view.x * kx;
+  const y = view.y * ky;
   if (
-    Math.abs(crop.x) < 0.5 &&
-    Math.abs(crop.y) < 0.5 &&
-    output.width === image.naturalWidth &&
-    output.height === image.naturalHeight
+    Math.abs(x) < 0.5 &&
+    Math.abs(y) < 0.5 &&
+    output.width === natural.width &&
+    output.height === natural.height
   ) {
     return Promise.resolve(source);
   }
@@ -258,16 +274,13 @@ export function cropImageToFile(
     return Promise.reject(new Error("Failed to get canvas context"));
   }
   ctx.imageSmoothingQuality = "high";
+  // The canvas clips what falls outside the frame and leaves any band clear.
   ctx.drawImage(
     image,
-    crop.x,
-    crop.y,
-    crop.width,
-    crop.height,
-    0,
-    0,
-    output.width,
-    output.height,
+    x,
+    y,
+    natural.width * view.scale * kx,
+    natural.height * view.scale * ky,
   );
   return new Promise((resolve, reject) => {
     canvas.toBlob(
@@ -278,7 +291,7 @@ export function cropImageToFile(
         }
         resolve(new File([blob], source.name, { type: blob.type }));
       },
-      source.type,
+      getCropOutputType(view, natural, frame, source.type),
       0.92,
     );
   });
