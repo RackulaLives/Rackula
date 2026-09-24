@@ -5,7 +5,11 @@ import {
   markPreCarrierMigrationPending,
   clearPreCarrierMigrationPending,
 } from "$lib/storage/pre-carrier-migration-pending";
-import { createTestLayout } from "./factories";
+import {
+  createTestDevice,
+  createTestLayout,
+  createTestRack,
+} from "./factories";
 import type { ImageStoreMap, DeviceImageData } from "$lib/types/images";
 
 // A 16-byte PNG body (full 8-byte signature plus tail) base64-encoded into a
@@ -423,6 +427,69 @@ describe("saveLayoutToServer asset reconcile (server mode)", () => {
         c.url.endsWith(`/assets/${SERVER_UUID}/${DEVICE_ID}/front`),
     );
     expect(frontPut).toBeDefined();
+  });
+
+  // #3404: a face the layout still references but that is not in memory (its
+  // eager fetch failed, or the working copy was restored without images) is
+  // not an orphan. Deleting it would silently destroy the only copy.
+  it("keeps an on-disk face the layout still references but has not loaded", async () => {
+    const { fetchMock, calls } = makeRoutedFetch({
+      listing: [
+        { deviceSlug: DEVICE_ID, face: "front", ext: "png", size: 16 },
+        { deviceSlug: DEVICE_ID, face: "rear", ext: "png", size: 16 },
+      ],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const layout = createTestLayout({
+      metadata: { id: SERVER_UUID },
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({
+              id: DEVICE_ID,
+              front_image: "front.png",
+              rear_image: "rear.png",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    await saveLayoutToServer(layout, imageMap([]), null);
+
+    const assetWrites = calls.filter(
+      (c) =>
+        (c.method === "DELETE" || c.method === "PUT") &&
+        c.url.includes(`/assets/${SERVER_UUID}/`),
+    );
+    expect(assetWrites).toEqual([]);
+  });
+
+  it("deletes an on-disk face whose reference the layout cleared", async () => {
+    const { fetchMock, calls } = makeRoutedFetch({
+      listing: [
+        { deviceSlug: DEVICE_ID, face: "front", ext: "png", size: 16 },
+        { deviceSlug: DEVICE_ID, face: "rear", ext: "png", size: 16 },
+      ],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const layout = createTestLayout({
+      metadata: { id: SERVER_UUID },
+      racks: [
+        createTestRack({
+          devices: [createTestDevice({ id: DEVICE_ID, front_image: "f.png" })],
+        }),
+      ],
+    });
+
+    await saveLayoutToServer(layout, imageMap([]), null);
+
+    const deleted = calls
+      .filter((c) => c.method === "DELETE")
+      .map((c) => c.url.split("/").pop());
+    expect(deleted).toEqual(["rear"]);
   });
 
   it("migrate-on-save: writes an embedded-only image to disk and drops the embed", async () => {
