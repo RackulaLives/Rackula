@@ -1,36 +1,23 @@
 import { test, expect } from "./helpers/base-test";
 import fs from "fs";
-import { gotoWithRack, locators } from "./helpers";
+import sharp from "sharp";
+import {
+  gotoWithRack,
+  locators,
+  RACK_WITH_DEVICE_SHARE,
+  selectDevice,
+} from "./helpers";
 
 test.describe("Device Images", () => {
   let testImagePath: string;
 
   test.beforeAll(async () => {
-    // Create a minimal valid PNG file for testing in a temp location
+    // Write a 1x1 PNG the browser can decode (the crop dialog loads it)
     testImagePath = test.info().outputPath("test-image.png");
-    const pngSignature = Buffer.from([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-    ]);
-    const ihdrChunk = Buffer.from([
-      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x10,
-      0x00, 0x00, 0x00, 0x10, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
-      0xde,
-    ]);
-    const idatChunk = Buffer.from([
-      0x00, 0x00, 0x00, 0x15, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x62, 0x60,
-      0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00,
-      0x31, 0x00, 0x01, 0xa7, 0x3e, 0xa4, 0xc6,
-    ]);
-    const iendChunk = Buffer.from([
-      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
-    ]);
-
-    const pngBuffer = Buffer.concat([
-      pngSignature,
-      ihdrChunk,
-      idatChunk,
-      iendChunk,
-    ]);
+    const pngBuffer = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "base64",
+    );
     fs.writeFileSync(testImagePath, pngBuffer);
   });
 
@@ -61,6 +48,14 @@ test.describe("Device Images", () => {
     const fileInput = dialog.locator('input[type="file"]').first();
     await fileInput.setInputFiles(testImagePath);
 
+    // Crop dialog opens with the image framed to the device shape
+    const cropDialog = page.getByTestId("image-crop-dialog");
+    await expect(cropDialog).toBeVisible();
+    const applyCrop = cropDialog.getByTestId("btn-apply-crop");
+    await expect(applyCrop).toBeEnabled();
+    await applyCrop.click();
+    await expect(cropDialog).toBeHidden();
+
     // Preview should appear (img element in the upload area)
     const preview = dialog.locator(locators.deviceDetail.imagePreview);
     await expect(preview.first()).toBeVisible({ timeout: 5000 });
@@ -74,6 +69,93 @@ test.describe("Device Images", () => {
         .getByTestId("device-palette-item")
         .filter({ hasText: "Server with Image" }),
     ).toBeVisible();
+  });
+
+  test("Use full image keeps the whole photo instead of cropping it", async ({
+    page,
+  }) => {
+    await page.click('[data-testid="btn-create-custom-device"]');
+    const dialog = page.locator(locators.dialog.root);
+    await page.fill("#device-name", "Mini PC");
+
+    // A JPEG shaped like a mini PC front, a different shape from the frame
+    const buffer = await sharp({
+      create: { width: 560, height: 100, channels: 3, background: "#808080" },
+    })
+      .jpeg()
+      .toBuffer();
+    await dialog
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles({ name: "mini-pc.jpg", mimeType: "image/jpeg", buffer });
+
+    const cropDialog = page.getByTestId("image-crop-dialog");
+    await cropDialog.getByTestId("btn-use-full-image").click();
+    await expect(cropDialog).toBeHidden();
+
+    // The whole photo is kept at its resolution: one side matches it and the
+    // other grows with transparent bands to the frame shape, so the JPEG is
+    // saved as PNG. A crop would have cut one side below the photo's size.
+    const preview = dialog.locator(locators.deviceDetail.imagePreview).first();
+    await expect(preview).toBeVisible();
+    await expect(preview).toHaveAttribute("src", /^data:image\/png/);
+    const size = await preview.evaluate((img: HTMLImageElement) => ({
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+    }));
+    expect(size.width).toBeGreaterThanOrEqual(560);
+    expect(size.height).toBeGreaterThanOrEqual(100);
+    expect(size.width === 560 || size.height === 100).toBe(true);
+  });
+
+  test("Enter on the Crop button reopens the crop without adding the device", async ({
+    page,
+  }) => {
+    await page.click('[data-testid="btn-create-custom-device"]');
+    const dialog = page.locator(locators.dialog.root);
+    await page.fill("#device-name", "Server with Image");
+    await dialog
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles(testImagePath);
+
+    const cropDialog = page.getByTestId("image-crop-dialog");
+    await cropDialog.getByTestId("btn-apply-crop").click();
+    await expect(cropDialog).toBeHidden();
+
+    await page.getByRole("button", { name: "Adjust front image crop" }).focus();
+    await page.keyboard.press("Enter");
+
+    await expect(cropDialog).toBeVisible();
+    await expect(
+      page
+        .getByTestId("device-palette-item")
+        .filter({ hasText: "Server with Image" }),
+    ).toHaveCount(0);
+  });
+
+  test("keys on the crop stage do not move or delete the selected device", async ({
+    page,
+  }) => {
+    await gotoWithRack(page, RACK_WITH_DEVICE_SHARE);
+    await selectDevice(page);
+    const device = page.locator(locators.rackView.frontDevice).first();
+    const labelBefore = await device.getAttribute("aria-label");
+
+    await page
+      .getByLabel("Choose front image override")
+      .setInputFiles(testImagePath);
+    const cropDialog = page.getByTestId("image-crop-dialog");
+    await expect(cropDialog).toBeVisible();
+
+    await cropDialog.getByRole("application").focus();
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("Delete");
+    await cropDialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(cropDialog).toBeHidden();
+
+    await expect(device).toHaveAttribute("aria-label", labelBefore ?? "");
   });
 
   test("display mode toggle exists in toolbar", async ({ page }) => {
