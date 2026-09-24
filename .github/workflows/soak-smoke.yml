@@ -36,6 +36,9 @@ permissions:
 jobs:
   smoke:
     name: Smoke (${{ matrix.target.name }})
+    # Forks have no Cloudflare Access secrets, so the dev leg lands on the
+    # Access login page and fails every scheduled run. Skip the job there.
+    if: github.repository == 'RackulaLives/Rackula'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
