@@ -29,11 +29,29 @@ const MM_PER_UNIT: Record<WidthUnit, number> = {
 };
 
 /**
- * Clear opening between the mounting rails, in millimetres.
+ * Published clear openings between the mounting rails, in millimetres:
+ * - 10": 8.75 in, the mini rack opening (Project Mini Rack).
+ * - 19": 450 mm, the EIA-310 minimum. The posts usually stand 17.75 in
+ *   (450.85 mm) apart, but the minimum is what a device must fit.
+ * - 21": 500 mm, the ETSI aperture between mounting flanges (ETS 300 119-3,
+ *   W2).
+ */
+const PUBLISHED_OPENING_MM: Partial<Record<number, number>> = {
+  10: 222.25,
+  19: 450,
+  21: 500,
+};
+
+/**
+ * Clear opening between the mounting rails, in millimetres. A width with no
+ * published opening (23") is approximated from its nominal width.
  * @param rackWidth - Nominal rack width in inches (10, 19, 21, 23)
  */
 export function getRackOpeningMm(rackWidth: number): number {
-  return (rackWidth - RACK_EAR_ALLOWANCE_IN) * MM_PER_INCH;
+  return (
+    PUBLISHED_OPENING_MM[rackWidth] ??
+    (rackWidth - RACK_EAR_ALLOWANCE_IN) * MM_PER_INCH
+  );
 }
 
 /**

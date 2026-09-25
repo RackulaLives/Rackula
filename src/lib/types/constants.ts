@@ -120,8 +120,8 @@ export const ALLOWED_RACK_WIDTHS: readonly number[] = [10, 19, 21, 23] as const;
 export const MM_PER_INCH = 25.4;
 
 /**
- * Width taken by the mounting ears, in inches. The clear opening between the
- * rails is the nominal rack width minus this (19" = 17.75", 10" = 8.75").
+ * Width taken by the mounting ears, in inches. A rack width with no published
+ * clear opening (23") is approximated as its nominal width minus this.
  */
 export const RACK_EAR_ALLOWANCE_IN = 1.25;
 

@@ -47,6 +47,15 @@ function measuredDevice(width_mm: number, slug = "mini-pc"): DeviceType {
 
 const thirdSlot = createTestSlot({ id: "left", width_fraction: 0.33 });
 
+describe("getRackOpeningMm", () => {
+  it("uses the published clear opening where one exists", () => {
+    // Project Mini Rack 8.75 in, EIA-310 minimum, ETSI ETS 300 119-3 W2
+    expect(getRackOpeningMm(10)).toBe(222.25);
+    expect(getRackOpeningMm(19)).toBe(450);
+    expect(getRackOpeningMm(21)).toBe(500);
+  });
+});
+
 describe("canPlaceInSlot with width_mm", () => {
   it("fits a third-width slot in a 19 inch rack when narrow enough", () => {
     expect(canPlaceInSlot(measuredDevice(140), thirdSlot, 19)).toBe(true);
