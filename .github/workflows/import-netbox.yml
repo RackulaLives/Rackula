@@ -61,12 +61,12 @@ jobs:
               ;;
           esac
 
-          # Vendor matches a NetBox devicetype-library folder name and is also
-          # used verbatim in a generated TypeScript identifier
-          # (scripts/import-netbox-devices.ts: `${vendor.toLowerCase()}Devices`),
-          # so it keeps the identifier-safe charset this workflow used before
-          # this PR: letters, digits, . _ -. It must start and end with a
-          # letter or digit, and must not contain "..".
+          # Vendor matches a NetBox devicetype-library folder name and is used
+          # in the brand pack file name and a git branch name. The TypeScript
+          # export name is sanitised separately (brandPackArrayName in
+          # src/lib/utils/brand-pack-identifier.ts). Charset: letters, digits,
+          # . _ -. It must start and end with a letter or digit, and must not
+          # contain "..".
           VENDOR_RE='^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$'
           if [[ ! "$VENDOR" =~ $VENDOR_RE ]]; then
             echo "ERROR: vendor '$VENDOR' is invalid: must start and end with a letter or digit, and contain only letters, digits, and . _ -"

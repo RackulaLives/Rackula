@@ -35,6 +35,7 @@ import { join, dirname, relative } from "path";
 import { fileURLToPath } from "url";
 import { spawnSync } from "child_process";
 import yaml from "js-yaml";
+import { brandPackArrayName } from "../src/lib/utils/brand-pack-identifier";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -355,8 +356,7 @@ async function writeBrandPackDevices(
     return { filePath, added, skipped, created: false };
   }
 
-  const vendorLower = vendor.toLowerCase();
-  const arrayName = `${vendorLower}Devices`;
+  const arrayName = brandPackArrayName(vendor);
   const newFile = `/**
  * ${vendor} Brand Pack
  * Pre-defined device types for ${vendor} equipment
