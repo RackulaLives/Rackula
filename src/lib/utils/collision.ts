@@ -29,6 +29,7 @@ import {
   buildCustomCarrierType,
   carrierUHeight,
   cellForDevice,
+  cellsOf,
 } from "./custom-carrier";
 import { fitsInRow, gapsFor } from "./slot-layout";
 
@@ -471,15 +472,15 @@ export function isWholeURailPosition(positionInternal: number): boolean {
 
 /**
  * Pick the carrier a narrow device (half-width, or measured) must mount inside.
- * A measured whole-U device gets a carrier generated around one cell cut to its
- * own width, so the rack opening is its only ceiling. Everything else takes a
- * shipped carrier, whose cells are half-width: a sub-U device the 2x2 grid, a
- * whole-U device a height-matched column carrier (1U or 2U).
+ * A measured device gets a carrier generated around one cell cut to its own
+ * size, whatever its height: the carrier takes the whole U that holds the cell,
+ * so the rack opening is the only ceiling. Everything else takes a shipped
+ * carrier, whose cells are half-width: a sub-U device the 2x2 grid, a whole-U
+ * device a height-matched column carrier (1U or 2U).
  *
  * Returns null (no rail carrier) when:
  * - the device is full-width (there is no full-width carrier to synthesise);
- * - a measured width is wider than the rack opening, or wider than a half cell
- *   for sub-U gear, which has only the 2x2 grid to mount in;
+ * - a measured width is wider than the rack opening;
  * - the device is a chassis child (subdevice_role "child") - it mounts only
  *   inside an existing parent bay, never on the rails;
  * - the whole-U height has no matching carrier defined (e.g. a 3U half-width) -
@@ -534,9 +535,6 @@ export function synthesizeCarrierForDevice(
   return null;
 }
 
-/** Why a generated carrier cannot take the shape its children need. */
-export type ReshapeRefusal = "row" | "rails";
-
 /**
  * Rebuild a generated carrier around its children as they stand: each cell is
  * cut to its child's footprint, and the carrier takes the whole U holding its
@@ -548,8 +546,8 @@ export type ReshapeRefusal = "row" | "rails";
  * @param deviceTypes - Layout device types, for the rail check when it grows
  * @param footprintOf - A child's footprint: its type turned as it stands, with
  *   any change the caller is about to make already applied
- * @returns The reshaped type, or "row" when the cells overflow the opening and
- *   "rails" when the carrier would grow into a device or past the rack top
+ * @returns The reshaped type, or null when the cells overflow the opening or
+ *   the carrier would grow into a device or past the rack top
  */
 export function reshapeCarrier(
   rack: Rack,
@@ -557,18 +555,14 @@ export function reshapeCarrier(
   carrierType: DeviceType,
   deviceTypes: DeviceType[],
   footprintOf: (child: PlacedDevice) => DeviceType | undefined,
-): { type: DeviceType } | { refused: ReshapeRefusal } {
-  const cells = (carrierType.slots ?? []).map((slot) => {
+): DeviceType | null {
+  const cells = cellsOf(carrierType).map((cell, index) => {
+    const slotId = carrierType.slots?.[index]?.id;
     const child = rack.devices.find(
-      (d) => d.container_id === carrier.id && d.slot_id === slot.id,
+      (d) => d.container_id === carrier.id && d.slot_id === slotId,
     );
     const footprint = child && footprintOf(child);
-    return footprint
-      ? cellForDevice(footprint, rack.width)
-      : {
-          widthFraction: slot.width_fraction ?? 1.0,
-          heightUnits: slot.height_units ?? 1,
-        };
+    return footprint ? cellForDevice(footprint, rack.width) : cell;
   });
   const type = buildCustomCarrierType(
     carrierUHeight(cells),
@@ -576,7 +570,7 @@ export function reshapeCarrier(
     gapsFor(carrierType),
   );
 
-  if (!fitsInRow(type, rack.width, 0)) return { refused: "row" };
+  if (!fitsInRow(type, rack.width, 0)) return null;
   if (
     type.u_height > carrierType.u_height &&
     !canPlaceDevice(
@@ -588,9 +582,9 @@ export function reshapeCarrier(
       carrier.face,
     )
   ) {
-    return { refused: "rails" };
+    return null;
   }
-  return { type };
+  return type;
 }
 
 /**

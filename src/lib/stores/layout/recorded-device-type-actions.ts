@@ -241,13 +241,13 @@ function reshapeCarriersHolding(
         layout.device_types,
         footprintOf,
       );
-      if ("refused" in reshaped) {
+      if (!reshaped) {
         blocked.push(carrierName);
         continue;
       }
-      if (reshaped.type.slug === carrierType.slug) continue;
+      if (reshaped.slug === carrierType.slug) continue;
 
-      planned.push({ carrier, from: carrierType, to: reshaped.type });
+      planned.push({ carrier, from: carrierType, to: reshaped });
     }
   }
 

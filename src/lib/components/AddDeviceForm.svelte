@@ -18,11 +18,11 @@
   import { getDefaultColour } from "$lib/utils/device";
   import { getCropUnitHeight } from "$lib/utils/image-crop";
   import {
-    WIDTH_UNITS,
+    LENGTH_UNITS,
     getRackOpeningMm,
     toMillimetres,
     uHeightForMm,
-    type WidthUnit,
+    type LengthUnit,
   } from "$lib/utils/device-width";
 
   interface Props {
@@ -98,7 +98,7 @@
   // Height as entered: rack units, or a measured length the rack units are
   // derived from.
   let height = $state(1);
-  let heightUnit = $state<"U" | WidthUnit>("U");
+  let heightUnit = $state<"U" | LengthUnit>("U");
   const heightMm = $derived(
     heightUnit === "U" ? undefined : toMillimetres(height, heightUnit),
   );
@@ -112,7 +112,7 @@
   let isHalfWidth = $state(false);
   // Optional measured width; an empty number input binds to null.
   let widthValue = $state<number | null>(null);
-  let widthUnit = $state<WidthUnit>("mm");
+  let widthUnit = $state<LengthUnit>("mm");
   let rackWidthOption = $state<RackWidthOption>(getDefaultRackWidthOption());
   // The image is drawn in every rack width the device fits, so the crop shows
   // guides for the widths it is not framed for.
@@ -326,7 +326,7 @@
             bind:value={heightUnit}
             onchange={() => (heightError = "")}
           >
-            {#each ["U", ...WIDTH_UNITS] as unit (unit)}
+            {#each ["U", ...LENGTH_UNITS] as unit (unit)}
               <option value={unit}>{unit}</option>
             {/each}
           </select>
@@ -426,7 +426,7 @@
           bind:value={widthUnit}
           onchange={() => (widthError = "")}
         >
-          {#each WIDTH_UNITS as unit (unit)}
+          {#each LENGTH_UNITS as unit (unit)}
             <option value={unit}>{unit}</option>
           {/each}
         </select>

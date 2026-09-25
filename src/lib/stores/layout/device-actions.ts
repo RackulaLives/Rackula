@@ -782,8 +782,15 @@ export function extendCustomCarrier(
     return false;
   }
 
-  // The carrier's rail height is fixed; a taller device needs its own.
-  if (cell.heightUnits > carrierType.u_height) return false;
+  // The carrier keeps the rail height it has, so a taller device needs its own.
+  // Named, like the row refusal above: the rack may have plenty of room.
+  if (cell.heightUnits > carrierType.u_height) {
+    getToastStore().showToast(
+      `${deviceType.model ?? deviceType.slug} is too tall for this ${carrierType.u_height}U carrier`,
+      "warning",
+    );
+    return false;
+  }
 
   const cells = cellsOf(carrierType);
   const grown = buildCustomCarrierType(

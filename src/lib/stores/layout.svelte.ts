@@ -753,7 +753,6 @@ export function createLayoutStore(
     containerId: string,
     slotId: string,
     position: number,
-    rotation?: DeviceRotation,
   ): boolean {
     return placeInContainerImpl(
       stateAccess,
@@ -762,7 +761,6 @@ export function createLayoutStore(
       containerId,
       slotId,
       position,
-      rotation,
     );
   }
 
@@ -786,14 +784,12 @@ export function createLayoutStore(
     rackId: string,
     carrierId: string,
     deviceTypeSlug: string,
-    rotation?: DeviceRotation,
   ): boolean {
     return extendCustomCarrierImpl(
       stateAccess,
       rackId,
       carrierId,
       deviceTypeSlug,
-      rotation,
     );
   }
 

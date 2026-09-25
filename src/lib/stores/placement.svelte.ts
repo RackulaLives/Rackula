@@ -113,7 +113,7 @@ function toggleRotation(): boolean {
   if (!isPlacing || !pendingDevice || !canRotate(pendingDevice)) return false;
   rotation = rotation === 90 ? 0 : 90;
   placementAnnouncement =
-    rotation === 90 ? "Turned 90 degrees" : "Turned back to 0 degrees";
+    rotation === 90 ? "Rotated 90 degrees" : "Rotated back to 0 degrees";
   return true;
 }
 

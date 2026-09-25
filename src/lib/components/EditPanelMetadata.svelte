@@ -22,7 +22,7 @@
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { canPlaceDevice, findCollisions } from "$lib/utils/collision";
   import { getDeviceDisplayName } from "$lib/utils/device";
-  import { formatWidthMm } from "$lib/utils/device-width";
+  import { formatMm } from "$lib/utils/device-width";
   import type { SelectedDeviceInfo, DeviceFace } from "$lib/types";
 
   interface Props {
@@ -200,7 +200,7 @@
       authoritativeDevice.height_mm ?? selectedDeviceInfo.device.height_mm;
     return heightMm === undefined
       ? `${uHeight}U`
-      : `${uHeight}U, ${formatWidthMm(heightMm)}`;
+      : `${uHeight}U, ${formatMm(heightMm)}`;
   });
 
   // Read-only width fact label. A measured width_mm shows in mm and inches;
@@ -208,7 +208,7 @@
   const widthLabel = $derived.by(() => {
     const widthMm =
       authoritativeDevice.width_mm ?? selectedDeviceInfo.device.width_mm;
-    if (widthMm !== undefined) return formatWidthMm(widthMm);
+    if (widthMm !== undefined) return formatMm(widthMm);
     return (authoritativeDevice.slot_width ??
       selectedDeviceInfo.device.slot_width) === 1
       ? "Half"

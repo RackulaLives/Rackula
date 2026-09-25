@@ -41,7 +41,7 @@
   const hint = $derived(
     isMobile
       ? "Tap a slot to place."
-      : `Click a slot to place.${turnable ? " R to turn." : ""} Esc to cancel.`,
+      : `Click a slot to place.${turnable ? " R to rotate." : ""} Esc to cancel.`,
   );
 
   function handleCancel() {

@@ -30,6 +30,7 @@ import {
 } from "$lib/utils/device-width";
 import {
   buildCustomCarrierType,
+  carrierUHeight,
   cellsOf,
   isGeneratedCarrier,
   isOrphanedAfterRetype,
@@ -462,7 +463,9 @@ function shrinkCustomCarrier(
   const gaps = [...gapsFor(carrierType)];
   gaps.splice(index > 0 ? index - 1 : 0, 1);
 
-  return buildCustomCarrierType(carrierType.u_height, cells, gaps);
+  // Its own height, not the height it had: losing the tallest child would
+  // otherwise leave a carrier standing several U taller than anything in it.
+  return buildCustomCarrierType(carrierUHeight(cells), cells, gaps);
 }
 
 /**
@@ -815,14 +818,14 @@ export function rotateDeviceRecorded(
         return type && orientDeviceType(type, child.rotation);
       },
     );
-    fits = !("refused" in reshaped);
-    if ("type" in reshaped && reshaped.type.slug !== containerType.slug) {
+    fits = reshaped !== null;
+    if (reshaped && reshaped.slug !== containerType.slug) {
       carrierCommands.push(
         ...retypeCarrierCommands(
           layout,
           container,
           containerType,
-          reshaped.type,
+          reshaped,
           adapter,
         ),
       );
@@ -858,16 +861,15 @@ export function rotateDeviceRecorded(
     adapter,
     deviceName,
   );
-  ctx
-    .getHistory()
-    .execute(
-      carrierCommands.length > 0
-        ? createBatchCommand(`Rotate ${deviceName}`, [
-            rotate,
-            ...carrierCommands,
-          ])
-        : rotate,
-    );
+  const command =
+    carrierCommands.length > 0
+      ? createBatchCommand(`Rotate ${deviceName}`, [rotate, ...carrierCommands])
+      : rotate;
+  // Pinned to this rack: the rotation resolves its device by index in whichever
+  // rack is active, while the carrier retype is global. Undone from another
+  // rack, an unpinned batch would put the carrier back and leave the device
+  // turned inside it.
+  ctx.getHistory().execute(createInRackCommand(rackId, command, adapter));
   ctx.markDirty();
   return true;
 }

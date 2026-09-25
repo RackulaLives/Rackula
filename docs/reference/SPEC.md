@@ -95,7 +95,7 @@ A device is less than full width when it has `slot_width: 1` (half width) or a m
 
 A measured device may also carry `height_mm`, from which its `u_height` is derived: the smallest multiple of 0.5U that holds it. A placed measured device can be turned 90 degrees onto its side, and back. Turned, its width and height swap, so every cell fit uses the device as it stands. Its generated carrier is reshaped with it: the cell is recut to the turned width and the carrier takes the whole U that holds its tallest child. A turn that does not fit is refused.
 
-Because a measured device's fit depends on the rack, a rack width change or a move to another rack is refused when a measured child would no longer fit its cell. A measured whole-U device gets a carrier generated around one cell cut to its own width, so only a width past the rack's clear opening refuses it. Sub-U measured gear takes the shipped 2x2 carrier, whose cells are half width, so a width past half the opening leaves it placeable only in an existing shelf or carrier with a wide enough cell.
+Because a measured device's fit depends on the rack, a rack width change or a move to another rack is refused when a measured child would no longer fit its cell. A measured device gets a carrier generated around one cell cut to its own size, whatever its height: the carrier takes the whole U that holds the cell, so only a width past the rack's clear opening leaves it placeable only in an existing shelf or carrier with a wide enough cell.
 
 Rationale: fractional rail offsets modelled a physical fiction and scattered paired half-width gear into impossible positions. Carrier-first keeps the data faithful to how equipment actually mounts, and gives sub-U devices a real parent rather than a floating coordinate.
 

@@ -181,6 +181,39 @@ describe("turning a placed device", () => {
     expect(carrierType(rackId).u_height).toBe(1);
   });
 
+  it("undoes the turn and the carrier together from another rack", () => {
+    const rackId = placedMiniPc();
+    const other = store.addRack("Other", 12)!;
+    store.rotateDevice(rackId, childIndex(rackId));
+
+    // Selecting another rack is what used to split the step: the rotation
+    // resolves its device by index in the active rack, while the carrier
+    // retype is global, so the carrier went back and the device stayed turned.
+    store.setActiveRack(other.id);
+    store.undo();
+
+    expect(child(rackId).rotation ?? 0).toBe(0);
+    expect(carrierType(rackId).u_height).toBe(1);
+    expect(LayoutSchema.safeParse(store.layout).success).toBe(true);
+  });
+
+  it("refuses to lay it flat again when the row has no width left", () => {
+    // Standing, the mini PC is 34.5 mm wide, so the row took two more lying
+    // flat beside it. Laying it back down needs 179 mm the row does not have.
+    const rackId = placedMiniPc();
+    store.rotateDevice(rackId, childIndex(rackId));
+    const carrier = store
+      .getRackById(rackId)!
+      .devices.find((d) => !d.container_id)!;
+    expect(store.extendCustomCarrier(rackId, carrier.id, "mini-pc")).toBe(true);
+    expect(store.extendCustomCarrier(rackId, carrier.id, "mini-pc")).toBe(true);
+
+    expect(store.rotateDevice(rackId, childIndex(rackId))).toBe(false);
+
+    expect(child(rackId).rotation).toBe(90);
+    expect(carrierType(rackId).slots?.length).toBe(3);
+  });
+
   it("does not turn a device with no measured width", () => {
     const rack = store.addRack("Rack", 12)!;
     store.addDeviceTypeRaw(
