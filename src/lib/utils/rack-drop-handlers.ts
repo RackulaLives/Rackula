@@ -88,10 +88,13 @@ export function placeContainerDrop(
   action: Extract<DropAction, { kind: "container-drop" }>,
 ): boolean {
   const { containerId, slotId, position } = action.containerTarget;
+  const source = placedDragSource(action.dragData);
 
-  // The row has no free cell but can grow one. Only a palette drop takes this
-  // path: moving a device already in the layout keeps the existing move rules.
+  // The row has no free cell but can grow one. Only a palette drop grows it:
+  // growing a row for a device already in the layout would place a second copy
+  // of it, so that drag falls back to the ordinary move rules.
   if (slotId === NEW_CELL_SLOT_ID) {
+    if (source) return false;
     return layoutStore.extendCustomCarrier(
       action.rackId,
       containerId,
@@ -99,7 +102,6 @@ export function placeContainerDrop(
     );
   }
 
-  const source = placedDragSource(action.dragData);
   if (source) {
     return layoutStore.moveDeviceIntoContainer(
       source.rackId,

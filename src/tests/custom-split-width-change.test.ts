@@ -100,6 +100,44 @@ describe("changing a measured width", () => {
     );
   });
 
+  it("imports the split both carriers converge on once, and drops the old one", () => {
+    // Two carriers on the same split land on the same new split. Reading the
+    // library as it stood before the batch made both import it, under one slug,
+    // and made neither collect the split they had both left.
+    const { store, rackId, slug } = placed(100, 1);
+    store.placeDeviceSmart(rackId, slug, 8);
+    const old = store.device_types.find((dt) => dt.auto_created === true)!.slug;
+
+    expect(store.updateDeviceType(slug, { width_mm: 120 })).toBe(true);
+
+    const slugs = store.device_types.map((dt) => dt.slug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    expect(slugs).not.toContain(old);
+  });
+
+  it("refuses a width a shipped carrier's cell cannot take", () => {
+    const store = getLayoutStore();
+    const rack = store.addRack("Test Rack", 12)!;
+    const half = createTestDeviceType({
+      slug: "test-half",
+      model: "test half",
+      u_height: 1,
+      slot_width: 1,
+    });
+    store.addDeviceTypeRaw(half);
+    store.placeDeviceSmart(rack.id, half.slug, 5);
+
+    // The shipped 1U carrier's cells are half of the 450 mm opening and cannot
+    // be re-cut, so 300 mm has nowhere to go: allowing it would save a layout
+    // LayoutSchema refuses on the next load.
+    expect(store.updateDeviceType(half.slug, { width_mm: 300 })).toBe(false);
+    expect(
+      store.device_types.find((dt) => dt.slug === half.slug)!.width_mm,
+    ).toBeUndefined();
+
+    expect(store.updateDeviceType(half.slug, { width_mm: 200 })).toBe(true);
+  });
+
   it("leaves a change that touches no carrier alone", () => {
     const { store, slug } = placed(100, 1);
 

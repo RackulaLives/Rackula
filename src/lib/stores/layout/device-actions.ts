@@ -27,8 +27,8 @@ import { requiresCarrier, getRackOpeningMm } from "$lib/utils/device-width";
 import {
   buildCustomCarrierType,
   cellForDevice,
+  cellsOf,
   isGeneratedCarrier,
-  isOrphanedAfterRetype,
   CUSTOM_CARRIER_SLUG_PATTERN,
 } from "$lib/utils/custom-carrier";
 import { fitsInRow, gapsFor, remainingMm } from "$lib/utils/slot-layout";
@@ -40,8 +40,6 @@ import { instantiatePorts } from "$lib/utils/port-utils";
 import {
   createPlaceDeviceCommand,
   createAddDeviceTypeCommand,
-  createDeleteDeviceTypeCommand,
-  createRetypeDeviceCommand,
   createBatchCommand,
   createCrossRackMoveCommand,
   createInRackCommand,
@@ -59,8 +57,12 @@ import {
   findEmptiedAutoCarrier,
   moveDeviceRecorded,
   placeDeviceRecorded,
+  shrinkCommandsForRemovedChild,
 } from "./recorded-device-actions";
-import { findConnectionsForDevices } from "./recorded-device-type-actions";
+import {
+  findConnectionsForDevices,
+  retypeCarrierCommands,
+} from "./recorded-device-type-actions";
 import { getToastStore } from "$lib/stores/toast.svelte";
 import { CARRIER_HINT_MESSAGE } from "$lib/constants/toast-messages";
 
@@ -553,12 +555,12 @@ export function placeDeviceSmart(
   if (!deviceType) return false;
 
   const carrierPlan = synthesizeCarrierForDevice(deviceType, targetRack.width);
-  const carrierSlug = carrierPlan?.slug ?? null;
 
   // Whole-U full-width devices mount directly to the rails.
-  if (!carrierPlan || !carrierSlug) {
+  if (!carrierPlan) {
     return placeDeviceRecorded(ctx, rackId, deviceTypeSlug, positionU, face);
   }
+  const carrierSlug = carrierPlan.slug;
 
   ctx.setActiveRackId(rackId);
 
@@ -746,10 +748,7 @@ export function extendCustomCarrier(
   // The carrier's rail height is fixed; a taller device needs its own.
   if (cell.heightUnits > carrierType.u_height) return false;
 
-  const cells = (carrierType.slots ?? []).map((slot) => ({
-    widthFraction: slot.width_fraction ?? 1.0,
-    heightUnits: slot.height_units ?? 1,
-  }));
+  const cells = cellsOf(carrierType);
   const grown = buildCustomCarrierType(
     carrierType.u_height,
     [...cells, cell],
@@ -760,36 +759,18 @@ export function extendCustomCarrier(
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
   const childName = deviceType.model ?? deviceType.slug;
-  const commands = [];
+  const commands: Command[] = [];
 
-  // Copy on write: the grown split fingerprints differently, so it is a new
-  // type and any other carrier still on the old one is untouched.
-  if (!layout.device_types.some((dt) => dt.slug === grown.slug)) {
-    commands.push(createAddDeviceTypeCommand(grown, adapter));
-  }
   if (!layout.device_types.some((dt) => dt.slug === deviceTypeSlug)) {
     commands.push(createAddDeviceTypeCommand(deviceType, adapter));
   }
-  commands.push(
-    createRetypeDeviceCommand(
-      carrier.id,
-      carrierType.slug,
-      grown.slug,
-      adapter,
-    ),
-  );
-  // The split the carrier just left is a type of its own. Without this a row
+  // Copy on write: the grown split fingerprints differently, so it is a new
+  // type and any other carrier still on the old one is untouched. The split the
+  // carrier just left is a type of its own, collected here: without that, a row
   // grown from one cell to four strands three types in the file's library.
-  if (isOrphanedAfterRetype(layout.racks, carrierType.slug, carrier.id)) {
-    commands.push(
-      createDeleteDeviceTypeCommand(
-        carrierType,
-        [],
-        adapter,
-        layout.metadata?.id ?? "",
-      ),
-    );
-  }
+  commands.push(
+    ...retypeCarrierCommands(layout, carrier, carrierType, grown, adapter),
+  );
   commands.push(
     createPlaceDeviceCommand(
       {
@@ -920,8 +901,7 @@ export function moveDeviceSmart(
   if (!deviceType) return false;
 
   const carrierPlan = synthesizeCarrierForDevice(deviceType, targetRack.width);
-  const carrierSlug = carrierPlan?.slug ?? null;
-  if (!carrierPlan || !carrierSlug) {
+  if (!carrierPlan) {
     return moveDeviceToRack(
       ctx,
       fromRackId,
@@ -936,6 +916,7 @@ export function moveDeviceSmart(
   // Containers never nest (single-level nesting, LayoutSchema).
   if (deviceType.slots?.length) return false;
 
+  const carrierSlug = carrierPlan.slug;
   const carrierType =
     findDeviceType(carrierSlug, layout.device_types) ?? carrierPlan.type;
   if (!carrierType) return false;
@@ -1062,10 +1043,11 @@ function commitReparent(
     ),
   ];
 
-  const emptiedCarrier =
-    placement.container_id === device.container_id
-      ? undefined
-      : findEmptiedAutoCarrier(sourceRack, device);
+  const leavesItsCell = placement.container_id !== device.container_id;
+
+  const emptiedCarrier = leavesItsCell
+    ? findEmptiedAutoCarrier(sourceRack, device)
+    : undefined;
   if (emptiedCarrier) {
     const carrierSnapshot = snapshotDevice(emptiedCarrier);
     for (const connection of findConnectionsForDevices(ctx, [
@@ -1090,6 +1072,16 @@ function commitReparent(
         ),
         adapter,
       ),
+    );
+  }
+
+  // The cell goes with the child that leaves it, so a generated carrier does
+  // not keep a phantom cell holding width nothing can use. Composed after any
+  // carrier removal, matching the order removeDeviceRecorded uses, so undo
+  // restores the split before the device that sat in it.
+  if (leavesItsCell) {
+    commands.push(
+      ...shrinkCommandsForRemovedChild(ctx, sourceRack, device, adapter),
     );
   }
 

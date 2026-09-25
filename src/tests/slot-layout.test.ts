@@ -133,15 +133,11 @@ describe("colAtX with gaps", () => {
     });
     const firstCellWidth = INTERIOR * 0.25;
 
-    expect(colAtX(c.slots!, firstCellWidth / 2, INTERIOR, c, RACK_19)).toBe(0);
-    expect(
-      colAtX(c.slots!, firstCellWidth + 1, INTERIOR, c, RACK_19),
-    ).toBeNull();
+    expect(colAtX(c, firstCellWidth / 2, INTERIOR, RACK_19)).toBe(0);
+    expect(colAtX(c, firstCellWidth + 1, INTERIOR, RACK_19)).toBeNull();
   });
 
-  it("keeps the gapless answer when no container is passed", () => {
-    const c = carrier();
-
-    expect(colAtX(c.slots!, INTERIOR * 0.75, INTERIOR)).toBe(1);
+  it("walks the columns of a gapless carrier edge to edge", () => {
+    expect(colAtX(carrier(), INTERIOR * 0.75, INTERIOR, RACK_19)).toBe(1);
   });
 });

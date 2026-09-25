@@ -49,17 +49,22 @@ function isSingleRow(containerType: DeviceType): boolean {
 }
 
 /**
- * The gaps that actually apply: none for a grid carrier, none when the list
- * is absent or the wrong length for the cell count.
+ * The gaps that actually apply: none for a grid carrier, and all zero when the
+ * list is absent or the wrong length for the cell count.
+ *
+ * A single row always gets one value per boundary, never a short list. Sharing
+ * a layout drops an all-zero list (share.ts writes `sg` only when a gap is set),
+ * so a short list here would be carried into the next split the row grows and
+ * saved with fewer gaps than DeviceTypeSchema accepts.
  *
  * @param containerType - The container being laid out
- * @returns n - 1 gap widths in millimetres, or an empty list
+ * @returns n - 1 gap widths in millimetres, or an empty list for a grid carrier
  */
 export function gapsFor(containerType: DeviceType): number[] {
-  const slots = containerType.slots ?? [];
+  if (!isSingleRow(containerType)) return [];
+  const count = Math.max((containerType.slots ?? []).length - 1, 0);
   const gaps = containerType.slot_gaps;
-  if (!gaps || !isSingleRow(containerType)) return [];
-  if (gaps.length !== Math.max(slots.length - 1, 0)) return [];
+  if (!gaps || gaps.length !== count) return new Array(count).fill(0);
   return gaps;
 }
 

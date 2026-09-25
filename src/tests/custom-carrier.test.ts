@@ -11,15 +11,11 @@ import {
   customCarrierSlug,
   buildCustomCarrierType,
   cellForDevice,
+  cellsOf,
   isGeneratedCarrier,
-  orphanGeneratedTypes,
 } from "$lib/utils/custom-carrier";
 import { getRackOpeningMm } from "$lib/utils/device-width";
-import {
-  createTestDevice,
-  createTestDeviceType,
-  createTestRack,
-} from "./factories";
+import { createTestDeviceType } from "./factories";
 
 const cells = [
   { widthFraction: 0.25, heightUnits: 1 },
@@ -71,6 +67,15 @@ describe("buildCustomCarrierType", () => {
     );
     expect(isGeneratedCarrier(createTestDeviceType())).toBe(false);
   });
+
+  it("reads its cells back, so a split can be edited and rebuilt", () => {
+    const uneven = [
+      { widthFraction: 0.25, heightUnits: 1 },
+      { widthFraction: 0.5, heightUnits: 0.5 },
+    ];
+
+    expect(cellsOf(buildCustomCarrierType(1, uneven, [20]))).toEqual(uneven);
+  });
 });
 
 describe("cellForDevice", () => {
@@ -86,23 +91,5 @@ describe("cellForDevice", () => {
     const device = createTestDeviceType({ u_height: 1, slot_width: 1 });
 
     expect(cellForDevice(device, 19).widthFraction).toBe(0.5);
-  });
-});
-
-describe("orphanGeneratedTypes", () => {
-  it("lists generated types no placed carrier uses any more", () => {
-    const used = buildCustomCarrierType(1, cells, [0]);
-    const stale = buildCustomCarrierType(1, cells, [20]);
-    const rack = createTestRack({
-      devices: [createTestDevice({ device_type: used.slug, position: 1 })],
-    });
-
-    expect(orphanGeneratedTypes([used, stale], [rack])).toEqual([stale.slug]);
-  });
-
-  it("never lists an authored type", () => {
-    const authored = createTestDeviceType({ slug: "my-shelf" });
-
-    expect(orphanGeneratedTypes([authored], [createTestRack()])).toEqual([]);
   });
 });

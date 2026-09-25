@@ -8,12 +8,13 @@
  * changing a rack's width or moving a carrier to another rack re-checks it.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { LayoutSchema } from "$lib/schemas";
+import { DeviceTypeSchema, LayoutSchema } from "$lib/schemas";
 import {
   canPlaceInSlot,
   requiresChassisBay,
   synthesizeCarrierForDevice,
   CARRIER_2COL_SLUG,
+  CARRIER_2X2_SLUG,
 } from "$lib/utils/collision";
 import {
   requiresCarrier,
@@ -21,7 +22,12 @@ import {
   getRackOpeningMm,
 } from "$lib/utils/device-width";
 import { adaptLegacyLayout } from "$lib/storage";
-import { buildCustomCarrierType } from "$lib/utils/custom-carrier";
+import {
+  buildCustomCarrierType,
+  cellForDevice,
+  cellsOf,
+} from "$lib/utils/custom-carrier";
+import { gapsFor } from "$lib/utils/slot-layout";
 import {
   filterDevicesByAttributes,
   type HeightBucket,
@@ -86,6 +92,28 @@ describe("canPlaceInSlot with width_mm", () => {
     expect(canPlaceInSlot(measuredDevice(72), thirdSlot, 10)).toBe(true);
   });
 
+  it("accepts a device in the cell cut for its own width", () => {
+    // A cut cell stores the raw width over the opening, and some of those
+    // ratios land exactly on a rounded third descriptor: 170 mm of a 21" rack
+    // is 0.34, and 153 mm of a 19" one is 0.34. Reading those down to a third
+    // made a device fail against the cell that was cut for it.
+    for (const [widthMm, rackWidth] of [
+      [170, 21],
+      [153, 19],
+      [301.5, 19],
+      [100, 19],
+      [72, 10],
+    ] as const) {
+      const device = measuredDevice(widthMm);
+      const cut = createTestSlot({
+        id: "cut",
+        width_fraction: cellForDevice(device, rackWidth).widthFraction,
+      });
+
+      expect(canPlaceInSlot(device, cut, rackWidth)).toBe(true);
+    }
+  });
+
   it("keeps the slot_width mapping when width_mm is not set", () => {
     const half = createTestDeviceType({ slot_width: 1 });
     const halfSlot = createTestSlot({ width_fraction: 0.5 });
@@ -126,6 +154,24 @@ describe("carrier-first rule for measured devices", () => {
       expect(synthesizeCarrierForDevice(device, rackWidth)).toBeNull();
       expect(requiresChassisBay(device, rackWidth)).toBe(true);
     }
+  });
+
+  it("carries sub-U measured gear in the shipped 2x2 grid", () => {
+    // A cut cell is as tall as the carrier around it, so only a whole-U device
+    // gets one. Sub-U gear takes the grid whose cells are half a U tall.
+    const device = { ...measuredDevice(100, "half-u"), u_height: 0.5 };
+
+    expect(synthesizeCarrierForDevice(device, 19)?.slug).toBe(CARRIER_2X2_SLUG);
+    expect(requiresChassisBay(device, 19)).toBe(false);
+  });
+
+  it("refuses sub-U measured gear too wide for a 2x2 cell", () => {
+    // 300 mm beats the grid's 225 mm cell, and the grid is the only carrier a
+    // sub-U device has, so it needs an existing bay.
+    const device = { ...measuredDevice(300, "wide-half-u"), u_height: 0.5 };
+
+    expect(synthesizeCarrierForDevice(device, 19)).toBeNull();
+    expect(requiresChassisBay(device, 19)).toBe(true);
   });
 
   it("keeps the shipped carrier for half-width gear with no measured width", () => {
@@ -488,5 +534,23 @@ describe("custom splits survive a round trip", () => {
       6,
     );
     expect(() => LayoutSchema.parse(adapted)).not.toThrow();
+  });
+
+  it("grows a split whose all-zero gaps the link left out", () => {
+    // A link writes no gap list when every gap is 0, so the type comes back
+    // without one. Growing that row must still write one gap per boundary, or
+    // the next save is a file DeviceTypeSchema refuses to read back.
+    const cell = { widthFraction: 0.25, heightUnits: 1 };
+    const shared = buildCustomCarrierType(1, [cell, cell], [0]);
+    delete shared.slot_gaps;
+
+    const grown = buildCustomCarrierType(
+      1,
+      [...cellsOf(shared), cell],
+      [...gapsFor(shared), 0],
+    );
+
+    expect(grown.slot_gaps).toEqual([0, 0]);
+    expect(DeviceTypeSchema.safeParse(grown).success).toBe(true);
   });
 });

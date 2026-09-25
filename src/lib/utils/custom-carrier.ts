@@ -93,6 +93,20 @@ export function buildCustomCarrierType(
 }
 
 /**
+ * The cells a container's slots describe, left to right. The inverse of the
+ * slots buildCustomCarrierType writes, so a split can be read back, edited and
+ * rebuilt.
+ *
+ * @param containerType - The container being read
+ */
+export function cellsOf(containerType: DeviceType): CarrierCell[] {
+  return (containerType.slots ?? []).map((slot) => ({
+    widthFraction: slot.width_fraction ?? 1.0,
+    heightUnits: slot.height_units ?? 1,
+  }));
+}
+
+/**
  * The cell a device needs: its measured width over the rack opening, or a
  * half cell when it only carries the half-width descriptor.
  *
@@ -124,26 +138,6 @@ export const CUSTOM_CARRIER_SLUG_PATTERN = /^carrier-\d+u-custom-[0-9a-z]+$/;
  */
 export function isGeneratedCarrier(deviceType: DeviceType): boolean {
   return deviceType.auto_created === true;
-}
-
-/**
- * Generated types no placed carrier references any more, so the file's
- * library does not grow without bound.
- *
- * @param deviceTypes - The layout's device types
- * @param racks - Every rack in the layout
- * @returns Slugs safe to drop
- */
-export function orphanGeneratedTypes(
-  deviceTypes: DeviceType[],
-  racks: Rack[],
-): string[] {
-  const inUse = new Set(
-    racks.flatMap((rack) => rack.devices.map((d) => d.device_type)),
-  );
-  return deviceTypes
-    .filter((dt) => isGeneratedCarrier(dt) && !inUse.has(dt.slug))
-    .map((dt) => dt.slug);
 }
 
 /**

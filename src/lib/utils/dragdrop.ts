@@ -224,48 +224,34 @@ export function hideNativeDragGhost(dataTransfer: DataTransfer): void {
 }
 
 /**
- * Find the column index at a given X position within a container's slots.
- * Columns are derived from the distinct col values in the slot grid.
- * @param slots - Array of slots in the container
+ * Find the column index at a given X position within a container's cells.
+ *
+ * The drawn bands are walked, not the bare column widths, so a point landing in
+ * a gap or in the free space at the end of the row claims no column. The
+ * container is the whole input on purpose: a caller passing a slots array that
+ * did not come from this container is how hit testing and drop targeting used to
+ * disagree on a gapped carrier.
+ *
+ * @param containerType - The container being aimed at
  * @param xOffsetInRack - X position relative to rack interior (0 = left edge)
  * @param interiorWidth - Width of rack interior in pixels
- * @param containerType - The container, when its gaps should be honoured
- * @param rackWidth - Nominal rack width in inches, required with containerType
- * @returns The matched column index, or null if outside the grid
+ * @param rackWidth - Nominal rack width in inches, which sizes the gaps
+ * @returns The matched column index, or null if outside the cells
  */
 export function colAtX(
-  slots: Slot[],
+  containerType: DeviceType,
   xOffsetInRack: number,
   interiorWidth: number,
-  containerType?: DeviceType,
-  rackWidth?: number,
+  rackWidth: number,
 ): number | null {
-  // With the container in hand, walk the real drawn bands so a point landing
-  // in a gap or in the free space at the end of the row claims no column.
-  if (containerType && rackWidth !== undefined) {
-    const layout = slotLayout(containerType, interiorWidth, rackWidth);
-    const hit = layout.slots.find(
-      (band) => xOffsetInRack >= band.x && xOffsetInRack < band.x + band.width,
-    );
-    if (!hit) return null;
-    return slots.find((s) => s.id === hit.id)?.position.col ?? null;
-  }
-
-  // Columns share their width_fraction within a row; use the bottom row (the
-  // first occurrence of each col) to walk the column boundaries left to right.
-  const cols = [...new Set(slots.map((s) => s.position.col))].sort(
-    (a, b) => a - b,
+  const hit = slotLayout(containerType, interiorWidth, rackWidth).slots.find(
+    (band) => xOffsetInRack >= band.x && xOffsetInRack < band.x + band.width,
   );
-  let accumulated = 0;
-  for (const col of cols) {
-    const colSlot = slots.find((s) => s.position.col === col)!;
-    const width = interiorWidth * (colSlot.width_fraction ?? 1.0);
-    if (xOffsetInRack >= accumulated && xOffsetInRack < accumulated + width) {
-      return col;
-    }
-    accumulated += width;
-  }
-  return null;
+  if (!hit) return null;
+  return (
+    (containerType.slots ?? []).find((s) => s.id === hit.id)?.position.col ??
+    null
+  );
 }
 
 /**
@@ -387,13 +373,7 @@ export function detectContainerDropTarget(
     if (targetU < containerBottomU || targetU > containerTopU) continue;
 
     const interiorWidth = rackWidth - RAIL_WIDTH * 2;
-    const col = colAtX(
-      slots,
-      xOffsetInRack,
-      interiorWidth,
-      containerType,
-      rack.width,
-    );
+    const col = colAtX(containerType, xOffsetInRack, interiorWidth, rack.width);
     const row = rowAtY(
       slots,
       mouseY,
@@ -535,13 +515,7 @@ export function detectContainerHover(
 
     // Found a container at this position - resolve the cell under the cursor.
     const interiorWidth = rackWidth - RAIL_WIDTH * 2;
-    const col = colAtX(
-      slots,
-      xOffsetInRack,
-      interiorWidth,
-      deviceType,
-      rack.width,
-    );
+    const col = colAtX(deviceType, xOffsetInRack, interiorWidth, rack.width);
     const row = rowAtY(
       slots,
       mouseY,

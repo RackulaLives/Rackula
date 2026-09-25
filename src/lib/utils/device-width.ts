@@ -55,18 +55,20 @@ export function getRackOpeningMm(rackWidth: number): number {
 }
 
 /**
- * A cell's share of the opening, reading the rounded third descriptors
- * (0.33, 0.34, 0.66, 0.67) as exact thirds.
+ * A cell's share of the opening, reading the rounded-down third descriptors
+ * (0.33, 0.66) as exact thirds so a shipped third-width cell accepts a third.
  *
- * Only those four values are read as thirds. Snapping everything within a
- * tolerance of a third would move a deliberate custom fraction: 0.343 would
- * shrink to a third and reject a device that fits, and 0.657 would grow to two
- * thirds and accept one that does not.
+ * Only those two values are read up. 0.34 and 0.67 are already wider than the
+ * third they describe, and reading them down is the bug that made a cell reject
+ * the device it was cut for: a 170 mm device in a 21" rack cuts a cell of
+ * exactly 0.34, and a third of that opening is 166.7 mm. Snapping everything
+ * within a tolerance of a third would move a deliberate custom fraction too:
+ * 0.343 would shrink to a third and reject a device that fits.
  */
 function cellFraction(slotWidthFraction: number | undefined): number {
   const fraction = slotWidthFraction ?? 1.0;
-  if (fraction === 0.33 || fraction === 0.34) return 1 / 3;
-  if (fraction === 0.66 || fraction === 0.67) return 2 / 3;
+  if (fraction === 0.33) return 1 / 3;
+  if (fraction === 0.66) return 2 / 3;
   return fraction;
 }
 

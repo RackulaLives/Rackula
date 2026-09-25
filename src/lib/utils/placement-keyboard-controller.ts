@@ -142,9 +142,9 @@ export function primeKeyboardPlacement(
     return;
   }
   // A device that can only mount inside an existing bay (a chassis child, a
-  // half-width device with no rail carrier, or measured gear too wide for a
-  // carrier cell in this rack) has no rail target here. State the honest
-  // requirement rather than arming a cursor that can never land (#2854).
+  // half-width device with no rail carrier, or measured gear wider than this
+  // rack's opening) has no rail target here. State the honest requirement
+  // rather than arming a cursor that can never land (#2854).
   if (requiresChassisBay(device, rack.width)) {
     // Whether to stay armed turns on the other racks. Measured gear that is too
     // wide for this rack may fit a wider one, so keep placement armed with a

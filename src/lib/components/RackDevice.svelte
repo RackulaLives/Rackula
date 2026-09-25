@@ -312,7 +312,7 @@
     const y =
       yPosition + ((event.clientY - rect.top) / rect.height) * deviceHeight;
     const slots = device.slots ?? [];
-    const col = colAtX(slots, x, deviceWidth);
+    const col = colAtX(device, x, deviceWidth, nominalRackWidth);
     const row = rowAtY(
       slots,
       y,

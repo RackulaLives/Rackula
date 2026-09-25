@@ -178,6 +178,17 @@ In server-side persistence mode, no base64 image data appears in the stored layo
 | --- | --- | --- | --- |
 | `subdevice_role` | `SubdeviceRole` | No | Role in parent/child relationship |
 
+#### Container Cells
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slots` | `Slot[]` | No | The cells a container offers its children. A device type with at least one slot is a container |
+| `slot_width` | `1` \| `2` | No | Cell width a device without `width_mm` needs: 1 is half a cell, 2 (the default) a full one |
+| `slot_gaps` | `number[]` | No | Millimetres between neighbouring cells of a single-row container, one value per boundary: n cells need n - 1 gaps, and a wrong count is rejected |
+| `auto_created` | `boolean` | No | The type was generated for one carrier's split rather than authored in a library. Generated types stay out of the palette and are dropped once no placed carrier uses them |
+
+A `Slot` carries an `id`, a `position` of `row` and `col`, and optionally a `name`, a `width_fraction` (its share of the rack's clear opening, up to 1), a `height_units` height in U, and an `accepts` list of device categories.
+
 #### Power Device Properties
 
 | Field | Type | Required | Description |

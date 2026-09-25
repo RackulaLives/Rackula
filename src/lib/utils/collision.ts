@@ -456,16 +456,16 @@ export function isWholeURailPosition(positionInternal: number): boolean {
 }
 
 /**
- * Pick the carrier slug that a narrow device (half-width, or measured) must
- * mount inside, based on its height. Every synthesised carrier has half-width
- * cells, so only gear that fits half of the rack opening can be carrier-mounted:
- * a sub-U device needs the 2x2 grid; a whole-U device needs a height-matched
- * column carrier (1U or 2U).
+ * Pick the carrier a narrow device (half-width, or measured) must mount inside.
+ * A measured whole-U device gets a carrier generated around one cell cut to its
+ * own width, so the rack opening is its only ceiling. Everything else takes a
+ * shipped carrier, whose cells are half-width: a sub-U device the 2x2 grid, a
+ * whole-U device a height-matched column carrier (1U or 2U).
  *
  * Returns null (no rail carrier) when:
  * - the device is full-width (there is no full-width carrier to synthesise);
- * - the device has a measured width too wide for a half-width cell in this rack
- *   (it can only go into an existing shelf or carrier with a wider cell);
+ * - a measured width is wider than the rack opening, or wider than a half cell
+ *   for sub-U gear, which has only the 2x2 grid to mount in;
  * - the device is a chassis child (subdevice_role "child") - it mounts only
  *   inside an existing parent bay, never on the rails;
  * - the whole-U height has no matching carrier defined (e.g. a 3U half-width) -
@@ -496,9 +496,15 @@ export function synthesizeCarrierForDevice(
   // A measured device gets a cell cut to its own width, so the shipped half
   // cell is no longer the ceiling. Only the whole opening can refuse it.
   if (deviceType.width_mm !== undefined) {
-    if (deviceType.u_height < 1 || !Number.isInteger(deviceType.u_height)) {
-      return null;
+    // A cut cell is as tall as its carrier, so it can only be cut for a whole-U
+    // device. Sub-U gear takes the 2x2 grid, whose cells are half-U tall, as
+    // long as the measured width still fits one of that grid's half cells.
+    if (deviceType.u_height < 1) {
+      return fitsSlotWidth(deviceType, 0.5, rackWidth)
+        ? { slug: CARRIER_2X2_SLUG }
+        : null;
     }
+    if (!Number.isInteger(deviceType.u_height)) return null;
     const cell = cellForDevice(deviceType, rackWidth);
     if (cell.widthFraction > 1) return null;
     const type = buildCustomCarrierType(deviceType.u_height, [cell], []);
@@ -527,8 +533,8 @@ export function synthesizeCarrierForDevice(
  * carrier, so it can be placed ONLY inside an existing chassis/carrier bay. It
  * requires a carrier (narrow / sub-U / non-integer) but no carrier can be
  * synthesised for it - a chassis child, a half-width device whose integer
- * height has no matching carrier, or a measured device too wide for a
- * half-width cell in this rack.
+ * height has no matching carrier, or a measured device wider than the rack
+ * opening.
  *
  * This is the single predicate the preview (resolveDropTarget), the keyboard
  * (validStartPositions / primeKeyboardPlacement), and the store (placeDeviceSmart

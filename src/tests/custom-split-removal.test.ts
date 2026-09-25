@@ -128,3 +128,60 @@ describe("removing a device from a custom split", () => {
     ).toBe(3);
   });
 });
+
+describe("dragging a device out of a custom split", () => {
+  function dragOutOfSlot(
+    store: ReturnType<typeof getLayoutStore>,
+    rackId: string,
+    slotId: string,
+    toU: number,
+  ) {
+    const devices = store.getRackById(rackId)!.devices;
+    const index = devices.findIndex((d) => d.slot_id === slotId);
+    return store.moveDeviceSmart(rackId, index, rackId, toU);
+  }
+
+  it("drops the cell it leaves rather than keep a phantom", () => {
+    const { store, rackId, carrierId } = splitOf(3, [10, 20]);
+
+    // Dragged to its own carrier three U up, so it leaves this row for good.
+    expect(dragOutOfSlot(store, rackId, "col-3", 8)).toBe(true);
+
+    const type = carrierType(store, rackId, carrierId);
+    expect(type.slots?.length).toBe(2);
+    expect(type.slot_gaps).toEqual([10]);
+  });
+
+  it("renumbers the survivors so none points at a cell that is gone", () => {
+    const { store, rackId, carrierId } = splitOf(3);
+
+    dragOutOfSlot(store, rackId, "col-1", 8);
+
+    const type = carrierType(store, rackId, carrierId);
+    const cellIds = new Set(type.slots?.map((s) => s.id));
+    const children = store
+      .getRackById(rackId)!
+      .devices.filter((d) => d.container_id === carrierId);
+
+    expect(children.length).toBe(2);
+    for (const child of children) {
+      expect(cellIds.has(child.slot_id!)).toBe(true);
+    }
+  });
+
+  it("restores the split on undo", () => {
+    const { store, rackId, carrierId } = splitOf(3, [10, 20]);
+
+    dragOutOfSlot(store, rackId, "col-2", 8);
+    store.undo();
+
+    const type = carrierType(store, rackId, carrierId);
+    expect(type.slots?.length).toBe(3);
+    expect(type.slot_gaps).toEqual([10, 20]);
+    expect(
+      store
+        .getRackById(rackId)!
+        .devices.filter((d) => d.container_id === carrierId).length,
+    ).toBe(3);
+  });
+});
