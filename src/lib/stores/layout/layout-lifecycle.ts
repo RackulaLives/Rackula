@@ -24,6 +24,9 @@ import { generateUniqueDeviceId } from "./mutators";
  */
 function dedupeConnectionIds(connections: Connection[]): Connection[] {
   const seenIds = new Set<string>();
+  // Every original id is reserved up front so a regenerated id can never take
+  // a later connection's original id and break first-occurrence-wins.
+  const originalIds = new Set(connections.map((c) => c.id));
   const endpointsById = new Map<string, Connection[]>();
   const result: Connection[] = [];
   for (const connection of connections) {
@@ -43,7 +46,10 @@ function dedupeConnectionIds(connections: Connection[]): Connection[] {
     );
     if (isExactDuplicate) continue;
     endpointsById.get(originalId)?.push(connection);
-    result.push({ ...connection, id: generateUniqueDeviceId(seenIds) });
+    result.push({
+      ...connection,
+      id: generateUniqueDeviceId(seenIds, originalIds),
+    });
   }
   return result;
 }

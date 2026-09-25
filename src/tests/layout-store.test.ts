@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import type { Layout } from "$lib/types";
 import { VERSION } from "$lib/version";
@@ -12,10 +12,22 @@ import {
   createTestRack,
 } from "./factories";
 
+// Queue of ids generateId returns before falling back to the real generator,
+// so a test can force a specific regenerated id (#3284 review).
+const forcedIds = vi.hoisted(() => [] as string[]);
+vi.mock("$lib/utils/device", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("$lib/utils/device")>();
+  return {
+    ...actual,
+    generateId: () => forcedIds.shift() ?? actual.generateId(),
+  };
+});
+
 describe("Layout Store", () => {
   beforeEach(() => {
     // Reset the store before each test
     resetLayoutStore();
+    forcedIds.length = 0;
   });
 
   describe("initial state", () => {
@@ -811,6 +823,7 @@ describe("Layout Store", () => {
       return {
         version: "0.7.0",
         name: "Connection Id Dedup Test",
+        metadata: { id: "layout-1" },
         racks: [
           createTestRack({
             id: "rack-1",
@@ -896,6 +909,43 @@ describe("Layout Store", () => {
           label: "uplink",
         }),
       ]);
+    });
+
+    it("never hands a regenerated id to a later connection's original id", () => {
+      const store = getLayoutStore();
+      // Force the first generated id to equal the third connection's original
+      // id; regeneration must skip it so the third connection keeps "later".
+      forcedIds.push("later");
+      store.loadLayout(
+        layoutWithConnections([
+          createTestConnection({
+            id: "dup",
+            a_port_id: "port-a",
+            b_port_id: "port-b",
+          }),
+          createTestConnection({
+            id: "dup",
+            a_port_id: "port-c",
+            b_port_id: "port-d",
+          }),
+          createTestConnection({
+            id: "later",
+            a_port_id: "port-a",
+            b_port_id: "port-c",
+          }),
+        ]),
+      );
+
+      const connections = store.layout.connections ?? [];
+      const ids = connections.map((c) => c.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(connections).toContainEqual(
+        expect.objectContaining({
+          id: "later",
+          a_port_id: "port-a",
+          b_port_id: "port-c",
+        }),
+      );
     });
 
     it("removing one formerly duplicated connection leaves the other, and undo restores only the removed one", () => {
