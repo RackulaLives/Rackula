@@ -572,7 +572,7 @@
       {totalHeight}
       rackHeight={rack.height}
       {uLabels}
-      {hideULabels}
+      hideULabels={hideULabels || canvasStore.lodTier === "reduced"}
       {hideRackName}
       rackName={rack.name}
       {viewLabel}
@@ -612,6 +612,7 @@
               {displayMode}
               rackView={effectiveFaceFilter}
               {showLabelsOnImages}
+              showNameLabels={canvasStore.lodTier === "full"}
               placedDeviceName={placedDevice.name}
               placedDeviceId={placedDevice.id}
               ports={placedDevice.ports}

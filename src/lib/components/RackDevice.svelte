@@ -61,6 +61,8 @@
     displayMode?: DisplayMode;
     rackView?: RackView;
     showLabelsOnImages?: boolean;
+    /** Render name labels; false on a zoomed-out canvas (LOD, #3367) */
+    showNameLabels?: boolean;
     placedDeviceName?: string;
     placedDeviceId?: string;
     /** This placement's custom front image reference, if it sets one. */
@@ -125,6 +127,7 @@
     displayMode = "label",
     rackView = "front",
     showLabelsOnImages = false,
+    showNameLabels = true,
     placedDeviceName,
     placedDeviceId,
     frontImageRef,
@@ -940,7 +943,7 @@
       <!-- Label overlay when showLabelsOnImages is true
          Safari 18.x fix #420: Use SVG-native component instead of foreignObject
          to avoid transform inheritance bug -->
-      {#if showLabelsOnImages}
+      {#if showLabelsOnImages && showNameLabels}
         <LabelOverlaySVG
           text={fittedImageLabel.text}
           fontSize={fittedImageLabel.fontSize}
@@ -974,16 +977,18 @@
       {/if}
     {:else}
       <!-- Device name (centered, auto-sized) -->
-      <text
-        class="device-name"
-        x={deviceWidth / 2}
-        y={deviceHeight / 2}
-        dominant-baseline="middle"
-        text-anchor="middle"
-        style="font-size: {fittedLabel.fontSize}px"
-      >
-        {fittedLabel.text}
-      </text>
+      {#if showNameLabels}
+        <text
+          class="device-name"
+          x={deviceWidth / 2}
+          y={deviceHeight / 2}
+          dominant-baseline="middle"
+          text-anchor="middle"
+          style="font-size: {fittedLabel.fontSize}px"
+        >
+          {fittedLabel.text}
+        </text>
+      {/if}
 
       <!-- Category icon (vertically centered)
          Safari 18.x fix #411: Use SVG-native component instead of foreignObject
@@ -1145,7 +1150,7 @@
             {/if}
             <!-- Child device label. Hidden over an image unless labels on
                  images are on, matching how the parent device behaves. -->
-            {#if !childImageUrl || showLabelsOnImages}
+            {#if showNameLabels && (!childImageUrl || showLabelsOnImages)}
               <text
                 class="child-device-label"
                 x={childWidth / 2}
