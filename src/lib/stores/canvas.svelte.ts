@@ -14,6 +14,7 @@ import {
   racksToPositionsWithIds,
 } from "$lib/utils/canvas";
 import { canvasDebug } from "$lib/utils/debug";
+import { nextLodTier, type LodTier } from "$lib/utils/lod";
 import {
   U_HEIGHT_PX,
   BASE_RACK_WIDTH,
@@ -59,6 +60,9 @@ type PanzoomInstance = ReturnType<typeof panzoom>;
 // Module-level state
 let panzoomInstance = $state<PanzoomInstance | null>(null);
 let currentZoom = $state(1); // 1 = 100%
+// Quantised level of detail. Rack components read this, not the raw zoom, so
+// they only re-render when a tier boundary is crossed (#3367).
+let lodTier = $state<LodTier>("full");
 let canvasElement = $state<HTMLElement | null>(null);
 let isPanning = $state(false);
 let isZooming = $state(false);
@@ -111,6 +115,7 @@ export function resetCanvasStore(): void {
   }
   panzoomInstance = null;
   currentZoom = 1;
+  lodTier = "full";
   canvasElement = null;
   isPanning = false;
   isZooming = false;
@@ -131,6 +136,9 @@ export function getCanvasStore() {
     // State getters
     get zoom() {
       return currentZoom;
+    },
+    get lodTier() {
+      return lodTier;
     },
     get zoomPercentage() {
       return zoomPercentage;
@@ -172,6 +180,11 @@ export function getCanvasStore() {
     restoreViewport,
     clearSavedViewport,
   };
+}
+
+function setCurrentZoom(scale: number): void {
+  currentZoom = scale;
+  lodTier = nextLodTier(lodTier, scale);
 }
 
 function scheduleViewportSave(): void {
@@ -243,7 +256,7 @@ function restoreViewport(): boolean {
     cancelCameraAnimation();
     panzoomInstance.zoomAbs(0, 0, scale);
     panzoomInstance.moveTo(saved.x, saved.y);
-    currentZoom = scale;
+    setCurrentZoom(scale);
     return true;
   } catch {
     // Remove unparseable entry so it doesn't block future restores
@@ -261,7 +274,7 @@ function setPanzoomInstance(instance: PanzoomInstance): void {
   // Listen for zoom changes to keep state in sync, and debounce-save viewport
   instance.on("zoom", () => {
     const transform = instance.getTransform();
-    currentZoom = transform.scale;
+    setCurrentZoom(transform.scale);
     // panzoom has no zoomstart/zoomend, so treat a burst of zoom events as one
     // gesture: flag it now and clear shortly after the last event. The verb bar
     // drops its live backdrop-filter while this is set to avoid per-frame blur
@@ -289,7 +302,7 @@ function setPanzoomInstance(instance: PanzoomInstance): void {
 
   // Initialize currentZoom from panzoom
   const transform = instance.getTransform();
-  currentZoom = transform.scale;
+  setCurrentZoom(transform.scale);
 }
 
 /**
