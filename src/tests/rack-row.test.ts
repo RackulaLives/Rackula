@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   organizeRackRow,
+  organizeRackRows,
   reorderRackRow,
   planBayedInsert,
   planRowAfterRemoval,
@@ -114,7 +115,116 @@ describe("organizeRackRow", () => {
   });
 });
 
+describe("organizeRackRows (#3370)", () => {
+  const ids = (rows: ReturnType<typeof organizeRackRows>) =>
+    rows.map((row) =>
+      row.map((item) => (item.kind === "rack" ? item.rack.id : item.group.id)),
+    );
+
+  it("gives each group its own row and puts standalone racks in one row", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const m1 = createTestRack({ id: "m1", position: 1 });
+    const m2 = createTestRack({ id: "m2", position: 2 });
+    const b = createTestRack({ id: "b", position: 3 });
+    const r1 = createTestRack({ id: "r1", position: 4 });
+    const bay: RackGroup = {
+      id: "bay",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "bayed",
+    };
+    const row: RackGroup = {
+      id: "row",
+      rack_ids: ["r1"],
+      layout_preset: "row",
+    };
+
+    const rows = organizeRackRows([a, m1, m2, b, r1], [bay, row]);
+
+    expect(ids(rows)).toEqual([["a", "b"], ["bay"], ["row"]]);
+  });
+
+  it("orders rows by their lowest position", () => {
+    const m1 = createTestRack({ id: "m1", position: 0 });
+    const a = createTestRack({ id: "a", position: 5 });
+    const bay: RackGroup = {
+      id: "bay",
+      rack_ids: ["m1"],
+      layout_preset: "bayed",
+    };
+
+    expect(ids(organizeRackRows([a, m1], [bay]))).toEqual([["bay"], ["a"]]);
+  });
+
+  it("keeps rack order within a group", () => {
+    const m1 = createTestRack({ id: "m1", position: 3 });
+    const m2 = createTestRack({ id: "m2", position: 1 });
+    const m3 = createTestRack({ id: "m3", position: 2 });
+    const group: RackGroup = {
+      id: "g",
+      rack_ids: ["m1", "m2", "m3"],
+      layout_preset: "row",
+    };
+
+    const [[item]] = organizeRackRows([m1, m2, m3], [group]);
+
+    expect(item?.kind === "group" && item.racks.map((r) => r.id)).toEqual([
+      "m2",
+      "m3",
+      "m1",
+    ]);
+  });
+
+  it("keeps insertion order for racks that share a position", () => {
+    // Share-link decodes give every rack the same position.
+    const b = createTestRack({ id: "b", position: 0 });
+    const a = createTestRack({ id: "a", position: 0 });
+
+    expect(ids(organizeRackRows([b, a], []))).toEqual([["b", "a"]]);
+  });
+});
+
 describe("reorderRackRow", () => {
+  it("moves a standalone rack within the standalone row, past a group row", () => {
+    // Rows: [a, b] then [bay]; b sorts after the bay by position but shares
+    // the standalone row with a.
+    const a = createTestRack({ id: "a", position: 0 });
+    const m1 = createTestRack({ id: "m1", position: 1 });
+    const b = createTestRack({ id: "b", position: 2 });
+    const bay: RackGroup = {
+      id: "bay",
+      rack_ids: ["m1"],
+      layout_preset: "bayed",
+    };
+
+    expect(reorderRackRow([a, m1, b], [bay], "b", "left")).toEqual([
+      { id: "b", position: 0 },
+      { id: "a", position: 1 },
+      { id: "m1", position: 2 },
+    ]);
+  });
+
+  it("moves a group one row down when moved right", () => {
+    const m1 = createTestRack({ id: "m1", position: 0 });
+    const m2 = createTestRack({ id: "m2", position: 1 });
+    const a = createTestRack({ id: "a", position: 2 });
+    const bay: RackGroup = {
+      id: "bay",
+      rack_ids: ["m1", "m2"],
+      layout_preset: "bayed",
+    };
+
+    const assignments = reorderRackRow([m1, m2, a], [bay], "m1", "right")!;
+    const racks = [m1, m2, a].map((rack) => ({
+      ...rack,
+      position: assignments.find((x) => x.id === rack.id)!.position,
+    }));
+
+    const rows = organizeRackRows(racks, [bay]).map((row) =>
+      row.map((item) => (item.kind === "rack" ? item.rack.id : item.group.id)),
+    );
+    expect(rows).toEqual([["a"], ["bay"]]);
+  });
+
   it("swaps a standalone rack right past its neighbour", () => {
     const a = createTestRack({ id: "a", position: 0 });
     const b = createTestRack({ id: "b", position: 1 });
@@ -378,6 +488,26 @@ describe("getRackSlotControls (verb bar reorder + bay gating, #2822)", () => {
     expect(last.canReorder).toBe(true);
     expect(last.canMoveLeft).toBe(true);
     expect(last.canMoveRight).toBe(false);
+  });
+
+  it("reorders a standalone rack within its row and a group among rows", () => {
+    const a = createTestRack({ id: "a", position: 0 });
+    const m1 = createTestRack({ id: "m1", position: 1 });
+    const bay: RackGroup = {
+      id: "bay",
+      rack_ids: ["m1"],
+      layout_preset: "bayed",
+    };
+
+    // a is alone in the standalone row, so it has nothing to swap with.
+    expect(getRackSlotControls([a, m1], [bay], "a", "a").canReorder).toBe(
+      false,
+    );
+    // The group row sits below the standalone row, so it can move up only.
+    const group = getRackSlotControls([a, m1], [bay], "m1", "m1");
+    expect(group.canReorder).toBe(true);
+    expect(group.canMoveLeft).toBe(true);
+    expect(group.canMoveRight).toBe(false);
   });
 
   it("returns the empty state when nothing reorderable is selected", () => {

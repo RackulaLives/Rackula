@@ -1,27 +1,24 @@
 import type { Rack, RackGroup } from "$lib/types";
 
 /**
- * A single slot in the canvas row: either a standalone rack or a group of
- * racks (bayed or row preset) whose members render contiguously.
+ * A single slot on the canvas: either a standalone rack or a group of racks
+ * (bayed or row preset) whose members render contiguously.
  */
 export type RackRowItem =
   | { kind: "rack"; rack: Rack }
   | { kind: "group"; group: RackGroup; racks: Rack[] };
 
 /**
- * Lay racks out as one horizontal row ordered by Rack.position.
+ * Order racks and groups into canvas slots by Rack.position.
  *
- * Standalone racks (members of no group) are individual row items. A group's
- * members render contiguously, and the group takes the row slot of its
- * lowest-position member, so bayed racks stay flush and never interleave with
- * unrelated racks. Members render in position order. Groups with no resolvable
- * member are dropped. A rack listed in more than one group is claimed by the
- * first group only, and a rack id repeated within one group is included once.
+ * Standalone racks (members of no group) are individual slots. A group's
+ * members stay together in one slot, and the group sorts at its lowest-position
+ * member. Members are in position order. Groups with no resolvable member are
+ * dropped. A rack listed in more than one group is claimed by the first group
+ * only, and a rack id repeated within one group is included once. Equal
+ * positions keep insertion order (groups first, then racks).
  */
-export function organizeRackRow(
-  racks: Rack[],
-  groups: RackGroup[],
-): RackRowItem[] {
+function organizeSlots(racks: Rack[], groups: RackGroup[]): RackRowItem[] {
   const rackById = new Map(racks.map((rack) => [rack.id, rack]));
   const claimed = new Set<string>();
 
@@ -61,6 +58,89 @@ export function organizeRackRow(
 
   slots.sort((a, b) => a.sortKey - b.sortKey || a.seq - b.seq);
   return slots.map((slot) => slot.item);
+}
+
+/**
+ * Lay racks out as rows stacked top to bottom (#3370).
+ *
+ * Each group (bayed or row preset) is a row of its own, and all standalone
+ * racks share one row, left to right by position. Rows are ordered by their
+ * lowest-position slot. Grouping and member order follow organizeSlots.
+ */
+export function organizeRackRows(
+  racks: Rack[],
+  groups: RackGroup[],
+): RackRowItem[][] {
+  const rows: RackRowItem[][] = [];
+  let standalone: RackRowItem[] | null = null;
+  for (const item of organizeSlots(racks, groups)) {
+    if (item.kind === "group") {
+      rows.push([item]);
+    } else if (standalone === null) {
+      standalone = [item];
+      rows.push(standalone);
+    } else {
+      standalone.push(item);
+    }
+  }
+  return rows;
+}
+
+/**
+ * Every canvas slot in reading order: the rows from organizeRackRows, top to
+ * bottom, each left to right. Reindexing Rack.position in this order keeps
+ * every row and the row order unchanged.
+ */
+export function organizeRackRow(
+  racks: Rack[],
+  groups: RackGroup[],
+): RackRowItem[] {
+  return organizeRackRows(racks, groups).flat();
+}
+
+/** Rack ids of a slot, in render order. */
+function slotRackIds(item: RackRowItem): string[] {
+  return item.kind === "rack" ? [item.rack.id] : item.racks.map((r) => r.id);
+}
+
+/**
+ * Find the slot holding rackId and the sequence it reorders within. A
+ * standalone rack moves along the standalone row; a group fills its own row,
+ * so it moves among the rows. `index` is the slot's place in that sequence and
+ * `length` is the sequence length.
+ */
+function locateSlot(
+  rows: RackRowItem[][],
+  rackId: string,
+): {
+  item: RackRowItem;
+  rowIndex: number;
+  movesRow: boolean;
+  index: number;
+  length: number;
+} | null {
+  for (const [rowIndex, row] of rows.entries()) {
+    const itemIndex = row.findIndex((item) =>
+      slotRackIds(item).includes(rackId),
+    );
+    const item = row[itemIndex];
+    if (item === undefined) continue;
+    const movesRow = item.kind === "group";
+    return {
+      item,
+      rowIndex,
+      movesRow,
+      index: movesRow ? rowIndex : itemIndex,
+      length: movesRow ? rows.length : row.length,
+    };
+  }
+  return null;
+}
+
+function swap<T>(list: T[], from: number, to: number): void {
+  const moved = list[from]!;
+  list[from] = list[to]!;
+  list[to] = moved;
 }
 
 /**
@@ -104,10 +184,11 @@ export interface RackSlotControls {
 }
 
 /**
- * Reorder availability and bay source for the row slot containing
- * selectedRackId (a standalone rack, or a group's active member). Chevrons show
- * only when the row has two or more slots and disable at the ends, matching the
- * retired slot-controls lane. Baying follows baySourceForItem. Returns the empty
+ * Reorder availability and bay source for the slot containing selectedRackId
+ * (a standalone rack, or a group's active member). A standalone rack reorders
+ * within the standalone row and a group reorders among the rows (see
+ * locateSlot). Chevrons show only when that sequence has two or more entries
+ * and disable at the ends. Baying follows baySourceForItem. Returns the empty
  * state when nothing reorderable is selected.
  */
 export function getRackSlotControls(
@@ -116,21 +197,16 @@ export function getRackSlotControls(
   selectedRackId: string | null,
   activeRackId: string | null,
 ): RackSlotControls {
-  const items = organizeRackRow(racks, groups);
-  const index =
+  const slot =
     selectedRackId === null
-      ? -1
-      : items.findIndex((item) =>
-          item.kind === "rack"
-            ? item.rack.id === selectedRackId
-            : item.racks.some((rack) => rack.id === selectedRackId),
-        );
-  const canReorder = index !== -1 && items.length >= 2;
+      ? null
+      : locateSlot(organizeRackRows(racks, groups), selectedRackId);
+  const canReorder = slot !== null && slot.length >= 2;
   return {
     canReorder,
-    canMoveLeft: canReorder && index > 0,
-    canMoveRight: canReorder && index < items.length - 1,
-    baySource: baySourceForItem(items[index], activeRackId),
+    canMoveLeft: canReorder && slot.index > 0,
+    canMoveRight: canReorder && slot.index < slot.length - 1,
+    baySource: baySourceForItem(slot?.item, activeRackId),
   };
 }
 
@@ -138,15 +214,17 @@ export function getRackSlotControls(
 export type RackPositionAssignment = { id: string; position: number };
 
 /**
- * Compute the Rack.position values that move the row slot containing
+ * Compute the Rack.position values that move the slot containing
  * `selectedRackId` one place left or right, swapping it with its neighbour.
  *
- * A group occupies a single row slot, so a grouped rack moves its whole group
- * as a unit and is never pulled out of its group. The whole row is reindexed to
- * sequential positions in its new order, so positions stay whole and unique and
- * group members stay contiguous. Returns one assignment per rack in the new row
- * order, or null when the move is a no-op: the rack is not in the row, the slot
- * is already at the target edge, or there are fewer than two slots to reorder.
+ * A standalone rack swaps with its neighbour in the standalone row. A group
+ * fills its own row, so a grouped rack moves its whole group one row earlier
+ * ("left") or later ("right") and is never pulled out of its group. Every rack
+ * is then reindexed to sequential positions in reading order, so positions stay
+ * whole and unique and group members stay contiguous. Returns one assignment
+ * per rack in the new order, or null when the move is a no-op: the rack is not
+ * on the canvas, the slot is already at the target edge, or there is nothing
+ * to swap with.
  */
 export function reorderRackRow(
   racks: Rack[],
@@ -154,28 +232,20 @@ export function reorderRackRow(
   selectedRackId: string,
   direction: "left" | "right",
 ): RackPositionAssignment[] | null {
-  const items = organizeRackRow(racks, groups);
-  if (items.length < 2) return null;
+  const rows = organizeRackRows(racks, groups);
+  const slot = locateSlot(rows, selectedRackId);
+  if (slot === null) return null;
 
-  const fromIndex = items.findIndex((item) =>
-    item.kind === "rack"
-      ? item.rack.id === selectedRackId
-      : item.racks.some((rack) => rack.id === selectedRackId),
-  );
-  if (fromIndex === -1) return null;
+  const toIndex = direction === "left" ? slot.index - 1 : slot.index + 1;
+  if (toIndex < 0 || toIndex >= slot.length) return null;
 
-  const toIndex = direction === "left" ? fromIndex - 1 : fromIndex + 1;
-  if (toIndex < 0 || toIndex >= items.length) return null;
+  if (slot.movesRow) swap(rows, slot.index, toIndex);
+  else swap(rows[slot.rowIndex]!, slot.index, toIndex);
 
-  const reordered = [...items];
-  const [moved] = reordered.splice(fromIndex, 1);
-  reordered.splice(toIndex, 0, moved!);
-
-  // Flatten back to one ordered rack list (a group contributes its members in
-  // order) and reindex sequentially so the new order persists in Rack.position.
-  return reordered
-    .flatMap((item) => (item.kind === "rack" ? [item.rack] : item.racks))
-    .map((rack, position) => ({ id: rack.id, position }));
+  return rows
+    .flat()
+    .flatMap(slotRackIds)
+    .map((id, position) => ({ id, position }));
 }
 
 /**
