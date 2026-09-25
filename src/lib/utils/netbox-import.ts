@@ -16,6 +16,7 @@ import { findStarterDevice } from "$lib/data/starterLibrary";
 import {
   DeviceBaySchema,
   DeviceTypeSchema,
+  InterfaceTemplateSchema,
   InventoryItemSchema,
   PoEModeSchema,
   PoETypeSchema,
@@ -186,40 +187,71 @@ function readComponentList<K extends ComponentListKey>(
   }
   if (!list) return undefined;
 
+  return keepMappings(list, listKey, warnings) as NonNullable<
+    NetBoxDeviceType[K]
+  >;
+}
+
+/**
+ * Keep the list items that are mappings, warning once about any others.
+ */
+function keepMappings(
+  list: unknown[],
+  listKey: string,
+  warnings?: string[],
+): object[] {
   const items = list.filter(
-    (item) => typeof item === "object" && item !== null && !Array.isArray(item),
+    (item): item is object =>
+      typeof item === "object" && item !== null && !Array.isArray(item),
   );
   if (items.length < list.length) {
     warnings?.push(
       `Ignored ${list.length - items.length} invalid item(s) in "${listKey}"`,
     );
   }
-  return items as NonNullable<NetBoxDeviceType[K]>;
+  return items;
 }
 
 /**
- * Keep the mapped component items that pass their Rackula schema. Each
- * rejected item is skipped with a warning, so one malformed entry does not
- * fail the whole import at the DeviceTypeSchema gate.
+ * Keep the mapped component items that pass their Rackula schema. An invalid
+ * optional field is dropped with a warning and the item kept; an item whose
+ * required field is invalid is skipped with a warning. Either way one
+ * malformed entry does not fail the whole import at the DeviceTypeSchema gate.
  */
 function keepValidComponents<T extends { name: unknown }>(
   items: T[],
-  schema: z.ZodType,
+  schema: z.ZodObject,
   noun: string,
   warnings?: string[],
 ): T[] {
-  return items.filter((item) => {
-    const parsed = schema.safeParse(item);
-    if (parsed.success) return true;
-    const first = parsed.error.issues[0];
+  const kept: T[] = [];
+  for (const original of items) {
+    const item: Record<string, unknown> = { ...original };
     const label =
       typeof item.name === "string" && item.name ? ` "${item.name}"` : "";
-    const field = first?.path.join(".") || "item";
-    warnings?.push(
-      `Skipped ${noun}${label}: ${field}: ${first?.message ?? "validation failed"}`,
-    );
-    return false;
-  });
+    for (;;) {
+      const parsed = schema.safeParse(item);
+      if (parsed.success) {
+        kept.push(item as T);
+        break;
+      }
+      const first = parsed.error.issues[0];
+      const key = first?.path[0];
+      const field = first?.path.join(".") || "item";
+      const message = first?.message ?? "validation failed";
+      const optional =
+        typeof key === "string" &&
+        item[key] !== undefined &&
+        schema.shape[key]?.safeParse(undefined).success === true;
+      if (!optional) {
+        warnings?.push(`Skipped ${noun}${label}: ${field}: ${message}`);
+        break;
+      }
+      delete item[key];
+      warnings?.push(`Dropped ${noun}${label} ${field}: ${message}`);
+    }
+  }
+  return kept;
 }
 
 /**
@@ -245,6 +277,55 @@ function readNamedComponents(
     warnings,
   );
 }
+
+/**
+ * Minimal shape an interface entry needs before it is mapped or used for
+ * category inference.
+ */
+const InterfaceEntrySchema = z.object({
+  name: z.string().min(1),
+  type: z.string(),
+});
+
+/**
+ * Read `interfaces`, skipping a value that is not a list, items that are not
+ * mappings, and entries without a name or a string type. Pass `warnings` to
+ * record each of these cases.
+ */
+function readInterfaces(
+  netbox: NetBoxDeviceType,
+  warnings?: string[],
+): NetBoxInterface[] {
+  const value: unknown = netbox.interfaces;
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    warnings?.push('Ignored "interfaces": expected a list');
+    return [];
+  }
+  return keepValidComponents(
+    keepMappings(value, "interfaces", warnings) as NetBoxInterface[],
+    InterfaceEntrySchema,
+    "interface",
+    warnings,
+  );
+}
+
+/**
+ * Optional top-level scalars. NetBox's device type export writes an unset one
+ * as null, which counts as absent.
+ */
+const OPTIONAL_SCALAR_KEYS = [
+  "u_height",
+  "is_full_depth",
+  "part_number",
+  "airflow",
+  "front_image",
+  "rear_image",
+  "weight",
+  "weight_unit",
+  "subdevice_role",
+  "comments",
+] as const satisfies (keyof NetBoxDeviceType)[];
 
 /**
  * Result of parsing NetBox YAML
@@ -357,7 +438,7 @@ export function inferCategory(netbox: NetBoxDeviceType): DeviceCategory {
     combined.includes("catalyst") ||
     combined.includes("nexus") ||
     combined.includes("aruba") ||
-    netbox.interfaces?.some((i) => i.type.includes("base"))
+    readInterfaces(netbox).some((i) => i.type.includes("base"))
   ) {
     return "network";
   }
@@ -488,8 +569,8 @@ export function inferCategory(netbox: NetBoxDeviceType): DeviceCategory {
 /**
  * Map NetBox airflow values to Rackula airflow type
  */
-function mapAirflow(netboxAirflow?: string): Airflow | undefined {
-  if (!netboxAirflow) return undefined;
+function mapAirflow(netboxAirflow: unknown): Airflow | undefined {
+  if (typeof netboxAirflow !== "string") return undefined;
 
   const airflowMap: Record<string, Airflow> = {
     passive: "passive",
@@ -525,8 +606,8 @@ function mapInterface(
   const template: InterfaceTemplate = {
     name: netbox.name,
     type: typeResult.success ? typeResult.data : "other",
-    label: netbox.label,
-    mgmt_only: netbox.mgmt_only,
+    label: netbox.label ?? undefined,
+    mgmt_only: netbox.mgmt_only ?? undefined,
   };
 
   if (netbox.poe_mode) {
@@ -608,7 +689,7 @@ function slotsForDeviceBays(
  * Convert NetBox device type to Rackula DeviceType
  */
 export function convertToDeviceType(
-  netbox: NetBoxDeviceType,
+  input: NetBoxDeviceType,
   options?: {
     category?: DeviceCategory;
     colour?: string;
@@ -617,6 +698,11 @@ export function convertToDeviceType(
   },
 ): ConvertResult {
   const warnings: string[] = [];
+
+  const netbox = { ...input };
+  for (const key of OPTIONAL_SCALAR_KEYS) {
+    if (netbox[key] === null) delete netbox[key];
+  }
 
   // Guard the identity fields before any string helper runs. A non-string
   // scalar (e.g. `slug: 123` in the YAML) passes parseNetBoxYaml's truthiness
@@ -733,10 +819,14 @@ export function convertToDeviceType(
   }
 
   // Map interfaces
-  if (netbox.interfaces && netbox.interfaces.length > 0) {
-    deviceType.interfaces = netbox.interfaces.map((i) =>
-      mapInterface(i, warnings),
-    );
+  const interfaces = keepValidComponents(
+    readInterfaces(netbox, warnings).map((i) => mapInterface(i, warnings)),
+    InterfaceTemplateSchema,
+    "interface",
+    warnings,
+  );
+  if (interfaces.length > 0) {
+    deviceType.interfaces = interfaces;
   }
 
   // Map power ports

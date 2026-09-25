@@ -1020,9 +1020,7 @@ inventory-items:
 `);
 
       expect(result.deviceType.power_ports).toContainEqual({ name: "PSU1" });
-      expect(result.deviceType.power_ports).not.toContainEqual(
-        expect.objectContaining({ name: "PSU2" }),
-      );
+      expect(result.deviceType.power_ports).toContainEqual({ name: "PSU2" });
       expect(result.deviceType.power_outlets).toContainEqual({
         name: "Outlet 1",
       });
@@ -1031,7 +1029,7 @@ inventory-items:
         name: "Fan Tray",
       });
       expect(result.warnings).toContainEqual(
-        expect.stringContaining('Skipped power port "PSU2": maximum_draw'),
+        expect.stringContaining('Dropped power port "PSU2" maximum_draw'),
       );
       expect(result.warnings).toContainEqual(
         expect.stringContaining("Skipped power port: name"),
@@ -1076,6 +1074,209 @@ inventory-items:
       expect(result.deviceType.inventory_items).toContainEqual({
         name: "Fan Tray",
       });
+    });
+  });
+
+  describe("malformed input (#3336)", () => {
+    async function importOk(yaml: string): Promise<ImportResult> {
+      const imported = await importFromNetBoxYaml(yaml);
+      if (!imported.success) {
+        throw new Error(`expected success, got error: ${imported.error}`);
+      }
+      return imported.result;
+    }
+
+    it("imports weight: null as a device type without a weight", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Switch 24
+slug: generic-switch-24
+u_height: 1
+weight: null
+weight_unit: null
+`);
+
+      expect(result.deviceType.weight).toBeUndefined();
+      expect(result.deviceType.weight_unit).toBeUndefined();
+    });
+
+    it("treats every null optional top-level scalar as absent", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Switch 24
+slug: generic-switch-24
+u_height: null
+is_full_depth: null
+part_number: null
+airflow: null
+front_image: null
+rear_image: null
+weight: null
+weight_unit: null
+subdevice_role: null
+comments: null
+interfaces: null
+`);
+
+      expect(result.deviceType.u_height).toBe(1);
+      expect(result.deviceType.front_image).toBeUndefined();
+      expect(result.deviceType.rear_image).toBeUndefined();
+      expect(result.deviceType.notes).toBeUndefined();
+      expect(result.deviceType.interfaces).toBeUndefined();
+    });
+
+    it("treats null optional interface fields as absent", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Switch 24
+slug: generic-switch-24
+interfaces:
+  - name: eth0
+    type: 1000base-t
+    label: null
+    mgmt_only: null
+    poe_mode: null
+    poe_type: null
+`);
+
+      expect(result.deviceType.interfaces).toContainEqual({
+        name: "eth0",
+        type: "1000base-t",
+      });
+    });
+
+    it("warns and skips an interfaces value that is not a list", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Box
+slug: generic-box
+interfaces: foo
+`);
+
+      expect(result.deviceType.interfaces).toBeUndefined();
+      expect(result.warnings).toContain(
+        'Ignored "interfaces": expected a list',
+      );
+    });
+
+    it("skips interface entries without a string type and keeps the valid ones", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Box
+slug: generic-box
+interfaces:
+  - name: eth0
+  - name: eth1
+    type: 42
+  - eth2
+  - name: eth3
+    type: 1000base-t
+`);
+
+      expect(result.deviceType.interfaces).toContainEqual({
+        name: "eth3",
+        type: "1000base-t",
+      });
+      expect(result.deviceType.interfaces).not.toContainEqual(
+        expect.objectContaining({ name: "eth0" }),
+      );
+      expect(result.deviceType.interfaces).not.toContainEqual(
+        expect.objectContaining({ name: "eth1" }),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('Skipped interface "eth0": type'),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('Skipped interface "eth1": type'),
+      );
+      expect(result.warnings).toContain(
+        'Ignored 1 invalid item(s) in "interfaces"',
+      );
+    });
+
+    it("infers a category without throwing on malformed interfaces", () => {
+      const malformed = [
+        "foo",
+        [{ name: "eth0" }],
+        [{ name: "eth0", type: 42 }],
+        [null],
+      ];
+      for (const interfaces of malformed) {
+        expect(
+          inferCategory(
+            createTestNetBoxDeviceType({
+              interfaces:
+                interfaces as unknown as NetBoxDeviceType["interfaces"],
+            }),
+          ),
+        ).toBe("other");
+      }
+    });
+
+    it("keeps a power port with a zero draw and drops only the invalid field", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: PDU 8
+slug: generic-pdu-8
+power-ports:
+  - name: PSU1
+    type: iec-60320-c14
+    maximum_draw: 0
+    allocated_draw: 0
+  - name: PSU2
+    maximum_draw: 500
+    allocated_draw: 0
+`);
+
+      expect(result.deviceType.power_ports).toContainEqual({
+        name: "PSU1",
+        type: "iec-60320-c14",
+      });
+      expect(result.deviceType.power_ports).toContainEqual({
+        name: "PSU2",
+        maximum_draw: 500,
+      });
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('Dropped power port "PSU1" maximum_draw'),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('Dropped power port "PSU1" allocated_draw'),
+      );
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('Dropped power port "PSU2" allocated_draw'),
+      );
+    });
+
+    it("keeps an interface with an invalid optional field and drops only that field", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Box
+slug: generic-box
+interfaces:
+  - name: eth0
+    type: 1000base-t
+    mgmt_only: yes please
+`);
+
+      expect(result.deviceType.interfaces).toContainEqual({
+        name: "eth0",
+        type: "1000base-t",
+      });
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('Dropped interface "eth0" mgmt_only'),
+      );
+    });
+
+    it("warns on a non-string airflow instead of throwing", async () => {
+      const result = await importOk(`
+manufacturer: Generic
+model: Box
+slug: generic-box
+airflow: 42
+`);
+
+      expect(result.deviceType.airflow).toBeUndefined();
+      expect(result.warnings).toContain("Unknown airflow value: 42");
     });
   });
 
