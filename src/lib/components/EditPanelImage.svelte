@@ -8,10 +8,12 @@
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { placementKey } from "$lib/utils/placement-key";
+  import { getCropUnitHeight } from "$lib/utils/image-crop";
   import { validateImageFile, fileToImageData } from "$lib/utils/imageUpload";
   import { SUPPORTED_IMAGE_FORMATS } from "$lib/types/constants";
   import type { SelectedDeviceInfo } from "$lib/types";
   import type { ImageData } from "$lib/types/images";
+  import ImageCropDialog from "./ImageCropDialog.svelte";
 
   interface Props {
     selectedDeviceInfo: SelectedDeviceInfo;
@@ -43,6 +45,20 @@
     rear: HTMLInputElement | null;
   }>({ front: null, rear: null });
 
+  // Chosen file waiting in the crop dialog. The face is kept after closing so
+  // the dialog title does not change during its exit transition.
+  let cropFile = $state<File | null>(null);
+  let cropFace = $state<"front" | "rear">("front");
+  // Where a confirmed crop is written, pinned when the file is chosen: the
+  // selection and the active layout can both change while the dialog is open,
+  // and the image belongs to the device it was chosen for.
+  let cropTarget: {
+    slug: string;
+    key: string;
+    rackId: string;
+    deviceIndex: number;
+  } | null = null;
+
   // Current placement overrides (if any)
   const placementFrontImage = $derived(
     imageStore.getDeviceImage(
@@ -58,6 +74,17 @@
   );
 
   // Device type fallback images, keyed by slug in the image store
+  // The crop frame takes the device's drawn width, so a half-width device is
+  // framed to the carrier cell it sits in rather than to the full rails.
+  const cropWidthFraction = $derived(
+    selectedDeviceInfo.device.slot_width === 1 ? 0.5 : 1,
+  );
+  const cropWidthLabel = $derived(
+    selectedDeviceInfo.device.slot_width === 1
+      ? `a half-width ${getCropUnitHeight(selectedDeviceInfo.device.u_height)}U device in a ${selectedDeviceInfo.rack.width} inch rack`
+      : undefined,
+  );
+
   const deviceTypeFrontImage = $derived(
     imageStore.getDeviceImage(selectedDeviceInfo.device.slug, "front"),
   );
@@ -73,7 +100,7 @@
     fileInputs[face]?.click();
   }
 
-  async function handleFileChange(face: "front" | "rear", event: Event) {
+  function handleFileChange(face: "front" | "rear", event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
@@ -87,26 +114,36 @@
       return;
     }
 
+    cropFace = face;
+    cropTarget = {
+      slug: selectedDeviceInfo.device.slug,
+      key: placementKey(layoutId, selectedDeviceInfo.placedDevice.id),
+      rackId: selectedDeviceInfo.rack.id,
+      deviceIndex: selectedDeviceInfo.deviceIndex,
+    };
+    cropFile = file;
+
+    // Reset so the same file can be selected again
+    input.value = "";
+  }
+
+  async function handleCropConfirm(cropped: File) {
+    const face = cropFace;
+    const target = cropTarget;
+    cropFile = null;
+    if (!target) return;
     try {
-      const data = await fileToImageData(
-        file,
-        selectedDeviceInfo.device.slug,
-        face,
-      );
-      const deviceId = selectedDeviceInfo.placedDevice.id;
-      imageStore.setDeviceImage(placementKey(layoutId, deviceId), face, data);
+      const data = await fileToImageData(cropped, target.slug, face);
+      imageStore.setDeviceImage(target.key, face, data);
       layoutStore.updateDevicePlacementImage(
-        selectedDeviceInfo.rack.id,
-        selectedDeviceInfo.deviceIndex,
+        target.rackId,
+        target.deviceIndex,
         face,
         data.filename,
       );
     } catch {
       errors[face] = "Failed to process image";
     }
-
-    // Reset so the same file can be selected again
-    input.value = "";
   }
 
   function clearOverride(face: "front" | "rear") {
@@ -205,6 +242,17 @@
   {@render imageSlot("front", placementFrontImage, deviceTypeFrontImage)}
   {@render imageSlot("rear", placementRearImage, deviceTypeRearImage)}
 </div>
+
+<ImageCropDialog
+  file={cropFile}
+  face={cropFace}
+  uHeight={selectedDeviceInfo.device.u_height}
+  rackWidth={selectedDeviceInfo.rack.width}
+  widthFraction={cropWidthFraction}
+  widthLabel={cropWidthLabel}
+  onconfirm={handleCropConfirm}
+  oncancel={() => (cropFile = null)}
+/>
 
 <style>
   .image-overrides {

@@ -21,6 +21,7 @@ import {
   createTestDeviceType,
 } from "./factories";
 import { placementKey } from "$lib/utils/placement-key";
+import { yieldToMain } from "$lib/utils/yield";
 
 const mockImageStore = {
   clearAllImages: vi.fn(),
@@ -56,6 +57,29 @@ vi.mock("$lib/utils/file", () => ({
   openFilePicker: vi.fn(),
 }));
 
+vi.mock("$lib/utils/yield", () => ({
+  yieldToMain: vi.fn(),
+}));
+
+/** A promise whose resolve and reject are exposed to the test. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+function fileLoadResult(name: string) {
+  return {
+    layout: createTestLayout({ name }),
+    images: new Map(),
+    failedImages: [],
+  };
+}
+
 describe("load-pipeline", () => {
   const layoutStore = getLayoutStore();
   const toastStore = getToastStore();
@@ -64,6 +88,7 @@ describe("load-pipeline", () => {
     vi.resetAllMocks();
     resetLayoutStore();
     resetToastStore();
+    vi.mocked(yieldToMain).mockResolvedValue(undefined);
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       callback(0);
       return 0;
@@ -364,6 +389,87 @@ describe("load-pipeline", () => {
 
       expect(result).toBe(false);
       expect(archive.extractFolderArchive).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("yielding and latest-load-wins (#3368)", () => {
+    it("yields after the async stages and hydrates only when the yield resumes", async () => {
+      const gate = deferred<void>();
+      vi.mocked(yieldToMain).mockReturnValue(gate.promise);
+      vi.mocked(archive.extractFolderArchive).mockResolvedValue(
+        fileLoadResult("After Yield"),
+      );
+
+      const pending = loadFromFile(new File(["x"], "a.yaml"));
+
+      await vi.waitFor(() => expect(yieldToMain).toHaveBeenCalled());
+      expect(layoutStore.layout.name).not.toBe("After Yield");
+
+      gate.resolve();
+      expect(await pending).toBe(true);
+      expect(layoutStore.layout.name).toBe("After Yield");
+    });
+
+    it("discards a file load superseded by a newer one", async () => {
+      const first = deferred<ReturnType<typeof fileLoadResult>>();
+      vi.mocked(archive.extractFolderArchive)
+        .mockReturnValueOnce(first.promise)
+        .mockResolvedValueOnce(fileLoadResult("Newer"));
+
+      const stale = loadFromFile(new File(["a"], "a.yaml"));
+      const latest = loadFromFile(new File(["b"], "b.yaml"));
+      expect(await latest).toBe(true);
+
+      first.resolve(fileLoadResult("Stale"));
+      expect(await stale).toBe(false);
+
+      expect(layoutStore.layout.name).toBe("Newer");
+      expect(toastStore.toasts.filter((t) => t.type === "success").length).toBe(
+        1,
+      );
+    });
+
+    it("does not report an error for a superseded load that fails", async () => {
+      const first = deferred<ReturnType<typeof fileLoadResult>>();
+      vi.mocked(archive.extractFolderArchive)
+        .mockReturnValueOnce(first.promise)
+        .mockResolvedValueOnce(fileLoadResult("Newer"));
+
+      const stale = loadFromFile(new File(["a"], "a.yaml"));
+      await loadFromFile(new File(["b"], "b.yaml"));
+
+      first.reject(new Error("Invalid archive format"));
+      expect(await stale).toBe(false);
+
+      expect(toastStore.toasts.some((t) => t.type === "error")).toBe(false);
+      expect(layoutStore.layout.name).toBe("Newer");
+    });
+
+    it("does not let a superseded server load set the server base", async () => {
+      setServerBaseUpdatedAt(null);
+      const serverLoad =
+        deferred<Awaited<ReturnType<typeof persistenceApi.loadSavedLayout>>>();
+      vi.mocked(persistenceApi.loadSavedLayout).mockReturnValue(
+        serverLoad.promise,
+      );
+      vi.mocked(archive.extractFolderArchive).mockResolvedValue(
+        fileLoadResult("From File"),
+      );
+
+      const stale = loadFromApi("uuid-1");
+      await loadFromFile(new File(["b"], "b.yaml"));
+
+      serverLoad.resolve({
+        layout: createTestLayout({ name: "From Server" }),
+        images: new Map(),
+        failedImagesCount: 0,
+        failedKeys: [],
+        updatedAt: "2026-09-24T12:00:00.000Z",
+      });
+      expect(await stale).toBe(false);
+
+      expect(layoutStore.layout.name).toBe("From File");
+      expect(getServerBaseUpdatedAt()).toBeNull();
     });
   });
 });

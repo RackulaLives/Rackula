@@ -21,6 +21,7 @@ import type {
 } from "$lib/types";
 import { MAX_RACKS } from "$lib/types/constants";
 import { createLayout } from "$lib/utils/serialization";
+import { indexConnectionsByRack } from "$lib/utils/connection-path";
 import type { CreateDeviceTypeInput } from "$lib/stores/layout-helpers";
 import { debug } from "$lib/utils/debug";
 import { createHistoryStore, type HistoryStore } from "./history.svelte";
@@ -166,6 +167,20 @@ export function createLayoutStore(
   const device_types = $derived(layout.device_types);
   const rack_groups = $derived(layout.rack_groups ?? []);
 
+  // Connections bucketed by rack id, built once per layout change and shared
+  // by every rack face (#3373). The previous index is passed back in so a
+  // rack whose connections did not change keeps its bucket's identity, and
+  // that rack's ConnectionLayer does not recompute.
+  let previousConnectionsByRack: Map<string, Connection[]> | undefined;
+  const connectionsByRack = $derived.by(() => {
+    previousConnectionsByRack = indexConnectionsByRack(
+      layout.racks,
+      layout.connections ?? [],
+      previousConnectionsByRack,
+    );
+    return previousConnectionsByRack;
+  });
+
   /**
    * State access bridge for extracted domain modules.
    * Provides read/write access to this instance's reactive state and history
@@ -273,6 +288,9 @@ export function createLayoutStore(
     },
     get rack_groups() {
       return rack_groups;
+    },
+    get connectionsByRack() {
+      return connectionsByRack;
     },
     get device_types() {
       return device_types;

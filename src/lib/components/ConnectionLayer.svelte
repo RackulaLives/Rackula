@@ -27,6 +27,8 @@
   import ConnectionPath from "./ConnectionPath.svelte";
 
   interface Props {
+    /** Id of the rack this face belongs to; selects its connection bucket (#3373). */
+    rackId: string;
     /**
      * This rack's currently-visible, non-container-child devices (same set
      * RackDevice renders). Container-child ports have no rendered anchor
@@ -42,6 +44,7 @@
   }
 
   let {
+    rackId,
     devices,
     deviceLibrary,
     rackView = "front",
@@ -58,6 +61,13 @@
     buildPortAnchorMap(devices, bySlug, rackView, rackDims),
   );
 
+  // Only this rack's connections, from the layout store's shared index. The
+  // bucket keeps its identity while this rack's connections are unchanged,
+  // so an edit in another rack does not recompute this face (#3373).
+  const rackConnections = $derived(
+    connectionStore.getConnectionsForRack(rackId),
+  );
+
   const rackBounds = $derived({
     x: 0,
     y: 0,
@@ -66,11 +76,7 @@
   });
 
   const renderedConnections = $derived(
-    buildRenderedConnections(
-      connectionStore.connections,
-      portAnchors,
-      rackBounds,
-    ),
+    buildRenderedConnections(rackConnections, portAnchors, rackBounds),
   );
 </script>
 

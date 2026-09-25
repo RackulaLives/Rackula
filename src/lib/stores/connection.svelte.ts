@@ -42,6 +42,9 @@ export interface ConnectionValidationResult {
   warnings: string[];
 }
 
+/** Shared empty bucket, so a rack with no connections keeps one identity. */
+const NO_CONNECTIONS: Connection[] = [];
+
 /**
  * Every PlacedPort across every rack. Connections reference ports by id
  * only, and ports live on PlacedDevice.ports, so validation must search
@@ -162,6 +165,15 @@ export function getConnectionStore() {
    */
   function getConnection(id: string): Connection | undefined {
     return getConnections().find((c) => c.id === id);
+  }
+
+  /**
+   * Get connections with a port in a specific rack (#3373), in layout order.
+   * Reads the layout store's shared per-rack index, so the returned array
+   * keeps its identity while that rack's connections are unchanged.
+   */
+  function getConnectionsForRack(rackId: string): Connection[] {
+    return layoutStore.connectionsByRack.get(rackId) ?? NO_CONNECTIONS;
   }
 
   /**
@@ -320,6 +332,7 @@ export function getConnectionStore() {
       return getConnections();
     },
     getConnection,
+    getConnectionsForRack,
     getConnectionsForPort,
     getConnectionsForDevice,
 

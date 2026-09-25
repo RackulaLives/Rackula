@@ -30,6 +30,12 @@ export const U_HEIGHT_PX = 22;
 export const RAIL_WIDTH = 17;
 
 /**
+ * How far a device image extends past each rail (Issue #9)
+ * Real equipment extends past the rails; this creates a front-mounting look
+ */
+export const DEVICE_IMAGE_OVERFLOW = 4;
+
+/**
  * Base rack width in pixels for a 19" rack
  * Other widths (10", 23") scale proportionally from this base
  */

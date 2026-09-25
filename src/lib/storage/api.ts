@@ -471,6 +471,16 @@ function resolveDiskFace(
   return { deviceId, face, blob, contentType };
 }
 
+/** Every `${deviceId}/${face}` the layout's placed devices reference. */
+function referencedDiskFaces(layout: Layout): Set<string> {
+  const referenced = new Set<string>();
+  for (const device of layout.racks.flatMap((rack) => rack.devices)) {
+    if (device.front_image) referenced.add(`${device.id}/front`);
+    if (device.rear_image) referenced.add(`${device.id}/rear`);
+  }
+  return referenced;
+}
+
 /**
  * Reconcile a server-mode layout's user images to disk via the asset API.
  *
@@ -482,14 +492,19 @@ function resolveDiskFace(
  *
  * Set-diff: the desired set is the layout's current user faces; the on-disk set
  * is `GET /assets/:layoutId`. Faces on disk but not desired are deleted (removed
- * faces/devices and crash-leaked orphans). A face that is both replaced and at
- * the quota limit is deleted before its replacement is PUT, because the quota
- * check counts before the write (non-atomic), so a DELETE-then-PUT lets an
- * at-limit layout still replace a face without tripping the 507.
+ * faces/devices and crash-leaked orphans), unless the layout still references
+ * them: the in-memory image set can lag the layout (a face whose eager fetch
+ * failed, or a working copy restored without images), and deleting a
+ * referenced face would destroy the only copy (#3404). A face that is both
+ * replaced and at the quota limit is deleted before its replacement is PUT,
+ * because the quota check counts before the write (non-atomic), so a
+ * DELETE-then-PUT lets an at-limit layout still replace a face without
+ * tripping the 507.
  */
 async function reconcileServerAssets(
   layoutId: string,
   diskFaces: DiskFace[],
+  referencedFaces: Set<string>,
 ): Promise<void> {
   // Desired on-disk identity per face: `${deviceId}/${face}`.
   const desired = new Set(diskFaces.map((f) => `${f.deviceId}/${f.face}`));
@@ -501,7 +516,7 @@ async function reconcileServerAssets(
   const onDisk = await listAssets(layoutId);
   for (const entry of onDisk) {
     const key = `${entry.deviceSlug}/${entry.face}`;
-    if (!desired.has(key)) {
+    if (!desired.has(key) && !referencedFaces.has(key)) {
       await deleteAsset(layoutId, entry.deviceSlug, entry.face);
     }
   }
@@ -647,7 +662,7 @@ export async function saveLayoutToServer(
   // success, so any failed PUT/DELETE throws and the caller never reaches a
   // clean save state: the layout stays dirty and the next autosave retries.
   if (isServerMode) {
-    await reconcileServerAssets(uuid, diskFaces);
+    await reconcileServerAssets(uuid, diskFaces, referencedDiskFaces(layout));
   }
 
   try {
