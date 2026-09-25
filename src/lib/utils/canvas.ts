@@ -1,23 +1,22 @@
 /**
  * Canvas Utility Functions
- * Calculations for fit-all zoom and rack positioning
- * Supports multi-rack mode with bayed rack groups
+ * Canvas layout geometry (stacked rows of racks and groups) and the camera
+ * maths built on it: fit-all, focus and ensure-visible.
  */
 
 import type { Rack, RackGroup } from "$lib/types";
 import {
   U_HEIGHT_PX,
-  BASE_RACK_WIDTH,
   RAIL_WIDTH,
   RACK_PADDING_HIDDEN,
   RACK_GAP,
   RACK_ROW_PADDING,
   DUAL_VIEW_GAP,
-  DUAL_VIEW_EXTRA_HEIGHT,
   FIT_ALL_PADDING,
   FIT_ALL_MAX_ZOOM,
-  SELECTION_HIGHLIGHT_PADDING,
+  getRackWidth,
 } from "$lib/constants/layout";
+import { organizeRackRows, type RackRowItem } from "$lib/utils/rack-row";
 
 /**
  * Bounding box interface
@@ -290,197 +289,258 @@ export function ensureVisibleTransform(
 }
 
 // =============================================================================
-// Bayed Rack Dimension Constants
+// Canvas Layout Geometry (#3370)
 // =============================================================================
+//
+// computeCanvasLayout is the one model of where RackCanvasView puts every rack.
+// The renderer takes its rows and slot order from it; fit-all, focus-rack and
+// ensure-visible take its rectangles. Slot sizes model the rendered DOM boxes
+// (label display mode, annotations off), measured in Chromium against the CSS
+// in RackDualView, BayedRackView and RackCanvasView.
 
-/** Width of U-labels column in bayed rack view */
+/**
+ * Extra height of a RackDualView box over one rack face: its padding
+ * (2 x --space-3), the rack name line, the name margin and the column gap.
+ */
+const DUAL_VIEW_CHROME_HEIGHT = 72;
+
+/** Horizontal padding of a RackDualView or BayedRackView box (2 x --space-3). */
+const VIEW_PADDING_X = 24;
+
+/** Width of the shared U-label column between adjacent bays. */
 const U_LABELS_WIDTH = 32;
 
 /**
- * Base height overhead for bayed rack groups
- * Includes: container padding (24) + row labels (40) + gaps (32) + row overhead (76)
+ * Extra height of a BayedRackView box over its two stacked faces: padding,
+ * the FRONT and REAR row labels, the bay labels and the column gaps.
  */
-const BAYED_GROUP_HEIGHT_BASE = 172;
+const BAYED_CHROME_HEIGHT = 153;
 
-/** Additional height when group has a name */
-const BAYED_GROUP_NAME_HEIGHT = 24;
-
-// =============================================================================
-// Position Calculation Functions
-// =============================================================================
+/** Additional BayedRackView height when the group has a name. */
+const BAYED_NAME_HEIGHT = 46;
 
 /**
- * Calculate dimensions for a single ungrouped rack.
- * When show_rear is true: dual-view mode (front and rear side-by-side)
- * When show_rear is false: single-view mode (front only)
+ * Inset of a row group's members from its box edge: the 2px dashed border
+ * plus --space-3 padding.
  */
-function getDualViewDimensions(rack: Rack): { width: number; height: number } {
-  // Scale rack width based on nominal width (BASE_RACK_WIDTH is calibrated for 19" racks)
-  const rackWidthPx = Math.round((BASE_RACK_WIDTH * rack.width) / 19);
+const ROW_GROUP_INSET = 14;
 
-  // Width depends on whether rear view is shown
-  const width = rack.show_rear
-    ? rackWidthPx * 2 + DUAL_VIEW_GAP // Dual view: front + gap + rear
-    : rackWidthPx; // Single view: front only
+/** Row group label line (--font-size-sm at line-height 1.5) plus --space-2. */
+const ROW_GROUP_LABEL_BLOCK = 27.5;
 
-  // In dual-view mode, Rack component uses RACK_PADDING_HIDDEN (hideRackName=true)
-  const height =
-    RACK_PADDING_HIDDEN +
-    RAIL_WIDTH * 2 +
-    rack.height * U_HEIGHT_PX +
-    DUAL_VIEW_EXTRA_HEIGHT;
-  return { width, height };
+/** Gap between the members of a row group (--space-4). */
+const ROW_GROUP_MEMBER_GAP = 16;
+
+/** Vertical gap between stacked canvas rows (--space-12). */
+export const CANVAS_ROW_GAP = 48;
+
+/** Horizontal gap between slots in a canvas row (--space-6). */
+export const CANVAS_SLOT_GAP = RACK_GAP;
+
+/** Padding around all rows, in canvas coordinates (--space-4). */
+export const CANVAS_PADDING = RACK_ROW_PADDING;
+
+/** A rack's box on the canvas, in canvas coordinates. */
+export interface CanvasRackRect extends Bounds {
+  id: string;
 }
 
 /**
- * Calculate dimensions for a bayed rack group.
- * BayedRackView renders front row above rear row (stacked), not side-by-side.
- *
- * Width = U-labels (32px) + (bay_width × num_bays)
- * Height = base overhead + (maxHeight × 44) + optional group name
+ * One row slot: a standalone rack, a bayed group or a row group, with its
+ * outer box (including group chrome) and one rectangle per member rack. A
+ * bayed group's members share the group's box because they render as one
+ * view; a row group's members each get their own box.
  */
-function getBayedGroupDimensions(
+export interface CanvasSlot extends Bounds {
+  item: RackRowItem;
+  racks: CanvasRackRect[];
+}
+
+/** One stacked canvas row. Its slots are bottom-aligned, left to right. */
+export interface CanvasRow extends Bounds {
+  /** Stable key: the group id for a group row, "standalone" otherwise. */
+  key: string;
+  slots: CanvasSlot[];
+}
+
+/** Every row on the canvas, top to bottom, and the box around all slots. */
+export interface CanvasLayout {
+  rows: CanvasRow[];
+  bounds: Bounds;
+}
+
+/** Height of one rack face SVG with its name hidden. */
+function faceHeight(rackHeight: number): number {
+  return RACK_PADDING_HIDDEN + RAIL_WIDTH * 2 + rackHeight * U_HEIGHT_PX;
+}
+
+/** Size of a standalone RackDualView box (front, plus rear when shown). */
+function dualViewSize(rack: Rack): { width: number; height: number } {
+  const face = getRackWidth(rack.width);
+  const faces = rack.show_rear ? face * 2 + DUAL_VIEW_GAP : face;
+  return {
+    width: VIEW_PADDING_X + faces,
+    height: faceHeight(rack.height) + DUAL_VIEW_CHROME_HEIGHT,
+  };
+}
+
+/** Size of a BayedRackView box: bays side by side, front row above rear. */
+function bayedViewSize(
   group: RackGroup,
-  racks: Rack[],
+  members: Rack[],
 ): { width: number; height: number } {
-  const firstRack = racks[0];
-  if (!firstRack) return { width: 0, height: 0 };
-
-  const maxHeight = Math.max(...racks.map((r) => r.height));
-  // All racks in a bayed group have the same width
-  const rackWidthInches = firstRack.width;
-  const bayWidthPx = Math.round((BASE_RACK_WIDTH * rackWidthInches) / 19);
-
-  // Width: U-labels + all bays (bays touch with no gap)
-  const width = U_LABELS_WIDTH + bayWidthPx * racks.length;
-
-  // Height: front row + rear row + overhead
-  // Each row has height = 38 + (H × 22), so total rack area = 2 × that = 76 + H×44
-  // Plus labels, padding, gaps = 172 + (name ? 24 : 0)
-  const hasName = !!group.name;
-  const height =
-    BAYED_GROUP_HEIGHT_BASE +
-    (hasName ? BAYED_GROUP_NAME_HEIGHT : 0) +
-    maxHeight * 44;
-
-  return { width, height };
+  const bays = members.reduce((sum, r) => sum + getRackWidth(r.width), 0);
+  const tallest = Math.max(...members.map((r) => r.height));
+  return {
+    width: VIEW_PADDING_X + bays + U_LABELS_WIDTH * (members.length - 1),
+    height:
+      faceHeight(tallest) * 2 +
+      BAYED_CHROME_HEIGHT +
+      (group.name ? BAYED_NAME_HEIGHT : 0),
+  };
 }
 
 /**
- * Internal visual element for position calculation
+ * Size a slot at the origin, with member rectangles relative to the slot's
+ * top-left corner.
  */
-interface VisualElement {
-  rackIds: string[];
+function sizeSlot(item: RackRowItem): {
   width: number;
   height: number;
-  sortPosition: number;
-  // Tie-breaker for deterministic sort when positions are equal
-  // Using smallest rack ID ensures stable ordering
-  tieBreaker: string;
-}
-
-/**
- * Convert racks and groups to RackPositionWithIds array.
- * This is the authoritative function for rack positioning - both for
- * bounding box calculation and for mapping positions back to racks.
- *
- * Handles both bayed rack groups (stacked front/rear) and ungrouped racks (dual-view).
- * Includes selection highlight padding in all dimensions.
- *
- * @param racks - Array of racks from the layout store
- * @param rackGroups - Array of rack groups (optional, for bayed rack handling)
- * @returns Array of RackPositionWithIds objects with calculated coordinates and rack IDs
- */
-export function racksToPositionsWithIds(
-  racks: Rack[],
-  rackGroups: RackGroup[] = [],
-): RackPositionWithIds[] {
-  if (racks.length === 0) return [];
-
-  // Separate racks into bayed groups and ungrouped
-  const bayedGroups = rackGroups.filter((g) => g.layout_preset === "bayed");
-  const bayedRackIds = new Set(bayedGroups.flatMap((g) => g.rack_ids));
-  const ungroupedRacks = racks.filter((r) => !bayedRackIds.has(r.id));
-
-  const elements: VisualElement[] = [];
-
-  // Add bayed groups
-  for (const group of bayedGroups) {
-    const groupRacks = group.rack_ids
-      .map((id) => racks.find((r) => r.id === id))
-      .filter((r): r is Rack => r !== undefined);
-
-    if (groupRacks.length === 0) continue;
-
-    const { width, height } = getBayedGroupDimensions(group, groupRacks);
-    // Use minimum position of any rack in group for sorting
-    const sortPosition = Math.min(...groupRacks.map((r) => r.position));
-    // Use smallest rack ID as tie-breaker for deterministic ordering
-    // (rack_ids is non-empty: groupRacks above is derived from it and was length-checked)
-    const tieBreaker = [...group.rack_ids].sort()[0]!;
-
-    elements.push({
-      rackIds: group.rack_ids,
-      width: width + SELECTION_HIGHLIGHT_PADDING * 2,
-      height: height + SELECTION_HIGHLIGHT_PADDING * 2,
-      sortPosition,
-      tieBreaker,
-    });
+  racks: CanvasRackRect[];
+} {
+  if (item.kind === "rack") {
+    const size = dualViewSize(item.rack);
+    return { ...size, racks: [{ id: item.rack.id, x: 0, y: 0, ...size }] };
   }
-
-  // Add ungrouped racks
-  for (const rack of ungroupedRacks) {
-    const { width, height } = getDualViewDimensions(rack);
-    elements.push({
-      rackIds: [rack.id],
-      width: width + SELECTION_HIGHLIGHT_PADDING * 2,
-      height: height + SELECTION_HIGHLIGHT_PADDING * 2,
-      sortPosition: rack.position,
-      tieBreaker: rack.id,
-    });
-  }
-
-  // Sort by position with deterministic tie-breaker
-  elements.sort((a, b) => {
-    const positionDiff = a.sortPosition - b.sortPosition;
-    if (positionDiff !== 0) return positionDiff;
-    // Use string comparison for tie-breaker (smallest ID first)
-    return a.tieBreaker.localeCompare(b.tieBreaker);
-  });
-
-  // Find max height for vertical alignment
-  const maxHeight = Math.max(...elements.map((e) => e.height), 0);
-
-  // Position elements horizontally
-  let currentX = RACK_ROW_PADDING;
-  const startY = RACK_ROW_PADDING;
-
-  return elements.map((element) => {
-    const position: RackPositionWithIds = {
-      x: currentX,
-      y: startY + (maxHeight - element.height),
-      width: element.width,
-      height: element.height,
-      rackIds: element.rackIds,
+  if (item.group.layout_preset === "bayed") {
+    const size = bayedViewSize(item.group, item.racks);
+    return {
+      ...size,
+      racks: item.racks.map((rack) => ({ id: rack.id, x: 0, y: 0, ...size })),
     };
-    currentX += element.width + RACK_GAP;
-    return position;
+  }
+  const sizes = item.racks.map(dualViewSize);
+  const tallest = Math.max(...sizes.map((s) => s.height));
+  const top = ROW_GROUP_INSET + ROW_GROUP_LABEL_BLOCK;
+  let x = ROW_GROUP_INSET;
+  const racks = item.racks.map((rack, i) => {
+    const size = sizes[i]!;
+    const rect = { id: rack.id, x, y: top + tallest - size.height, ...size };
+    x += size.width + ROW_GROUP_MEMBER_GAP;
+    return rect;
   });
+  return {
+    width: x - ROW_GROUP_MEMBER_GAP + ROW_GROUP_INSET,
+    height: top + tallest + ROW_GROUP_INSET,
+    racks,
+  };
 }
 
 /**
- * Convert racks and groups to RackPosition array for bounding box calculation.
- * Wrapper around racksToPositionsWithIds that strips the rack ID information.
+ * Lay the canvas out as stacked rows (#3370): the single source of geometry
+ * for the renderer and the camera.
+ *
+ * Rows come from organizeRackRows (each group its own row, standalone racks
+ * together). Rows stack from the top with CANVAS_ROW_GAP between them; slots
+ * run left to right with CANVAS_SLOT_GAP and share a baseline, like racks on a
+ * floor. Everything is in canvas coordinates, offset by CANVAS_PADDING.
+ */
+export function computeCanvasLayout(
+  racks: Rack[],
+  groups: RackGroup[] = [],
+): CanvasLayout {
+  const rows: CanvasRow[] = [];
+  let y = CANVAS_PADDING;
+  let maxRight = CANVAS_PADDING;
+
+  for (const items of organizeRackRows(racks, groups)) {
+    const sized = items.map((item) => ({ item, ...sizeSlot(item) }));
+    const height = Math.max(...sized.map((s) => s.height));
+    let x = CANVAS_PADDING;
+    const slots = sized.map((s): CanvasSlot => {
+      const slotY = y + height - s.height;
+      const slot: CanvasSlot = {
+        item: s.item,
+        x,
+        y: slotY,
+        width: s.width,
+        height: s.height,
+        racks: s.racks.map((r) => ({ ...r, x: r.x + x, y: r.y + slotY })),
+      };
+      x += s.width + CANVAS_SLOT_GAP;
+      return slot;
+    });
+    const width = x - CANVAS_SLOT_GAP - CANVAS_PADDING;
+    const first = items[0]!;
+    rows.push({
+      key: first.kind === "group" ? `group:${first.group.id}` : "standalone",
+      x: CANVAS_PADDING,
+      y,
+      width,
+      height,
+      slots,
+    });
+    maxRight = Math.max(maxRight, CANVAS_PADDING + width);
+    y += height + CANVAS_ROW_GAP;
+  }
+
+  const bounds: Bounds =
+    rows.length === 0
+      ? { x: 0, y: 0, width: 0, height: 0 }
+      : {
+          x: CANVAS_PADDING,
+          y: CANVAS_PADDING,
+          width: maxRight - CANVAS_PADDING,
+          height: y - CANVAS_ROW_GAP - CANVAS_PADDING,
+        };
+  return { rows, bounds };
+}
+
+/**
+ * The outer box of every slot, including group chrome. Fit-all frames these.
  *
  * @param racks - Array of racks from the layout store
- * @param rackGroups - Array of rack groups (optional, for bayed rack handling)
- * @returns Array of RackPosition objects with calculated coordinates
+ * @param rackGroups - Array of rack groups
  */
 export function racksToPositions(
   racks: Rack[],
   rackGroups: RackGroup[] = [],
 ): RackPosition[] {
-  return racksToPositionsWithIds(racks, rackGroups).map(
-    ({ x, y, width, height }) => ({ x, y, width, height }),
+  return computeCanvasLayout(racks, rackGroups).rows.flatMap((row) =>
+    row.slots.map(({ x, y, width, height }) => ({ x, y, width, height })),
+  );
+}
+
+/**
+ * Focus targets: one box per standalone rack and per row-group member, and
+ * one shared box per bayed group (listing every member id), because a bayed
+ * group renders as a single view. focusRack and ensureRacksVisible map rack
+ * ids back to these.
+ *
+ * @param racks - Array of racks from the layout store
+ * @param rackGroups - Array of rack groups
+ */
+export function racksToPositionsWithIds(
+  racks: Rack[],
+  rackGroups: RackGroup[] = [],
+): RackPositionWithIds[] {
+  return computeCanvasLayout(racks, rackGroups).rows.flatMap((row) =>
+    row.slots.flatMap((slot): RackPositionWithIds[] => {
+      if (
+        slot.item.kind === "group" &&
+        slot.item.group.layout_preset === "bayed"
+      ) {
+        const { x, y, width, height } = slot;
+        return [{ x, y, width, height, rackIds: slot.racks.map((r) => r.id) }];
+      }
+      return slot.racks.map(({ id, x, y, width, height }) => ({
+        x,
+        y,
+        width,
+        height,
+        rackIds: [id],
+      }));
+    }),
   );
 }

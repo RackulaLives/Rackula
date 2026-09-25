@@ -44,6 +44,8 @@ export const locators = {
     frontSvg: '[data-testid="rack-front"] .rack-svg',
     rearSvg: '[data-testid="rack-rear"] .rack-svg',
     rearBlockedSlot: '[data-testid="rack-rear"] .blocked-slot',
+    /** Labelled, dashed container of a row (non-bayed) rack group. */
+    rowGroup: ".rack-group",
   },
 
   bayGroup: {

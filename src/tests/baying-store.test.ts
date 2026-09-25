@@ -112,7 +112,13 @@ describe("createBayedRack", () => {
     const newId = result.rackId!;
 
     // New rack sits flush right of b; c is pushed along; nothing overwritten.
-    expect(rowIds(store)).toEqual([a.id, b.id, newId, c.id]);
+    // The new bay group renders as its own row below the standalone row
+    // (#3370), so compare positions rather than reading order.
+    const position = (id: string) => store.getRackById(id)!.position;
+    expect(position(a.id)).toBeLessThan(position(b.id));
+    expect(position(newId)).toBe(position(b.id) + 1);
+    expect(position(c.id)).toBeGreaterThan(position(newId));
+    expect(rowIds(store)).toEqual([a.id, c.id, b.id, newId]);
     const positions = store.racks.map((r) => r.position);
     expect(new Set(positions).size).toBe(positions.length);
   });

@@ -10,12 +10,7 @@ import {
   calculateFitAll,
 } from "$lib/utils/canvas";
 import { createTestRack } from "./factories";
-import {
-  SELECTION_HIGHLIGHT_PADDING,
-  BASE_RACK_WIDTH,
-  DUAL_VIEW_GAP,
-  FIT_ALL_MAX_ZOOM,
-} from "$lib/constants/layout";
+import { FIT_ALL_MAX_ZOOM } from "$lib/constants/layout";
 
 // Import zoom limits from canvas store (match the implementation)
 const FIT_ALL_MIN_ZOOM = 0.25;
@@ -38,38 +33,6 @@ describe("fitAll with multiple racks", () => {
     // Both racks should have positions calculated
     expect(positions[0].x).toBeGreaterThan(0);
     expect(positions[1].x).toBeGreaterThan(positions[0].x);
-  });
-
-  it("calculates correct width for single-view rack (show_rear: false)", () => {
-    const singleViewRack = createTestRack({
-      id: "single-view-rack",
-      height: 42,
-      width: 19,
-      show_rear: false,
-    });
-    const dualViewRack = createTestRack({
-      id: "dual-view-rack",
-      height: 42,
-      width: 19,
-      show_rear: true,
-      position: 1,
-    });
-
-    const singlePositions = racksToPositions([singleViewRack]);
-    const dualPositions = racksToPositions([dualViewRack]);
-
-    // Single view width should be: rackWidth + 2 * SELECTION_HIGHLIGHT_PADDING
-    const expectedSingleWidth =
-      BASE_RACK_WIDTH + SELECTION_HIGHLIGHT_PADDING * 2;
-    // Dual view width should be: 2 * rackWidth + gap + 2 * SELECTION_HIGHLIGHT_PADDING
-    const expectedDualWidth =
-      BASE_RACK_WIDTH * 2 + DUAL_VIEW_GAP + SELECTION_HIGHLIGHT_PADDING * 2;
-
-    expect(singlePositions[0].width).toBe(expectedSingleWidth);
-    expect(dualPositions[0].width).toBe(expectedDualWidth);
-
-    // Single view should be narrower than dual view
-    expect(singlePositions[0].width).toBeLessThan(dualPositions[0].width);
   });
 
   it("calculates correct bounding box for mixed single/dual view racks", () => {
