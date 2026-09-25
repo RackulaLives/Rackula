@@ -28,6 +28,7 @@ const mockImageStore = {
   clearAllImages: vi.fn(),
   setDeviceImage: vi.fn(),
   getDeviceImage: vi.fn(),
+  hasImage: vi.fn(),
   loadBundledImages: vi.fn(),
 };
 
@@ -238,6 +239,7 @@ describe("load-pipeline", () => {
         failedKeys: [],
       });
       const layout = layoutWithImage();
+      layoutStore.loadLayout(layout);
 
       await loadWorkingCopyServerImages(layout);
 
@@ -259,14 +261,66 @@ describe("load-pipeline", () => {
         failedImagesCount: 1,
         failedKeys: [placementKey(layoutId, deviceId)],
       });
+      const layout = layoutWithImage();
+      layoutStore.loadLayout(layout);
 
-      await loadWorkingCopyServerImages(layoutWithImage());
+      await loadWorkingCopyServerImages(layout);
 
       expect(toastStore.toasts).toContainEqual(
         expect.objectContaining({
           message: 'Front image for "Synology NAS" failed to load',
           type: "warning",
         }),
+      );
+    });
+
+    it("drops the result when another layout was opened during the fetch", async () => {
+      const key = placementKey(layoutId, deviceId);
+      const front = { dataUrl: "data:image/png;base64,AA==", filename: "f" };
+      vi.mocked(eagerFetchServerImages).mockResolvedValue({
+        images: new Map([[key, { front }]]),
+        failedImagesCount: 1,
+        failedKeys: [key],
+      });
+      const layout = layoutWithImage();
+      layoutStore.loadLayout(
+        createTestLayout({
+          metadata: { id: "33333333-3333-4333-8333-333333333333" },
+        }),
+      );
+
+      await loadWorkingCopyServerImages(layout);
+
+      expect(mockImageStore.setDeviceImage).not.toHaveBeenCalled();
+      expect(toastStore.toasts).not.toContainEqual(
+        expect.objectContaining({ type: "warning" }),
+      );
+    });
+
+    it("keeps a face the user set while the fetch was in flight", async () => {
+      const key = placementKey(layoutId, deviceId);
+      const front = { dataUrl: "data:image/png;base64,AA==", filename: "f" };
+      vi.mocked(eagerFetchServerImages).mockResolvedValue({
+        images: new Map([[key, { front }]]),
+        failedImagesCount: 0,
+        failedKeys: [],
+      });
+      mockImageStore.hasImage.mockReturnValue(true);
+      const layout = layoutWithImage();
+      layoutStore.loadLayout(layout);
+
+      await loadWorkingCopyServerImages(layout);
+
+      expect(mockImageStore.setDeviceImage).not.toHaveBeenCalled();
+    });
+
+    it("does not reject when the fetch fails", async () => {
+      vi.mocked(eagerFetchServerImages).mockRejectedValue(new Error("boom"));
+      const layout = layoutWithImage();
+      layoutStore.loadLayout(layout);
+
+      await expect(loadWorkingCopyServerImages(layout)).resolves.toBe(
+        undefined,
       );
     });
 

@@ -59,9 +59,7 @@ export interface ReconcileDeps {
   serializeLosingCopy: () => Promise<string>;
   uploadSnapshot: (uuid: string, yaml: string) => Promise<boolean>;
   loadServer: (item: SavedLayoutItem) => Promise<void>;
-  restoreLocal: (
-    reason: "ahead" | "unknown-to-server" | "local-newer",
-  ) => void | Promise<void>;
+  restoreLocal: (reason: "ahead" | "unknown-to-server" | "local-newer") => void;
   toast: (message: string, type: "success" | "info" | "warning") => void;
 }
 
@@ -70,7 +68,7 @@ export async function applyReconcile(
   deps: ReconcileDeps,
 ): Promise<void> {
   if (action.kind === "restore-local") {
-    await deps.restoreLocal(action.reason);
+    deps.restoreLocal(action.reason);
     if (action.reason === "local-newer") {
       deps.toast(
         "Kept your newer local changes; the server's copy will be saved as a snapshot when you save.",
@@ -85,7 +83,7 @@ export async function applyReconcile(
     const yaml = await deps.serializeLosingCopy();
     const ok = await deps.uploadSnapshot(action.snapshotLocalUuid, yaml);
     if (!ok) {
-      await deps.restoreLocal("local-newer");
+      deps.restoreLocal("local-newer");
       deps.toast(
         "Could not back up your local copy, so it was kept. Reload to retry.",
         "warning",
