@@ -31,6 +31,11 @@ describe("brandPackArrayName", () => {
     expect(brandPackArrayName("FS.COM")).toBe("fscomDevices");
   });
 
+  it("keeps underscores, matching the previous importer output", () => {
+    expect(brandPackArrayName("Foo_Bar")).toBe("foo_barDevices");
+    expect(brandPackArrayName("_Foo")).toMatch(IDENTIFIER);
+  });
+
   it("strips spaces and other punctuation", () => {
     expect(brandPackArrayName("Palo Alto")).toBe("paloaltoDevices");
     expect(brandPackArrayName("Rohde & Schwarz")).toBe("rohdeschwarzDevices");
