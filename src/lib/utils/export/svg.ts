@@ -27,6 +27,7 @@ import {
   RACK_PADDING_HIDDEN,
 } from "$lib/constants/layout";
 import { toHumanUnits } from "$lib/utils/position";
+import { getChildYInSlot, getSlotRects } from "$lib/utils/slot-geometry";
 
 // Aliases for export context (export uses hidden padding since view labels show rack name)
 const U_HEIGHT = U_HEIGHT_PX;
@@ -835,20 +836,20 @@ export function generateExportSVG(
       }
     }
 
-    // Filter and render devices
-    const filteredDevices = filterDevicesByFace(
-      rack.devices,
+    // Rail-level devices are placed by rack position. A carrier child's
+    // position is relative to its carrier, so children are drawn inside their
+    // carrier below and follow the carrier's face.
+    const fullInteriorWidth = RACK_WIDTH - RAIL_WIDTH * 2;
+    const railDevices = filterDevicesByFace(
+      rack.devices.filter((d) => !d.container_id),
       faceFilter,
       deviceLibrary,
     );
-    for (const placedDevice of filteredDevices) {
+    for (const placedDevice of railDevices) {
       const device = deviceLibrary.find(
         (d) => d.slug === placedDevice.device_type,
       );
       if (!device) continue;
-
-      // Device display name
-      const deviceDisplayName = device.model ?? device.slug;
 
       // Device Y position matches Rack.svelte: includes RACK_PADDING + RAIL_WIDTH offset
       // Convert position from internal units to human U
@@ -857,14 +858,65 @@ export function generateExportSVG(
         (rack.height - positionU - device.u_height + 1) * U_HEIGHT +
         RACK_PADDING +
         RAIL_WIDTH;
-      const deviceHeight = device.u_height * U_HEIGHT - 2;
 
       // Carrier-first: rail-mounted devices are whole-U full-width. Sub-U /
       // half-width gear mounts inside a carrier rather than splitting a rail
       // slot, so a rack-level device always spans the full interior width.
-      const fullInteriorWidth = RACK_WIDTH - RAIL_WIDTH * 2;
-      const deviceX = RAIL_WIDTH + 2;
-      const deviceWidth = fullInteriorWidth - 4;
+      drawDevice(
+        placedDevice,
+        device,
+        RAIL_WIDTH + 2,
+        deviceY,
+        fullInteriorWidth - 4,
+        device.u_height * U_HEIGHT - 2,
+      );
+
+      if (!device.slots?.length) continue;
+
+      // Each child sits in its slot's cell, with the same geometry the canvas
+      // uses in RackDevice.svelte.
+      const containerHeight = device.u_height * U_HEIGHT;
+      const cells = getSlotRects(
+        device.slots,
+        fullInteriorWidth,
+        containerHeight,
+      );
+      for (const child of rack.devices) {
+        if (child.container_id !== placedDevice.id || !child.slot_id) continue;
+        const childType = deviceLibrary.find(
+          (d) => d.slug === child.device_type,
+        );
+        const cell = cells.get(child.slot_id);
+        if (!childType || !cell) continue;
+        const childY = getChildYInSlot(
+          cell,
+          containerHeight,
+          child.position,
+          childType.u_height,
+          U_HEIGHT,
+        );
+        drawDevice(
+          child,
+          childType,
+          RAIL_WIDTH + cell.x + 2,
+          deviceY + childY,
+          cell.width - 4,
+          childType.u_height * U_HEIGHT - 2,
+        );
+      }
+    }
+
+    // Draw one device. The body rect spans (deviceX, deviceY + 1) at
+    // deviceWidth x deviceHeight, with its image or icon and label on top.
+    function drawDevice(
+      placedDevice: Rack["devices"][number],
+      device: DeviceType,
+      deviceX: number,
+      deviceY: number,
+      deviceWidth: number,
+      deviceHeight: number,
+    ): void {
+      const deviceDisplayName = device.model ?? device.slug;
 
       // Always render device rect as background
       const deviceRect = document.createElementNS(
