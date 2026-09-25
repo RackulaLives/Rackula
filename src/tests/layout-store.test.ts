@@ -804,6 +804,130 @@ describe("Layout Store", () => {
     });
   });
 
+  describe("loadLayout connection id de-duplication (#3284)", () => {
+    function layoutWithConnections(
+      connections: NonNullable<Layout["connections"]>,
+    ): Layout {
+      return {
+        version: "0.7.0",
+        name: "Connection Id Dedup Test",
+        racks: [
+          createTestRack({
+            id: "rack-1",
+            devices: ["a", "b", "c", "d"].map((suffix, index) =>
+              createTestDevice({
+                id: `device-${suffix}`,
+                device_type: "server-c",
+                position: 1 + index * 2,
+                ports: [createTestPlacedPort({ id: `port-${suffix}` })],
+              }),
+            ),
+          }),
+        ],
+        device_types: [
+          {
+            slug: "server-c",
+            u_height: 1,
+            colour: "#4A90A4",
+            category: "server" as const,
+          },
+        ],
+        connections,
+        settings: {
+          display_mode: "label",
+          show_labels_on_images: false,
+        },
+      };
+    }
+
+    it("regenerates the later id when duplicate ids link distinct endpoints", () => {
+      const store = getLayoutStore();
+      store.loadLayout(
+        layoutWithConnections([
+          createTestConnection({
+            id: "dup",
+            a_port_id: "port-a",
+            b_port_id: "port-b",
+          }),
+          createTestConnection({
+            id: "dup",
+            a_port_id: "port-c",
+            b_port_id: "port-d",
+          }),
+        ]),
+      );
+
+      const connections = store.layout.connections ?? [];
+      const ids = connections.map((c) => c.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(connections).toEqual([
+        expect.objectContaining({
+          id: "dup",
+          a_port_id: "port-a",
+          b_port_id: "port-b",
+        }),
+        expect.objectContaining({ a_port_id: "port-c", b_port_id: "port-d" }),
+      ]);
+    });
+
+    it("drops a later connection that repeats both the id and the endpoints", () => {
+      const store = getLayoutStore();
+      store.loadLayout(
+        layoutWithConnections([
+          createTestConnection({
+            id: "dup",
+            a_port_id: "port-a",
+            b_port_id: "port-b",
+            label: "uplink",
+          }),
+          createTestConnection({
+            id: "dup",
+            a_port_id: "port-b",
+            b_port_id: "port-a",
+          }),
+        ]),
+      );
+
+      expect(store.layout.connections).toEqual([
+        expect.objectContaining({
+          id: "dup",
+          a_port_id: "port-a",
+          b_port_id: "port-b",
+          label: "uplink",
+        }),
+      ]);
+    });
+
+    it("removing one formerly duplicated connection leaves the other, and undo restores only the removed one", () => {
+      const store = getLayoutStore();
+      store.loadLayout(
+        layoutWithConnections([
+          createTestConnection({
+            id: "dup",
+            a_port_id: "port-a",
+            b_port_id: "port-b",
+          }),
+          createTestConnection({
+            id: "dup",
+            a_port_id: "port-c",
+            b_port_id: "port-d",
+          }),
+        ]),
+      );
+      const loaded = [...(store.layout.connections ?? [])];
+
+      store.removeConnectionRecorded("dup");
+      expect(store.layout.connections).toEqual([
+        expect.objectContaining({ a_port_id: "port-c", b_port_id: "port-d" }),
+      ]);
+
+      store.undo();
+      const restored = store.layout.connections ?? [];
+      expect(restored).toEqual(expect.arrayContaining(loaded));
+      expect(restored.length).toBe(loaded.length);
+    });
+  });
+
   describe("dirty tracking", () => {
     it("markDirty sets isDirty to true", () => {
       const store = getLayoutStore();
