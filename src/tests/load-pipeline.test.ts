@@ -339,6 +339,54 @@ describe("load-pipeline", () => {
       expect(mockImageStore.setDeviceImage).not.toHaveBeenCalled();
     });
 
+    it("drops the result when the same layout was reloaded during the fetch", async () => {
+      const key = placementKey(layoutId, deviceId);
+      const front = { dataUrl: "data:image/png;base64,AA==", filename: "f" };
+      let resolveFetch!: (
+        value: Awaited<ReturnType<typeof eagerFetchServerImages>>,
+      ) => void;
+      vi.mocked(eagerFetchServerImages).mockReturnValue(
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        }),
+      );
+      const layout = layoutWithImage();
+      layoutStore.loadLayout(layout);
+
+      const pending = loadWorkingCopyServerImages(layout);
+      // Another version of the same layout (server copy, snapshot) opens.
+      finalizeLayoutLoad(layoutWithImage());
+      resolveFetch({
+        images: new Map([[key, { front }]]),
+        failedImagesCount: 1,
+        failedKeys: [key],
+      });
+      await pending;
+
+      expect(mockImageStore.setDeviceImage).not.toHaveBeenCalled();
+      expect(toastStore.toasts).not.toContainEqual(
+        expect.objectContaining({ type: "warning" }),
+      );
+    });
+
+    it("does not restore a face the user cleared during the fetch", async () => {
+      const key = placementKey(layoutId, deviceId);
+      const front = { dataUrl: "data:image/png;base64,AA==", filename: "f" };
+      vi.mocked(eagerFetchServerImages).mockResolvedValue({
+        images: new Map([[key, { front }]]),
+        failedImagesCount: 0,
+        failedKeys: [],
+      });
+      const layout = layoutWithImage();
+      layoutStore.loadLayout(layout);
+      const rackId = layoutStore.layout.racks[0]!.id;
+      layoutStore.updateDevicePlacementImage(rackId, 0, "front", undefined);
+
+      await loadWorkingCopyServerImages(layout);
+
+      expect(mockImageStore.setDeviceImage).not.toHaveBeenCalled();
+    });
+
     it("does not reject when the fetch fails", async () => {
       vi.mocked(eagerFetchServerImages).mockRejectedValue(new Error("boom"));
       const layout = layoutWithImage();
