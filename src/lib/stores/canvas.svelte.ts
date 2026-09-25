@@ -12,7 +12,9 @@ import {
   ensureVisibleTransform,
   racksToPositions,
   racksToPositionsWithIds,
+  type CanvasLayoutOptions,
 } from "$lib/utils/canvas";
+import { getUIStore } from "$lib/stores/ui.svelte";
 import { canvasDebug } from "$lib/utils/debug";
 import { nextLodTier, type LodTier } from "$lib/utils/lod";
 import {
@@ -487,6 +489,14 @@ function smoothMoveTo(x: number, y: number, scale: number): void {
 }
 
 /**
+ * Canvas render options that change rack box sizes, so the camera measures
+ * what is on screen (annotation columns widen every rack).
+ */
+function layoutOptions(): CanvasLayoutOptions {
+  return { showAnnotations: getUIStore().showAnnotations };
+}
+
+/**
  * Set or clear the canvas container element (for viewport measurements)
  */
 function setCanvasElement(element: HTMLElement | null): void {
@@ -515,7 +525,7 @@ function fitAll(
   const viewportHeight = canvasElement.clientHeight;
 
   // Convert racks to positions and calculate fit
-  const rackPositions = racksToPositions(racks, rackGroups);
+  const rackPositions = racksToPositions(racks, rackGroups, layoutOptions());
   const { zoom, panX, panY } = calculateFitAll(
     rackPositions,
     viewportWidth,
@@ -568,9 +578,11 @@ function ensureRacksVisible(
   // group members share one position object, so any member resolves to the
   // whole group's bounding box.
   const targetIds = new Set(rackIds);
-  const targetPositions = racksToPositionsWithIds(allRacks, rackGroups).filter(
-    (pos) => pos.rackIds.some((id) => targetIds.has(id)),
-  );
+  const targetPositions = racksToPositionsWithIds(
+    allRacks,
+    rackGroups,
+    layoutOptions(),
+  ).filter((pos) => pos.rackIds.some((id) => targetIds.has(id)));
   if (targetPositions.length === 0) return;
 
   const target = calculateRacksBoundingBox(targetPositions);
@@ -643,7 +655,11 @@ function focusRack(
 
   // Calculate positions for ALL racks using the authoritative helper
   // This returns positions with rack IDs, enabling direct mapping
-  const allPositionsWithIds = racksToPositionsWithIds(allRacks, rackGroups);
+  const allPositionsWithIds = racksToPositionsWithIds(
+    allRacks,
+    rackGroups,
+    layoutOptions(),
+  );
 
   // Build a lookup from rack ID to its canvas position
   // Note: All rack IDs in a bayed group map to the SAME position object reference

@@ -157,6 +157,25 @@ describe("Canvas Utils", () => {
       }
     });
 
+    it("widens racks and bays, not rows, when annotations are shown", () => {
+      const racks = [
+        createTestRack({ id: "a", position: 0 }),
+        createTestRack({ id: "m1", position: 1 }),
+        createTestRack({ id: "m2", position: 2 }),
+      ];
+      const groups = [bay("bay", ["m1", "m2"])];
+      const plain = computeCanvasLayout(racks, groups);
+      const annotated = computeCanvasLayout(racks, groups, {
+        showAnnotations: true,
+      });
+
+      for (const [i, row] of annotated.rows.entries()) {
+        const before = plain.rows[i]!;
+        expect(row.slots[0]!.width).toBeGreaterThan(before.slots[0]!.width);
+        expect(row.height).toBe(before.height);
+      }
+    });
+
     it("makes a named bayed group taller than an unnamed one", () => {
       const racks = [createTestRack({ id: "m1", position: 0 })];
       const unnamed = computeCanvasLayout(racks, [bay("g", ["m1"])]);

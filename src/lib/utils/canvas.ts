@@ -15,6 +15,8 @@ import {
   FIT_ALL_PADDING,
   FIT_ALL_MAX_ZOOM,
   getRackWidth,
+  ANNOTATION_WIDTH,
+  ANNOTATION_WIDTH_COMPACT,
 } from "$lib/constants/layout";
 import { organizeRackRows, type RackRowItem } from "$lib/utils/rack-row";
 
@@ -295,8 +297,8 @@ export function ensureVisibleTransform(
 // computeCanvasLayout is the one model of where RackCanvasView puts every rack.
 // The renderer takes its rows and slot order from it; fit-all, focus-rack and
 // ensure-visible take its rectangles. Slot sizes model the rendered DOM boxes
-// (label display mode, annotations off), measured in Chromium against the CSS
-// in RackDualView, BayedRackView and RackCanvasView.
+// (label display mode, with or without annotation columns), measured in
+// Chromium against the CSS in RackDualView, BayedRackView and RackCanvasView.
 
 /**
  * Extra height of a RackDualView box over one rack face: its padding
@@ -340,6 +342,12 @@ export const CANVAS_SLOT_GAP = RACK_GAP;
 /** Padding around all rows, in canvas coordinates (--space-4). */
 export const CANVAS_PADDING = RACK_ROW_PADDING;
 
+/** Render options that change slot sizes. */
+export interface CanvasLayoutOptions {
+  /** Annotation columns are shown (uiStore.showAnnotations). */
+  showAnnotations?: boolean;
+}
+
 /** A rack's box on the canvas, in canvas coordinates. */
 export interface CanvasRackRect extends Bounds {
   id: string;
@@ -375,11 +383,19 @@ function faceHeight(rackHeight: number): number {
 }
 
 /** Size of a standalone RackDualView box (front, plus rear when shown). */
-function dualViewSize(rack: Rack): { width: number; height: number } {
+function dualViewSize(
+  rack: Rack,
+  showAnnotations: boolean,
+): { width: number; height: number } {
   const face = getRackWidth(rack.width);
   const faces = rack.show_rear ? face * 2 + DUAL_VIEW_GAP : face;
+  // The annotation column sits left of the faces with a matching spacer on
+  // the right, each one container gap away.
+  const annotations = showAnnotations
+    ? (ANNOTATION_WIDTH + DUAL_VIEW_GAP) * 2
+    : 0;
   return {
-    width: VIEW_PADDING_X + faces,
+    width: VIEW_PADDING_X + faces + annotations,
     height: faceHeight(rack.height) + DUAL_VIEW_CHROME_HEIGHT,
   };
 }
@@ -388,8 +404,14 @@ function dualViewSize(rack: Rack): { width: number; height: number } {
 function bayedViewSize(
   group: RackGroup,
   members: Rack[],
+  showAnnotations: boolean,
 ): { width: number; height: number } {
-  const bays = members.reduce((sum, r) => sum + getRackWidth(r.width), 0);
+  // Each bay carries a compact annotation column when annotations are shown.
+  const annotation = showAnnotations ? ANNOTATION_WIDTH_COMPACT : 0;
+  const bays = members.reduce(
+    (sum, r) => sum + getRackWidth(r.width) + annotation,
+    0,
+  );
   const tallest = Math.max(...members.map((r) => r.height));
   return {
     width: VIEW_PADDING_X + bays + U_LABELS_WIDTH * (members.length - 1),
@@ -404,23 +426,26 @@ function bayedViewSize(
  * Size a slot at the origin, with member rectangles relative to the slot's
  * top-left corner.
  */
-function sizeSlot(item: RackRowItem): {
+function sizeSlot(
+  item: RackRowItem,
+  showAnnotations: boolean,
+): {
   width: number;
   height: number;
   racks: CanvasRackRect[];
 } {
   if (item.kind === "rack") {
-    const size = dualViewSize(item.rack);
+    const size = dualViewSize(item.rack, showAnnotations);
     return { ...size, racks: [{ id: item.rack.id, x: 0, y: 0, ...size }] };
   }
   if (item.group.layout_preset === "bayed") {
-    const size = bayedViewSize(item.group, item.racks);
+    const size = bayedViewSize(item.group, item.racks, showAnnotations);
     return {
       ...size,
       racks: item.racks.map((rack) => ({ id: rack.id, x: 0, y: 0, ...size })),
     };
   }
-  const sizes = item.racks.map(dualViewSize);
+  const sizes = item.racks.map((rack) => dualViewSize(rack, showAnnotations));
   const tallest = Math.max(...sizes.map((s) => s.height));
   const top = ROW_GROUP_INSET + ROW_GROUP_LABEL_BLOCK;
   let x = ROW_GROUP_INSET;
@@ -449,13 +474,17 @@ function sizeSlot(item: RackRowItem): {
 export function computeCanvasLayout(
   racks: Rack[],
   groups: RackGroup[] = [],
+  { showAnnotations = false }: CanvasLayoutOptions = {},
 ): CanvasLayout {
   const rows: CanvasRow[] = [];
   let y = CANVAS_PADDING;
   let maxRight = CANVAS_PADDING;
 
   for (const items of organizeRackRows(racks, groups)) {
-    const sized = items.map((item) => ({ item, ...sizeSlot(item) }));
+    const sized = items.map((item) => ({
+      item,
+      ...sizeSlot(item, showAnnotations),
+    }));
     const height = Math.max(...sized.map((s) => s.height));
     let x = CANVAS_PADDING;
     const slots = sized.map((s): CanvasSlot => {
@@ -502,12 +531,14 @@ export function computeCanvasLayout(
  *
  * @param racks - Array of racks from the layout store
  * @param rackGroups - Array of rack groups
+ * @param options - Render options that change slot sizes
  */
 export function racksToPositions(
   racks: Rack[],
   rackGroups: RackGroup[] = [],
+  options: CanvasLayoutOptions = {},
 ): RackPosition[] {
-  return computeCanvasLayout(racks, rackGroups).rows.flatMap((row) =>
+  return computeCanvasLayout(racks, rackGroups, options).rows.flatMap((row) =>
     row.slots.map(({ x, y, width, height }) => ({ x, y, width, height })),
   );
 }
@@ -520,12 +551,14 @@ export function racksToPositions(
  *
  * @param racks - Array of racks from the layout store
  * @param rackGroups - Array of rack groups
+ * @param options - Render options that change slot sizes
  */
 export function racksToPositionsWithIds(
   racks: Rack[],
   rackGroups: RackGroup[] = [],
+  options: CanvasLayoutOptions = {},
 ): RackPositionWithIds[] {
-  return computeCanvasLayout(racks, rackGroups).rows.flatMap((row) =>
+  return computeCanvasLayout(racks, rackGroups, options).rows.flatMap((row) =>
     row.slots.flatMap((slot): RackPositionWithIds[] => {
       if (
         slot.item.kind === "group" &&

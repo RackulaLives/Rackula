@@ -111,7 +111,11 @@
   // racks share one. The camera (fit-all, focus) reads the same model, so the
   // rows, their order and the slot order here must come from it. See
   // computeCanvasLayout and organizeRackRows.
-  const canvasLayout = $derived(computeCanvasLayout(racks, rackGroups));
+  const canvasLayout = $derived(
+    computeCanvasLayout(racks, rackGroups, {
+      showAnnotations: uiStore.showAnnotations,
+    }),
+  );
 
   // The selected bayed group's id, or null when the selection is not a group.
   // Drives the bay-level resize handle on a bay slot.

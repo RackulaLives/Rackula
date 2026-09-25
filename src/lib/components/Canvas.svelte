@@ -408,7 +408,7 @@
 <CanvasContextMenu
   onnewrack={handleNewRack}
   onfitall={() =>
-    onfitall?.() ?? canvasStore.fitAll(racks, layoutStore.rack_groups)}
+    onfitall ? onfitall() : canvasStore.fitAll(racks, layoutStore.rack_groups)}
   onresetzoom={() => onresetzoom?.() ?? canvasStore.resetZoom()}
   {displayMode}
   {ontoggledisplaymode}
