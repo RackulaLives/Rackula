@@ -1,10 +1,10 @@
 # yaml-language-server: $schema=https://count.racku.la/schemas/layout-v1.json
 metadata:
-  id: 44444444-4444-4444-8444-444444444444
-  name: Future Schema Version Lab
-  schema_version: "2.0"
+  id: 55555555-5555-4555-8555-555555555555
+  name: Future Schema Version 3.0 Lab
+  schema_version: "3.0"
 version: "1.0"
-name: Future Schema Version Lab
+name: Future Schema Version 3.0 Lab
 racks:
   - id: "rack-a"
     name: "Rack A"

@@ -1,3 +1,5 @@
 {
-  "reject": true
+  "reject": false,
+  "hasImages": false,
+  "allowList": []
 }
