@@ -3,8 +3,10 @@ import {
   finalizeLayoutLoad,
   loadFromApi,
   loadFromFile,
+  loadWorkingCopyServerImages,
   restoreFromSnapshot,
 } from "$lib/storage/load-pipeline";
+import { eagerFetchServerImages } from "$lib/storage/server-load-images";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 import * as persistenceApi from "$lib/storage/api";
@@ -46,6 +48,10 @@ vi.mock("$lib/storage/api", () => ({
       this.statusCode = statusCode;
     }
   },
+}));
+
+vi.mock("$lib/storage/server-load-images", () => ({
+  eagerFetchServerImages: vi.fn(),
 }));
 
 vi.mock("$lib/utils/archive", () => ({
@@ -195,6 +201,79 @@ describe("load-pipeline", () => {
           type: "warning",
         }),
       );
+    });
+  });
+
+  // #3412: a server-mode reload restores the working copy from localStorage,
+  // which holds no images, so its custom faces come from the asset API.
+  describe("loadWorkingCopyServerImages", () => {
+    const layoutId = "11111111-1111-4111-8111-111111111111";
+    const deviceId = "22222222-2222-4222-8222-222222222222";
+
+    function layoutWithImage() {
+      return createTestLayout({
+        metadata: { id: layoutId },
+        device_types: [createTestDeviceType({ slug: "test-device" })],
+        racks: [
+          createTestRack({
+            devices: [
+              createTestDevice({
+                id: deviceId,
+                device_type: "test-device",
+                name: "Synology NAS",
+                front_image: "front.png",
+              }),
+            ],
+          }),
+        ],
+      });
+    }
+
+    it("puts the fetched faces into the image store", async () => {
+      const key = placementKey(layoutId, deviceId);
+      const front = { dataUrl: "data:image/png;base64,AA==", filename: "f" };
+      vi.mocked(eagerFetchServerImages).mockResolvedValue({
+        images: new Map([[key, { front }]]),
+        failedImagesCount: 0,
+        failedKeys: [],
+      });
+      const layout = layoutWithImage();
+
+      await loadWorkingCopyServerImages(layout);
+
+      expect(eagerFetchServerImages).toHaveBeenCalledWith(
+        layout,
+        layoutId,
+        expect.any(Map),
+      );
+      expect(mockImageStore.setDeviceImage).toHaveBeenCalledWith(
+        key,
+        "front",
+        front,
+      );
+    });
+
+    it("names the device and face when a face fails to fetch", async () => {
+      vi.mocked(eagerFetchServerImages).mockResolvedValue({
+        images: new Map(),
+        failedImagesCount: 1,
+        failedKeys: [placementKey(layoutId, deviceId)],
+      });
+
+      await loadWorkingCopyServerImages(layoutWithImage());
+
+      expect(toastStore.toasts).toContainEqual(
+        expect.objectContaining({
+          message: 'Front image for "Synology NAS" failed to load',
+          type: "warning",
+        }),
+      );
+    });
+
+    it("does not fetch for a layout without an id", async () => {
+      await loadWorkingCopyServerImages(createTestLayout());
+
+      expect(eagerFetchServerImages).not.toHaveBeenCalled();
     });
   });
 

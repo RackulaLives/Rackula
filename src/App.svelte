@@ -46,6 +46,7 @@
     listSavedLayouts,
     loadSavedLayout,
     finalizeLayoutLoad,
+    loadWorkingCopyServerImages,
     handleSaveToServer,
     reconcileSession,
     applyReconcile,
@@ -563,7 +564,7 @@
                 failedKeys,
               });
             },
-            restoreLocal: (reason) => {
+            restoreLocal: async (reason) => {
               // A copy the server has never seen has no valid base: clear it so
               // the re-establishing PUT creates fresh instead of echoing a stale
               // updatedAt. Diverged/ahead copies keep their base.
@@ -572,6 +573,11 @@
                   ? null
                   : localSession.serverUpdatedAt,
               );
+              // The working copy holds no images; a copy the server knows has
+              // its custom faces on disk, so load them before the layout (#3412).
+              if (reason !== "unknown-to-server") {
+                await loadWorkingCopyServerImages(localSession.layout);
+              }
               restoreLocalSession(localSession);
             },
             toast: (m, t) => toastStore.showToast(m, t),

@@ -12,6 +12,7 @@ import { setServerBaseUpdatedAt } from "./server-base";
 import type { Layout } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
 import { loadSavedLayout, loadSnapshot, PersistenceError } from "./api";
+import { eagerFetchServerImages } from "./server-load-images";
 import { extractFolderArchive } from "$lib/utils/archive";
 import { openFilePicker } from "$lib/utils/file";
 import { layoutDebug } from "$lib/utils/debug";
@@ -97,6 +98,41 @@ export function finalizeLayoutLoad(
     );
   } else if (successMessage !== null) {
     toastStore.showToast(successMessage, "success");
+  }
+}
+
+/**
+ * Server mode: load a restored working copy's custom faces from the asset API
+ * (#3412). The localStorage working copy holds the layout but no images, so a
+ * reload that keeps it would otherwise show every placed device without its
+ * front/rear override. Fetch failures get the same per-device warning toasts as
+ * a server load.
+ */
+export async function loadWorkingCopyServerImages(
+  layout: Layout,
+): Promise<void> {
+  const layoutId = layout.metadata?.id;
+  if (!layoutId) return;
+
+  const { images, failedKeys } = await eagerFetchServerImages(
+    layout,
+    layoutId,
+    new Map(),
+  );
+
+  const imageStore = getImageStore();
+  for (const [key, deviceImages] of images) {
+    if (deviceImages.front) {
+      imageStore.setDeviceImage(key, "front", deviceImages.front);
+    }
+    if (deviceImages.rear) {
+      imageStore.setDeviceImage(key, "rear", deviceImages.rear);
+    }
+  }
+
+  const toastStore = getToastStore();
+  for (const message of resolveImageFailureMessages(failedKeys, layout)) {
+    toastStore.showToast(message, "warning");
   }
 }
 
