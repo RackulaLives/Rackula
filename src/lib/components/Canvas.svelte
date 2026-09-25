@@ -437,7 +437,9 @@
       isPlacing={placementStore.isPlacing}
       device={placementStore.pendingDevice}
       isMobile={viewportStore.isMobile}
+      rotation={placementStore.rotation}
       oncancel={handleCancelPlacement}
+      onrotate={() => placementStore.toggleRotation()}
     />
 
     {#if hasRacks && allRacksEmpty && !hintDismissed}

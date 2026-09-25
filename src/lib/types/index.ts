@@ -33,9 +33,10 @@ export interface LayoutMetadata {
 export type DeviceFace = "front" | "rear" | "both";
 
 /**
- * Clockwise turn of a placed device, in degrees.
+ * Turn of a placed device, in degrees: 0 as drawn, 90 turned clockwise onto
+ * its side.
  */
-export type DeviceRotation = 0 | 90 | 180 | 270;
+export type DeviceRotation = 0 | 90;
 
 /**
  * Device category types - 14 predefined categories
@@ -480,7 +481,7 @@ export interface DeviceType {
   width_mm?: number;
   /**
    * Measured height in millimetres. u_height stays the rack units it takes;
-   * a quarter turn reads this as the device's width.
+   * turned 90 degrees, the device's width is this.
    */
   height_mm?: number;
   /**
@@ -596,8 +597,8 @@ export interface PlacedDevice {
   /** Which face(s) of the rack the device occupies */
   face: DeviceFace;
   /**
-   * Clockwise quarter turns, in degrees. Absent means 0. Applies only to a
-   * device with a measured width; see orientDeviceType.
+   * Turn in degrees, 0 or 90. Absent means 0. Applies only to a device with a
+   * measured width; see orientDeviceType.
    */
   rotation?: DeviceRotation;
   /** Optional custom display name for this placement */

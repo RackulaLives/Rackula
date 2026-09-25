@@ -92,14 +92,9 @@ export const FormFactorSchema = z.enum([
 export const DeviceFaceSchema = z.enum(["front", "rear", "both"]);
 
 /**
- * Clockwise turn of a placed device, in degrees
+ * Turn of a placed device, in degrees: 0 as drawn, 90 on its side
  */
-export const DeviceRotationSchema = z.union([
-  z.literal(0),
-  z.literal(90),
-  z.literal(180),
-  z.literal(270),
-]);
+export const DeviceRotationSchema = z.union([z.literal(0), z.literal(90)]);
 
 /**
  * Weight unit enum
@@ -1097,7 +1092,7 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
         }
 
         // 3b. Child must fit its cell (height_units / width_fraction), as it
-        // stands: a quarter turn swaps a measured device's sides.
+        // stands: turned 90 degrees, a measured device's sides swap.
         const slot = slotById.get(device.slot_id)!;
         const childType = deviceTypeBySlug.get(device.device_type);
         const childForFit =

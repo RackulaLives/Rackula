@@ -178,16 +178,14 @@ export function getRotation(
 }
 
 /**
- * A device as it stands in the rack after `rotation`. A quarter turn swaps the
- * sides of a measured device: its width becomes its height (measured, or its
- * rack units when not measured) and its height becomes its width. A half turn
- * keeps the footprint.
+ * A device as it stands in the rack after `rotation`. Turned 90 degrees, a
+ * measured device's sides swap: its width becomes its height (measured, or its
+ * rack units when not measured) and its height becomes its width.
  */
 export function orientDeviceType<
   T extends Pick<DeviceType, "width_mm" | "height_mm" | "u_height">,
 >(deviceType: T, rotation: DeviceRotation | undefined): T {
-  const turn = getRotation(deviceType, rotation);
-  if (turn !== 90 && turn !== 270) return deviceType;
+  if (getRotation(deviceType, rotation) !== 90) return deviceType;
   const widthMm = deviceType.width_mm!;
   return {
     ...deviceType,

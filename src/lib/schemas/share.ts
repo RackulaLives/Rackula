@@ -98,8 +98,8 @@ export const MinimalDeviceSchema = z.object({
   si: z.string().optional(),
   /** auto_created flag (synthesized carrier) */
   a: z.literal(1).optional(),
-  /** rotation: clockwise turn in degrees, left out when 0 */
-  r: z.union([z.literal(90), z.literal(180), z.literal(270)]).optional(),
+  /** rotation: turned 90 degrees onto its side, left out when 0 */
+  r: z.literal(90).optional(),
 });
 
 /**

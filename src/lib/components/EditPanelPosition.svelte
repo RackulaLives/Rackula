@@ -305,8 +305,10 @@
             class="position-btn"
             data-testid="btn-rotate-device"
             onclick={rotateDevice}
-            aria-label="Rotate device 90 degrees clockwise"
-            title="Rotate 90° clockwise"
+            aria-label={rotation === 90
+              ? "Rotate device back to 0 degrees"
+              : "Rotate device 90 degrees onto its side"}
+            title={rotation === 90 ? "Rotate back to 0°" : "Rotate 90°"}
           >
             <span class="arrow-label">↻</span>
           </button>

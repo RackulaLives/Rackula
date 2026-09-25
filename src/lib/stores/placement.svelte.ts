@@ -5,12 +5,23 @@
  * keyboard flow) a U-slot cursor within a target rack.
  */
 
-import type { DeviceType, DeviceFace } from "$lib/types";
+import type { DeviceType, DeviceFace, DeviceRotation } from "$lib/types";
+import { canRotate, orientDeviceType } from "$lib/utils/device-width";
 
 // State
 let isPlacing = $state(false);
 let pendingDevice = $state<DeviceType | null>(null);
 let targetFace = $state<DeviceFace>("front");
+
+/**
+ * Turn chosen for the armed device before it is placed (R key). The device is
+ * handed out as it will stand, so the preview, the valid slots and the
+ * placement all use the turned footprint.
+ */
+let rotation = $state<DeviceRotation>(0);
+const standingDevice = $derived(
+  pendingDevice && orientDeviceType(pendingDevice, rotation),
+);
 
 /**
  * Keyboard placement cursor.
@@ -39,6 +50,7 @@ function startPlacement(device: DeviceType, face: DeviceFace = "front"): void {
   isPlacing = true;
   pendingDevice = device;
   targetFace = face;
+  rotation = 0;
   targetRackId = null;
   cursorPosition = null;
 }
@@ -51,6 +63,7 @@ function resetState(): void {
   isPlacing = false;
   pendingDevice = null;
   targetFace = "front";
+  rotation = 0;
   targetRackId = null;
   cursorPosition = null;
 }
@@ -89,6 +102,19 @@ function completePlacement(summary?: string): void {
     placementAnnouncement = summary ?? `${deviceName} placed`;
   }
   resetState();
+}
+
+/**
+ * Turn the armed device onto its side, or back flat, before it is placed.
+ * Only a device with a measured width turns.
+ * @returns true when the device turned
+ */
+function toggleRotation(): boolean {
+  if (!isPlacing || !pendingDevice || !canRotate(pendingDevice)) return false;
+  rotation = rotation === 90 ? 0 : 90;
+  placementAnnouncement =
+    rotation === 90 ? "Turned 90 degrees" : "Turned back to 0 degrees";
+  return true;
 }
 
 /**
@@ -141,8 +167,13 @@ export function getPlacementStore() {
     get isPlacing() {
       return isPlacing;
     },
+    /** The armed device as it will stand: turned when rotation is 90. */
     get pendingDevice() {
-      return pendingDevice;
+      return standingDevice;
+    },
+    /** Turn chosen for the armed device, 0 or 90. */
+    get rotation() {
+      return rotation;
     },
     get targetFace() {
       return targetFace;
@@ -169,6 +200,7 @@ export function getPlacementStore() {
     abandonPlacement,
     completePlacement,
     setTargetFace,
+    toggleRotation,
     setCursor,
     announcePosition,
   };

@@ -793,14 +793,6 @@
                   {
                     "const": 90,
                     "type": "number"
-                  },
-                  {
-                    "const": 180,
-                    "type": "number"
-                  },
-                  {
-                    "const": 270,
-                    "type": "number"
                   }
                 ]
               },
@@ -1133,14 +1125,6 @@
                     },
                     {
                       "const": 90,
-                      "type": "number"
-                    },
-                    {
-                      "const": 180,
-                      "type": "number"
-                    },
-                    {
-                      "const": 270,
                       "type": "number"
                     }
                   ]

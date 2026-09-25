@@ -15,6 +15,7 @@ import type {
   DeviceType,
   PlacedDevice,
   DeviceFace,
+  DeviceRotation,
   RackView,
   DisplayMode,
   Connection,
@@ -752,6 +753,7 @@ export function createLayoutStore(
     containerId: string,
     slotId: string,
     position: number,
+    rotation?: DeviceRotation,
   ): boolean {
     return placeInContainerImpl(
       stateAccess,
@@ -760,6 +762,7 @@ export function createLayoutStore(
       containerId,
       slotId,
       position,
+      rotation,
     );
   }
 
@@ -783,25 +786,29 @@ export function createLayoutStore(
     rackId: string,
     carrierId: string,
     deviceTypeSlug: string,
+    rotation?: DeviceRotation,
   ): boolean {
     return extendCustomCarrierImpl(
       stateAccess,
       rackId,
       carrierId,
       deviceTypeSlug,
+      rotation,
     );
   }
 
   /**
    * Place a device carrier-first. Sub-U / half-width gear is wrapped in a
    * synthesised carrier (or fills an existing one); whole-U full-width gear
-   * mounts directly to the rails.
+   * mounts directly to the rails. A measured device can be placed turned 90
+   * degrees.
    */
   function placeDeviceSmart(
     rackId: string,
     deviceTypeSlug: string,
     position: number,
     face?: DeviceFace,
+    rotation?: DeviceRotation,
   ): boolean {
     return placeDeviceSmartImpl(
       stateAccess,
@@ -809,6 +816,7 @@ export function createLayoutStore(
       deviceTypeSlug,
       position,
       face,
+      rotation,
     );
   }
 
@@ -971,7 +979,7 @@ export function createLayoutStore(
   }
 
   /**
-   * Turn a device 90 degrees clockwise, skipping angles that do not fit
+   * Turn a device onto its side, or back flat
    * @returns true when the device turned
    */
   function rotateDevice(rackId: string, deviceIndex: number): boolean {

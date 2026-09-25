@@ -756,14 +756,13 @@ export function updateDeviceFaceRecorded(
 }
 
 /**
- * Turn a device 90 degrees clockwise, with undo/redo support.
+ * Turn a device onto its side, or back flat, with undo/redo support.
  *
- * A quarter turn swaps a measured device's width and height. In a generated
- * carrier the carrier is reshaped around it in the same undo step: its cell is
- * recut and the carrier grows or shrinks to the whole U holding its tallest
- * child. In any other carrier the turned device must fit its cell. An angle
- * that does not fit is skipped, the way the arrow keys leapfrog a cell the
- * device does not fit, and the skip is announced.
+ * Turning 90 degrees swaps a measured device's width and height. In a
+ * generated carrier the carrier is reshaped around it in the same undo step:
+ * its cell is recut and the carrier grows or shrinks to the whole U holding
+ * its tallest child. In any other carrier the turned device must fit its cell.
+ * A turn that does not fit is refused, and the refusal is announced.
  *
  * @param ctx - Layout state access
  * @param rackId - Rack ID
@@ -795,94 +794,82 @@ export function rotateDeviceRecorded(
 
   const adapter = getCommandStoreAdapter(ctx);
   const deviceName = deviceType.model ?? deviceType.slug;
-  const current = getRotation(deviceType, device.rotation);
-  const skipped: DeviceRotation[] = [];
+  const rotation: DeviceRotation =
+    getRotation(deviceType, device.rotation) === 90 ? 0 : 90;
+  const footprint = orientDeviceType(deviceType, rotation);
+  const carrierCommands: Command[] = [];
+  let fits: boolean;
 
-  for (let step = 1; step < 4; step++) {
-    const rotation = ((current + step * 90) % 360) as DeviceRotation;
-    const footprint = orientDeviceType(deviceType, rotation);
-    const carrierCommands: Command[] = [];
-
-    if (isGeneratedCarrier(containerType)) {
-      const reshaped = reshapeCarrier(
-        rack,
-        container,
-        containerType,
-        layout.device_types,
-        (child) => {
-          if (child.id === device.id) return footprint;
-          const type = findDeviceTypeInArray(
-            layout.device_types,
-            child.device_type,
-          );
-          return type && orientDeviceType(type, child.rotation);
-        },
-      );
-      if ("refused" in reshaped) {
-        skipped.push(rotation);
-        continue;
-      }
-      if (reshaped.type.slug !== containerType.slug) {
-        carrierCommands.push(
-          ...retypeCarrierCommands(
-            layout,
-            container,
-            containerType,
-            reshaped.type,
-            adapter,
-          ),
+  if (isGeneratedCarrier(containerType)) {
+    const reshaped = reshapeCarrier(
+      rack,
+      container,
+      containerType,
+      layout.device_types,
+      (child) => {
+        if (child.id === device.id) return footprint;
+        const type = findDeviceTypeInArray(
+          layout.device_types,
+          child.device_type,
         );
-      }
-    } else if (
-      !canPlaceInContainer(
-        rack,
-        layout.device_types,
-        container,
-        containerType,
-        footprint,
-        device.slot_id,
-        device.position,
-        device.id,
-      )
-    ) {
-      skipped.push(rotation);
-      continue;
-    }
-
-    ctx.setActiveRackId(rackId);
-    const rotate = createUpdateDeviceRotationCommand(
-      deviceIndex,
-      device.rotation,
-      rotation === 0 ? undefined : rotation,
-      adapter,
-      deviceName,
+        return type && orientDeviceType(type, child.rotation);
+      },
     );
-    ctx
-      .getHistory()
-      .execute(
-        carrierCommands.length > 0
-          ? createBatchCommand(`Rotate ${deviceName}`, [
-              rotate,
-              ...carrierCommands,
-            ])
-          : rotate,
-      );
-    ctx.markDirty();
-
-    if (skipped.length > 0) {
-      getToastStore().showToast(
-        `${deviceName} has no room at ${skipped.join("°, ")}° here, turned to ${rotation}°`,
-        "info",
+    fits = !("refused" in reshaped);
+    if ("type" in reshaped && reshaped.type.slug !== containerType.slug) {
+      carrierCommands.push(
+        ...retypeCarrierCommands(
+          layout,
+          container,
+          containerType,
+          reshaped.type,
+          adapter,
+        ),
       );
     }
-    return true;
+  } else {
+    fits = canPlaceInContainer(
+      rack,
+      layout.device_types,
+      container,
+      containerType,
+      footprint,
+      device.slot_id,
+      device.position,
+      device.id,
+    );
   }
 
-  getToastStore().showToast(
-    `${deviceName} has no room to turn here`,
-    "warning",
+  if (!fits) {
+    getToastStore().showToast(
+      rotation === 90
+        ? `No room to stand ${deviceName} on its side here`
+        : `No room to lay ${deviceName} flat here`,
+      "warning",
+    );
+    return false;
+  }
+
+  ctx.setActiveRackId(rackId);
+  const rotate = createUpdateDeviceRotationCommand(
+    deviceIndex,
+    device.rotation,
+    rotation === 0 ? undefined : rotation,
+    adapter,
+    deviceName,
   );
-  return false;
+  ctx
+    .getHistory()
+    .execute(
+      carrierCommands.length > 0
+        ? createBatchCommand(`Rotate ${deviceName}`, [
+            rotate,
+            ...carrierCommands,
+          ])
+        : rotate,
+    );
+  ctx.markDirty();
+  return true;
 }
 
 /**

@@ -4,8 +4,9 @@
   Displays device being placed and provides cancel button.
 -->
 <script lang="ts">
-  import type { DeviceType } from "$lib/types";
+  import type { DeviceRotation, DeviceType } from "$lib/types";
   import { hapticCancel } from "$lib/utils/haptics";
+  import { canRotate } from "$lib/utils/device-width";
   import { IconClose } from "./icons";
   import { fly } from "svelte/transition";
   import { prefersReducedMotion } from "svelte/motion";
@@ -15,16 +16,32 @@
     device: DeviceType | null;
     /** Mobile phrasing: "tap" instead of "click", no Esc guidance. */
     isMobile?: boolean;
+    /** Turn chosen for the armed device before it is placed. */
+    rotation?: DeviceRotation;
     oncancel?: () => void;
+    /** Turn the armed device 90 degrees, or back. */
+    onrotate?: () => void;
   }
 
-  let { isPlacing, device, isMobile = false, oncancel }: Props = $props();
+  let {
+    isPlacing,
+    device,
+    isMobile = false,
+    rotation = 0,
+    oncancel,
+    onrotate,
+  }: Props = $props();
+
+  // Only a measured device turns (see canRotate).
+  const turnable = $derived(!!device && !!onrotate && canRotate(device));
 
   // Communicate the ongoing mode, not just the armed device (#2992): how to
   // place and how to leave. Kept on the banner's single text line so the
   // banner height stays within --banner-clearance (CanvasViewControls).
   const hint = $derived(
-    isMobile ? "Tap a slot to place." : "Click a slot to place. Esc to cancel.",
+    isMobile
+      ? "Tap a slot to place."
+      : `Click a slot to place.${turnable ? " R to turn." : ""} Esc to cancel.`,
   );
 
   function handleCancel() {
@@ -46,11 +63,26 @@
     <div class="indicator-content">
       <span class="indicator-text">
         Placing: <strong
-          >{device.model ?? device.slug} ({device.u_height}U)</strong
+          >{device.model ?? device.slug} ({device.u_height}U{rotation === 90
+            ? ", on its side"
+            : ""})</strong
         >
         <span class="indicator-hint">{hint}</span>
       </span>
     </div>
+    {#if turnable}
+      <button
+        type="button"
+        class="cancel-button"
+        data-testid="btn-rotate-placement"
+        onclick={onrotate}
+        aria-pressed={rotation === 90}
+        aria-label="Rotate 90 degrees before placing"
+      >
+        <span aria-hidden="true">↻</span>
+        <span class="cancel-label">Rotate</span>
+      </button>
+    {/if}
     <button
       type="button"
       class="cancel-button"

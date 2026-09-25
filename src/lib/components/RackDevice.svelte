@@ -1089,9 +1089,9 @@
           {@const childWidth = slotGeo.width}
           {@const childX = slotGeo.x}
           {@const childTurn = getRotation(childType, child.rotation)}
-          {@const quarterTurn = childTurn === 90 || childTurn === 270}
-          {@const imageWidth = quarterTurn ? childHeight : childWidth}
-          {@const imageHeight = quarterTurn ? childWidth : childHeight}
+          {@const onSide = childTurn === 90}
+          {@const imageWidth = onSide ? childHeight : childWidth}
+          {@const imageHeight = onSide ? childWidth : childHeight}
           {@const childImageUrl = getChildImageUrl(child, childType)}
           {@const childColour =
             child.colour_override ??
@@ -1150,8 +1150,8 @@
                  parent device image overflows its own rect the same way. -->
             {#if childImageUrl}
               {#key childImageUrl}
-                <!-- A turned image is laid out on its side, centred, then
-                     turned into the box. -->
+                <!-- A device on its side has its image laid out flat,
+                     centred, then turned into the box. -->
                 <image
                   class="child-device-image"
                   data-testid="child-device-image"
@@ -1197,9 +1197,9 @@
                 dominant-baseline="middle"
                 font-size={Math.min(
                   11,
-                  (quarterTurn ? childWidth : childHeight) * 0.6,
+                  (onSide ? childWidth : childHeight) * 0.6,
                 )}
-                transform={quarterTurn
+                transform={onSide
                   ? `rotate(-90 ${childWidth / 2} ${childHeight / 2})`
                   : undefined}
                 fill="var(--colour-text-on-device)"

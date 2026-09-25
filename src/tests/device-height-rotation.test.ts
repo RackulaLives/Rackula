@@ -1,12 +1,12 @@
 /**
- * Measured height and quarter turns.
+ * Measured height and turning a device 90 degrees.
  *
  * A device type may carry its measured height (height_mm), from which its rack
- * units are derived. A placed device with a measured width may be turned in
- * 90 degree steps; a quarter turn swaps its width and height, so a mini PC
- * lying flat stands on its side in a narrow cell of a taller carrier.
+ * units are derived. A placed device with a measured width may be turned 90
+ * degrees and back; the turn swaps its width and height, so a mini PC lying
+ * flat stands on its side in a narrow cell of a taller carrier.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { LayoutSchema } from "$lib/schemas";
 import { synthesizeCarrierForDevice } from "$lib/utils/collision";
 import {
@@ -19,6 +19,11 @@ import { serializeLayoutToYaml, parseLayoutYaml } from "$lib/utils/yaml";
 import { encodeLayout, decodeLayout } from "$lib/utils/share";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
+import {
+  getPlacementStore,
+  resetPlacementStore,
+} from "$lib/stores/placement.svelte";
+import { createPlacementKeyboardController } from "$lib/utils/placement-keyboard-controller";
 import type { DeviceType, PlacedDevice } from "$lib/types";
 import {
   createTestContainerChild,
@@ -62,18 +67,16 @@ describe("rack units from a measured height", () => {
 });
 
 describe("a turned device's footprint", () => {
-  it("swaps width and height at a quarter turn", () => {
-    for (const rotation of [90, 270] as const) {
-      const turned = orientDeviceType(miniPc(), rotation);
-      expect(turned.width_mm).toBe(34.5);
-      expect(turned.height_mm).toBe(179);
-      expect(turned.u_height).toBe(4.5);
-    }
+  it("swaps width and height at 90 degrees", () => {
+    const turned = orientDeviceType(miniPc(), 90);
+    expect(turned.width_mm).toBe(34.5);
+    expect(turned.height_mm).toBe(179);
+    expect(turned.u_height).toBe(4.5);
   });
 
-  it("keeps the footprint unturned and at a half turn", () => {
+  it("keeps the footprint unturned", () => {
     expect(orientDeviceType(miniPc(), undefined)).toEqual(miniPc());
-    expect(orientDeviceType(miniPc(), 180)).toEqual(miniPc());
+    expect(orientDeviceType(miniPc(), 0)).toEqual(miniPc());
   });
 
   it("takes the width from the rack units when no height was measured", () => {
@@ -143,12 +146,11 @@ describe("turning a placed device", () => {
     );
   });
 
-  it("comes back to the flat carrier after four turns", () => {
+  it("lays it back flat in its flat carrier on the next turn", () => {
     const rackId = placedMiniPc();
 
-    for (let i = 0; i < 4; i++) {
-      expect(store.rotateDevice(rackId, childIndex(rackId))).toBe(true);
-    }
+    expect(store.rotateDevice(rackId, childIndex(rackId))).toBe(true);
+    expect(store.rotateDevice(rackId, childIndex(rackId))).toBe(true);
 
     expect(child(rackId).rotation ?? 0).toBe(0);
     expect(carrierType(rackId).u_height).toBe(1);
@@ -158,23 +160,14 @@ describe("turning a placed device", () => {
     );
   });
 
-  it("keeps the flat carrier at a half turn", () => {
-    const rackId = placedMiniPc();
-    store.rotateDevice(rackId, childIndex(rackId));
-    store.rotateDevice(rackId, childIndex(rackId));
-
-    expect(child(rackId).rotation).toBe(180);
-    expect(carrierType(rackId).u_height).toBe(1);
-  });
-
-  it("turns it upside down instead when a device above leaves no room to stand up", () => {
+  it("refuses to stand it up when a device above leaves no room", () => {
     const rackId = placedMiniPc();
     store.addDeviceTypeRaw(createTestDeviceType({ slug: "server" }));
     store.placeDevice(rackId, "server", 7);
 
-    expect(store.rotateDevice(rackId, childIndex(rackId))).toBe(true);
+    expect(store.rotateDevice(rackId, childIndex(rackId))).toBe(false);
 
-    expect(child(rackId).rotation).toBe(180);
+    expect(child(rackId).rotation ?? 0).toBe(0);
     expect(carrierType(rackId).u_height).toBe(1);
   });
 
@@ -199,7 +192,7 @@ describe("turning a placed device", () => {
     expect(child(rack.id).rotation ?? 0).toBe(0);
   });
 
-  it("skips the quarter turns a shipped 1U shelf cell cannot hold", () => {
+  it("refuses to stand it up in a shipped 1U shelf cell", () => {
     const rack = store.addRack("Rack", 12)!;
     store.addDeviceTypeRaw(miniPc({ width_mm: 100, height_mm: 30 }));
     store.placeDevice(rack.id, "shelf-1u-3slot", 5);
@@ -210,10 +203,7 @@ describe("turning a placed device", () => {
       store.placeInContainer(rack.id, "mini-pc", shelf.id, "center", 0),
     ).toBe(true);
 
-    expect(store.rotateDevice(rack.id, childIndex(rack.id))).toBe(true);
-    expect(child(rack.id).rotation).toBe(180);
-
-    expect(store.rotateDevice(rack.id, childIndex(rack.id))).toBe(true);
+    expect(store.rotateDevice(rack.id, childIndex(rack.id))).toBe(false);
     expect(child(rack.id).rotation ?? 0).toBe(0);
     expect(child(rack.id).container_id).toBe(shelf.id);
   });
@@ -253,6 +243,113 @@ describe("turning a placed device", () => {
 
     expect(child(rackId).rotation).toBe(90);
     expect(carrierType(rackId).u_height).toBe(5);
+  });
+});
+
+describe("turning a device before it is placed", () => {
+  let store: ReturnType<typeof getLayoutStore>;
+
+  beforeEach(() => {
+    resetLayoutStore();
+    resetHistoryStore();
+    resetPlacementStore();
+    store = getLayoutStore();
+  });
+
+  function carrierOf(rackId: string): DeviceType {
+    const carrier = store
+      .getRackById(rackId)!
+      .devices.find((d) => !d.container_id)!;
+    return store.device_types.find((dt) => dt.slug === carrier.device_type)!;
+  }
+
+  it("places a mini PC already standing on its side", () => {
+    const rack = store.addRack("Rack", 20)!;
+    store.addDeviceTypeRaw(miniPc());
+
+    expect(store.placeDeviceSmart(rack.id, "mini-pc", 5, "front", 90)).toBe(
+      true,
+    );
+
+    const child = store
+      .getRackById(rack.id)!
+      .devices.find((d) => d.container_id)!;
+    expect(child.rotation).toBe(90);
+    expect(carrierOf(rack.id).u_height).toBe(5);
+  });
+
+  it("stands a second one beside the first when placed on its carrier", () => {
+    const rack = store.addRack("Rack", 20)!;
+    store.addDeviceTypeRaw(miniPc());
+    store.placeDeviceSmart(rack.id, "mini-pc", 5, "front", 90);
+
+    // U7 is inside the 5U carrier standing at U5.
+    expect(store.placeDeviceSmart(rack.id, "mini-pc", 7, "front", 90)).toBe(
+      true,
+    );
+
+    const children = store
+      .getRackById(rack.id)!
+      .devices.filter((d) => d.container_id);
+    expect(children.map((d) => d.rotation)).toEqual([90, 90]);
+    const cells = carrierOf(rack.id).slots ?? [];
+    expect(cells.map((c) => c.width_fraction)).toEqual([
+      34.5 / OPENING_19,
+      34.5 / OPENING_19,
+    ]);
+    expect(carrierOf(rack.id).u_height).toBe(5);
+  });
+
+  it("hands out the armed device turned once R is pressed, and back", () => {
+    const placement = getPlacementStore();
+    placement.startPlacement(miniPc());
+
+    expect(placement.toggleRotation()).toBe(true);
+    expect(placement.rotation).toBe(90);
+    expect(placement.pendingDevice?.u_height).toBe(4.5);
+
+    expect(placement.toggleRotation()).toBe(true);
+    expect(placement.rotation).toBe(0);
+    expect(placement.pendingDevice?.u_height).toBe(1);
+  });
+
+  it("does not turn an armed device with no measured width", () => {
+    const placement = getPlacementStore();
+    placement.startPlacement(createTestDeviceType({ slug: "server" }));
+
+    expect(placement.toggleRotation()).toBe(false);
+    expect(placement.rotation).toBe(0);
+  });
+
+  it("turns the armed device on R during placement", () => {
+    const toggleRotation = vi.fn(() => true);
+    const controller = createPlacementKeyboardController({
+      getRacks: () => [],
+      getDeviceLibrary: () => [],
+      getActiveRackId: () => null,
+      isPlacing: () => true,
+      getPendingDevice: () => miniPc(),
+      getTargetFace: () => "front",
+      getCursorPosition: () => null,
+      setActiveRack: vi.fn(),
+      setCursor: vi.fn(),
+      announce: vi.fn(),
+      cancelPlacement: vi.fn(),
+      abandonPlacement: vi.fn(),
+      placeDevice: vi.fn(() => true),
+      completePlacement: vi.fn(),
+      toggleRotation,
+    });
+
+    expect(
+      controller.handleKeyDown(new KeyboardEvent("keydown", { key: "r" })),
+    ).toBe(true);
+    expect(toggleRotation).toHaveBeenCalled();
+    expect(
+      controller.handleKeyDown(
+        new KeyboardEvent("keydown", { key: "r", ctrlKey: true }),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -320,7 +417,7 @@ describe("loading a turned device", () => {
   });
 
   it("keeps the height and the turn through a share link", () => {
-    const encoded = encodeLayout(standingLayout(270));
+    const encoded = encodeLayout(standingLayout(90));
     expect(typeof encoded).toBe("string");
     const { layout } = decodeLayout(encoded as string);
     expect(
@@ -328,6 +425,6 @@ describe("loading a turned device", () => {
     ).toBe(34.5);
     expect(
       layout?.racks[0]?.devices.find((d) => d.container_id)?.rotation,
-    ).toBe(270);
+    ).toBe(90);
   });
 });

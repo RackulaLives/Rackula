@@ -8,6 +8,7 @@
  *   - Up / Down       move the U-slot cursor within the focused rack
  *   - Tab / Shift+Tab move between racks (Left / Right are aliases)
  *   - Enter / Space   place the armed device at the cursor
+ *   - R               turn the armed device 90 degrees, or back
  *   - Escape          cancel placement with no side effects
  *
  * The cursor only lands on a valid (placeable) slot, mirroring how the drag
@@ -62,6 +63,11 @@ export interface PlacementKeyboardDeps {
     face: DeviceFace,
   ) => boolean;
   completePlacement: (summary: string) => void;
+  /**
+   * Turn the armed device 90 degrees, or back, before it is placed. Returns
+   * true when it turned. Optional so callers without a turn (tests) still work.
+   */
+  toggleRotation?: () => boolean;
   /**
    * Show a visible "no room" cue matching the drag path's toast. Optional so
    * callers that don't wire a toast store (e.g. tests) still work; the
@@ -291,6 +297,18 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     if (event.key === "Escape") {
       deps.cancelPlacement();
       return true;
+    }
+
+    // R turns the armed device before it is placed, whether the pointer or
+    // the keyboard is aiming it. A device that cannot turn leaves the key
+    // alone.
+    if (
+      (event.key === "r" || event.key === "R") &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
+      return deps.toggleRotation?.() ?? false;
     }
 
     const navOrPlaceKeys = [

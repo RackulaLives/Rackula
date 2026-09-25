@@ -9,7 +9,13 @@
  * rune that must be called from a .svelte.ts file (the facade).
  */
 
-import type { DeviceFace, DeviceType, PlacedDevice, Rack } from "$lib/types";
+import type {
+  DeviceFace,
+  DeviceRotation,
+  DeviceType,
+  PlacedDevice,
+  Rack,
+} from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import {
   canPlaceDevice,
@@ -25,6 +31,7 @@ import {
 } from "$lib/utils/collision";
 import {
   getRackOpeningMm,
+  getRotation,
   orientDeviceType,
   requiresCarrier,
 } from "$lib/utils/device-width";
@@ -304,6 +311,7 @@ function duplicateContainerChild(
  * @param containerId - ID of the container device
  * @param slotId - Slot within the container
  * @param position - 0-indexed position within the container
+ * @param rotation - Turn the device is placed at (0 or 90)
  * @returns true if placed successfully
  */
 export function placeInContainer(
@@ -313,6 +321,7 @@ export function placeInContainer(
   containerId: string,
   slotId: string,
   position: number,
+  rotation: DeviceRotation = 0,
 ): boolean {
   // Validate rack exists
   const targetRack = getRackById(ctx, rackId);
@@ -336,14 +345,15 @@ export function placeInContainer(
 
   if (!containerType || !childType) return false;
 
-  // Check collision within container
+  // Check collision within container, for the device as it will stand
+  const turn = getRotation(childType, rotation);
   if (
     !canPlaceInContainer(
       targetRack,
       layout.device_types,
       container,
       containerType,
-      childType,
+      orientDeviceType(childType, turn),
       slotId,
       position,
     )
@@ -359,6 +369,7 @@ export function placeInContainer(
     face: container.face, // Inherit parent face
     container_id: containerId,
     slot_id: slotId,
+    ...(turn ? { rotation: turn } : {}),
     ports: instantiatePorts(childType),
   };
 
@@ -551,13 +562,18 @@ export function placeDeviceSmart(
   deviceTypeSlug: string,
   positionU: number,
   face?: DeviceFace,
+  rotation: DeviceRotation = 0,
 ): boolean {
   const targetRack = getRackById(ctx, rackId);
   if (!targetRack) return false;
 
   const layout = ctx.getLayout();
-  const deviceType = findDeviceType(deviceTypeSlug, layout.device_types);
-  if (!deviceType) return false;
+  const baseType = findDeviceType(deviceTypeSlug, layout.device_types);
+  if (!baseType) return false;
+  // Carriers and cells are chosen for the device as it will stand; the
+  // library keeps the unturned type.
+  const turn = getRotation(baseType, rotation);
+  const deviceType = orientDeviceType(baseType, turn);
 
   const carrierPlan = synthesizeCarrierForDevice(deviceType, targetRack.width);
 
@@ -569,18 +585,27 @@ export function placeDeviceSmart(
 
   ctx.setActiveRackId(rackId);
 
-  // Prefer an existing carrier of the right kind at this U with a free cell.
-  // A generated carrier also qualifies whatever its slug: its slug encodes the
-  // split it holds now, which stopped matching the incoming device's one-cell
-  // slug the moment it grew its second cell.
+  // Prefer an existing carrier of the right kind covering this U with a free
+  // cell: a click anywhere on a tall carrier lands in it, not only on its
+  // bottom U. A generated carrier also qualifies whatever its slug: its slug
+  // encodes the split it holds now, which stopped matching the incoming
+  // device's one-cell slug the moment it grew its second cell.
   const positionInternal = toInternalUnits(positionU);
-  const existingCarrier = targetRack.devices.find(
-    (d) =>
-      !d.container_id &&
-      d.position === positionInternal &&
-      (d.device_type === carrierSlug ||
-        CUSTOM_CARRIER_SLUG_PATTERN.test(d.device_type)),
-  );
+  const existingCarrier = targetRack.devices.find((d) => {
+    if (d.container_id) return false;
+    if (
+      d.device_type !== carrierSlug &&
+      !CUSTOM_CARRIER_SLUG_PATTERN.test(d.device_type)
+    ) {
+      return false;
+    }
+    const height =
+      findDeviceType(d.device_type, layout.device_types)?.u_height ?? 1;
+    return (
+      positionInternal >= d.position &&
+      positionInternal < d.position + height * UNITS_PER_U
+    );
+  });
 
   if (existingCarrier) {
     const carrierType =
@@ -596,6 +621,7 @@ export function placeDeviceSmart(
         rackId,
         existingCarrier.id,
         deviceTypeSlug,
+        turn,
       );
     }
     // Only consider cells the child actually fits (width/height/category).
@@ -618,6 +644,7 @@ export function placeDeviceSmart(
       existingCarrier.id,
       free.slotId,
       free.position,
+      turn,
     );
   }
 
@@ -668,6 +695,7 @@ export function placeDeviceSmart(
     face: carrierDevice.face,
     container_id: carrierDevice.id,
     slot_id: free.slotId,
+    ...(turn ? { rotation: turn } : {}),
     ports: instantiatePorts(deviceType),
   };
 
@@ -688,7 +716,7 @@ export function placeDeviceSmart(
   const childImport = !layout.device_types.find(
     (dt) => dt.slug === deviceTypeSlug,
   )
-    ? createAddDeviceTypeCommand(deviceType, adapter)
+    ? createAddDeviceTypeCommand(baseType, adapter)
     : undefined;
   if (childImport) commands.push(childImport);
 
@@ -714,6 +742,7 @@ export function placeDeviceSmart(
  * @param rackId - Rack holding the carrier
  * @param carrierId - The placed generated carrier
  * @param deviceTypeSlug - The device being added
+ * @param rotation - Turn the device is placed at (0 or 90)
  * @returns true when the device sits in a new cell afterwards
  */
 export function extendCustomCarrier(
@@ -721,6 +750,7 @@ export function extendCustomCarrier(
   rackId: string,
   carrierId: string,
   deviceTypeSlug: string,
+  rotation: DeviceRotation = 0,
 ): boolean {
   const rack = getRackById(ctx, rackId);
   if (!rack) return false;
@@ -734,7 +764,9 @@ export function extendCustomCarrier(
   if (!carrier || !deviceType || !carrierType) return false;
   if (!isGeneratedCarrier(carrierType)) return false;
 
-  const cell = cellForDevice(deviceType, rack.width);
+  // The new cell is cut to the device as it will stand.
+  const turn = getRotation(deviceType, rotation);
+  const cell = cellForDevice(orientDeviceType(deviceType, turn), rack.width);
   const cellMm = cell.widthFraction * getRackOpeningMm(rack.width);
 
   // Joining an existing row adds a boundary, and a new boundary starts at no
@@ -785,6 +817,7 @@ export function extendCustomCarrier(
         face: carrier.face,
         container_id: carrier.id,
         slot_id: `col-${cells.length + 1}`,
+        ...(turn ? { rotation: turn } : {}),
         ports: instantiatePorts(deviceType),
       },
       adapter,

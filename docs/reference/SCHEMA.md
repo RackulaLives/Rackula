@@ -254,7 +254,7 @@ Instance of a device type placed in a rack.
 | `device_type` | `string` | Yes | Reference to `DeviceType.slug` |
 | `position` | `number` | Yes | Bottom U position (1-indexed, integer, min 1) |
 | `face` | `DeviceFace` | Yes | Which face(s) device occupies |
-| `rotation` | `0` \| `90` \| `180` \| `270` | No | Clockwise turn in degrees (default 0, not written). Applies only to a device with `width_mm`: at 90 and 270 its width and height swap |
+| `rotation` | `0` \| `90` | No | Turn in degrees (default 0, not written). Applies only to a device with `width_mm`: at 90 it stands on its side, and its width and height swap |
 | `name` | `string` | No | Custom display name (max 100 chars) |
 | `parent_device` | `string` | No | Parent placement ID (for child devices) |
 | `device_bay` | `string` | No | Bay name in parent device |
