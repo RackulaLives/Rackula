@@ -45,9 +45,9 @@
     resolveAnchor,
   } from "$lib/utils/anchor-registry";
 
-  // How long the layout-commit loop keeps measuring after the bar last moved.
-  // It bridges the gap between the commit and the first frame of the device's
-  // y tween, then follows the tween until it settles.
+  // How long a settle loop keeps measuring after the bar last moved. It bridges
+  // the gap between a selection or layout commit and the first frame of the
+  // device's y tween, then follows the tween until it settles.
   const SETTLE_MS = 200;
 
   interface Props {
@@ -249,16 +249,32 @@
     }
   }
 
+  // Measure every frame until the bar has not moved for SETTLE_MS, then stop.
+  // Returns the cancel function.
+  function settle(): () => void {
+    let raf = 0;
+    let deadline = performance.now() + SETTLE_MS;
+    const tick = () => {
+      const prev = pos;
+      measure();
+      const now = performance.now();
+      if (pos !== prev) deadline = now + SETTLE_MS;
+      raf = now < deadline ? requestAnimationFrame(tick) : 0;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }
+
   // Keep the bar pinned to the selected object without polling. Each source of
   // anchor motion drives its own re-measure:
-  // - selection or verb change: one measure on the next frame;
+  // - selection or verb change: a settle loop, which also covers selecting a
+  //   device while its move tween is still running;
   // - pan, zoom, inertia and the camera tween: panzoom's transform event, which
   //   fires after each transform is applied;
   // - window or canvas resize (a side panel opening): resize and scroll
   //   listeners plus a ResizeObserver on the canvas;
   // - a layout commit (a move animates over RackDevice's 120ms y tween, a rack
-  //   reorder shifts the row): a short rAF loop that ends SETTLE_MS after the
-  //   bar last moved.
+  //   reorder shifts the row): a settle loop.
   // An idle selection does no per-frame work.
   $effect(() => {
     void anchorKeys;
@@ -271,7 +287,7 @@
       return;
     }
 
-    const raf = requestAnimationFrame(measure);
+    const stopSettle = settle();
     const offTransform = canvas.onTransform(measure);
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
@@ -279,7 +295,7 @@
     if (canvasEl) observer?.observe(canvasEl);
 
     return () => {
-      cancelAnimationFrame(raf);
+      stopSettle();
       offTransform();
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
@@ -292,19 +308,7 @@
     // Untracked: a selection change is handled by the effect above, so it must
     // not start this loop.
     if (untrack(() => verbs.length === 0)) return;
-
-    let raf = 0;
-    let deadline = performance.now() + SETTLE_MS;
-    const tick = () => {
-      const prev = pos;
-      measure();
-      const now = performance.now();
-      if (pos !== prev) deadline = now + SETTLE_MS;
-      raf = now < deadline ? requestAnimationFrame(tick) : 0;
-    };
-    raf = requestAnimationFrame(tick);
-
-    return () => cancelAnimationFrame(raf);
+    return settle();
   });
 </script>
 

@@ -8,8 +8,10 @@
  */
 import type { Attachment } from "svelte/attachments";
 
+/** The rack face a device anchor renders in. */
 export type AnchorFace = "front" | "rear";
 
+/** The selection fields that decide which element the verb bar anchors to. */
 export interface AnchorSelection {
   deviceId: string | null;
   deviceFace: AnchorFace | null;
@@ -20,10 +22,12 @@ export interface AnchorSelection {
 
 const anchors = new Map<string, Element[]>();
 
+/** Registry key for a placed device's element in one face view. */
 export function deviceAnchorKey(deviceId: string, face: AnchorFace): string {
   return `device:${deviceId}:${face}`;
 }
 
+/** Registry key for a rack's container element. */
 export function rackAnchorKey(rackId: string): string {
   return `rack:${rackId}`;
 }
