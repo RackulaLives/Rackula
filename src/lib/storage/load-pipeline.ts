@@ -16,6 +16,30 @@ import { extractFolderArchive } from "$lib/utils/archive";
 import { openFilePicker } from "$lib/utils/file";
 import { layoutDebug } from "$lib/utils/debug";
 import { resolveImageFailureMessages } from "$lib/utils/image-failure-labels";
+import { yieldToMain } from "$lib/utils/yield";
+
+/**
+ * Latest-load-wins guard (#3368). Parsing and validation yield to the event
+ * loop, so a second load can start while the first is still in flight. Each
+ * load takes a ticket; only the newest ticket may hydrate the store, and a
+ * superseded load is discarded without touching the store or showing a toast.
+ */
+let latestLoadTicket = 0;
+
+function beginLoad(): () => boolean {
+  const ticket = ++latestLoadTicket;
+  return () => ticket === latestLoadTicket;
+}
+
+/**
+ * Yield once more before hydration, then report whether this load is still
+ * the latest. Hydration itself runs in one synchronous step, so a partially
+ * loaded layout never reaches the screen.
+ */
+async function readyToHydrate(isLatest: () => boolean): Promise<boolean> {
+  await yieldToMain();
+  return isLatest();
+}
 
 /**
  * Options for {@link finalizeLayoutLoad}.
@@ -121,10 +145,12 @@ export async function loadFromApi(
   options: LoadFromApiOptions = {},
 ) {
   const toastStore = getToastStore();
+  const isLatest = beginLoad();
 
   try {
     const { layout, images, failedImagesCount, failedKeys, updatedAt } =
       await loadSavedLayout(uuid);
+    if (!(await readyToHydrate(isLatest))) return false;
     // Record the server's updatedAt as the base for this copy before finalizing,
     // so the first autosave PUT carries the correct last-known timestamp.
     setServerBaseUpdatedAt(updatedAt ?? null);
@@ -134,6 +160,7 @@ export async function loadFromApi(
     });
     return true;
   } catch (e) {
+    if (!isLatest()) return false;
     let message: string;
     if (e instanceof PersistenceError) {
       if (e.statusCode !== undefined && e.statusCode >= 500) {
@@ -162,10 +189,12 @@ export async function loadFromApi(
  */
 export async function restoreFromSnapshot(uuid: string, filename: string) {
   const toastStore = getToastStore();
+  const isLatest = beginLoad();
 
   try {
     const { layout, images, failedImagesCount, failedKeys } =
       await loadSnapshot(uuid, filename);
+    if (!(await readyToHydrate(isLatest))) return false;
     // No server base: the next save PUT carries a null last-known timestamp,
     // so the server snapshots its current copy before this restore overwrites it.
     setServerBaseUpdatedAt(null);
@@ -175,6 +204,7 @@ export async function restoreFromSnapshot(uuid: string, filename: string) {
     });
     return true;
   } catch (e) {
+    if (!isLatest()) return false;
     let message: string;
     if (e instanceof PersistenceError) {
       if (e.statusCode !== undefined && e.statusCode >= 500) {
@@ -213,13 +243,17 @@ export async function loadFromFile(
   options: LoadFromFileOptions = {},
 ) {
   const toastStore = getToastStore();
+  // The ticket is taken once a file is chosen; an open picker is not a load.
+  let isLatest: () => boolean = () => true;
 
   try {
     const selectedFile = file ?? (await openFilePicker());
     if (!selectedFile) return false;
+    isLatest = beginLoad();
 
     const { layout, images, failedImages } =
       await extractFolderArchive(selectedFile);
+    if (!(await readyToHydrate(isLatest))) return false;
     // A file copy has no server base; autosave will create/re-establish one via
     // its first PUT (the server treats a null last-known updatedAt as a create).
     setServerBaseUpdatedAt(null);
@@ -231,6 +265,7 @@ export async function loadFromFile(
     return true;
   } catch (error) {
     layoutDebug.state("loadFromFile: failed %O", error);
+    if (!isLatest()) return false;
     toastStore.showToast(
       error instanceof Error ? error.message : "Failed to load layout file",
       "error",

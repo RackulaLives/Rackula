@@ -27,6 +27,7 @@ import {
   describeValidationIssues,
   unreadableImportMessage,
 } from "$lib/utils/import-errors";
+import { yieldToMain } from "$lib/utils/yield";
 
 /**
  * Warn if any rack contains duplicate device IDs before serialization (#1363)
@@ -324,10 +325,10 @@ function readSchemaVersion(parsed: unknown): string | undefined {
   return typeof version === "string" ? version : undefined;
 }
 
-function validateParsedLayout(parsed: unknown): {
+async function validateParsedLayout(parsed: unknown): Promise<{
   layout: Layout;
   rawImages: unknown;
-} {
+}> {
   // Forward-compat gate (#2205): reject a document whose data-format MAJOR is
   // newer than this app before any parse or write. Read-only and non-destructive.
   assertSchemaVersionSupported(readSchemaVersion(parsed));
@@ -361,6 +362,10 @@ function validateParsedLayout(parsed: unknown): {
     });
   }
 
+  // Yield between the two schema passes so a large file does not hold the
+  // main thread for both in one task (#3368).
+  await yieldToMain();
+
   const adapted = adaptLegacyLayout(baseResult.data as unknown as Layout);
 
   const result = LayoutSchema.safeParse(adapted);
@@ -383,7 +388,8 @@ function validateParsedLayout(parsed: unknown): {
  */
 export async function parseLayoutYaml(yamlString: string): Promise<Layout> {
   const parsed = await parseYamlForImport(yamlString);
-  return validateParsedLayout(parsed).layout;
+  await yieldToMain();
+  return (await validateParsedLayout(parsed)).layout;
 }
 
 /**
@@ -401,7 +407,9 @@ export async function parseLayoutYamlWithImages(yamlString: string): Promise<{
   failedKeys: string[];
 }> {
   const parsed = await parseYamlForImport(yamlString);
-  const { layout, rawImages } = validateParsedLayout(parsed);
+  await yieldToMain();
+  const { layout, rawImages } = await validateParsedLayout(parsed);
+  await yieldToMain();
   const { images, failedImagesCount, failedKeys } = decodeYamlImages(rawImages);
 
   if (failedKeys.length > 0) {
