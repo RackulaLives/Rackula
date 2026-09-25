@@ -46,6 +46,7 @@
     listSavedLayouts,
     loadSavedLayout,
     finalizeLayoutLoad,
+    loadWorkingCopyServerImages,
     handleSaveToServer,
     reconcileSession,
     applyReconcile,
@@ -573,6 +574,12 @@
                   : localSession.serverUpdatedAt,
               );
               restoreLocalSession(localSession);
+              // The working copy holds no images; a copy the server knows has
+              // its custom faces on disk. Fetch them in the background so a
+              // slow asset never delays the restore (#3412).
+              if (reason !== "unknown-to-server") {
+                void loadWorkingCopyServerImages(localSession.layout);
+              }
             },
             toast: (m, t) => toastStore.showToast(m, t),
           });
