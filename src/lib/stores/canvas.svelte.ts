@@ -62,16 +62,11 @@ let currentZoom = $state(1); // 1 = 100%
 let canvasElement = $state<HTMLElement | null>(null);
 let isPanning = $state(false);
 let isZooming = $state(false);
-// Bumped once at the start of each programmatic camera move so consumers that
-// must follow camera motion (the verb bar overlay) re-measure. Covers the
-// animated tween (smoothMoveTo and its callers: focusRack, zoomToDevice,
-// ensureRacksVisible) and every direct viewport mutator (zoomIn, zoomOut,
-// setZoom, resetZoom, moveTo, fitAll, restoreViewport). moveTo in particular
-// fires no panstart/zoom event for programmatic calls, so the bump is required
-// there; the zoom mutators also bump for a deterministic signal rather than
-// relying on the transient isZooming window from the panzoom zoom event.
-// Pan/zoom gestures are signalled separately via isInteracting.
-let cameraMoveId = $state(0);
+// Plain callbacks run after panzoom applies each transform to the DOM (pan,
+// zoom, inertia, and the camera tween all end in one). Not reactive state: a
+// per-frame $state write would re-run every reader on every frame.
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- listener list, deliberately not reactive
+const transformListeners = new Set<() => void>();
 let zoomEndTimer: ReturnType<typeof setTimeout> | null = null;
 let viewportSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let suppressViewportSave = false;
@@ -114,7 +109,6 @@ export function resetCanvasStore(): void {
   canvasElement = null;
   isPanning = false;
   isZooming = false;
-  cameraMoveId = 0;
   cancelZoomEnd();
   cancelViewportSave();
   cancelCameraAnimation();
@@ -150,9 +144,7 @@ export function getCanvasStore() {
     get isInteracting() {
       return isPanning || isZooming;
     },
-    get cameraMoveId() {
-      return cameraMoveId;
-    },
+    onTransform,
 
     // Actions
     setPanzoomInstance,
@@ -239,7 +231,6 @@ function restoreViewport(): boolean {
       y: saved.y,
       scale,
     });
-    cameraMoveId++;
     cancelCameraAnimation();
     panzoomInstance.zoomAbs(0, 0, scale);
     panzoomInstance.moveTo(saved.x, saved.y);
@@ -275,6 +266,10 @@ function setPanzoomInstance(instance: PanzoomInstance): void {
     scheduleViewportSave();
   });
 
+  instance.on("transform", () => {
+    for (const listener of transformListeners) listener();
+  });
+
   // Track panning state to prevent accidental selection after pan
   instance.on("panstart", () => {
     isPanning = true;
@@ -290,6 +285,14 @@ function setPanzoomInstance(instance: PanzoomInstance): void {
   // Initialize currentZoom from panzoom
   const transform = instance.getTransform();
   currentZoom = transform.scale;
+}
+
+/**
+ * Subscribe to applied canvas transforms. Returns the unsubscribe function.
+ */
+function onTransform(listener: () => void): () => void {
+  transformListeners.add(listener);
+  return () => transformListeners.delete(listener);
 }
 
 /**
@@ -312,7 +315,6 @@ function disposePanzoom(): void {
 function zoomIn(): void {
   if (!panzoomInstance || currentZoom >= ZOOM_MAX) return;
 
-  cameraMoveId++;
   cancelCameraAnimation();
   const newZoom = snapZoom(currentZoom, "in");
   const transform = panzoomInstance.getTransform();
@@ -327,7 +329,6 @@ function zoomIn(): void {
 function zoomOut(): void {
   if (!panzoomInstance || currentZoom <= ZOOM_MIN) return;
 
-  cameraMoveId++;
   cancelCameraAnimation();
   const newZoom = snapZoom(currentZoom, "out");
   const transform = panzoomInstance.getTransform();
@@ -342,7 +343,6 @@ function zoomOut(): void {
 function setZoom(scale: number): void {
   if (!panzoomInstance) return;
 
-  cameraMoveId++;
   cancelCameraAnimation();
   const clampedScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, scale));
   const transform = panzoomInstance.getTransform();
@@ -356,7 +356,6 @@ function setZoom(scale: number): void {
 function resetZoom(): void {
   if (!panzoomInstance) return;
 
-  cameraMoveId++;
   cancelCameraAnimation();
   suppressViewportSave = true;
   clearSavedViewport();
@@ -380,9 +379,6 @@ function getTransform(): { x: number; y: number; scale: number } {
  */
 function moveTo(x: number, y: number): void {
   if (!panzoomInstance) return;
-  // Pure pan: programmatic moveTo fires no panstart/zoom event, so without
-  // this bump the verb bar overlay would not re-measure after a moveTo.
-  cameraMoveId++;
   cancelCameraAnimation();
   panzoomInstance.moveTo(x, y);
 }
@@ -451,10 +447,6 @@ function stepCameraAnimation(now: number): void {
 function smoothMoveTo(x: number, y: number, scale: number): void {
   if (!panzoomInstance) return;
 
-  // Wake consumers that follow camera motion (the verb bar overlay) for both
-  // the animated tween and the reduced-motion instant landing below.
-  cameraMoveId++;
-
   // Reduced motion: land the camera instantly, cancelling any in-flight transition.
   if (prefersReducedMotion()) {
     cancelCameraAnimation();
@@ -501,7 +493,6 @@ function fitAll(
 ): void {
   if (!panzoomInstance || !canvasElement || racks.length === 0) return;
 
-  cameraMoveId++;
   suppressViewportSave = true;
   cancelViewportSave();
   cancelCameraAnimation();

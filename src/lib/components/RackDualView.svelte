@@ -21,6 +21,7 @@
   import { hapticTap } from "$lib/utils/haptics";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getPlacementStore } from "$lib/stores/placement.svelte";
+  import { anchor, rackAnchorKey } from "$lib/utils/anchor-registry";
 
   interface Props {
     rack: RackType;
@@ -311,6 +312,7 @@
       bind:this={containerElement}
       class="rack-dual-view"
       data-rack-id={rack.id}
+      {@attach anchor(rackAnchorKey(rack.id))}
       class:selected
       class:active={isActive}
       class:long-press-active={longPressActive}

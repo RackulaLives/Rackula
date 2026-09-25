@@ -24,6 +24,7 @@
   import { appDebug } from "$lib/utils/debug";
   import { hapticTap } from "$lib/utils/haptics";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { anchor, rackAnchorKey } from "$lib/utils/anchor-registry";
   import {
     RACK_PADDING_HIDDEN,
     ANNOTATION_WIDTH_COMPACT,
@@ -444,6 +445,7 @@
         <div
           class="bay-container"
           data-rack-id={rack.id}
+          {@attach anchor(rackAnchorKey(rack.id))}
           class:active={isActive}
           class:selected={isSelected}
           role="presentation"
@@ -558,6 +560,7 @@
           <div
             class="bay-container"
             data-rack-id={rack.id}
+            {@attach anchor(rackAnchorKey(rack.id))}
             class:active={isActive}
             class:selected={isSelected}
             role="presentation"
