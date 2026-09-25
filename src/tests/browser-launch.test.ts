@@ -239,6 +239,15 @@ describe("previousSessionUnsavedNotice", () => {
     expect(previousSessionUnsavedNotice(index)).toBeNull();
   });
 
+  it("counts a layout once when the stored open set repeats it", () => {
+    const index = makeIndex({
+      a: createTestLibraryEntry({ name: "Homelab", writeFailed: true }),
+    });
+    index.openTabs = ["a", "a"];
+
+    expect(previousSessionUnsavedNotice(index)).not.toContain("other");
+  });
+
   it("omits the time when the entry has no usable timestamp", () => {
     const notice = previousSessionUnsavedNotice(
       makeIndex({

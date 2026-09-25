@@ -80,7 +80,9 @@ export function previousSessionUnsavedNotice(
 ): string | null {
   // Open tabs only: a closed layout is not shown, and nothing saves it until
   // it is reopened, so naming it would repeat on every launch.
-  const ids = index.openTabs.filter((id) => index.library[id]?.writeFailed);
+  const ids = [...new Set(index.openTabs)].filter(
+    (id) => index.library[id]?.writeFailed,
+  );
   if (ids.length === 0) return null;
 
   const named =
