@@ -12,6 +12,7 @@
     RackView,
   } from "$lib/types";
   import { getChildYInSlot } from "$lib/utils/slot-geometry";
+  import { getRotation, orientDeviceType } from "$lib/utils/device-width";
   import { SvelteMap } from "svelte/reactivity";
   import { slotLayout, type SlotBand } from "$lib/utils/slot-layout";
   import PortIndicators from "./PortIndicators.svelte";
@@ -373,9 +374,11 @@
     return geometry;
   });
 
-  // Helper to get child device type from library
-  function getChildDeviceType(slug: string): DeviceType | undefined {
-    return deviceLibrary.find((d) => d.slug === slug);
+  // A child's device type as it stands: a turned child is sized, dragged and
+  // announced by its turned footprint.
+  function getChildDeviceType(child: PlacedDevice): DeviceType | undefined {
+    const type = deviceLibrary.find((d) => d.slug === child.device_type);
+    return type && orientDeviceType(type, child.rotation);
   }
 
   /**
@@ -1068,7 +1071,7 @@
   {#if isContainer && containerChildDevices.length > 0}
     <g class="container-children">
       {#each containerChildDevices as { placedDevice: child, originalIndex: childIndex } (child.id)}
-        {@const childType = getChildDeviceType(child.device_type)}
+        {@const childType = getChildDeviceType(child)}
         {@const slotGeo = child.slot_id
           ? slotGeometry.get(child.slot_id)
           : undefined}
@@ -1085,6 +1088,10 @@
           )}
           {@const childWidth = slotGeo.width}
           {@const childX = slotGeo.x}
+          {@const childTurn = getRotation(childType, child.rotation)}
+          {@const quarterTurn = childTurn === 90 || childTurn === 270}
+          {@const imageWidth = quarterTurn ? childHeight : childWidth}
+          {@const imageHeight = quarterTurn ? childWidth : childHeight}
           {@const childImageUrl = getChildImageUrl(child, childType)}
           {@const childColour =
             child.colour_override ??
@@ -1143,13 +1150,19 @@
                  parent device image overflows its own rect the same way. -->
             {#if childImageUrl}
               {#key childImageUrl}
+                <!-- A turned image is laid out on its side, centred, then
+                     turned into the box. -->
                 <image
                   class="child-device-image"
                   data-testid="child-device-image"
-                  x={0}
-                  y={0}
-                  width={childWidth}
-                  height={childHeight}
+                  data-rotation={childTurn}
+                  x={(childWidth - imageWidth) / 2}
+                  y={(childHeight - imageHeight) / 2}
+                  width={imageWidth}
+                  height={imageHeight}
+                  transform={childTurn
+                    ? `rotate(${childTurn} ${childWidth / 2} ${childHeight / 2})`
+                    : undefined}
                   href={childImageUrl}
                   preserveAspectRatio="xMidYMid slice"
                   role="img"
@@ -1175,13 +1188,20 @@
             <!-- Child device label. Hidden over an image unless labels on
                  images are on, matching how the parent device behaves. -->
             {#if showNameLabels && (!childImageUrl || showLabelsOnImages)}
+              <!-- Stood on its side, the label runs up the long side. -->
               <text
                 class="child-device-label"
                 x={childWidth / 2}
                 y={childHeight / 2}
                 text-anchor="middle"
                 dominant-baseline="middle"
-                font-size={Math.min(11, childHeight * 0.6)}
+                font-size={Math.min(
+                  11,
+                  (quarterTurn ? childWidth : childHeight) * 0.6,
+                )}
+                transform={quarterTurn
+                  ? `rotate(-90 ${childWidth / 2} ${childHeight / 2})`
+                  : undefined}
                 fill="var(--colour-text-on-device)"
               >
                 {childName.length > 12

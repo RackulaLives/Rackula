@@ -403,6 +403,7 @@
     isFullDepth: boolean;
     isHalfWidth: boolean;
     widthMm?: number;
+    heightMm?: number;
     rackWidths: RackWidth[];
     frontImage?: ImageData;
     rearImage?: ImageData;
@@ -417,6 +418,7 @@
       slot_width:
         data.isHalfWidth && data.widthMm === undefined ? 1 : undefined,
       width_mm: data.widthMm,
+      height_mm: data.heightMm,
       rack_widths: data.rackWidths,
     });
 

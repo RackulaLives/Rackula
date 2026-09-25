@@ -11,7 +11,11 @@ import {
   DEFAULT_RACK_BASE_WEIGHT,
 } from "$lib/types/constants";
 import { VERSION } from "$lib/version";
-import { fitsSlotWidth, requiresCarrier } from "$lib/utils/device-width";
+import {
+  fitsSlotWidth,
+  orientDeviceType,
+  requiresCarrier,
+} from "$lib/utils/device-width";
 import {
   SCHEMA_VERSION,
   assertSchemaVersionSupported,
@@ -86,6 +90,16 @@ export const FormFactorSchema = z.enum([
  * Device face in rack
  */
 export const DeviceFaceSchema = z.enum(["front", "rear", "both"]);
+
+/**
+ * Clockwise turn of a placed device, in degrees
+ */
+export const DeviceRotationSchema = z.union([
+  z.literal(0),
+  z.literal(90),
+  z.literal(180),
+  z.literal(270),
+]);
 
 /**
  * Weight unit enum
@@ -471,6 +485,7 @@ export const DeviceTypeSchema = z
       .refine((val) => val % 0.5 === 0, "Height must be a multiple of 0.5U"),
     slot_width: SlotWidthSchema.optional(),
     width_mm: z.number().positive().finite().optional(),
+    height_mm: z.number().positive().finite().optional(),
     rack_widths: z.array(RackWidthSchema).optional(),
     is_full_depth: z.boolean().optional(),
     is_powered: z.boolean().optional(),
@@ -582,6 +597,7 @@ export const PlacedDeviceSchema = z
     // Container children use 0-indexed positions, rack-level must be >= 0.5 (validated by refine)
     position: z.number().min(0, "Position must be non-negative"),
     face: DeviceFaceSchema,
+    rotation: DeviceRotationSchema.optional(),
 
     // --- Port Instances ---
     ports: z.array(PlacedPortSchema).default([]),
@@ -1080,9 +1096,12 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
           claimedCells.add(cellKey);
         }
 
-        // 3b. Child must fit its cell (height_units / width_fraction).
+        // 3b. Child must fit its cell (height_units / width_fraction), as it
+        // stands: a quarter turn swaps a measured device's sides.
         const slot = slotById.get(device.slot_id)!;
-        const childForFit = deviceTypeBySlug.get(device.device_type);
+        const childType = deviceTypeBySlug.get(device.device_type);
+        const childForFit =
+          childType && orientDeviceType(childType, device.rotation);
         if (childForFit) {
           // Category fit: when a slot restricts accepted categories, the child's
           // category must be allowed. Mirrors canPlaceInSlot so schema and store

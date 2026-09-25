@@ -33,8 +33,9 @@ import {
   isGeneratedCarrier,
   isOrphanedAfterRetype,
 } from "$lib/utils/custom-carrier";
-import { fitsInRow, gapsFor, remainingMm } from "$lib/utils/slot-layout";
-import { fitsSlotWidth, getRackOpeningMm } from "$lib/utils/device-width";
+import { fitsInRow, remainingMm } from "$lib/utils/slot-layout";
+import { orientDeviceType } from "$lib/utils/device-width";
+import { canPlaceInSlot, reshapeCarrier } from "$lib/utils/collision";
 import { getToastStore } from "$lib/stores/toast.svelte";
 
 /**
@@ -122,18 +123,21 @@ export function updateDeviceTypeRecorded(
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
-  // A measured width and the cell holding it must agree, so a width change
-  // rewrites every generated carrier holding this device, in the same undo
-  // step. Refused outright rather than left inconsistent when a row overflows.
-  const widthChanged =
-    updates.width_mm !== undefined && updates.width_mm !== existing.width_mm;
-  const recompute = widthChanged
-    ? recomputeCarriersForWidth(ctx, slug, updates.width_mm!, adapter)
+  // A device's size and the cell holding it must agree, so a size change
+  // reshapes every generated carrier holding this device, in the same undo
+  // step. Refused outright rather than left inconsistent when a carrier cannot
+  // take the new shape. A turned device's height is its width, so height
+  // counts too.
+  const sizeChanged = (["width_mm", "height_mm", "u_height"] as const).some(
+    (key) => key in updates && updates[key] !== existing[key],
+  );
+  const recompute = sizeChanged
+    ? reshapeCarriersHolding(ctx, slug, { ...existing, ...updates }, adapter)
     : { commands: [], blocked: [], carrierCount: 0 };
 
   if (recompute.blocked.length > 0) {
     getToastStore().showToast(
-      `That width does not fit in ${recompute.blocked.join(", ")}`,
+      `That size does not fit in ${recompute.blocked.join(", ")}`,
       "warning",
     );
     return false;
@@ -151,7 +155,7 @@ export function updateDeviceTypeRecorded(
   // say how many carriers moved rather than change them silently.
   if (recompute.carrierCount > 0) {
     getToastStore().showToast(
-      `Width changed, ${recompute.carrierCount} carrier${
+      `Size changed, ${recompute.carrierCount} carrier${
         recompute.carrierCount === 1 ? "" : "s"
       } adjusted`,
       "info",
@@ -162,20 +166,20 @@ export function updateDeviceTypeRecorded(
 }
 
 /**
- * Rewrite every generated carrier holding `slug` so its cells match the new
- * measured width.
+ * Reshape every generated carrier holding `slug` around the device's new size,
+ * each child counted as it stands (turned or not).
  *
  * @param ctx - Layout state access
- * @param slug - The device type whose width is changing
- * @param widthMm - The new width in millimetres
+ * @param slug - The device type whose size is changing
+ * @param updated - The device type with the change applied
  * @param adapter - Command store adapter
- * @returns The retype commands, the carriers that cannot take the width, and
+ * @returns The retype commands, the carriers that cannot take the change, and
  *   how many carriers the change touches
  */
-function recomputeCarriersForWidth(
+function reshapeCarriersHolding(
   ctx: LayoutStateAccess,
   slug: string,
-  widthMm: number,
+  updated: DeviceType,
   adapter: ReturnType<typeof getCommandStoreAdapter>,
 ): { commands: Command[]; blocked: string[]; carrierCount: number } {
   const layout = ctx.getLayout();
@@ -195,50 +199,55 @@ function recomputeCarriersForWidth(
       );
       if (!carrierType) continue;
 
-      const slots = carrierType.slots ?? [];
       const children = rack.devices.filter(
         (d) => d.container_id === carrier.id,
       );
       if (!children.some((d) => d.device_type === slug)) continue;
       const carrierName = carrier.name ?? carrierType.model ?? carrierType.slug;
 
-      // A shipped carrier's cells are fixed, so either the new width fits the
+      // The footprint a child will have once the change lands: its type as it
+      // stands, turned, with the update applied to the one that is changing.
+      const footprintOf = (child: PlacedDevice) => {
+        const type =
+          child.device_type === slug
+            ? updated
+            : findDeviceTypeInArray(layout.device_types, child.device_type);
+        return type && orientDeviceType(type, child.rotation);
+      };
+
+      // A shipped carrier's cells are fixed, so either the new size fits the
       // cell the device already sits in or the change is refused: the save
       // would otherwise be a layout LayoutSchema rejects on the next load.
       if (!isGeneratedCarrier(carrierType)) {
-        const tooWide = children.some(
-          (child) =>
-            child.device_type === slug &&
-            !fitsSlotWidth(
-              { width_mm: widthMm },
-              slots.find((s) => s.id === child.slot_id)?.width_fraction,
-              rack.width,
-            ),
-        );
-        if (tooWide) blocked.push(carrierName);
+        const slots = carrierType.slots ?? [];
+        const misfit = children.some((child) => {
+          if (child.device_type !== slug) return false;
+          const slot = slots.find((s) => s.id === child.slot_id);
+          const footprint = footprintOf(child);
+          return (
+            slot !== undefined &&
+            footprint !== undefined &&
+            !canPlaceInSlot(footprint, slot, rack.width)
+          );
+        });
+        if (misfit) blocked.push(carrierName);
         continue;
       }
 
-      const newFraction = widthMm / getRackOpeningMm(rack.width);
-      const cells = cellsOf(carrierType).map((cell, index) => {
-        const child = children.find((d) => d.slot_id === slots[index]?.id);
-        return child?.device_type === slug
-          ? { ...cell, widthFraction: newFraction }
-          : cell;
-      });
-
-      const candidate = buildCustomCarrierType(
-        carrierType.u_height,
-        cells,
-        gapsFor(carrierType),
+      const reshaped = reshapeCarrier(
+        rack,
+        carrier,
+        carrierType,
+        layout.device_types,
+        footprintOf,
       );
-      if (!fitsInRow(candidate, rack.width, 0)) {
+      if ("refused" in reshaped) {
         blocked.push(carrierName);
         continue;
       }
-      if (candidate.slug === carrierType.slug) continue;
+      if (reshaped.type.slug === carrierType.slug) continue;
 
-      planned.push({ carrier, from: carrierType, to: candidate });
+      planned.push({ carrier, from: carrierType, to: reshaped.type });
     }
   }
 

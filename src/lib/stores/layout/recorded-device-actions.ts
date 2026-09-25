@@ -8,11 +8,26 @@
  * correct rack.
  */
 
-import type { DeviceFace, DeviceType, PlacedDevice, Rack } from "$lib/types";
+import type {
+  DeviceFace,
+  DeviceRotation,
+  DeviceType,
+  PlacedDevice,
+  Rack,
+} from "$lib/types";
 import { UNITS_PER_U, DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
-import { canPlaceDevice } from "$lib/utils/collision";
-import { requiresCarrier } from "$lib/utils/device-width";
+import {
+  canPlaceDevice,
+  canPlaceInContainer,
+  reshapeCarrier,
+} from "$lib/utils/collision";
+import {
+  canRotate,
+  getRotation,
+  orientDeviceType,
+  requiresCarrier,
+} from "$lib/utils/device-width";
 import {
   buildCustomCarrierType,
   cellsOf,
@@ -28,6 +43,7 @@ import {
   findConnectionsForDevices,
   retypeCarrierCommands,
 } from "./recorded-device-type-actions";
+import { getToastStore } from "$lib/stores/toast.svelte";
 import { debug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { instantiatePorts } from "$lib/utils/port-utils";
@@ -43,6 +59,7 @@ import {
   createUpdateDeviceNameCommand,
   createUpdateDevicePlacementImageCommand,
   createUpdateDeviceColourCommand,
+  createUpdateDeviceRotationCommand,
   createDetachContainerCommand,
   createUpdateDeviceNotesCommand,
   createUpdateDeviceIpCommand,
@@ -736,6 +753,136 @@ export function updateDeviceFaceRecorded(
   );
   history.execute(command);
   ctx.markDirty();
+}
+
+/**
+ * Turn a device 90 degrees clockwise, with undo/redo support.
+ *
+ * A quarter turn swaps a measured device's width and height. In a generated
+ * carrier the carrier is reshaped around it in the same undo step: its cell is
+ * recut and the carrier grows or shrinks to the whole U holding its tallest
+ * child. In any other carrier the turned device must fit its cell. An angle
+ * that does not fit is skipped, the way the arrow keys leapfrog a cell the
+ * device does not fit, and the skip is announced.
+ *
+ * @param ctx - Layout state access
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @returns true when the device turned
+ */
+export function rotateDeviceRecorded(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  deviceIndex: number,
+): boolean {
+  const rack = getRackById(ctx, rackId);
+  const device = rack?.devices[deviceIndex];
+  if (!rack || !device) return false;
+
+  const layout = ctx.getLayout();
+  const deviceType = findDeviceTypeInArray(
+    layout.device_types,
+    device.device_type,
+  );
+  if (!deviceType || !canRotate(deviceType)) return false;
+
+  // A measured device always sits in a carrier: that is what it turns inside.
+  const container = rack.devices.find((d) => d.id === device.container_id);
+  const containerType =
+    container &&
+    findDeviceTypeInArray(layout.device_types, container.device_type);
+  if (!container || !containerType || !device.slot_id) return false;
+
+  const adapter = getCommandStoreAdapter(ctx);
+  const deviceName = deviceType.model ?? deviceType.slug;
+  const current = getRotation(deviceType, device.rotation);
+  const skipped: DeviceRotation[] = [];
+
+  for (let step = 1; step < 4; step++) {
+    const rotation = ((current + step * 90) % 360) as DeviceRotation;
+    const footprint = orientDeviceType(deviceType, rotation);
+    const carrierCommands: Command[] = [];
+
+    if (isGeneratedCarrier(containerType)) {
+      const reshaped = reshapeCarrier(
+        rack,
+        container,
+        containerType,
+        layout.device_types,
+        (child) => {
+          if (child.id === device.id) return footprint;
+          const type = findDeviceTypeInArray(
+            layout.device_types,
+            child.device_type,
+          );
+          return type && orientDeviceType(type, child.rotation);
+        },
+      );
+      if ("refused" in reshaped) {
+        skipped.push(rotation);
+        continue;
+      }
+      if (reshaped.type.slug !== containerType.slug) {
+        carrierCommands.push(
+          ...retypeCarrierCommands(
+            layout,
+            container,
+            containerType,
+            reshaped.type,
+            adapter,
+          ),
+        );
+      }
+    } else if (
+      !canPlaceInContainer(
+        rack,
+        layout.device_types,
+        container,
+        containerType,
+        footprint,
+        device.slot_id,
+        device.position,
+        device.id,
+      )
+    ) {
+      skipped.push(rotation);
+      continue;
+    }
+
+    ctx.setActiveRackId(rackId);
+    const rotate = createUpdateDeviceRotationCommand(
+      deviceIndex,
+      device.rotation,
+      rotation === 0 ? undefined : rotation,
+      adapter,
+      deviceName,
+    );
+    ctx
+      .getHistory()
+      .execute(
+        carrierCommands.length > 0
+          ? createBatchCommand(`Rotate ${deviceName}`, [
+              rotate,
+              ...carrierCommands,
+            ])
+          : rotate,
+      );
+    ctx.markDirty();
+
+    if (skipped.length > 0) {
+      getToastStore().showToast(
+        `${deviceName} has no room at ${skipped.join("°, ")}° here, turned to ${rotation}°`,
+        "info",
+      );
+    }
+    return true;
+  }
+
+  getToastStore().showToast(
+    `${deviceName} has no room to turn here`,
+    "warning",
+  );
+  return false;
 }
 
 /**

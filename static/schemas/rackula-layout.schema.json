@@ -113,6 +113,10 @@
           "front_image": {
             "type": "boolean"
           },
+          "height_mm": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
           "interfaces": {
             "items": {
               "additionalProperties": {},
@@ -780,6 +784,26 @@
               "rear_image": {
                 "type": "string"
               },
+              "rotation": {
+                "anyOf": [
+                  {
+                    "const": 0,
+                    "type": "number"
+                  },
+                  {
+                    "const": 90,
+                    "type": "number"
+                  },
+                  {
+                    "const": 180,
+                    "type": "number"
+                  },
+                  {
+                    "const": 270,
+                    "type": "number"
+                  }
+                ]
+              },
               "slot_id": {
                 "type": "string"
               }
@@ -1100,6 +1124,26 @@
                 },
                 "rear_image": {
                   "type": "string"
+                },
+                "rotation": {
+                  "anyOf": [
+                    {
+                      "const": 0,
+                      "type": "number"
+                    },
+                    {
+                      "const": 90,
+                      "type": "number"
+                    },
+                    {
+                      "const": 180,
+                      "type": "number"
+                    },
+                    {
+                      "const": 270,
+                      "type": "number"
+                    }
+                  ]
                 },
                 "slot_id": {
                   "type": "string"

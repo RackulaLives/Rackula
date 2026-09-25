@@ -23,7 +23,11 @@ import {
   synthesizeCarrierForDevice,
   type CellDirection,
 } from "$lib/utils/collision";
-import { requiresCarrier, getRackOpeningMm } from "$lib/utils/device-width";
+import {
+  getRackOpeningMm,
+  orientDeviceType,
+  requiresCarrier,
+} from "$lib/utils/device-width";
 import {
   buildCustomCarrierType,
   cellForDevice,
@@ -249,9 +253,10 @@ function duplicateContainerChild(
   const siblings = rack.devices.filter(
     (d) => d.container_id === container.id && d.id !== child.id,
   );
+  // The copy keeps the source's turn, so it needs a cell for that footprint.
   const next = findNextSlotForChild(
     containerType,
-    childType,
+    orientDeviceType(childType, child.rotation),
     child.slot_id,
     siblings,
     rack.width,
@@ -431,7 +436,7 @@ export function moveDeviceToSlot(
 
   const next = findNextSlotForChild(
     containerType,
-    childType,
+    orientDeviceType(childType, child.rotation),
     child.slot_id,
     siblings,
     targetRack.width,
@@ -492,7 +497,7 @@ export function moveDeviceToAdjacentSlot(
   );
   const next = findAdjacentSlotForChild(
     containerType,
-    childType,
+    orientDeviceType(childType, child.rotation),
     child.slot_id,
     siblings,
     direction,
@@ -845,7 +850,7 @@ export function moveDeviceIntoContainer(
       layout.device_types,
       container,
       containerType,
-      deviceType,
+      orientDeviceType(deviceType, device.rotation),
       slotId,
       position,
       device.id,
@@ -897,8 +902,10 @@ export function moveDeviceSmart(
   if (!device) return false;
 
   const layout = ctx.getLayout();
-  const deviceType = findDeviceType(device.device_type, layout.device_types);
-  if (!deviceType) return false;
+  const baseType = findDeviceType(device.device_type, layout.device_types);
+  if (!baseType) return false;
+  // A turned device needs a carrier and a cell for the way it stands.
+  const deviceType = orientDeviceType(baseType, device.rotation);
 
   const carrierPlan = synthesizeCarrierForDevice(deviceType, targetRack.width);
   if (!carrierPlan) {

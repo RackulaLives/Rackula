@@ -33,6 +33,11 @@ export interface LayoutMetadata {
 export type DeviceFace = "front" | "rear" | "both";
 
 /**
+ * Clockwise turn of a placed device, in degrees.
+ */
+export type DeviceRotation = 0 | 90 | 180 | 270;
+
+/**
  * Device category types - 14 predefined categories
  */
 export type DeviceCategory =
@@ -474,6 +479,11 @@ export interface DeviceType {
    */
   width_mm?: number;
   /**
+   * Measured height in millimetres. u_height stays the rack units it takes;
+   * a quarter turn reads this as the device's width.
+   */
+  height_mm?: number;
+  /**
    * Compatible rack widths in inches.
    * Rackula-specific extension (not in NetBox schema).
    * Devices without this field are assumed to be 19" compatible (standard racks).
@@ -585,6 +595,11 @@ export interface PlacedDevice {
   position: number;
   /** Which face(s) of the rack the device occupies */
   face: DeviceFace;
+  /**
+   * Clockwise quarter turns, in degrees. Absent means 0. Applies only to a
+   * device with a measured width; see orientDeviceType.
+   */
+  rotation?: DeviceRotation;
   /** Optional custom display name for this placement */
   name?: string;
   /** Legacy placement label alias */

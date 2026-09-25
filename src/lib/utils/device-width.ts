@@ -7,14 +7,22 @@
  * drop share one rule.
  */
 
-import type { DeviceType } from "$lib/types";
-import { MM_PER_INCH, RACK_EAR_ALLOWANCE_IN } from "$lib/types/constants";
+import type { DeviceRotation, DeviceType } from "$lib/types";
+import {
+  MIN_DEVICE_HEIGHT,
+  MM_PER_INCH,
+  MM_PER_U,
+  RACK_EAR_ALLOWANCE_IN,
+} from "$lib/types/constants";
 
 /** Float tolerance so third-width cells (0.33 / 0.34) accept a third. */
 const WIDTH_FIT_TOLERANCE = 0.01;
 
 /** How far a measured width may exceed its cell, for rounding on entry. */
 const WIDTH_FIT_TOLERANCE_MM = 0.5;
+
+/** How far a measured height may exceed its rack units, for rounding on entry. */
+const HEIGHT_FIT_TOLERANCE_MM = 0.5;
 
 type WidthFields = Pick<DeviceType, "slot_width" | "width_mm">;
 
@@ -139,4 +147,52 @@ export function toMillimetres(value: number, unit: WidthUnit): number {
 export function formatWidthMm(widthMm: number): string {
   const inches = Math.round((widthMm / MM_PER_INCH) * 100) / 100;
   return `${widthMm} mm (${inches} in)`;
+}
+
+/**
+ * Rack units a measured height takes: the smallest multiple of 0.5U that
+ * holds it, never below 0.5U.
+ */
+export function uHeightForMm(heightMm: number): number {
+  const halfUnits = ((heightMm - HEIGHT_FIT_TOLERANCE_MM) / MM_PER_U) * 2;
+  // The epsilon keeps float noise at an exact multiple from adding a half U.
+  return Math.max(MIN_DEVICE_HEIGHT, Math.ceil(halfUnits - 1e-9) / 2);
+}
+
+/**
+ * Whether a device can be turned. Only a measured device has both sides known
+ * in millimetres, and it always sits in a carrier.
+ */
+export function canRotate(deviceType: Pick<DeviceType, "width_mm">): boolean {
+  return deviceType.width_mm !== undefined;
+}
+
+/**
+ * A placed device's turn, or 0 when its type cannot turn.
+ */
+export function getRotation(
+  deviceType: Pick<DeviceType, "width_mm">,
+  rotation: DeviceRotation | undefined,
+): DeviceRotation {
+  return canRotate(deviceType) ? (rotation ?? 0) : 0;
+}
+
+/**
+ * A device as it stands in the rack after `rotation`. A quarter turn swaps the
+ * sides of a measured device: its width becomes its height (measured, or its
+ * rack units when not measured) and its height becomes its width. A half turn
+ * keeps the footprint.
+ */
+export function orientDeviceType<
+  T extends Pick<DeviceType, "width_mm" | "height_mm" | "u_height">,
+>(deviceType: T, rotation: DeviceRotation | undefined): T {
+  const turn = getRotation(deviceType, rotation);
+  if (turn !== 90 && turn !== 270) return deviceType;
+  const widthMm = deviceType.width_mm!;
+  return {
+    ...deviceType,
+    width_mm: deviceType.height_mm ?? deviceType.u_height * MM_PER_U,
+    height_mm: widthMm,
+    u_height: uHeightForMm(widthMm),
+  };
 }

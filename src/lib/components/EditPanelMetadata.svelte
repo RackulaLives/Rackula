@@ -192,6 +192,17 @@
       : "Full",
   );
 
+  // Read-only height fact label: rack units, plus a measured height in mm and
+  // inches when one was entered.
+  const heightLabel = $derived.by(() => {
+    const uHeight = selectedDeviceInfo.device.u_height;
+    const heightMm =
+      authoritativeDevice.height_mm ?? selectedDeviceInfo.device.height_mm;
+    return heightMm === undefined
+      ? `${uHeight}U`
+      : `${uHeight}U, ${formatWidthMm(heightMm)}`;
+  });
+
   // Read-only width fact label. A measured width_mm shows in mm and inches;
   // otherwise slot_width 1 means half-width and 2 (or undefined) full-width.
   const widthLabel = $derived.by(() => {
@@ -490,7 +501,7 @@
       </div>
       <div class="fact-row">
         <span class="fact-label">Height</span>
-        <span class="fact-value">{selectedDeviceInfo.device.u_height}U</span>
+        <span class="fact-value">{heightLabel}</span>
       </div>
       <div class="fact-row">
         <span class="fact-label">Depth</span>

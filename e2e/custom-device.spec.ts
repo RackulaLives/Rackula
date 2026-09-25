@@ -25,7 +25,7 @@ test.describe("Custom Device Height (Issue #166)", () => {
 
     // Set the height to 4U. Svelte's bind:value on a number input updates from
     // the input event, which fill() dispatches, so the state tracks the value.
-    await dialog.getByLabel("Height (U)").fill("4");
+    await dialog.getByLabel("Height", { exact: true }).fill("4");
     await dialog.getByLabel("Category").selectOption("server");
 
     await page.getByTestId("btn-add-device").click();

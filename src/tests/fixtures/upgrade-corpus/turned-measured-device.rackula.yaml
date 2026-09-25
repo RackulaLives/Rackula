@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/layout-v1.json
+metadata:
+  id: 66666666-6666-4666-8666-666666666666
+  name: Turned Measured Device
+  schema_version: "2.0"
+version: "2.0"
+name: Turned Measured Device
+racks:
+  - id: "rack-a"
+    name: "Rack A"
+    height: 12
+    width: 19
+    desc_units: false
+    show_rear: false
+    form_factor: "4-post-cabinet"
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: "carrier-1"
+        device_type: "carrier-5u-custom-0zmr8iz"
+        position: 30
+        face: "both"
+        auto_created: true
+      - id: "mini-1"
+        device_type: "mini-pc"
+        position: 0
+        face: "both"
+        rotation: 90
+        container_id: "carrier-1"
+        slot_id: "col-1"
+device_types:
+  - slug: "mini-pc"
+    model: "Mini PC"
+    u_height: 1
+    width_mm: 179
+    height_mm: 34.5
+    colour: "#336699"
+    category: "server"
+  - slug: "carrier-5u-custom-0zmr8iz"
+    model: "Carrier (5U, custom)"
+    u_height: 5
+    colour: "#6272A4"
+    category: "shelf"
+    subdevice_role: "parent"
+    auto_created: true
+    slots:
+      - id: "col-1"
+        name: "Column 1"
+        position: { row: 0, col: 0 }
+        width_fraction: 0.07666666666666666
+        height_units: 4.5
+    slot_gaps: []
+settings:
+  display_mode: "label"
+  show_labels_on_images: false

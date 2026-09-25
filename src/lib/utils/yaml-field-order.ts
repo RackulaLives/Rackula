@@ -19,7 +19,7 @@ import type { SerializedImages } from "$lib/utils/image-encoding";
 
 /**
  * Order DeviceType fields according to schema v1.0.0
- * Field order: slug, manufacturer, model, part_number, u_height, slot_width, width_mm, is_full_depth, is_powered,
+ * Field order: slug, manufacturer, model, part_number, u_height, slot_width, width_mm, height_mm, is_full_depth, is_powered,
  *              weight, weight_unit, airflow, front_image, rear_image, colour, category, tags,
  *              notes, serial_number, asset_tag, links, custom_fields, interfaces, power_ports,
  *              power_outlets, device_bays, inventory_items, subdevice_role, slots,
@@ -38,6 +38,7 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
   ordered.u_height = dt.u_height;
   if (dt.slot_width !== undefined) ordered.slot_width = dt.slot_width;
   if (dt.width_mm !== undefined) ordered.width_mm = dt.width_mm;
+  if (dt.height_mm !== undefined) ordered.height_mm = dt.height_mm;
   // Preserve rack_widths whenever defined, including an explicitly-empty array,
   // so an author's `rack_widths: []` survives save/load losslessly (#2927).
   if (dt.rack_widths !== undefined) ordered.rack_widths = dt.rack_widths;
@@ -95,7 +96,7 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
 
 /**
  * Order PlacedDevice fields according to schema v1.0.0
- * Field order: id, device_type, name, label, position, face, ports, front_image,
+ * Field order: id, device_type, name, label, position, face, rotation, ports, front_image,
  *              rear_image, colour_override, parent_device, device_bay, container_id,
  *              slot_id, auto_created, notes, custom_fields
  */
@@ -112,6 +113,8 @@ function orderPlacedDeviceFields(
   if (device.label !== undefined) ordered.label = device.label;
   ordered.position = device.position;
   ordered.face = device.face;
+  // 0 is the default and is left out, so an unturned device reads as before.
+  if (device.rotation) ordered.rotation = device.rotation;
 
   // --- Port Instances ---
   if (device.ports !== undefined && device.ports.length > 0)
@@ -287,6 +290,7 @@ const KNOWN_DEVICE_TYPE_KEYS = new Set<string>([
   "u_height",
   "slot_width",
   "width_mm",
+  "height_mm",
   "rack_widths",
   "is_full_depth",
   "is_powered",
@@ -322,6 +326,7 @@ const KNOWN_PLACED_DEVICE_KEYS = new Set<string>([
   "label",
   "position",
   "face",
+  "rotation",
   "ports",
   "front_image",
   "rear_image",

@@ -13,6 +13,7 @@
 import type {
   Connection,
   DeviceFace,
+  DeviceRotation,
   DeviceType,
   PlacedDevice,
   Rack,
@@ -302,6 +303,29 @@ export function updateDevicePlacementImageRaw(
     devices: rack.devices.map((d, i) =>
       i === index ? { ...d, [fieldName]: sanitizedFilename } : d,
     ),
+  }));
+}
+
+/**
+ * Update a device's turn directly (raw)
+ * @param ctx - Layout state access
+ * @param rackId - Rack ID (for multi-rack support)
+ * @param index - Device index
+ * @param rotation - Clockwise turn in degrees (undefined for none)
+ */
+export function updateDeviceRotationRaw(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  index: number,
+  rotation: DeviceRotation | undefined,
+): void {
+  const target = getTargetRack(ctx, rackId);
+  if (!target) return;
+  if (index < 0 || index >= target.rack.devices.length) return;
+
+  updateRackAtIndex(ctx, target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) => (i === index ? { ...d, rotation } : d)),
   }));
 }
 

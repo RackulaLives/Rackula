@@ -19,8 +19,18 @@ import type {
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { effectiveFace } from "./effective-face";
-import { fitsSlotWidth, isNarrowDevice, requiresCarrier } from "./device-width";
-import { buildCustomCarrierType, cellForDevice } from "./custom-carrier";
+import {
+  fitsSlotWidth,
+  isNarrowDevice,
+  orientDeviceType,
+  requiresCarrier,
+} from "./device-width";
+import {
+  buildCustomCarrierType,
+  carrierUHeight,
+  cellForDevice,
+} from "./custom-carrier";
+import { fitsInRow, gapsFor } from "./slot-layout";
 
 /**
  * Check if a placed device is a container child.
@@ -420,7 +430,11 @@ export function findChildrenTooWideForRack(
       deviceTypes,
     )?.slots?.find((s) => s.id === child.slot_id);
     if (!childType || !slot) return false;
-    return !fitsSlotWidth(childType, slot.width_fraction, rackWidth);
+    return !fitsSlotWidth(
+      orientDeviceType(childType, child.rotation),
+      slot.width_fraction,
+      rackWidth,
+    );
   });
 }
 
@@ -494,20 +508,12 @@ export function synthesizeCarrierForDevice(
   }
 
   // A measured device gets a cell cut to its own width, so the shipped half
-  // cell is no longer the ceiling. Only the whole opening can refuse it.
+  // cell is no longer the ceiling. Only the whole opening can refuse it. The
+  // carrier is whole-U, so a height between whole U still gets one.
   if (deviceType.width_mm !== undefined) {
-    // A cut cell is as tall as its carrier, so it can only be cut for a whole-U
-    // device. Sub-U gear takes the 2x2 grid, whose cells are half-U tall, as
-    // long as the measured width still fits one of that grid's half cells.
-    if (deviceType.u_height < 1) {
-      return fitsSlotWidth(deviceType, 0.5, rackWidth)
-        ? { slug: CARRIER_2X2_SLUG }
-        : null;
-    }
-    if (!Number.isInteger(deviceType.u_height)) return null;
     const cell = cellForDevice(deviceType, rackWidth);
     if (cell.widthFraction > 1) return null;
-    const type = buildCustomCarrierType(deviceType.u_height, [cell], []);
+    const type = buildCustomCarrierType(carrierUHeight([cell]), [cell], []);
     return { slug: type.slug, type };
   }
 
@@ -526,6 +532,65 @@ export function synthesizeCarrierForDevice(
   if (deviceType.u_height === 1) return { slug: CARRIER_2COL_SLUG };
   if (deviceType.u_height === 2) return { slug: CARRIER_2U_2COL_SLUG };
   return null;
+}
+
+/** Why a generated carrier cannot take the shape its children need. */
+export type ReshapeRefusal = "row" | "rails";
+
+/**
+ * Rebuild a generated carrier around its children as they stand: each cell is
+ * cut to its child's footprint, and the carrier takes the whole U holding its
+ * tallest child. A cell with no child keeps its shape.
+ *
+ * @param rack - The rack holding the carrier
+ * @param carrier - The placed generated carrier
+ * @param carrierType - Its current type
+ * @param deviceTypes - Layout device types, for the rail check when it grows
+ * @param footprintOf - A child's footprint: its type turned as it stands, with
+ *   any change the caller is about to make already applied
+ * @returns The reshaped type, or "row" when the cells overflow the opening and
+ *   "rails" when the carrier would grow into a device or past the rack top
+ */
+export function reshapeCarrier(
+  rack: Rack,
+  carrier: PlacedDevice,
+  carrierType: DeviceType,
+  deviceTypes: DeviceType[],
+  footprintOf: (child: PlacedDevice) => DeviceType | undefined,
+): { type: DeviceType } | { refused: ReshapeRefusal } {
+  const cells = (carrierType.slots ?? []).map((slot) => {
+    const child = rack.devices.find(
+      (d) => d.container_id === carrier.id && d.slot_id === slot.id,
+    );
+    const footprint = child && footprintOf(child);
+    return footprint
+      ? cellForDevice(footprint, rack.width)
+      : {
+          widthFraction: slot.width_fraction ?? 1.0,
+          heightUnits: slot.height_units ?? 1,
+        };
+  });
+  const type = buildCustomCarrierType(
+    carrierUHeight(cells),
+    cells,
+    gapsFor(carrierType),
+  );
+
+  if (!fitsInRow(type, rack.width, 0)) return { refused: "row" };
+  if (
+    type.u_height > carrierType.u_height &&
+    !canPlaceDevice(
+      rack,
+      deviceTypes,
+      type.u_height,
+      carrier.position,
+      rack.devices.indexOf(carrier),
+      carrier.face,
+    )
+  ) {
+    return { refused: "rails" };
+  }
+  return { type };
 }
 
 /**

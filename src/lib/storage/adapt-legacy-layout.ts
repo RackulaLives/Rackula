@@ -42,6 +42,7 @@ import { isNarrowDevice } from "$lib/utils/device-width";
 import { findStarterDevice } from "$lib/data/starterLibrary";
 import {
   buildCustomCarrierType,
+  carrierUHeight,
   cellForDevice,
   type CarrierCell,
 } from "$lib/utils/custom-carrier";
@@ -342,7 +343,6 @@ function adaptRackDevices(
   >();
   const customWrapped: {
     device: PlacedDevice;
-    deviceType: DeviceType;
     cell: CarrierCell;
   }[] = [];
   for (const d of snapped) {
@@ -358,7 +358,7 @@ function adaptRackDevices(
     if (!forced && dt?.width_mm !== undefined) {
       const cell = cellForDevice(dt, rackWidth);
       if (cell.widthFraction > HALF_CELL_FRACTION) {
-        customWrapped.push({ device: d, deviceType: dt, cell });
+        customWrapped.push({ device: d, cell });
         continue;
       }
     }
@@ -374,8 +374,8 @@ function adaptRackDevices(
 
   // One carrier per custom-cut device: the cell is that device's width, so
   // it cannot be shared with a neighbour.
-  for (const { device, deviceType, cell } of customWrapped) {
-    const type = buildCustomCarrierType(deviceType.u_height, [cell], []);
+  for (const { device, cell } of customWrapped) {
+    const type = buildCustomCarrierType(carrierUHeight([cell]), [cell], []);
     const { carrier, children } = buildCarrier(
       type.slug,
       ["col-1"],

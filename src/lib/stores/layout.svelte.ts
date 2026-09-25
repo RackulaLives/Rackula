@@ -109,6 +109,7 @@ import {
   moveDeviceRecorded as moveDeviceRecordedImpl,
   removeDeviceRecorded as removeDeviceRecordedImpl,
   updateDeviceFaceRecorded as updateDeviceFaceRecordedImpl,
+  rotateDeviceRecorded as rotateDeviceRecordedImpl,
   updateDeviceNameRecorded as updateDeviceNameRecordedImpl,
   updateDevicePlacementImageRecorded as updateDevicePlacementImageRecordedImpl,
   updateDeviceColourRecorded as updateDeviceColourRecordedImpl,
@@ -373,6 +374,7 @@ export function createLayoutStore(
     moveDeviceSmart,
     removeDeviceFromRack,
     updateDeviceFace,
+    rotateDevice,
     updateDeviceName,
     updateDevicePlacementImage,
     updateDeviceColour,
@@ -966,6 +968,14 @@ export function createLayoutStore(
     filename: string | undefined,
   ): void {
     updateDevicePlacementImageRecorded(rackId, deviceIndex, face, filename);
+  }
+
+  /**
+   * Turn a device 90 degrees clockwise, skipping angles that do not fit
+   * @returns true when the device turned
+   */
+  function rotateDevice(rackId: string, deviceIndex: number): boolean {
+    return rotateDeviceRecordedImpl(stateAccess, rackId, deviceIndex);
   }
 
   /**

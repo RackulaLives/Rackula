@@ -13,6 +13,7 @@ import {
 } from "./collision";
 import { UNITS_PER_U, heightToInternalUnits } from "./position";
 import { effectiveFace } from "./effective-face";
+import { orientDeviceType } from "./device-width";
 
 /**
  * Result of attempting to find a valid position for device movement
@@ -199,7 +200,7 @@ export function canMoveChildCell(
   return (
     findAdjacentSlotForChild(
       containerType,
-      childType,
+      orientDeviceType(childType, child.rotation),
       child.slot_id,
       siblings,
       direction,

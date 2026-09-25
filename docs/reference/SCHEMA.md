@@ -62,6 +62,8 @@ Five-point check. Any of remove / rename / retype / require / redefine on an exi
 
 `DeviceType.width_mm` (issue #3310) changes how a device fits a container cell, and a 1.x reader would treat a measured device as full width and reject its placement in a narrower cell. It is a MAJOR change, but it is stamped only when used: a writer stamps `2.0` (`MEASURED_WIDTH_SCHEMA_VERSION`) when any device type has `width_mm`, and `SCHEMA_VERSION` otherwise. A 1.x release then refuses a layout with measured devices with the "made by a newer Rackula" message, and still opens every layout without them. Removing the last measured device and saving restamps the file to `SCHEMA_VERSION`. Share links carry no version marker, so an older release that opens a link with a measured device ignores `wm` and may load it with that device treated as full width.
 
+`DeviceType.height_mm` needs no stamp: `u_height` is still written, and a reader that does not know the measured height reads the rack units, which are correct. `PlacedDevice.rotation` changes a measured device's footprint, so a reader without it would reject a turned child as too wide for its cell. It applies only to measured devices, so a layout that uses it is already stamped `2.0`.
+
 ### Preserving additive data on save
 
 Additive MINOR changes are only safe across builds if writers preserve sections they do not recognize. The serializer (`serializeLayoutToYaml`) emits a fixed set of top-level keys, so the format requires unknown top-level sections to be round-tripped: captured on read and re-emitted on save, so an older build cannot silently drop a newer build's additive section on resave. A section whose loss would be unacceptable and that cannot be round-tripped is a signal to make the change MAJOR instead.
@@ -117,6 +119,7 @@ Template definition for devices in the library. Referenced by `PlacedDevice.devi
 | --- | --- | --- | --- |
 | `u_height` | `number` | Yes | Height in rack units (0.5-50, multiples of 0.5) |
 | `width_mm` | `number` | No | Measured width in millimetres (positive) for gear that sits on a shelf or carrier. Marks the device as carrier-mounted and sets which cells it fits. Stamps `schema_version` 2.0 |
+| `height_mm` | `number` | No | Measured height in millimetres (positive). `u_height` stays the rack units it takes. A quarter turn reads it as the device's width |
 | `is_full_depth` | `boolean` | No | Full rack depth? (default: `true`) |
 | `is_powered` | `boolean` | No | Device requires power? (default: `true`) |
 | `weight` | `number` | No | Weight value (positive number) |
@@ -251,6 +254,7 @@ Instance of a device type placed in a rack.
 | `device_type` | `string` | Yes | Reference to `DeviceType.slug` |
 | `position` | `number` | Yes | Bottom U position (1-indexed, integer, min 1) |
 | `face` | `DeviceFace` | Yes | Which face(s) device occupies |
+| `rotation` | `0` \| `90` \| `180` \| `270` | No | Clockwise turn in degrees (default 0, not written). Applies only to a device with `width_mm`: at 90 and 270 its width and height swap |
 | `name` | `string` | No | Custom display name (max 100 chars) |
 | `parent_device` | `string` | No | Parent placement ID (for child devices) |
 | `device_bay` | `string` | No | Bay name in parent device |

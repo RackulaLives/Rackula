@@ -3,7 +3,7 @@
  */
 
 import type { Command } from "./types";
-import type { PlacedDevice, DeviceFace } from "$lib/types";
+import type { PlacedDevice, DeviceFace, DeviceRotation } from "$lib/types";
 import type { DeviceImageData } from "$lib/types/images";
 import { getImageStore } from "../images.svelte";
 import { placementKey } from "$lib/utils/placement-key";
@@ -67,6 +67,10 @@ export interface DeviceCommandStore {
     filename: string | undefined,
   ): void;
   updateDeviceColourRaw(index: number, colour: string | undefined): void;
+  updateDeviceRotationRaw(
+    index: number,
+    rotation: DeviceRotation | undefined,
+  ): void;
   updateDeviceContainerLinkageRaw(
     index: number,
     containerId: string | undefined,
@@ -425,6 +429,35 @@ export function createUpdateDeviceColourCommand(
       const targetIndex = resolveTargetIndex();
       if (targetIndex === undefined) return;
       store.updateDeviceColourRaw(targetIndex, oldColour);
+    },
+  };
+}
+
+/**
+ * Create a command to turn a device
+ */
+export function createUpdateDeviceRotationCommand(
+  index: number,
+  oldRotation: DeviceRotation | undefined,
+  newRotation: DeviceRotation | undefined,
+  store: DeviceCommandStore,
+  deviceName: string = "device",
+): Command {
+  // Resolve the target by id at runtime (#2665).
+  const resolveTargetIndex = createTargetResolver(store, index);
+  return {
+    type: "UPDATE_DEVICE_ROTATION",
+    description: `Rotate ${deviceName}`,
+    timestamp: Date.now(),
+    execute() {
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceRotationRaw(targetIndex, newRotation);
+    },
+    undo() {
+      const targetIndex = resolveTargetIndex();
+      if (targetIndex === undefined) return;
+      store.updateDeviceRotationRaw(targetIndex, oldRotation);
     },
   };
 }
