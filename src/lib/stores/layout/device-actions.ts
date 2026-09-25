@@ -1005,6 +1005,7 @@ export function moveDeviceSmart(
     },
     setupCommands,
     snapshotDevice,
+    [carrierSlug],
   );
   if (moved) showCarrierHintOnce();
   return moved;
@@ -1014,6 +1015,10 @@ export function moveDeviceSmart(
  * Execute a reparent as one undo step: any setup commands (a new carrier),
  * the identity-preserving move, then removal of an auto-created carrier the
  * device left empty, along with that carrier's connections.
+ *
+ * `keptTypes` names the types the setup commands put to use, so the split the
+ * source carrier leaves behind is not collected while this same batch places a
+ * carrier on it.
  */
 function commitReparent(
   ctx: LayoutStateAccess,
@@ -1024,6 +1029,7 @@ function commitReparent(
   placement: DevicePlacement,
   setupCommands: Command[],
   snapshotDevice: SnapshotDeviceFn,
+  keptTypes: string[] = [],
 ): boolean {
   const layout = ctx.getLayout();
   const layoutId = layout.metadata?.id ?? "";
@@ -1081,7 +1087,13 @@ function commitReparent(
   // restores the split before the device that sat in it.
   if (leavesItsCell) {
     commands.push(
-      ...shrinkCommandsForRemovedChild(ctx, sourceRack, device, adapter),
+      ...shrinkCommandsForRemovedChild(
+        ctx,
+        sourceRack,
+        device,
+        adapter,
+        keptTypes,
+      ),
     );
   }
 

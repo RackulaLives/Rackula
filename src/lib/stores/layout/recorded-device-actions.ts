@@ -461,12 +461,16 @@ function shrinkCustomCarrier(
  * @param rack - The rack holding the carrier
  * @param removed - The child leaving its cell, removed or moved elsewhere
  * @param adapter - Command store adapter
+ * @param keptTypes - Type slugs the rest of this batch puts to use, so a split
+ *   the carrier leaves is not collected while the same batch places a carrier
+ *   on it. A move to another U synthesises a carrier of the very same split.
  */
 export function shrinkCommandsForRemovedChild(
   ctx: LayoutStateAccess,
   rack: Rack,
   removed: PlacedDevice,
   adapter: ReturnType<typeof getCommandStoreAdapter>,
+  keptTypes: string[] = [],
 ): Command[] {
   if (!removed.container_id || !removed.slot_id) return [];
 
@@ -484,7 +488,10 @@ export function shrinkCommandsForRemovedChild(
   // simply referenced by nothing afterwards. Composed after that removal, so
   // the type is genuinely unused by the time this runs.
   if (findEmptiedAutoCarrier(rack, removed)?.id === carrier.id) {
-    if (isOrphanedAfterRetype(layout.racks, carrierType.slug, carrier.id)) {
+    if (
+      !keptTypes.includes(carrierType.slug) &&
+      isOrphanedAfterRetype(layout.racks, carrierType.slug, carrier.id)
+    ) {
       commands.push(
         createDeleteDeviceTypeCommand(
           carrierType,

@@ -169,6 +169,22 @@ describe("dragging a device out of a custom split", () => {
     }
   });
 
+  it("keeps the split when the carrier it lands in is cut the same way", () => {
+    // The only child of a one-cell carrier moves to another U, where a carrier
+    // of that very same split is synthesised for it. Collecting the split the
+    // first carrier left would pull the type out from under the second.
+    const { store, rackId } = splitOf(1);
+
+    expect(dragOutOfSlot(store, rackId, "col-1", 8)).toBe(true);
+
+    const carrier = store
+      .getRackById(rackId)!
+      .devices.find((d) => !d.container_id)!;
+    expect(
+      store.device_types.some((dt) => dt.slug === carrier.device_type),
+    ).toBe(true);
+  });
+
   it("restores the split on undo", () => {
     const { store, rackId, carrierId } = splitOf(3, [10, 20]);
 
