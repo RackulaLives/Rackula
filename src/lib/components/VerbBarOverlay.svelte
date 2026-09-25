@@ -11,6 +11,7 @@
   canvas transform. VerbBar stays presentation-only.
 -->
 <script lang="ts">
+  import { untrack } from "svelte";
   import VerbBar, { type VerbItem } from "./VerbBar.svelte";
   import { getVerbsForSelection } from "$lib/actions/verb-bars";
   import { getRackSlotControls } from "$lib/utils/rack-row";
@@ -39,12 +40,14 @@
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
   import { getStorageMode } from "$lib/storage";
+  import {
+    anchorKeysForSelection,
+    resolveAnchor,
+  } from "$lib/utils/anchor-registry";
 
-  // How long the measure loop keeps running after the last detected motion
-  // before going idle. Motion in flight (a pan/zoom gesture, the camera tween,
-  // or the bar still moving) extends this every frame; it only needs to bridge
-  // the gap between a discrete wake (selection, camera, or layout commit) and
-  // the first frame that registers the resulting position change.
+  // How long a settle loop keeps measuring after the bar last moved. It bridges
+  // the gap between a selection or layout commit and the first frame of the
+  // device's y tween, then follows the tween until it settles.
   const SETTLE_MS = 200;
 
   interface Props {
@@ -204,40 +207,17 @@
     }
   }
 
-  /** Resolve the DOM node the bar points at. */
-  function findTarget(): Element | null {
-    if (!canvasEl) return null;
-
-    if (selection.isDeviceSelected && selection.selectedDeviceId) {
-      const uuid = CSS.escape(selection.selectedDeviceId);
-      // A full-depth device renders in both the front and rear views under one
-      // UUID, so a bare UUID selector always resolves to the first (front) copy.
-      // Anchor to the copy in the view the device was clicked (#2646); fall back
-      // to the first match when the face is unknown (keyboard/palette selection).
-      const face = selection.selectedDeviceFace;
-      if (face === "front" || face === "rear") {
-        const inFace = canvasEl.querySelector(
-          `[data-device-uuid="${uuid}"][data-device-face="${face}"]`,
-        );
-        if (inFace) return inFace;
-      }
-      return canvasEl.querySelector(`[data-device-uuid="${uuid}"]`);
-    }
-
-    // A rack selection, or a bayed-group selection whose active member carries
-    // the rack id, anchors to that rack's container. Group members render with
-    // data-rack-id in BayedRackView, so the same query resolves both.
-    if (
-      (selection.isRackSelected || selection.isGroupSelected) &&
-      selection.selectedRackId
-    ) {
-      return canvasEl.querySelector(
-        `[data-rack-id="${CSS.escape(selection.selectedRackId)}"]`,
-      );
-    }
-
-    return null;
-  }
+  // Registry keys for the selected object's DOM node, recomputed only when the
+  // selection changes. Resolving them is a map lookup, not a subtree query.
+  const anchorKeys = $derived(
+    anchorKeysForSelection({
+      deviceId: selection.selectedDeviceId,
+      deviceFace: selection.selectedDeviceFace,
+      rackId: selection.selectedRackId,
+      isDeviceSelected: selection.isDeviceSelected,
+      isRackOrGroupSelected: isRackOrGroup,
+    }),
+  );
 
   function hide(): void {
     if (pos.visible) pos = { ...pos, visible: false };
@@ -245,11 +225,11 @@
 
   function measure(): void {
     if (!barEl || verbs.length === 0) return hide();
-    // The bar is hidden below this zoom anyway; skip the selector and layout
-    // reads while zoomed out (the rAF loop calls this every frame).
+    // The bar is hidden below this zoom anyway; skip the layout reads while
+    // zoomed out (a pan or zoom calls this every frame).
     if (canvas.zoom < VERB_BAR_LOW_ZOOM_THRESHOLD) return hide();
 
-    const target = findTarget();
+    const target = resolveAnchor(anchorKeys);
     if (!target) return hide();
 
     const barRect = barEl.getBoundingClientRect();
@@ -269,100 +249,66 @@
     }
   }
 
-  // A reactive signature of the anchor's geometry. Reading it in the measure
-  // effect wakes the loop on committed moves (the 120ms settle tween), rack
-  // reorder, bayed-group reorder, and container resize, none of which produce a
-  // per-frame signal. Camera/pan/zoom motion is signalled separately via
-  // canvas.isInteracting / cameraMoveId.
-  const anchorSignal = $derived.by<string | null>(() => {
-    if (selection.isDeviceSelected && selection.selectedDeviceId) {
-      const id = selection.selectedDeviceId;
-      // Track the rack's row index, its bayed-group index, and its slot within
-      // that group's rack_ids so the signature changes on every reorder that
-      // moves the device's screen x. reorderRacks rewrites rack.position and
-      // the array order (row index catches it). reorderRacksInGroup swaps
-      // only group.rack_ids and leaves rack.position untouched, but bayed
-      // members render flush in rack_ids order (stable position sort when
-      // positions are equal), so an internal group reorder still moves the
-      // device; the slot index catches it. rack.position is included too as
-      // the persisted row-order field.
-      for (const [i, rack] of layout.racks.entries()) {
-        for (const dev of rack.devices) {
-          if (dev.id === id) {
-            const group = layout.rack_groups.find((g) =>
-              g.rack_ids.includes(rack.id),
-            );
-            const gIdx = group ? layout.rack_groups.indexOf(group) : -1;
-            const slotInGroup = group ? group.rack_ids.indexOf(rack.id) : -1;
-            return `${rack.id}|${i}|${gIdx}|${slotInGroup}|${rack.position}|${rack.width}|${rack.height}|${dev.position}|${dev.device_type}`;
-          }
-        }
-      }
-      return null;
-    }
-    if (selection.isRackSelected || selection.isGroupSelected) {
-      const id = selection.selectedRackId ?? "";
-      const idx = layout.racks.findIndex((r) => r.id === id);
-      const rack = idx >= 0 ? layout.racks[idx] : null;
-      const gidx = layout.rack_groups.findIndex((g) => g.rack_ids.includes(id));
-      return `${idx}|${gidx}|${rack ? rack.width : 0}|${rack ? rack.height : 0}`;
-    }
-    return null;
-  });
-
-  // Keep the bar pinned to the selected object. Pan has no reactive signal in
-  // the canvas store (panzoom mutates the DOM transform directly) and the
-  // camera tween animates the transform without per-frame state, so a
-  // requestAnimationFrame loop tracks motion in flight. The loop is gated: it
-  // runs only while a motion signal is active (a pan/zoom gesture, the camera
-  // tween, or a layout commit that moves the anchor) and for the SETTLE_MS
-  // window after, then stops. An idle selection does zero per-frame work: no
-  // rAF tick, no querySelector, no getBoundingClientRect.
-  $effect(() => {
-    void selection.selectedDeviceId;
-    void selection.selectedRackId;
-    void verbs;
-    void canvas.isInteracting;
-    void canvas.cameraMoveId;
-    void anchorSignal;
-    if (verbs.length === 0) {
-      // The {#if verbs.length > 0} template unmounts the bar, so nothing is
-      // visible after selection clears. But pos retains its last value; reset
-      // it here so a subsequent re-select does not flash the stale position
-      // for a frame before the first measure() tick lands.
-      hide();
-      return;
-    }
-
+  // Measure every frame until the bar has not moved for SETTLE_MS, then stop.
+  // Returns the cancel function.
+  function settle(): () => void {
     let raf = 0;
-    // Stop the loop once this deadline expires with no motion in flight. Any
-    // wake (selection, verb, camera, or layout-commit change) resets it; an
-    // active gesture or tween, or the bar still moving, keeps extending it.
     let deadline = performance.now() + SETTLE_MS;
     const tick = () => {
       const prev = pos;
       measure();
-      const moved = pos !== prev;
-      const interacting = canvas.isInteracting;
       const now = performance.now();
-      if (interacting || moved) deadline = now + SETTLE_MS;
-      if (now < deadline) {
-        raf = requestAnimationFrame(tick);
-      } else {
-        raf = 0;
-      }
+      if (pos !== prev) deadline = now + SETTLE_MS;
+      raf = now < deadline ? requestAnimationFrame(tick) : 0;
     };
     raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }
 
-    const onReflow = () => measure();
-    window.addEventListener("resize", onReflow);
-    window.addEventListener("scroll", onReflow, true);
+  // Keep the bar pinned to the selected object without polling. Each source of
+  // anchor motion drives its own re-measure:
+  // - selection or verb change: a settle loop, which also covers selecting a
+  //   device while its move tween is still running;
+  // - pan, zoom, inertia and the camera tween: panzoom's transform event, which
+  //   fires after each transform is applied;
+  // - window or canvas resize (a side panel opening): resize and scroll
+  //   listeners plus a ResizeObserver on the canvas;
+  // - a layout commit (a move animates over RackDevice's 120ms y tween, a rack
+  //   reorder shifts the row): a settle loop.
+  // An idle selection does no per-frame work.
+  $effect(() => {
+    void anchorKeys;
+    if (verbs.length === 0) {
+      // The {#if verbs.length > 0} template unmounts the bar, so nothing is
+      // visible after selection clears. But pos retains its last value; reset
+      // it here so a subsequent re-select does not flash the stale position
+      // for a frame before the first measure lands.
+      hide();
+      return;
+    }
+
+    const stopSettle = settle();
+    const offTransform = canvas.onTransform(measure);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    const observer = canvasEl ? new ResizeObserver(() => measure()) : null;
+    if (canvasEl) observer?.observe(canvasEl);
 
     return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", onReflow);
-      window.removeEventListener("scroll", onReflow, true);
+      stopSettle();
+      offTransform();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+      observer?.disconnect();
     };
+  });
+
+  $effect(() => {
+    void layout.layout;
+    // Untracked: a selection change is handled by the effect above, so it must
+    // not start this loop.
+    if (untrack(() => verbs.length === 0)) return;
+    return settle();
   });
 </script>
 

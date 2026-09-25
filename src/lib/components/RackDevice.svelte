@@ -48,6 +48,7 @@
   import { toHumanUnits } from "$lib/utils/position";
   import { Tween, prefersReducedMotion } from "svelte/motion";
   import { cubicOut } from "svelte/easing";
+  import { anchor, deviceAnchorKey } from "$lib/utils/anchor-registry";
 
   interface Props {
     device: DeviceType;
@@ -859,6 +860,9 @@
     data-device-id={device.slug}
     data-device-uuid={placedDeviceId}
     data-device-face={currentFace}
+    {@attach anchor(
+      placedDeviceId ? deviceAnchorKey(placedDeviceId, currentFace) : null,
+    )}
     data-device-position={position}
     data-testid="rack-device"
     class="rack-device"
