@@ -12,6 +12,7 @@ import {
   adoptLegacyAutosave,
   loadLayoutBody,
   hasEverHadLayouts,
+  readLayoutBodySavedAt,
   type WorkspaceIndex,
   type LayoutBodyResult,
 } from "./browser-workspace";
@@ -88,7 +89,11 @@ export function previousSessionUnsavedNotice(
   const named =
     index.activeId && ids.includes(index.activeId) ? index.activeId : ids[0]!;
   const entry = index.library[named]!;
-  const storedAt = formatStoredAt(entry.updatedAt);
+  // Date the body that actually loads. The index updatedAt lags it when a body
+  // write succeeded but the index write after it was refused.
+  const storedAt = formatStoredAt(
+    readLayoutBodySavedAt(named) ?? entry.updatedAt,
+  );
   const version = storedAt
     ? `Its last stored version, from ${storedAt}, is shown instead.`
     : "Its last stored version is shown instead.";

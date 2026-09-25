@@ -263,6 +263,42 @@ describe("previousSessionUnsavedNotice", () => {
     expect(notice).not.toContain("Invalid Date");
   });
 
+  it("dates the notice from the body on disk, not a stale index entry", () => {
+    // A body write succeeded but the index write after it was refused, so the
+    // index still carries the older updatedAt while the newer body is what
+    // loads on launch.
+    const bodySavedAt = "2026-09-22T08:30:00.000Z";
+    localStorageMock.setItem(
+      bodyKey("a"),
+      JSON.stringify({
+        schemaVersion: 2,
+        layout: makeLayout("a", "Homelab"),
+        savedAt: bodySavedAt,
+      }),
+    );
+
+    const notice = previousSessionUnsavedNotice(
+      makeIndex({
+        a: createTestLibraryEntry({
+          name: "Homelab",
+          updatedAt: storedAt,
+          writeFailed: true,
+        }),
+      }),
+    );
+
+    expect(notice).toContain(
+      new Date(bodySavedAt).toLocaleString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    );
+    expect(notice).not.toContain(expectedTime);
+  });
+
   it("stops once a later save succeeds and clears writeFailed", () => {
     saveWorkspaceIndex(
       makeIndex({
