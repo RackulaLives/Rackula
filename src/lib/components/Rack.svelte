@@ -645,6 +645,7 @@
 
     <!-- Layer 2b: Connections, drawn above every device body (#1931) -->
     <ConnectionLayer
+      rackId={rack.id}
       devices={connectionDevices}
       {deviceLibrary}
       rackView={effectiveFaceFilter}
