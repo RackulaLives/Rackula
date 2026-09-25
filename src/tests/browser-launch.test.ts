@@ -1,7 +1,16 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Layout } from "$lib/types";
-import { resolveBrowserLaunch } from "$lib/storage/browser-launch";
-import { createTestLayout } from "./factories";
+import {
+  resolveBrowserLaunch,
+  previousSessionUnsavedNotice,
+} from "$lib/storage/browser-launch";
+import {
+  loadWorkspaceIndex,
+  saveLayoutBody,
+  saveWorkspaceIndex,
+  type WorkspaceIndex,
+} from "$lib/storage/browser-workspace";
+import { createTestLayout, createTestLibraryEntry } from "./factories";
 
 const WORKSPACE_KEY = "Rackula:workspace";
 const EVER_KEY = "Rackula:everHadLayouts";
@@ -142,5 +151,113 @@ describe("resolveBrowserLaunch", () => {
     expect(result.action).toBe("restore");
     // Autosave untouched because adoption did not run.
     expect(localStorageMock.getItem(AUTOSAVE_KEY)).not.toBeNull();
+  });
+});
+
+// A layout whose last autosave was refused keeps its older body on disk and
+// loads cleanly, so nothing else tells the user that their newest edits from
+// the previous session are gone (#3386).
+describe("previousSessionUnsavedNotice", () => {
+  const storedAt = "2026-09-20T17:45:00.000Z";
+  const expectedTime = new Date(storedAt).toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  beforeEach(() => {
+    localStorageMock.clear();
+  });
+
+  function makeIndex(
+    library: WorkspaceIndex["library"],
+    activeId: string | null = Object.keys(library)[0] ?? null,
+  ): WorkspaceIndex {
+    return {
+      schemaVersion: 2,
+      activeId,
+      openTabs: Object.keys(library),
+      library,
+    };
+  }
+
+  it("names the layout and when its stored version is from", () => {
+    const notice = previousSessionUnsavedNotice(
+      makeIndex({
+        a: createTestLibraryEntry({
+          name: "Homelab",
+          updatedAt: storedAt,
+          writeFailed: true,
+        }),
+      }),
+    );
+
+    expect(notice).toContain("Homelab");
+    expect(notice).toContain(expectedTime);
+    expect(notice).toContain("could not be saved");
+  });
+
+  it("returns null when no layout carries writeFailed", () => {
+    expect(
+      previousSessionUnsavedNotice(
+        makeIndex({ a: createTestLibraryEntry({ updatedAt: storedAt }) }),
+      ),
+    ).toBeNull();
+  });
+
+  it("names the active layout first and counts the others", () => {
+    const notice = previousSessionUnsavedNotice(
+      makeIndex(
+        {
+          a: createTestLibraryEntry({ name: "Lab", writeFailed: true }),
+          b: createTestLibraryEntry({
+            name: "Office",
+            updatedAt: storedAt,
+            writeFailed: true,
+          }),
+          c: createTestLibraryEntry({ name: "Garage", writeFailed: true }),
+        },
+        "b",
+      ),
+    );
+
+    expect(notice).toContain("Office");
+    expect(notice).toContain(expectedTime);
+    expect(notice).not.toContain("Lab");
+    expect(notice).toContain("2 other layouts");
+  });
+
+  it("omits the time when the entry has no usable timestamp", () => {
+    const notice = previousSessionUnsavedNotice(
+      makeIndex({
+        a: createTestLibraryEntry({
+          name: "Homelab",
+          updatedAt: "",
+          writeFailed: true,
+        }),
+      }),
+    );
+
+    expect(notice).toContain("Homelab");
+    expect(notice).not.toContain("Invalid Date");
+  });
+
+  it("stops once a later save succeeds and clears writeFailed", () => {
+    saveWorkspaceIndex(
+      makeIndex({
+        a: createTestLibraryEntry({
+          name: "Homelab",
+          updatedAt: storedAt,
+          writeFailed: true,
+        }),
+      }),
+    );
+    expect(previousSessionUnsavedNotice(loadWorkspaceIndex()!)).not.toBeNull();
+
+    saveLayoutBody("a", makeLayout("a", "Homelab"), { changesSinceExport: 1 });
+
+    expect(previousSessionUnsavedNotice(loadWorkspaceIndex()!)).toBeNull();
   });
 });

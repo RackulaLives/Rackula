@@ -52,6 +52,7 @@
     uploadSnapshot,
     setServerBaseUpdatedAt,
     resolveBrowserLaunch,
+    previousSessionUnsavedNotice,
     deleteLayoutBody,
     clearBrowserWriteFailure,
     loadWorkspaceIndex,
@@ -444,6 +445,12 @@
             0,
           );
         }
+
+        // A previous session's last write was refused, so the layout reopens
+        // at an older stored version. Say so; the chip stays on this session's
+        // durability, which is fine as loaded (#3386).
+        const unsavedNotice = previousSessionUnsavedNotice(launch.index);
+        if (unsavedNotice) showStorageToast(unsavedNotice, "warning", 0);
 
         // restoreWorkspace hydrates the active tab and restores its durability
         // (dirty by autosave convention, not explicitly saved). deleteBody wires

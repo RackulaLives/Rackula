@@ -54,3 +54,47 @@ export function resolveBrowserLaunch(): BrowserLaunch {
 
   return { action: "empty", everHadLayouts: hasEverHadLayouts() };
 }
+
+function formatStoredAt(iso: string): string | null {
+  const date = new Date(iso);
+  if (!iso || Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * The launch notice for layouts whose last write in a previous session was
+ * refused (#3386), or null when none were. Such a layout still loads its older
+ * body, so it is durable as loaded and the storage chip rightly reports no
+ * error; this notice is the only place the lost edits are mentioned. It reads
+ * the persisted `writeFailed` flag, never this session's failure map, and the
+ * flag clears on the layout's next successful save, so it does not repeat.
+ */
+export function previousSessionUnsavedNotice(
+  index: WorkspaceIndex,
+): string | null {
+  const ids = Object.keys(index.library).filter(
+    (id) => index.library[id]?.writeFailed,
+  );
+  if (ids.length === 0) return null;
+
+  const named =
+    index.activeId && ids.includes(index.activeId) ? index.activeId : ids[0]!;
+  const entry = index.library[named]!;
+  const storedAt = formatStoredAt(entry.updatedAt);
+  const version = storedAt
+    ? `Its last stored version, from ${storedAt}, is shown instead.`
+    : "Its last stored version is shown instead.";
+  const others = ids.length - 1;
+  const remainder =
+    others > 0
+      ? ` Changes to ${others} other ${others === 1 ? "layout" : "layouts"} could not be saved either.`
+      : "";
+
+  return `Changes to "${entry.name}" from a previous session could not be saved. ${version}${remainder}`;
+}
