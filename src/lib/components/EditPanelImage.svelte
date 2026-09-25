@@ -49,15 +49,20 @@
   // the dialog title does not change during its exit transition.
   let cropFile = $state<File | null>(null);
   let cropFace = $state<"front" | "rear">("front");
-  // Where a confirmed crop is written, pinned when the file is chosen: the
-  // selection and the active layout can both change while the dialog is open,
-  // and the image belongs to the device it was chosen for.
-  let cropTarget: {
+  // Where a confirmed crop is written and the frame it is cropped to, pinned
+  // when the file is chosen: the selection and the active layout can both
+  // change while the dialog is open, and the image belongs to the device it
+  // was chosen for.
+  let cropTarget = $state<{
     slug: string;
     key: string;
     rackId: string;
     deviceIndex: number;
-  } | null = null;
+    uHeight: number;
+    rackWidth: number;
+    widthFraction: number;
+    widthLabel: string | undefined;
+  } | null>(null);
 
   // Current placement overrides (if any)
   const placementFrontImage = $derived(
@@ -120,6 +125,10 @@
       key: placementKey(layoutId, selectedDeviceInfo.placedDevice.id),
       rackId: selectedDeviceInfo.rack.id,
       deviceIndex: selectedDeviceInfo.deviceIndex,
+      uHeight: selectedDeviceInfo.device.u_height,
+      rackWidth: selectedDeviceInfo.rack.width,
+      widthFraction: cropWidthFraction,
+      widthLabel: cropWidthLabel,
     };
     cropFile = file;
 
@@ -246,10 +255,10 @@
 <ImageCropDialog
   file={cropFile}
   face={cropFace}
-  uHeight={selectedDeviceInfo.device.u_height}
-  rackWidth={selectedDeviceInfo.rack.width}
-  widthFraction={cropWidthFraction}
-  widthLabel={cropWidthLabel}
+  uHeight={cropTarget?.uHeight ?? selectedDeviceInfo.device.u_height}
+  rackWidth={cropTarget?.rackWidth ?? selectedDeviceInfo.rack.width}
+  widthFraction={cropTarget?.widthFraction ?? cropWidthFraction}
+  widthLabel={cropTarget ? cropTarget.widthLabel : cropWidthLabel}
   onconfirm={handleCropConfirm}
   oncancel={() => (cropFile = null)}
 />
