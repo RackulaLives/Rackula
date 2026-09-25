@@ -435,22 +435,20 @@
         const activeEntry = launch.index.activeId
           ? launch.index.library[launch.index.activeId]
           : undefined;
-        if (
+        const flipNotice =
           activeEntry &&
           detectModeFlip(activeEntry.storageMode) === "server-to-browser"
-        ) {
-          showStorageToast(
-            "This deployment now stores layouts in your browser; your previous server library is not loaded here.",
-            "warning",
-            0,
-          );
-        }
-
+            ? "This deployment now stores layouts in your browser; your previous server library is not loaded here."
+            : null;
         // A previous session's last write was refused, so the layout reopens
         // at an older stored version. Say so; the chip stays on this session's
-        // durability, which is fine as loaded (#3386).
+        // durability, which is fine as loaded (#3386). Joined with the flip
+        // notice because the toast gate allows only one startup toast.
         const unsavedNotice = previousSessionUnsavedNotice(launch.index);
-        if (unsavedNotice) showStorageToast(unsavedNotice, "warning", 0);
+        const launchNotice = [flipNotice, unsavedNotice]
+          .filter((notice) => notice !== null)
+          .join(" ");
+        if (launchNotice) showStorageToast(launchNotice, "warning", 0);
 
         // restoreWorkspace hydrates the active tab and restores its durability
         // (dirty by autosave convention, not explicitly saved). deleteBody wires

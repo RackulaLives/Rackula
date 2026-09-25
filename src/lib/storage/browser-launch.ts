@@ -78,9 +78,9 @@ function formatStoredAt(iso: string): string | null {
 export function previousSessionUnsavedNotice(
   index: WorkspaceIndex,
 ): string | null {
-  const ids = Object.keys(index.library).filter(
-    (id) => index.library[id]?.writeFailed,
-  );
+  // Open tabs only: a closed layout is not shown, and nothing saves it until
+  // it is reopened, so naming it would repeat on every launch.
+  const ids = index.openTabs.filter((id) => index.library[id]?.writeFailed);
   if (ids.length === 0) return null;
 
   const named =

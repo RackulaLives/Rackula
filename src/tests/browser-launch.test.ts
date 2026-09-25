@@ -229,6 +229,16 @@ describe("previousSessionUnsavedNotice", () => {
     expect(notice).toContain("2 other layouts");
   });
 
+  it("ignores a closed layout, which is neither shown nor saved on launch", () => {
+    const index = makeIndex({
+      a: createTestLibraryEntry({ name: "Open" }),
+      b: createTestLibraryEntry({ name: "Closed", writeFailed: true }),
+    });
+    index.openTabs = ["a"];
+
+    expect(previousSessionUnsavedNotice(index)).toBeNull();
+  });
+
   it("omits the time when the entry has no usable timestamp", () => {
     const notice = previousSessionUnsavedNotice(
       makeIndex({
