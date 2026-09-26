@@ -185,6 +185,23 @@ describe("dragging a device out of a custom split", () => {
     ).toBe(true);
   });
 
+  it("imports a split once when the carrier left behind is cut the same way", () => {
+    // One child of a two-cell carrier moves to another U. The carrier it lands
+    // in and the carrier it leaves are both one 100 mm cell: the same split,
+    // which the move must add to the library only once.
+    const { store, rackId } = splitOf(2);
+
+    expect(dragOutOfSlot(store, rackId, "col-2", 8)).toBe(true);
+
+    const [first, second] = store
+      .getRackById(rackId)!
+      .devices.filter((d) => !d.container_id);
+    expect(first!.device_type).toBe(second!.device_type);
+    expect(
+      store.device_types.filter((dt) => dt.slug === first!.device_type).length,
+    ).toBe(1);
+  });
+
   it("restores the split on undo", () => {
     const { store, rackId, carrierId } = splitOf(3, [10, 20]);
 

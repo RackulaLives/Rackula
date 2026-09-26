@@ -520,7 +520,7 @@ describe("custom splits survive a round trip", () => {
       ],
     });
 
-    const adapted = adaptLegacyLayout(legacy) as Layout;
+    const adapted = adaptLegacyLayout(legacy);
     const child = adapted.racks[0]!.devices.find((d) => d.container_id)!;
     const carrier = adapted.racks[0]!.devices.find(
       (d) => d.id === child.container_id,

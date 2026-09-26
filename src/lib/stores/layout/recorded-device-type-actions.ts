@@ -47,6 +47,8 @@ import { getToastStore } from "$lib/stores/toast.svelte";
  * @param from - The split it is leaving
  * @param to - The split it is moving to
  * @param adapter - Command store adapter
+ * @param keptTypes - Type slugs the rest of the batch already imports, so the
+ *   new split is not added a second time when a new carrier shares it
  */
 export function retypeCarrierCommands(
   layout: ReturnType<LayoutStateAccess["getLayout"]>,
@@ -54,9 +56,13 @@ export function retypeCarrierCommands(
   from: DeviceType,
   to: DeviceType,
   adapter: ReturnType<typeof getCommandStoreAdapter>,
+  keptTypes: string[] = [],
 ): Command[] {
   const commands: Command[] = [];
-  if (!layout.device_types.some((dt) => dt.slug === to.slug)) {
+  if (
+    !keptTypes.includes(to.slug) &&
+    !layout.device_types.some((dt) => dt.slug === to.slug)
+  ) {
     commands.push(createAddDeviceTypeCommand(to, adapter));
   }
   commands.push(
