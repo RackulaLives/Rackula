@@ -384,6 +384,39 @@ describe("turning a device before it is placed", () => {
       ),
     ).toBe(false);
   });
+
+  it("moves a primed cursor to a slot the turned device fits", () => {
+    // Flat, the mini PC takes a 1U carrier and fits at the top U12. Turned it
+    // needs a 5U carrier, so its highest start in a 12U rack is U8.
+    const rack = createTestRack({ id: "rack-1", height: 12, devices: [] });
+    let turned = false;
+    let cursor: number | null = 12;
+    const controller = createPlacementKeyboardController({
+      getRacks: () => [rack],
+      getDeviceLibrary: () => [],
+      getActiveRackId: () => rack.id,
+      isPlacing: () => true,
+      getPendingDevice: () => orientDeviceType(miniPc(), turned ? 90 : 0),
+      getTargetFace: () => "front",
+      getCursorPosition: () => cursor,
+      setActiveRack: vi.fn(),
+      setCursor: (_rackId, position) => {
+        cursor = position;
+      },
+      announce: vi.fn(),
+      cancelPlacement: vi.fn(),
+      abandonPlacement: vi.fn(),
+      placeDevice: vi.fn(() => true),
+      completePlacement: vi.fn(),
+      toggleRotation: () => {
+        turned = !turned;
+        return true;
+      },
+    });
+
+    controller.handleKeyDown(new KeyboardEvent("keydown", { key: "r" }));
+    expect(cursor).toBe(8);
+  });
 });
 
 describe("loading a turned device", () => {

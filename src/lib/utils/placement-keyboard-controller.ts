@@ -301,14 +301,25 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
 
     // R turns the armed device before it is placed, whether the pointer or
     // the keyboard is aiming it. A device that cannot turn leaves the key
-    // alone.
+    // alone. A turn changes the device's height, so a primed cursor moves to
+    // the nearest slot the device fits as it now stands.
     if (
       (event.key === "r" || event.key === "R") &&
       !event.ctrlKey &&
       !event.metaKey &&
       !event.altKey
     ) {
-      return deps.toggleRotation?.() ?? false;
+      if (!deps.toggleRotation?.()) return false;
+      const rack = activeRack();
+      const current = deps.getCursorPosition();
+      const turned = deps.getPendingDevice();
+      if (rack && current != null && turned) {
+        deps.setCursor(
+          rack.id,
+          initialCursorPosition(validFor(deps, rack, turned), current),
+        );
+      }
+      return true;
     }
 
     const navOrPlaceKeys = [
