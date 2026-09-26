@@ -8,6 +8,7 @@ import {
   canPlaceDevice,
   canPlaceInSlot,
   findNextFreeChildPosition,
+  synthesizeCarrierForDevice,
 } from "./collision";
 import { RAIL_WIDTH } from "$lib/constants/layout";
 import { toInternalUnits, toHumanUnits } from "./position";
@@ -420,9 +421,15 @@ export function detectContainerDropTarget(
     }
 
     // A generated carrier can grow a cell, so aim past the last one instead
-    // of reporting the container full. The store rechecks the row's budget
-    // and refuses with a measured message when it cannot take the width.
-    if (CUSTOM_CARRIER_SLUG_PATTERN.test(container.device_type)) {
+    // of reporting the container full. Only a device that takes a carrier
+    // cell can grow one: a full-width rail device or a container falls through
+    // to the rail. The store rechecks the row's budget and refuses with a
+    // measured message when it cannot take the width.
+    if (
+      CUSTOM_CARRIER_SLUG_PATTERN.test(container.device_type) &&
+      !draggedDevice.slots?.length &&
+      synthesizeCarrierForDevice(draggedDevice, rack.width) !== null
+    ) {
       return {
         containerId: container.id,
         slotId: NEW_CELL_SLOT_ID,

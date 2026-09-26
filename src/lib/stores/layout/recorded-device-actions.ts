@@ -529,7 +529,14 @@ export function shrinkCommandsForRemovedChild(
   if (!shrunk) return commands;
 
   commands.push(
-    ...retypeCarrierCommands(layout, carrier, carrierType, shrunk, adapter),
+    ...retypeCarrierCommands(
+      layout,
+      carrier,
+      carrierType,
+      shrunk,
+      adapter,
+      keptTypes,
+    ),
   );
 
   // Cells are numbered left to right, so removing one renumbers its

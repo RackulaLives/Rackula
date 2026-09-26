@@ -117,10 +117,20 @@
   // The image is drawn in every rack width the device fits, so the crop shows
   // guides for the widths it is not framed for.
   const cropRackWidth = $derived(getCropRackWidth(rackWidthOption));
-  // The crop frame follows the form: a half-width device is drawn in a carrier
-  // cell half the interior wide, so it is framed that way rather than to the
-  // full rails.
-  const cropWidthFraction = $derived(isHalfWidth ? 0.5 : 1);
+  // The crop frame follows the form: a measured device is drawn in a carrier
+  // cell cut to its width, and a half-width device in a cell half the interior
+  // wide, so each is framed that way rather than to the full rails.
+  const cropWidthFraction = $derived(
+    widthValue != null
+      ? Math.min(
+          1,
+          toMillimetres(widthValue, widthUnit) /
+            getRackOpeningMm(cropRackWidth),
+        )
+      : isHalfWidth
+        ? 0.5
+        : 1,
+  );
   const cropWidthLabel = $derived(
     isHalfWidth
       ? `a half-width ${getCropUnitHeight(uHeight)}U device in a ${cropRackWidth} inch rack`
