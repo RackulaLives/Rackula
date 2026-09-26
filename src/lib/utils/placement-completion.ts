@@ -59,6 +59,7 @@ export function completePointerPlacement(
     device.slug,
     position,
     face,
+    placementStore.rotation,
   );
   if (!success) return false;
 

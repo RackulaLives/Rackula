@@ -11,7 +11,10 @@
     PortClickInfo,
     RackView,
   } from "$lib/types";
-  import { getChildYInSlot, getSlotRects } from "$lib/utils/slot-geometry";
+  import { getChildYInSlot } from "$lib/utils/slot-geometry";
+  import { getRotation, orientDeviceType } from "$lib/utils/device-width";
+  import { SvelteMap } from "svelte/reactivity";
+  import { slotLayout, type SlotBand } from "$lib/utils/slot-layout";
   import PortIndicators from "./PortIndicators.svelte";
   import ContainerSlots from "./ContainerSlots.svelte";
   import {
@@ -59,6 +62,8 @@
     selected: boolean;
     uHeight: number;
     rackWidth: number;
+    /** Nominal rack width in inches, to size gaps in millimetres */
+    nominalRackWidth: number;
     displayMode?: DisplayMode;
     rackView?: RackView;
     showLabelsOnImages?: boolean;
@@ -125,6 +130,7 @@
     selected,
     uHeight,
     rackWidth,
+    nominalRackWidth,
     displayMode = "label",
     rackView = "front",
     showLabelsOnImages = false,
@@ -307,7 +313,7 @@
     const y =
       yPosition + ((event.clientY - rect.top) / rect.height) * deviceHeight;
     const slots = device.slots ?? [];
-    const col = colAtX(slots, x, deviceWidth);
+    const col = colAtX(device, x, deviceWidth, nominalRackWidth);
     const row = rowAtY(
       slots,
       y,
@@ -350,14 +356,29 @@
   const deviceWidth = $derived(fullWidth);
   const slotXOffset = 0;
 
-  // Container helper: each slot's cell rectangle, placed by row and column
-  const slotGeometry = $derived(
-    getSlotRects(device.slots ?? [], deviceWidth, deviceHeight),
-  );
+  // Container helper: each slot's cell rectangle, from the shared layout so
+  // the drawn child, the drawn cell and the drop target agree about gaps.
+  const slotGeometry = $derived.by(() => {
+    const geometry = new SvelteMap<string, SlotBand>();
+    if (!device.slots?.length) return geometry;
 
-  // Helper to get child device type from library
-  function getChildDeviceType(slug: string): DeviceType | undefined {
-    return deviceLibrary.find((d) => d.slug === slug);
+    for (const band of slotLayout(
+      device,
+      deviceWidth,
+      nominalRackWidth,
+      deviceHeight,
+    ).slots) {
+      geometry.set(band.id, band);
+    }
+
+    return geometry;
+  });
+
+  // A child's device type as it stands: a turned child is sized, dragged and
+  // announced by its turned footprint.
+  function getChildDeviceType(child: PlacedDevice): DeviceType | undefined {
+    const type = deviceLibrary.find((d) => d.slug === child.device_type);
+    return type && orientDeviceType(type, child.rotation);
   }
 
   /**
@@ -1036,7 +1057,9 @@
     {#if isContainer && (selected || isDragOverContainer)}
       <ContainerSlots
         containerType={device}
-        slotRects={slotGeometry}
+        containerWidth={deviceWidth}
+        {nominalRackWidth}
+        containerHeight={deviceHeight}
         selectedSlotId={null}
         dropTargetSlotId={isDragOverContainer ? dragTargetSlotId : null}
         isValidDropTarget={isDragTargetValid}
@@ -1048,7 +1071,7 @@
   {#if isContainer && containerChildDevices.length > 0}
     <g class="container-children">
       {#each containerChildDevices as { placedDevice: child, originalIndex: childIndex } (child.id)}
-        {@const childType = getChildDeviceType(child.device_type)}
+        {@const childType = getChildDeviceType(child)}
         {@const slotGeo = child.slot_id
           ? slotGeometry.get(child.slot_id)
           : undefined}
@@ -1065,6 +1088,10 @@
           )}
           {@const childWidth = slotGeo.width}
           {@const childX = slotGeo.x}
+          {@const childTurn = getRotation(childType, child.rotation)}
+          {@const onSide = childTurn === 90}
+          {@const imageWidth = onSide ? childHeight : childWidth}
+          {@const imageHeight = onSide ? childWidth : childHeight}
           {@const childImageUrl = getChildImageUrl(child, childType)}
           {@const childColour =
             child.colour_override ??
@@ -1123,13 +1150,19 @@
                  parent device image overflows its own rect the same way. -->
             {#if childImageUrl}
               {#key childImageUrl}
+                <!-- A device on its side has its image laid out flat,
+                     centred, then turned into the box. -->
                 <image
                   class="child-device-image"
                   data-testid="child-device-image"
-                  x={0}
-                  y={0}
-                  width={childWidth}
-                  height={childHeight}
+                  data-rotation={childTurn}
+                  x={(childWidth - imageWidth) / 2}
+                  y={(childHeight - imageHeight) / 2}
+                  width={imageWidth}
+                  height={imageHeight}
+                  transform={childTurn
+                    ? `rotate(${childTurn} ${childWidth / 2} ${childHeight / 2})`
+                    : undefined}
                   href={childImageUrl}
                   preserveAspectRatio="xMidYMid slice"
                   role="img"
@@ -1155,13 +1188,20 @@
             <!-- Child device label. Hidden over an image unless labels on
                  images are on, matching how the parent device behaves. -->
             {#if showNameLabels && (!childImageUrl || showLabelsOnImages)}
+              <!-- Stood on its side, the label runs up the long side. -->
               <text
                 class="child-device-label"
                 x={childWidth / 2}
                 y={childHeight / 2}
                 text-anchor="middle"
                 dominant-baseline="middle"
-                font-size={Math.min(11, childHeight * 0.6)}
+                font-size={Math.min(
+                  11,
+                  (onSide ? childWidth : childHeight) * 0.6,
+                )}
+                transform={onSide
+                  ? `rotate(-90 ${childWidth / 2} ${childHeight / 2})`
+                  : undefined}
                 fill="var(--colour-text-on-device)"
               >
                 {childName.length > 12

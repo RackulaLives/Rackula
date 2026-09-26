@@ -38,8 +38,8 @@ import { findDeviceType } from "$lib/utils/device-lookup";
 import {
   synthesizeCarrierForDevice,
   requiresChassisBay,
-  requiresCarrier,
 } from "$lib/utils/collision";
+import { requiresCarrier } from "$lib/utils/device-width";
 import { validStartPositions } from "$lib/utils/placement-keyboard";
 import {
   resolveDropTarget,
@@ -76,15 +76,17 @@ const fullWidthRail: DeviceType = {
 
 describe("synthesizeCarrierForDevice (height-matched, child-aware)", () => {
   it("returns null for a chassis child regardless of height (2U blade)", () => {
-    expect(synthesizeCarrierForDevice(bladeHalf)).toBeNull();
+    expect(synthesizeCarrierForDevice(bladeHalf, 19)).toBeNull();
   });
 
   it("returns null for a chassis child regardless of height (4U blade)", () => {
-    expect(synthesizeCarrierForDevice(bladeFull)).toBeNull();
+    expect(synthesizeCarrierForDevice(bladeFull, 19)).toBeNull();
   });
 
   it("returns the 2U carrier for a generic 2U half-width device", () => {
-    expect(synthesizeCarrierForDevice(genericTwoU)).toBe("carrier-2u-2col");
+    expect(synthesizeCarrierForDevice(genericTwoU, 19)?.slug).toBe(
+      "carrier-2u-2col",
+    );
   });
 
   it("still returns the 1U carrier for a generic 1U half-width device", () => {
@@ -96,7 +98,7 @@ describe("synthesizeCarrierForDevice (height-matched, child-aware)", () => {
       category: "network",
       colour: "#4A90D9",
     };
-    expect(synthesizeCarrierForDevice(oneU)).toBe("carrier-1u-2col");
+    expect(synthesizeCarrierForDevice(oneU, 19)?.slug).toBe("carrier-1u-2col");
   });
 
   it("still returns the 2x2 carrier for a sub-U half-width device", () => {
@@ -108,7 +110,7 @@ describe("synthesizeCarrierForDevice (height-matched, child-aware)", () => {
       category: "network",
       colour: "#4A90D9",
     };
-    expect(synthesizeCarrierForDevice(halfU)).toBe("carrier-1u-2x2");
+    expect(synthesizeCarrierForDevice(halfU, 19)?.slug).toBe("carrier-1u-2x2");
   });
 
   it("returns null (not a too-small carrier) for an integer height with no carrier", () => {
@@ -120,7 +122,7 @@ describe("synthesizeCarrierForDevice (height-matched, child-aware)", () => {
       category: "network",
       colour: "#4A90D9",
     };
-    expect(synthesizeCarrierForDevice(threeU)).toBeNull();
+    expect(synthesizeCarrierForDevice(threeU, 19)).toBeNull();
   });
 
   it("returns null (not a too-small carrier) for a non-integer height at or above 1U", () => {
@@ -132,11 +134,11 @@ describe("synthesizeCarrierForDevice (height-matched, child-aware)", () => {
       category: "network",
       colour: "#4A90D9",
     };
-    expect(synthesizeCarrierForDevice(oneAndHalf)).toBeNull();
+    expect(synthesizeCarrierForDevice(oneAndHalf, 19)).toBeNull();
   });
 
   it("returns null for a full-width whole-U device", () => {
-    expect(synthesizeCarrierForDevice(fullWidthRail)).toBeNull();
+    expect(synthesizeCarrierForDevice(fullWidthRail, 19)).toBeNull();
   });
 });
 
@@ -146,18 +148,18 @@ describe("synthesizeCarrierForDevice (height-matched, child-aware)", () => {
 
 describe("requiresChassisBay", () => {
   it("is true for a chassis child (requires a carrier but none synthesisable)", () => {
-    expect(requiresChassisBay(bladeHalf)).toBe(true);
-    expect(requiresChassisBay(bladeFull)).toBe(true);
+    expect(requiresChassisBay(bladeHalf, 19)).toBe(true);
+    expect(requiresChassisBay(bladeFull, 19)).toBe(true);
     // The child still requires a carrier; it just cannot get a rail one.
     expect(requiresCarrier(bladeHalf)).toBe(true);
   });
 
   it("is false for a generic half-width device that has a rail carrier", () => {
-    expect(requiresChassisBay(genericTwoU)).toBe(false);
+    expect(requiresChassisBay(genericTwoU, 19)).toBe(false);
   });
 
   it("is false for a full-width whole-U rail device", () => {
-    expect(requiresChassisBay(fullWidthRail)).toBe(false);
+    expect(requiresChassisBay(fullWidthRail, 19)).toBe(false);
   });
 });
 
@@ -234,7 +236,7 @@ describe("placeDeviceSmart (store) honesty", () => {
     const blank2u = findStarterDevice("2u-half-blank")!;
     store.addDeviceTypeRaw(blank2u);
 
-    expect(requiresChassisBay(blank2u)).toBe(false);
+    expect(requiresChassisBay(blank2u, 19)).toBe(false);
     expect(store.placeDeviceSmart(rackId, blank2u.slug, 5)).toBe(true);
 
     const carrier = store.rack!.devices.find((d) =>

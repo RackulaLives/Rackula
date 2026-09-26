@@ -8,6 +8,7 @@
  *   - Up / Down       move the U-slot cursor within the focused rack
  *   - Tab / Shift+Tab move between racks (Left / Right are aliases)
  *   - Enter / Space   place the armed device at the cursor
+ *   - R               turn the armed device 90 degrees, or back
  *   - Escape          cancel placement with no side effects
  *
  * The cursor only lands on a valid (placeable) slot, mirroring how the drag
@@ -62,6 +63,11 @@ export interface PlacementKeyboardDeps {
     face: DeviceFace,
   ) => boolean;
   completePlacement: (summary: string) => void;
+  /**
+   * Turn the armed device 90 degrees, or back, before it is placed. Returns
+   * true when it turned. Optional so callers without a turn (tests) still work.
+   */
+  toggleRotation?: () => boolean;
   /**
    * Show a visible "no room" cue matching the drag path's toast. Optional so
    * callers that don't wire a toast store (e.g. tests) still work; the
@@ -135,20 +141,33 @@ export function primeKeyboardPlacement(
   deps: PlacementPrimeDeps,
   device: DeviceType,
 ): void {
-  // A device that can only mount inside a chassis bay (a chassis child, or a
-  // half-width device with no rail carrier) has no rail target in any rack.
-  // State the honest requirement and exit placement mode rather than arming a
-  // futile cursor the user could only Escape out of (#2854).
-  if (requiresChassisBay(device)) {
-    deps.abandonPlacement();
-    deps.announce(pickUpNeedsChassisAnnouncement(device));
-    return;
-  }
-
   const rack = resolveActiveRack(deps);
   if (!rack) {
     // Armed with no rack to place into: say so rather than fall silent.
     deps.announce(noRacksAnnouncement(device));
+    return;
+  }
+  // A device that can only mount inside an existing bay (a chassis child, a
+  // half-width device with no rail carrier, or measured gear wider than this
+  // rack's opening) has no rail target here. State the honest requirement
+  // rather than arming a cursor that can never land (#2854).
+  if (requiresChassisBay(device, rack.width)) {
+    // Whether to stay armed turns on the other racks. Measured gear that is too
+    // wide for this rack may fit a wider one, so keep placement armed with a
+    // null cursor and let Tab reach it. A device with no rail target in any
+    // rack has nowhere to go, so exit rather than leave a futile cursor the
+    // user could only Escape out of (#3310).
+    const fitsAnotherRack = deps
+      .getRacks()
+      .some((candidate) => !requiresChassisBay(device, candidate.width));
+    if (!fitsAnotherRack) {
+      deps.abandonPlacement();
+      deps.announce(pickUpNeedsChassisAnnouncement(device));
+      return;
+    }
+    deps.setActiveRack(rack.id);
+    deps.setCursor(rack.id, null);
+    deps.announce(pickUpNeedsChassisAnnouncement(device));
     return;
   }
   deps.setActiveRack(rack.id);
@@ -221,6 +240,14 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     // rack) so targetRackId and cursorPosition stay consistent with the active
     // rack; a null cursor shows no preview and the user can Tab on to find space.
     deps.setCursor(nextRack.id, start);
+    if (start == null && requiresChassisBay(device, nextRack.width)) {
+      // The device has no rail target in this rack at all, so "no space" would
+      // send the user hunting for a free U that cannot exist. State the real
+      // requirement, as the pick-up path does, but stay armed: the next Tab may
+      // reach a rack the device does fit (#3310).
+      deps.announce(pickUpNeedsChassisAnnouncement(device));
+      return;
+    }
     deps.announce(
       start == null
         ? noSpaceAnnouncement(nextRack.name)
@@ -234,7 +261,14 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     if (!rack) return;
     if (position == null) {
       // No valid slot in this rack (e.g. it is full). Tell the user rather than
-      // letting Enter silently do nothing.
+      // letting Enter silently do nothing. A device with no rail target here
+      // gets the honest reason instead of "no room" (#3310).
+      if (requiresChassisBay(device, rack.width)) {
+        const reason = pickUpNeedsChassisAnnouncement(device);
+        deps.announce(reason);
+        deps.showToast?.(reason);
+        return;
+      }
       deps.announce(noSpaceAnnouncement(rack.name));
       deps.showToast?.(NO_ROOM_MESSAGE);
       return;
@@ -262,6 +296,29 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     // Escape always cancels, even before the cursor is primed.
     if (event.key === "Escape") {
       deps.cancelPlacement();
+      return true;
+    }
+
+    // R turns the armed device before it is placed, whether the pointer or
+    // the keyboard is aiming it. A device that cannot turn leaves the key
+    // alone. A turn changes the device's height, so a primed cursor moves to
+    // the nearest slot the device fits as it now stands.
+    if (
+      (event.key === "r" || event.key === "R") &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
+      if (!deps.toggleRotation?.()) return false;
+      const rack = activeRack();
+      const current = deps.getCursorPosition();
+      const turned = deps.getPendingDevice();
+      if (rack && current != null && turned) {
+        deps.setCursor(
+          rack.id,
+          initialCursorPosition(validFor(deps, rack, turned), current),
+        );
+      }
       return true;
     }
 

@@ -15,6 +15,7 @@ import type {
   DeviceType,
   PlacedDevice,
   DeviceFace,
+  DeviceRotation,
   RackView,
   DisplayMode,
   Connection,
@@ -100,6 +101,7 @@ import {
 import {
   addDeviceTypeRecorded as addDeviceTypeRecordedImpl,
   updateDeviceTypeRecorded as updateDeviceTypeRecordedImpl,
+  updateDeviceTypeSlotGaps as updateDeviceTypeSlotGapsImpl,
   deleteDeviceTypeRecorded as deleteDeviceTypeRecordedImpl,
   deleteMultipleDeviceTypesRecorded as deleteMultipleDeviceTypesRecordedImpl,
 } from "./layout/recorded-device-type-actions";
@@ -108,6 +110,7 @@ import {
   moveDeviceRecorded as moveDeviceRecordedImpl,
   removeDeviceRecorded as removeDeviceRecordedImpl,
   updateDeviceFaceRecorded as updateDeviceFaceRecordedImpl,
+  rotateDeviceRecorded as rotateDeviceRecordedImpl,
   updateDeviceNameRecorded as updateDeviceNameRecordedImpl,
   updateDevicePlacementImageRecorded as updateDevicePlacementImageRecordedImpl,
   updateDeviceColourRecorded as updateDeviceColourRecordedImpl,
@@ -128,6 +131,7 @@ import {
 import {
   duplicateDevice as duplicateDeviceImpl,
   placeInContainer as placeInContainerImpl,
+  extendCustomCarrier as extendCustomCarrierImpl,
   placeDeviceSmart as placeDeviceSmartImpl,
   moveDeviceToRack as moveDeviceToRackImpl,
   moveDeviceToSlot as moveDeviceToSlotImpl,
@@ -360,6 +364,8 @@ export function createLayoutStore(
     // Placement actions
     placeDevice,
     placeInContainer,
+    extendCustomCarrier,
+    updateDeviceTypeSlotGaps,
     placeDeviceSmart,
     moveDevice,
     moveDeviceToRack,
@@ -369,6 +375,7 @@ export function createLayoutStore(
     moveDeviceSmart,
     removeDeviceFromRack,
     updateDeviceFace,
+    rotateDevice,
     updateDeviceName,
     updateDevicePlacementImage,
     updateDeviceColour,
@@ -703,8 +710,11 @@ export function createLayoutStore(
    * Update a device type in the library
    * Uses undo/redo support via updateDeviceTypeRecorded
    */
-  function updateDeviceType(slug: string, updates: Partial<DeviceType>): void {
-    updateDeviceTypeRecorded(slug, updates);
+  function updateDeviceType(
+    slug: string,
+    updates: Partial<DeviceType>,
+  ): boolean {
+    return updateDeviceTypeRecorded(slug, updates);
   }
 
   /**
@@ -755,15 +765,46 @@ export function createLayoutStore(
   }
 
   /**
+   * Set the gaps between the cells of a placed generated carrier, in one undo
+   * step. Refuses a set that would overflow the row.
+   */
+  function updateDeviceTypeSlotGaps(
+    rackId: string,
+    carrierId: string,
+    gapsMm: number[],
+  ): boolean {
+    return updateDeviceTypeSlotGapsImpl(stateAccess, rackId, carrierId, gapsMm);
+  }
+
+  /**
+   * Add a cell to a generated carrier and place a device in it, in one undo
+   * step. Refuses when the row cannot take the width, naming what is left.
+   */
+  function extendCustomCarrier(
+    rackId: string,
+    carrierId: string,
+    deviceTypeSlug: string,
+  ): boolean {
+    return extendCustomCarrierImpl(
+      stateAccess,
+      rackId,
+      carrierId,
+      deviceTypeSlug,
+    );
+  }
+
+  /**
    * Place a device carrier-first. Sub-U / half-width gear is wrapped in a
    * synthesised carrier (or fills an existing one); whole-U full-width gear
-   * mounts directly to the rails.
+   * mounts directly to the rails. A measured device can be placed turned 90
+   * degrees.
    */
   function placeDeviceSmart(
     rackId: string,
     deviceTypeSlug: string,
     position: number,
     face?: DeviceFace,
+    rotation?: DeviceRotation,
   ): boolean {
     return placeDeviceSmartImpl(
       stateAccess,
@@ -771,6 +812,7 @@ export function createLayoutStore(
       deviceTypeSlug,
       position,
       face,
+      rotation,
     );
   }
 
@@ -930,6 +972,14 @@ export function createLayoutStore(
     filename: string | undefined,
   ): void {
     updateDevicePlacementImageRecorded(rackId, deviceIndex, face, filename);
+  }
+
+  /**
+   * Turn a device onto its side, or back flat
+   * @returns true when the device turned
+   */
+  function rotateDevice(rackId: string, deviceIndex: number): boolean {
+    return rotateDeviceRecordedImpl(stateAccess, rackId, deviceIndex);
   }
 
   /**
@@ -1226,8 +1276,8 @@ export function createLayoutStore(
   function updateDeviceTypeRecorded(
     slug: string,
     updates: Partial<DeviceType>,
-  ): void {
-    updateDeviceTypeRecordedImpl(stateAccess, slug, updates);
+  ): boolean {
+    return updateDeviceTypeRecordedImpl(stateAccess, slug, updates);
   }
 
   function deleteDeviceTypeRecorded(slug: string): void {

@@ -8,8 +8,13 @@
 // object (never the DOM): a future-major body is refused (returns null), and
 // current / prior-release bodies still load.
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadSessionWithTimestamp } from "./working-copy";
-import { createTestLayout } from "../../tests/factories";
+import type { Layout } from "$lib/types";
+import { loadSessionWithTimestamp, saveSession } from "./working-copy";
+import {
+  MEASURED_WIDTH_SCHEMA_VERSION,
+  SCHEMA_VERSION,
+} from "$lib/schemas/migrations";
+import { createTestDeviceType, createTestLayout } from "../../tests/factories";
 
 const STORAGE_KEY = "Rackula:autosave";
 
@@ -46,7 +51,7 @@ describe("loadSessionWithTimestamp: forward-compat gate on the autosave door (#2
   });
 
   it("refuses a future-major autosave body, returning null", () => {
-    seedAutosave(bodyWithSchemaVersion("2.0"));
+    seedAutosave(bodyWithSchemaVersion("3.0"));
     expect(loadSessionWithTimestamp()).toBeNull();
   });
 
@@ -61,5 +66,55 @@ describe("loadSessionWithTimestamp: forward-compat gate on the autosave door (#2
     seedAutosave(createTestLayout());
     const result = loadSessionWithTimestamp();
     expect(result).not.toBeNull();
+  });
+});
+
+describe("saveSession: data-format stamp on the autosave door (#3310)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  /** The schema_version the autosave slot currently holds. */
+  function storedStamp(): unknown {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return JSON.parse(raw ?? "{}").layout?.metadata?.schema_version;
+  }
+
+  const backup = { changesSinceExport: 0, hasEverExported: false };
+
+  /** A layout with the complete metadata section createLayout gives every layout. */
+  function layoutWithMetadata(overrides: Partial<Layout> = {}): Layout {
+    return createTestLayout({
+      metadata: {
+        id: "22222222-2222-4222-8222-222222222222",
+        name: "Homelab",
+        schema_version: SCHEMA_VERSION,
+      },
+      ...overrides,
+    });
+  }
+
+  it("stamps the measured-width format when a device type has width_mm", () => {
+    const layout = layoutWithMetadata({
+      device_types: [createTestDeviceType({ width_mm: 72 })],
+    });
+
+    expect(saveSession(layout, backup)).toBe(true);
+    // Without the stamp an older release passes the version gate and then fails
+    // on the placement refinement, which is the orphan state the MAJOR avoids.
+    expect(storedStamp()).toBe(MEASURED_WIDTH_SCHEMA_VERSION);
+  });
+
+  it("leaves a layout without measured widths readable by the current format", () => {
+    expect(saveSession(layoutWithMetadata(), backup)).toBe(true);
+    expect(storedStamp()).toBe(SCHEMA_VERSION);
+  });
+
+  it("does not invent a metadata section for a body that has none", () => {
+    // LayoutMetadataSchema requires id and name, so a stamp-only section would
+    // make the saved body fail validation when the autosave door reads it back.
+    expect(saveSession(createTestLayout(), backup)).toBe(true);
+    expect(storedStamp()).toBeUndefined();
+    expect(loadSessionWithTimestamp()).not.toBeNull();
   });
 });

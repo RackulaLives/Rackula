@@ -20,6 +20,9 @@
   } from "$lib/actions/selection-actions";
   import type { Rack, SelectedDeviceInfo } from "$lib/types";
   import type { CellDirection } from "$lib/utils/collision";
+  import { isGeneratedCarrier } from "$lib/utils/custom-carrier";
+  import { canRotate, getRotation } from "$lib/utils/device-width";
+  import { gapsFor } from "$lib/utils/slot-layout";
 
   interface Props {
     selectedDeviceInfo: SelectedDeviceInfo;
@@ -46,6 +49,22 @@
       deviceIndex,
       direction,
     );
+  }
+
+  // Only a measured device turns, and it always sits in a carrier.
+  const canTurn = $derived(
+    isChildDevice && canRotate(selectedDeviceInfo.device),
+  );
+  const rotation = $derived(
+    getRotation(
+      selectedDeviceInfo.device,
+      selectedDeviceInfo.placedDevice.rotation,
+    ),
+  );
+
+  function rotateDevice() {
+    const { rack, deviceIndex } = selectedDeviceInfo;
+    layoutStore.rotateDevice(rack.id, deviceIndex);
   }
 
   const canMoveChildLeft = $derived(isChildDevice && canMoveCell("left"));
@@ -123,7 +142,60 @@
       slotName: slot?.name ?? placedDevice.slot_id ?? "Unknown",
     };
   });
+
+  // The gaps of a selected generated carrier. A gap belongs to the carrier and
+  // to a position between two cells, so it is edited here, on the carrier,
+  // and never on one of the devices sitting in it.
+  const editableGaps = $derived.by(() => {
+    const { placedDevice } = selectedDeviceInfo;
+    if (placedDevice.container_id) return null;
+    const type = layoutStore.device_types.find(
+      (d) => d.slug === placedDevice.device_type,
+    );
+    if (!type || !isGeneratedCarrier(type)) return null;
+    const gaps = gapsFor(type);
+    return gaps.length > 0 ? gaps : null;
+  });
+
+  function setGap(index: number, mm: number): boolean {
+    const gaps = editableGaps;
+    if (!gaps) return false;
+    const next = [...gaps];
+    next[index] = Math.max(0, mm);
+    return layoutStore.updateDeviceTypeSlotGaps(
+      selectedDeviceInfo.rack.id,
+      selectedDeviceInfo.placedDevice.id,
+      next,
+    );
+  }
 </script>
+
+<!-- Gaps between the cells of a custom split -->
+{#if editableGaps}
+  <div class="info-section gap-editor">
+    <h4 class="section-title">Gaps (mm)</h4>
+    {#each editableGaps as gap, index (index)}
+      <div class="gap-row">
+        <label for="slot-gap-{index}">
+          Between cell {index + 1} and cell {index + 2}
+        </label>
+        <input
+          id="slot-gap-{index}"
+          type="number"
+          min="0"
+          step="1"
+          value={gap}
+          onchange={(e) => {
+            // A refused gap leaves the carrier as it was, so show its gap again.
+            if (!setGap(index, Number(e.currentTarget.value))) {
+              e.currentTarget.value = String(gap);
+            }
+          }}
+        />
+      </div>
+    {/each}
+  </div>
+{/if}
 
 <!-- Container context for child devices -->
 {#if containerContext}
@@ -225,9 +297,49 @@
       ? "Use arrow keys to move between cells"
       : "Use ↑↓ keys to move device"}
   </p>
+  {#if canTurn}
+    <div class="info-row position-row">
+      <span class="info-label">Rotation</span>
+      <div class="position-controls">
+        <span class="info-value position-value" data-testid="device-rotation"
+          >{rotation}°</span
+        >
+        <div class="position-buttons">
+          <button
+            type="button"
+            class="position-btn"
+            data-testid="btn-rotate-device"
+            onclick={rotateDevice}
+            aria-label={rotation === 90
+              ? "Rotate device back to 0 degrees"
+              : "Rotate device 90 degrees onto its side"}
+            title={rotation === 90 ? "Rotate back to 0°" : "Rotate 90°"}
+          >
+            <span class="arrow-label">↻</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
+  .gap-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  .gap-row label {
+    font-size: var(--font-size-sm, 0.8125rem);
+    color: var(--neutral-400);
+  }
+
+  .gap-row input {
+    width: 5rem;
+  }
+
   .info-section {
     display: flex;
     flex-direction: column;

@@ -5,6 +5,7 @@
  */
 
 import type { DeviceFace } from "$lib/types";
+import { NEW_CELL_SLOT_ID } from "$lib/utils/dragdrop";
 import type { DropAction } from "$lib/utils/rack-drop-coordinator";
 import type { DragData } from "$lib/utils/dragdrop";
 import {
@@ -88,6 +89,19 @@ export function placeContainerDrop(
 ): boolean {
   const { containerId, slotId, position } = action.containerTarget;
   const source = placedDragSource(action.dragData);
+
+  // The row has no free cell but can grow one. Only a palette drop grows it:
+  // growing a row for a device already in the layout would place a second copy
+  // of it, so that drag falls back to the ordinary move rules.
+  if (slotId === NEW_CELL_SLOT_ID) {
+    if (source) return false;
+    return layoutStore.extendCustomCarrier(
+      action.rackId,
+      containerId,
+      action.slug,
+    );
+  }
+
   if (source) {
     return layoutStore.moveDeviceIntoContainer(
       source.rackId,

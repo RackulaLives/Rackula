@@ -19,6 +19,19 @@ import type {
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { effectiveFace } from "./effective-face";
+import {
+  fitsSlotWidth,
+  isNarrowDevice,
+  orientDeviceType,
+  requiresCarrier,
+} from "./device-width";
+import {
+  buildCustomCarrierType,
+  carrierUHeight,
+  cellForDevice,
+  cellsOf,
+} from "./custom-carrier";
+import { fitsInRow, gapsFor } from "./slot-layout";
 
 /**
  * Check if a placed device is a container child.
@@ -358,16 +371,20 @@ export function snapToNearestValidPosition(
  * Validates that the child device's width and height fit within the slot,
  * and that the device category is allowed by the slot (if slot.accepts is defined).
  *
- * slot_width mapping:
- * - 1 = half-width device (requires width_fraction >= 0.5)
- * - 2 = full-width device (requires width_fraction >= 1.0)
- * - Default (2) = full width device
+ * Width: a measured width_mm is compared to the slot's share of the rack
+ * opening. Otherwise slot_width 1 needs width_fraction >= 0.5 and slot_width 2
+ * (the default) needs 1.0.
  *
  * @param childType - The device type to place
  * @param slot - The target slot
+ * @param rackWidth - Nominal width in inches of the rack holding the container
  * @returns true if device fits and is allowed, false otherwise
  */
-export function canPlaceInSlot(childType: DeviceType, slot: Slot): boolean {
+export function canPlaceInSlot(
+  childType: DeviceType,
+  slot: Slot,
+  rackWidth: number,
+): boolean {
   // Check category is allowed (if slot.accepts is defined)
   // Empty accepts array or undefined means all categories allowed
   if (slot.accepts && slot.accepts.length > 0) {
@@ -376,15 +393,7 @@ export function canPlaceInSlot(childType: DeviceType, slot: Slot): boolean {
     }
   }
 
-  // Convert slot_width to fraction (1=0.5, 2=1.0)
-  // Default slot_width is 2 (full-width), which requires full width_fraction
-  const slotWidth = childType.slot_width ?? 2;
-  const requiredFraction = slotWidth === 1 ? 0.5 : 1.0;
-
-  // Check width fits
-  const availableFraction = slot.width_fraction ?? 1.0;
-  if (requiredFraction > availableFraction + 0.01) {
-    // +0.01 for floating point tolerance
+  if (!fitsSlotWidth(childType, slot.width_fraction, rackWidth)) {
     return false;
   }
 
@@ -398,31 +407,52 @@ export function canPlaceInSlot(childType: DeviceType, slot: Slot): boolean {
 }
 
 /**
+ * Container children that would not fit their cells at the given rack width.
+ * A measured width is fitted against the rack opening, so changing a rack's
+ * width or moving a carrier to another rack must re-check its children.
+ *
+ * @param devices - Placed devices; each child is matched to its container among them
+ * @param deviceTypes - Layout device types (the starter library is also searched)
+ * @param rackWidth - Nominal rack width in inches to check against
+ * @returns The children that would no longer fit
+ */
+export function findChildrenTooWideForRack(
+  devices: PlacedDevice[],
+  deviceTypes: DeviceType[],
+  rackWidth: number,
+): PlacedDevice[] {
+  return devices.filter((child) => {
+    if (!child.container_id || !child.slot_id) return false;
+    const container = devices.find((d) => d.id === child.container_id);
+    if (!container) return false;
+    const childType = findDeviceType(child.device_type, deviceTypes);
+    const slot = findDeviceType(
+      container.device_type,
+      deviceTypes,
+    )?.slots?.find((s) => s.id === child.slot_id);
+    if (!childType || !slot) return false;
+    return !fitsSlotWidth(
+      orientDeviceType(childType, child.rotation),
+      slot.width_fraction,
+      rackWidth,
+    );
+  });
+}
+
+/** How a device gets a carrier: a shipped slug, or a type to generate. */
+export interface CarrierPlan {
+  slug: string;
+  /** Present only for a generated carrier; import it before placing. */
+  type?: DeviceType;
+}
+
+/**
  * Stable slugs of the synthesised carriers (defined in the starter library).
  * The drag/drop layer and the import adapter both target these exact slugs.
  */
 export const CARRIER_2COL_SLUG = "carrier-1u-2col";
 export const CARRIER_2X2_SLUG = "carrier-1u-2x2";
 export const CARRIER_2U_2COL_SLUG = "carrier-2u-2col";
-
-/**
- * Whether a device must mount inside a carrier rather than directly on the
- * rails (carrier-first rule, #2158). Sub-U, non-integer-height, or half-width
- * gear cannot register to whole-U rails. Blank filler panels are exempt: a
- * blank may rail-mount at any height. This is the single predicate the schema
- * (LayoutSchema.superRefine) and the store (placeDevice / moveDevice) share so
- * the two layers enforce identical rules.
- *
- * @param deviceType - The device being placed
- * @returns true when a rail placement is forbidden and a carrier is required
- */
-export function requiresCarrier(deviceType: DeviceType): boolean {
-  if (deviceType.category === "blank") return false;
-  const isHalfWidth = (deviceType.slot_width ?? 2) === 1;
-  const isSubU = deviceType.u_height < 1;
-  const isNonIntegerHeight = !Number.isInteger(deviceType.u_height);
-  return isHalfWidth || isSubU || isNonIntegerHeight;
-}
 
 /**
  * Whether an internal-unit position sits on a whole-U rail boundary. Rails
@@ -441,30 +471,34 @@ export function isWholeURailPosition(positionInternal: number): boolean {
 }
 
 /**
- * Pick the carrier slug that a half-width device must mount inside, based on
- * its height. Both synthesised carriers have half-width cells, so only
- * half-width gear can be carrier-mounted: a sub-U device needs the 2x2 grid; a
- * whole-U device needs a height-matched column carrier (1U or 2U).
+ * Pick the carrier a narrow device (half-width, or measured) must mount inside.
+ * A measured device gets a carrier generated around one cell cut to its own
+ * size, whatever its height: the carrier takes the whole U that holds the cell,
+ * so the rack opening is the only ceiling. Everything else takes a shipped
+ * carrier, whose cells are half-width: a sub-U device the 2x2 grid, a whole-U
+ * device a height-matched column carrier (1U or 2U).
  *
  * Returns null (no rail carrier) when:
  * - the device is full-width (there is no full-width carrier to synthesise);
+ * - a measured width is wider than the rack opening;
  * - the device is a chassis child (subdevice_role "child") - it mounts only
  *   inside an existing parent bay, never on the rails;
  * - the whole-U height has no matching carrier defined (e.g. a 3U half-width) -
  *   returning a too-small carrier is exactly the bug this replaced (#2854).
  *
  * A null result for a device that `requiresCarrier` is true for is the honest
- * "cannot rail-mount, needs a chassis" signal the placement layers share (see
- * `requiresChassisBay`).
+ * "cannot rail-mount, needs an existing bay" signal the placement layers share
+ * (see `requiresChassisBay`).
  *
  * @param deviceType - The device being placed
- * @returns The carrier slug to synthesise, or null when no rail carrier applies
+ * @param rackWidth - Nominal width in inches of the target rack
+ * @returns How to carry it, or null when no rail carrier applies
  */
 export function synthesizeCarrierForDevice(
   deviceType: DeviceType,
-): string | null {
-  // Only half-width gear fits the half-width carrier cells.
-  if ((deviceType.slot_width ?? 2) !== 1) {
+  rackWidth: number,
+): CarrierPlan | null {
+  if (!isNarrowDevice(deviceType)) {
     return null;
   }
 
@@ -474,11 +508,21 @@ export function synthesizeCarrierForDevice(
     return null;
   }
 
+  // A measured device gets a cell cut to its own width, so the shipped half
+  // cell is no longer the ceiling. Only the whole opening can refuse it. The
+  // carrier is whole-U, so a height between whole U still gets one.
+  if (deviceType.width_mm !== undefined) {
+    const cell = cellForDevice(deviceType, rackWidth);
+    if (cell.widthFraction > 1) return null;
+    const type = buildCustomCarrierType(carrierUHeight([cell]), [cell], []);
+    return { slug: type.slug, type };
+  }
+
   // Sub-1U gear uses the 2x2 grid carrier (its cells are half-U tall). A
   // non-integer height at or above 1U has no matching carrier, so it falls
   // through to null rather than a too-small carrier.
   if (deviceType.u_height < 1) {
-    return CARRIER_2X2_SLUG;
+    return { slug: CARRIER_2X2_SLUG };
   }
   if (!Number.isInteger(deviceType.u_height)) {
     return null;
@@ -486,31 +530,89 @@ export function synthesizeCarrierForDevice(
 
   // Whole-U half-width gear uses a height-matched column carrier. Heights with
   // no matching carrier return null rather than a too-small carrier.
-  if (deviceType.u_height === 1) return CARRIER_2COL_SLUG;
-  if (deviceType.u_height === 2) return CARRIER_2U_2COL_SLUG;
+  if (deviceType.u_height === 1) return { slug: CARRIER_2COL_SLUG };
+  if (deviceType.u_height === 2) return { slug: CARRIER_2U_2COL_SLUG };
   return null;
+}
+
+/**
+ * Rebuild a generated carrier around its children as they stand: each cell is
+ * cut to its child's footprint, and the carrier takes the whole U holding its
+ * tallest child. A cell with no child keeps its shape.
+ *
+ * @param rack - The rack holding the carrier
+ * @param carrier - The placed generated carrier
+ * @param carrierType - Its current type
+ * @param deviceTypes - Layout device types, for the rail check when it grows
+ * @param footprintOf - A child's footprint: its type turned as it stands, with
+ *   any change the caller is about to make already applied
+ * @returns The reshaped type, or null when the cells overflow the opening or
+ *   the carrier would grow into a device or past the rack top
+ */
+export function reshapeCarrier(
+  rack: Rack,
+  carrier: PlacedDevice,
+  carrierType: DeviceType,
+  deviceTypes: DeviceType[],
+  footprintOf: (child: PlacedDevice) => DeviceType | undefined,
+): DeviceType | null {
+  const cells = cellsOf(carrierType).map((cell, index) => {
+    const slotId = carrierType.slots?.[index]?.id;
+    const child = rack.devices.find(
+      (d) => d.container_id === carrier.id && d.slot_id === slotId,
+    );
+    const footprint = child && footprintOf(child);
+    return footprint ? cellForDevice(footprint, rack.width) : cell;
+  });
+  const type = buildCustomCarrierType(
+    carrierUHeight(cells),
+    cells,
+    gapsFor(carrierType),
+  );
+
+  if (!fitsInRow(type, rack.width, 0)) return null;
+  if (
+    type.u_height > carrierType.u_height &&
+    !canPlaceDevice(
+      rack,
+      deviceTypes,
+      type.u_height,
+      carrier.position,
+      rack.devices.indexOf(carrier),
+      carrier.face,
+    )
+  ) {
+    return null;
+  }
+  return type;
 }
 
 /**
  * Whether a device can never register on the rails, even inside a synthesised
  * carrier, so it can be placed ONLY inside an existing chassis/carrier bay. It
- * requires a carrier (half-width / sub-U / non-integer) but no carrier can be
- * synthesised for it - a chassis child, or a half-width device whose integer
- * height has no matching carrier.
+ * requires a carrier (narrow / sub-U / non-integer) but no carrier can be
+ * synthesised for it - a chassis child, a half-width device whose integer
+ * height has no matching carrier, or a measured device wider than the rack
+ * opening.
  *
  * This is the single predicate the preview (resolveDropTarget), the keyboard
  * (validStartPositions / primeKeyboardPlacement), and the store (placeDeviceSmart
  * via placeDeviceRecorded's requiresCarrier guard) share so bare-rails validity
  * agrees across all three: an invalid preview, no announced rail slot, and a
- * refused placement, all with the honest "requires a chassis" message.
+ * refused placement, all with the honest needs-a-bay message
+ * (chassisRequirementMessage).
  *
  * @param deviceType - The device being placed
+ * @param rackWidth - Nominal width in inches of the target rack
  * @returns true when the device cannot rail-mount and needs an existing bay
  */
-export function requiresChassisBay(deviceType: DeviceType): boolean {
+export function requiresChassisBay(
+  deviceType: DeviceType,
+  rackWidth: number,
+): boolean {
   return (
     requiresCarrier(deviceType) &&
-    synthesizeCarrierForDevice(deviceType) === null
+    synthesizeCarrierForDevice(deviceType, rackWidth) === null
   );
 }
 
@@ -557,6 +659,7 @@ export function findNextFreeChildPosition(
  * @param childType - The DeviceType of the contained child
  * @param currentSlotId - The slot the child currently occupies
  * @param siblings - Other children already in this carrier (excluding the child)
+ * @param rackWidth - Nominal width in inches of the rack holding the carrier
  * @returns The next free, fitting { slotId } or null when none is reachable
  */
 export function findNextSlotForChild(
@@ -564,6 +667,7 @@ export function findNextSlotForChild(
   childType: DeviceType,
   currentSlotId: string,
   siblings: PlacedDevice[],
+  rackWidth: number,
 ): { slotId: string } | null {
   const slots = containerType.slots ?? [];
   const currentIndex = slots.findIndex((s) => s.id === currentSlotId);
@@ -578,7 +682,7 @@ export function findNextSlotForChild(
   for (let offset = 1; offset < slots.length; offset++) {
     const slot = slots[(currentIndex + offset) % slots.length]!;
     if (occupied.has(slot.id)) continue;
-    if (!canPlaceInSlot(childType, slot)) continue;
+    if (!canPlaceInSlot(childType, slot, rackWidth)) continue;
     return { slotId: slot.id };
   }
 
@@ -600,6 +704,7 @@ export type CellDirection = "up" | "down" | "left" | "right";
  * @param currentSlotId - The slot the child currently occupies
  * @param siblings - Other children already in this carrier (excluding the child)
  * @param direction - Which way to move
+ * @param rackWidth - Nominal width in inches of the rack holding the carrier
  * @returns The target { slotId } or null when no free cell lies that way
  */
 export function findAdjacentSlotForChild(
@@ -608,6 +713,7 @@ export function findAdjacentSlotForChild(
   currentSlotId: string,
   siblings: PlacedDevice[],
   direction: CellDirection,
+  rackWidth: number,
 ): { slotId: string } | null {
   const slots = containerType.slots ?? [];
   const current = slots.find((s) => s.id === currentSlotId);
@@ -636,7 +742,8 @@ export function findAdjacentSlotForChild(
     );
 
   const target = candidates.find(
-    (slot) => !occupied.has(slot.id) && canPlaceInSlot(childType, slot),
+    (slot) =>
+      !occupied.has(slot.id) && canPlaceInSlot(childType, slot, rackWidth),
   );
   return target ? { slotId: target.id } : null;
 }
@@ -689,7 +796,7 @@ export function canPlaceInContainer(
   }
 
   // Check if child device dimensions fit within the slot
-  if (!canPlaceInSlot(childType, targetSlot)) {
+  if (!canPlaceInSlot(childType, targetSlot, rack.width)) {
     return false;
   }
 

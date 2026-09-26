@@ -14,7 +14,9 @@
   import MarkdownPreview from "./MarkdownPreview.svelte";
   import SavedIndicator from "./ui/SavedIndicator.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
+  import { getToastStore } from "$lib/stores/toast.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
+  import { findChildrenTooWideForRack } from "$lib/utils/collision";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import {
@@ -43,12 +45,32 @@
   let { selectedRack, selectedGroup }: Props = $props();
 
   const layoutStore = getLayoutStore();
+  const toastStore = getToastStore();
   const uiStore = getUIStore();
   const canvasStore = getCanvasStore();
 
   // Selectable rack widths. RackSchema.width already permits all four; the
   // to-scale 21-inch drawing lands in #2736.
   const widthOptions = [10, 19, 21, 23] as const;
+
+  // A narrower rack can leave measured devices too wide for their shelf cells;
+  // the store refuses that change, so say why.
+  function handleWidthClick(width: (typeof widthOptions)[number]) {
+    const tooWide = findChildrenTooWideForRack(
+      selectedRack.devices,
+      layoutStore.device_types,
+      width,
+    );
+    if (tooWide.length > 0) {
+      toastStore.showToast(
+        `Can't change to ${width} inch: some devices would be too wide for their shelf cells`,
+        "warning",
+        4000,
+      );
+      return;
+    }
+    layoutStore.updateRack(selectedRack.id, { width });
+  }
 
   // Form factor options for the selector.
   const formFactorOptions: { value: FormFactor; label: string }[] = [
@@ -348,8 +370,7 @@
           class="preset-btn"
           class:active={selectedRack.width === option}
           aria-pressed={selectedRack.width === option}
-          onclick={() =>
-            layoutStore.updateRack(selectedRack.id, { width: option })}
+          onclick={() => handleWidthClick(option)}
         >
           {option}"
         </button>

@@ -31,6 +31,7 @@ describe("RackDevice port indicators (#3009)", () => {
         selected: false,
         uHeight: 30,
         rackWidth: 300,
+        nominalRackWidth: 19,
       },
     });
 
@@ -48,6 +49,7 @@ describe("RackDevice port indicators with unknown interface types (#3289)", () =
     selected: false,
     uHeight: 30,
     rackWidth: 300,
+    nominalRackWidth: 19,
   };
 
   it("groups a high-density device whose type is named after an Object prototype member", () => {
