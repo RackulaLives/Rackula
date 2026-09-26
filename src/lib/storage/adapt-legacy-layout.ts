@@ -245,13 +245,17 @@ type CarrierShape = "2x2" | number;
 
 /**
  * Pick the carrier shape for a device: sub-U gear needs the 2x2 grid, whole-U
- * gear a height-matched two-column carrier. A height with no matching carrier
- * falls back to the 1U columns, as before taller carriers existed.
+ * gear a height-matched two-column carrier. Returns undefined when no carrier
+ * matches the height (taller than MAX_TWO_COLUMN_CARRIER_U): a too-small
+ * carrier would misstate the rail footprint (#2854), so the device is left
+ * for a chassis bay, as synthesizeCarrierForDevice does.
  */
-function carrierShapeFor(deviceType: DeviceType | undefined): CarrierShape {
+function carrierShapeFor(
+  deviceType: DeviceType | undefined,
+): CarrierShape | undefined {
   if (isSubUHeight(deviceType)) return "2x2";
   const height = deviceType?.u_height ?? 1;
-  return hasTwoColumnCarrier(height) ? height : 1;
+  return hasTwoColumnCarrier(height) ? height : undefined;
 }
 
 /** Carrier slug for a shape. */
@@ -352,6 +356,10 @@ function adaptRackDevices(
     // A forced bare pair always wraps as a 2-column carrier; otherwise the
     // device's own dimensions choose the shape.
     const shape = forced ? 1 : carrierShapeFor(dt);
+    if (shape === undefined) {
+      result.push(d);
+      continue;
+    }
     const key = `${d.position}|${d.face}|${shape}`;
     const group = groups.get(key);
     if (group) group.items.push(d);
