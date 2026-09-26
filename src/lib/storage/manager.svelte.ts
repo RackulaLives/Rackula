@@ -517,12 +517,16 @@ export async function handleSaveAsArchive(): Promise<boolean> {
  */
 function resolveLayoutMetadata(layout: {
   name: string;
+  device_types: Layout["device_types"];
   metadata?: Partial<LayoutMetadata>;
 }): LayoutMetadata {
   return {
     id: layout.metadata?.id ?? generateId(),
     name: layout.metadata?.name ?? layout.name,
-    schema_version: schemaVersionForWrite(layout.metadata?.schema_version),
+    schema_version: schemaVersionForWrite(
+      layout.metadata?.schema_version,
+      layout.device_types,
+    ),
     description: layout.metadata?.description,
   };
 }

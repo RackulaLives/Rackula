@@ -57,6 +57,7 @@ describe("RackDevice placement-mode select suppression (#2990)", () => {
         selected: false,
         uHeight: 30,
         rackWidth: 300,
+        nominalRackWidth: 19,
         onselect,
       },
     });
@@ -80,6 +81,7 @@ describe("RackDevice placement-mode select suppression (#2990)", () => {
         selected: false,
         uHeight: 30,
         rackWidth: 300,
+        nominalRackWidth: 19,
         onselect,
       },
     });

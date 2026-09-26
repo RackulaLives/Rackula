@@ -24,6 +24,7 @@ import type { PlacedDevice } from "$lib/types";
 import { LayoutSchema } from "$lib/schemas";
 import { toInternalUnits } from "$lib/utils/position";
 import { dispatchDropAction } from "$lib/utils/rack-drop-handlers";
+import { NEW_CELL_SLOT_ID } from "$lib/utils/dragdrop";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
 import { resetCarrierHint } from "$lib/stores/layout/device-actions";
 import { CARRIER_HINT_MESSAGE } from "$lib/constants/toast-messages";
@@ -64,23 +65,23 @@ const fullWidthSubU = createTestDeviceType({
 
 describe("synthesizeCarrierForDevice", () => {
   it("returns the 2x2 carrier slug for a half-width half-height device", () => {
-    expect(synthesizeCarrierForDevice(halfWidthHalfHeight)).toBe(
+    expect(synthesizeCarrierForDevice(halfWidthHalfHeight, 19)?.slug).toBe(
       "carrier-1u-2x2",
     );
   });
 
   it("returns the 2-col carrier slug for a half-width full-height device", () => {
-    expect(synthesizeCarrierForDevice(halfWidthFullHeight)).toBe(
+    expect(synthesizeCarrierForDevice(halfWidthFullHeight, 19)?.slug).toBe(
       "carrier-1u-2col",
     );
   });
 
   it("returns null for a full-width whole-U device (no carrier needed)", () => {
-    expect(synthesizeCarrierForDevice(fullWidthDevice)).toBeNull();
+    expect(synthesizeCarrierForDevice(fullWidthDevice, 19)).toBeNull();
   });
 
   it("returns null for a full-width sub-U device (no half-width carrier fits)", () => {
-    expect(synthesizeCarrierForDevice(fullWidthSubU)).toBeNull();
+    expect(synthesizeCarrierForDevice(fullWidthSubU, 19)).toBeNull();
   });
 });
 
@@ -809,6 +810,48 @@ describe("moving a carrier child keeps its identity (#2295)", () => {
 
     store.undo();
     expect(snapshotRack(store, rackId)).toEqual(before);
+  });
+
+  it("refuses to grow a carrier's row for a device already in it", () => {
+    // A full row grows a cell for a palette drop. Growing it for a device
+    // already in the layout would place a second copy and leave the first
+    // where it was, so that drag falls back to the ordinary move rules.
+    const store = getLayoutStore()!;
+    const rack = store.addRack("Test Rack", 12)!;
+    const measured = createTestDeviceType({
+      slug: "mini-pc",
+      model: "Mini PC",
+      u_height: 1,
+      width_mm: 100,
+    });
+    store.addDeviceTypeRaw(measured);
+    store.placeDeviceSmart(rack.id, measured.slug, 5);
+    const carrier = carriersIn(store, rack.id)[0]!;
+    const child = childIn(store, rack.id, carrier.id);
+    const before = snapshotRack(store, rack.id);
+
+    dispatchDropAction(
+      {
+        kind: "container-drop",
+        rackId: rack.id,
+        slug: measured.slug,
+        containerTarget: {
+          containerId: carrier.id,
+          slotId: NEW_CELL_SLOT_ID,
+          position: 0,
+        },
+        dragData: dragDataFor(store, rack.id, child.id),
+      },
+      {},
+      {
+        rack: store.getRackById(rack.id)!,
+        deviceLibrary: store.device_types,
+        toastStore: getToastStore(),
+        layoutStore: store,
+      },
+    );
+
+    expect(snapshotRack(store, rack.id)).toEqual(before);
   });
 
   it("refuses a move with no room and changes nothing", () => {

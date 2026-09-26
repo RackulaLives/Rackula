@@ -17,6 +17,12 @@
   } from "$lib/types/constants";
   import { getDefaultColour } from "$lib/utils/device";
   import { getCropUnitHeight } from "$lib/utils/image-crop";
+  import {
+    WIDTH_UNITS,
+    getRackOpeningMm,
+    toMillimetres,
+    type WidthUnit,
+  } from "$lib/utils/device-width";
 
   interface Props {
     open: boolean;
@@ -32,6 +38,7 @@
       notes: string;
       isFullDepth: boolean;
       isHalfWidth: boolean;
+      widthMm?: number;
       rackWidths: RackWidth[];
       frontImage?: ImageData;
       rearImage?: ImageData;
@@ -76,6 +83,14 @@
     return activeRackWidth ?? 19;
   }
 
+  // Narrowest rack the device is declared to fit. A measured width is checked
+  // against this one, not the active rack: rack_widths travels with the device
+  // type, so "Both" must fit a 10 inch opening and "19 inch" a 19 inch one even
+  // when the rack in front of the user is wider.
+  function getNarrowestTargetRackWidth(): number {
+    return Math.min(...optionToRackWidths(rackWidthOption));
+  }
+
   // Form state
   let name = $state("");
   let height = $state(1);
@@ -84,14 +99,27 @@
   let notes = $state("");
   let isFullDepth = $state(true);
   let isHalfWidth = $state(false);
+  // Optional measured width; an empty number input binds to null.
+  let widthValue = $state<number | null>(null);
+  let widthUnit = $state<WidthUnit>("mm");
   let rackWidthOption = $state<RackWidthOption>(getDefaultRackWidthOption());
   // The image is drawn in every rack width the device fits, so the crop shows
   // guides for the widths it is not framed for.
   const cropRackWidth = $derived(getCropRackWidth(rackWidthOption));
-  // The crop frame follows the form: a half-width device is drawn in a carrier
-  // cell half the interior wide, so it is framed that way rather than to the
-  // full rails.
-  const cropWidthFraction = $derived(isHalfWidth ? 0.5 : 1);
+  // The crop frame follows the form: a measured device is drawn in a carrier
+  // cell cut to its width, and a half-width device in a cell half the interior
+  // wide, so each is framed that way rather than to the full rails.
+  const cropWidthFraction = $derived(
+    widthValue != null
+      ? Math.min(
+          1,
+          toMillimetres(widthValue, widthUnit) /
+            getRackOpeningMm(cropRackWidth),
+        )
+      : isHalfWidth
+        ? 0.5
+        : 1,
+  );
   const cropWidthLabel = $derived(
     isHalfWidth
       ? `a half-width ${getCropUnitHeight(height)}U device in a ${cropRackWidth} inch rack`
@@ -107,6 +135,9 @@
   // Validation errors
   let nameError = $state("");
   let heightError = $state("");
+  let widthError = $state("");
+
+  const hasWidth = $derived(widthValue !== null && widthValue !== undefined);
 
   // Reset form when dialog opens
   $effect(() => {
@@ -118,6 +149,9 @@
       notes = "";
       isFullDepth = true;
       isHalfWidth = false;
+      widthValue = null;
+      widthUnit = "mm";
+      widthError = "";
       rackWidthOption = getDefaultRackWidthOption();
       userChangedColour = false;
       nameError = "";
@@ -167,6 +201,7 @@
     let valid = true;
     nameError = "";
     heightError = "";
+    widthError = "";
 
     if (!name.trim()) {
       nameError = "Name is required";
@@ -176,6 +211,20 @@
     if (height < MIN_DEVICE_HEIGHT || height > MAX_DEVICE_HEIGHT) {
       heightError = `Height must be between ${MIN_DEVICE_HEIGHT} and ${MAX_DEVICE_HEIGHT}`;
       valid = false;
+    }
+
+    if (hasWidth) {
+      // Check the stored value: tiny inputs round to 0 mm.
+      const widthMm = toMillimetres(widthValue!, widthUnit);
+      const rackWidth = getNarrowestTargetRackWidth();
+      const openingMm = getRackOpeningMm(rackWidth);
+      if (!(widthMm > 0)) {
+        widthError = "Width must be at least 0.1 mm";
+        valid = false;
+      } else if (widthMm > openingMm) {
+        widthError = `Too wide for a shelf in a ${rackWidth} inch rack (up to ${Math.floor(openingMm)} mm). Leave width empty for rack-mount gear.`;
+        valid = false;
+      }
     }
 
     return valid;
@@ -190,7 +239,9 @@
         colour,
         notes: notes.trim(),
         isFullDepth,
-        isHalfWidth,
+        // A measured width overrides Half Width, so submit the rendered state.
+        isHalfWidth: isHalfWidth && !hasWidth,
+        widthMm: hasWidth ? toMillimetres(widthValue!, widthUnit) : undefined,
         rackWidths: optionToRackWidths(rackWidthOption),
         frontImage,
         rearImage,
@@ -333,13 +384,54 @@
       />
     </div>
 
+    <!-- Measured width (#3310) -->
+    <div class="form-group">
+      <label for="device-width">Width (optional)</label>
+      <div class="width-input-wrapper">
+        <input
+          type="number"
+          id="device-width"
+          class="input-field"
+          bind:value={widthValue}
+          min="0"
+          step="any"
+          placeholder="e.g., 72"
+          class:error={widthError}
+          oninput={() => (widthError = "")}
+        />
+        <select
+          id="device-width-unit"
+          class="input-field"
+          aria-label="Width unit"
+          bind:value={widthUnit}
+          onchange={() => (widthError = "")}
+        >
+          {#each WIDTH_UNITS as unit (unit)}
+            <option value={unit}>{unit}</option>
+          {/each}
+        </select>
+      </div>
+      {#if widthError}
+        <span class="error-message">{widthError}</span>
+      {:else}
+        <span class="helper-text"
+          >For gear that sits on a shelf or carrier. Leave empty for rack-mount
+          gear.</span
+        >
+      {/if}
+    </div>
+
     <!-- Half-width toggle (#833) -->
     <div class="form-group">
       <Switch
         id="device-half-width"
-        bind:checked={isHalfWidth}
+        checked={isHalfWidth && !hasWidth}
+        onchange={(checked) => (isHalfWidth = checked)}
+        disabled={hasWidth}
         label="Half Width"
-        helperText="Occupies left or right half of rack width"
+        helperText={hasWidth
+          ? "Set by the measured width"
+          : "Occupies left or right half of rack width"}
       />
     </div>
 
@@ -462,6 +554,12 @@
   .error-message {
     font-size: var(--font-size-sm);
     color: var(--colour-error);
+  }
+
+  .width-input-wrapper {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-2);
   }
 
   .colour-input-wrapper {

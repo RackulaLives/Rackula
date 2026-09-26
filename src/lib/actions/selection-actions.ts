@@ -216,6 +216,7 @@ function nextSlotForSelectedDevice(
     childType,
     child.slot_id,
     siblings,
+    rack.width,
   );
 }
 

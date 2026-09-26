@@ -76,6 +76,7 @@ function renderCarrier(
       selected: false,
       uHeight: U_PX,
       rackWidth: RACK_WIDTH,
+      nominalRackWidth: 19,
       placedDeviceId: carrier.id,
       deviceLibrary: store.device_types,
       containerChildDevices: children,

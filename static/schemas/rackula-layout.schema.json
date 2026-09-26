@@ -58,6 +58,9 @@
             "maxLength": 100,
             "type": "string"
           },
+          "auto_created": {
+            "type": "boolean"
+          },
           "category": {
             "enum": [
               "server",
@@ -402,6 +405,13 @@
             "maxLength": 100,
             "type": "string"
           },
+          "slot_gaps": {
+            "items": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "type": "array"
+          },
           "slot_width": {
             "anyOf": [
               {
@@ -525,6 +535,10 @@
               "lb"
             ],
             "type": "string"
+          },
+          "width_mm": {
+            "exclusiveMinimum": 0,
+            "type": "number"
           }
         },
         "required": [

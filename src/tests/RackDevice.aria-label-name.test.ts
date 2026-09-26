@@ -28,6 +28,7 @@ describe("RackDevice aria-label name precedence (#2999)", () => {
         selected: false,
         uHeight: 30,
         rackWidth: 300,
+        nominalRackWidth: 19,
         placedDeviceName: "db-primary",
       },
     });
@@ -54,6 +55,7 @@ describe("RackDevice aria-label name precedence (#2999)", () => {
         selected: false,
         uHeight: 30,
         rackWidth: 300,
+        nominalRackWidth: 19,
       },
     });
 

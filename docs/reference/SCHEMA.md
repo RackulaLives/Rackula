@@ -58,6 +58,10 @@ Five-point check. Any of remove / rename / retype / require / redefine on an exi
 
 `cables` was additive (MINOR). The pre-0.7.0 position-units change would have been MAJOR. The `images` section (issue #617) is additive (MINOR): `schema_version` stays `1.0`.
 
+### Measured widths stamp 2.0
+
+`DeviceType.width_mm` (issue #3310) changes how a device fits a container cell, and a 1.x reader would treat a measured device as full width and reject its placement in a narrower cell. It is a MAJOR change, but it is stamped only when used: a writer stamps `2.0` (`MEASURED_WIDTH_SCHEMA_VERSION`) when any device type has `width_mm`, and `SCHEMA_VERSION` otherwise. A 1.x release then refuses a layout with measured devices with the "made by a newer Rackula" message, and still opens every layout without them. Removing the last measured device and saving restamps the file to `SCHEMA_VERSION`. Share links carry no version marker, so an older release that opens a link with a measured device ignores `wm` and may load it with that device treated as full width.
+
 ### Preserving additive data on save
 
 Additive MINOR changes are only safe across builds if writers preserve sections they do not recognize. The serializer (`serializeLayoutToYaml`) emits a fixed set of top-level keys, so the format requires unknown top-level sections to be round-tripped: captured on read and re-emitted on save, so an older build cannot silently drop a newer build's additive section on resave. A section whose loss would be unacceptable and that cannot be round-tripped is a signal to make the change MAJOR instead.
@@ -112,6 +116,7 @@ Template definition for devices in the library. Referenced by `PlacedDevice.devi
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `u_height` | `number` | Yes | Height in rack units (0.5-50, multiples of 0.5) |
+| `width_mm` | `number` | No | Measured width in millimetres (positive) for gear that sits on a shelf or carrier. Marks the device as carrier-mounted and sets which cells it fits. Stamps `schema_version` 2.0 |
 | `is_full_depth` | `boolean` | No | Full rack depth? (default: `true`) |
 | `is_powered` | `boolean` | No | Device requires power? (default: `true`) |
 | `weight` | `number` | No | Weight value (positive number) |
@@ -172,6 +177,17 @@ In server-side persistence mode, no base64 image data appears in the stored layo
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `subdevice_role` | `SubdeviceRole` | No | Role in parent/child relationship |
+
+#### Container Cells
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slots` | `Slot[]` | No | The cells a container offers its children. A device type with at least one slot is a container |
+| `slot_width` | `1` \| `2` | No | Width a device without `width_mm` needs: 1 fits a cell of `width_fraction` 0.5 or more, 2 (the default) needs a full-width cell |
+| `slot_gaps` | `number[]` | No | Millimetres between neighbouring cells of a single-row container, one value per boundary: n cells need n - 1 gaps, and a wrong count is rejected |
+| `auto_created` | `boolean` | No | The type was generated for one carrier's split rather than authored in a library. Generated types stay out of the palette and are dropped once no placed carrier uses them |
+
+A `Slot` carries an `id`, a `position` of `row` and `col`, and optionally a `name`, a `width_fraction` (its share of the rack's clear opening, up to 1), a `height_units` height in U, and an `accepts` list of device categories.
 
 #### Power Device Properties
 

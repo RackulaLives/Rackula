@@ -10,6 +10,7 @@
 
 import { describe, it, expect } from "vitest";
 import { getBrandPacks } from "$lib/data/brandPacks";
+import { getStarterLibrary } from "$lib/data/starterLibrary";
 import { DeviceTypeSchema, InterfaceTypeSchema } from "$lib/schemas";
 
 // Get all brand packs dynamically - no hardcoded list needed
@@ -75,6 +76,18 @@ describe("Cross-Brand Validation", () => {
     const duplicates = ids.filter((id, i) => ids.indexOf(id) !== i);
     expect(duplicates).toEqual([]);
     expect(uniqueIds.size).toBe(ids.length);
+  });
+
+  it("no starter or brand-pack device carries a measured width", () => {
+    // The 2.0 schema stamp reads only a layout's embedded device_types, so a
+    // shipped device with width_mm would save without it and stamp as 1.1.
+    const measured = [
+      ...getStarterLibrary(),
+      ...ALL_BRAND_PACKS.flatMap((pack) => pack.devices),
+    ]
+      .filter((device) => device.width_mm !== undefined)
+      .map((device) => device.slug);
+    expect(measured).toEqual([]);
   });
 
   it("no duplicate titles across brand packs", () => {

@@ -10,13 +10,17 @@
 -->
 <script lang="ts">
   import type { DeviceType } from "$lib/types";
-  import type { SlotRect } from "$lib/utils/slot-geometry";
+  import { slotLayout } from "$lib/utils/slot-layout";
 
   interface Props {
     /** The container device type with slots array */
     containerType: DeviceType;
-    /** Cell rectangles by slot id, the same ones the children render in */
-    slotRects: Map<string, SlotRect>;
+    /** Width of the container in pixels */
+    containerWidth: number;
+    /** Nominal rack width in inches, to size gaps in millimetres */
+    nominalRackWidth: number;
+    /** Height of the container in pixels */
+    containerHeight: number;
     /** ID of the currently selected slot (null if none) */
     selectedSlotId: string | null;
     /** ID of the slot that is currently a drop target (null if none) */
@@ -29,7 +33,9 @@
 
   let {
     containerType,
-    slotRects,
+    containerWidth,
+    nominalRackWidth,
+    containerHeight,
     selectedSlotId,
     dropTargetSlotId = null,
     isValidDropTarget = false,
@@ -38,6 +44,10 @@
 
   // Get slots from container type, defaulting to empty array
   const slots = $derived(containerType.slots ?? []);
+
+  // Below this a dimension would not read, so the gap is left unlabelled rather
+  // than printing digits on top of each other.
+  const MIN_GAP_LABEL_PX = 14;
 
   // Detect container type for visual styling variants
   const isShelf = $derived(containerType.category === "shelf");
@@ -48,6 +58,20 @@
         containerType.category === "chassis" ||
         (containerType.slots?.length ?? 0) > 2), // Many slots suggests blade chassis
   );
+
+  // Cells, gaps and any free space at the end of the row, from the shared
+  // layout so this grid, the drawn children and the drop target agree.
+  const layout = $derived(
+    slotLayout(
+      containerType,
+      containerWidth,
+      nominalRackWidth,
+      containerHeight,
+    ),
+  );
+
+  // Cell rectangles by slot id, the same ones the children render in.
+  const cells = $derived(new Map(layout.slots.map((band) => [band.id, band])));
 
   /**
    * Build CSS class string for a slot based on its state.
@@ -96,8 +120,55 @@
   class:shelf-style={isShelf}
   class:chassis-style={isChassis}
 >
+  <defs>
+    <pattern
+      id="slot-gap-hatch-{containerType.slug}"
+      width="6"
+      height="6"
+      patternUnits="userSpaceOnUse"
+      patternTransform="rotate(45)"
+    >
+      <line x1="0" y1="0" x2="0" y2="6" class="gap-hatch-line" />
+    </pattern>
+  </defs>
+
+  <!-- A gap is reserved space: hatched and dimensioned, nothing drops in it. -->
+  {#each layout.gaps as gap (gap.index)}
+    <rect
+      class="slot-gap"
+      x={gap.x}
+      y={0}
+      width={gap.width}
+      height={containerHeight}
+      fill="url(#slot-gap-hatch-{containerType.slug})"
+    />
+    {#if gap.width >= MIN_GAP_LABEL_PX}
+      <text
+        class="gap-label"
+        x={gap.x + gap.width / 2}
+        y={containerHeight / 2}
+        text-anchor="middle"
+        dominant-baseline="middle"
+        font-size="7">{gap.mm}</text
+      >
+    {/if}
+  {/each}
+
+  <!-- Free space is an invitation, not a reservation: dashed, no dimension. -->
+  {#if layout.free}
+    <rect
+      class="slot-free"
+      x={layout.free.x + 1}
+      y={1}
+      width={Math.max(layout.free.width - 2, 0)}
+      height={Math.max(containerHeight - 2, 0)}
+      rx="2"
+      ry="2"
+    />
+  {/if}
+
   {#each slots as slot (slot.id)}
-    {@const geometry = slotRects.get(slot.id)!}
+    {@const geometry = cells.get(slot.id)!}
     {@const slotClass = getSlotClass(slot.id)}
     {@const insetPadding = 2}
     <rect
@@ -133,6 +204,32 @@
 </g>
 
 <style>
+  .gap-hatch-line {
+    stroke: var(--neutral-500);
+    stroke-width: 1;
+    opacity: 0.5;
+  }
+
+  .slot-gap {
+    pointer-events: none;
+  }
+
+  .gap-label {
+    fill: var(--neutral-500);
+    font-family: var(--font-family, system-ui, sans-serif);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .slot-free {
+    fill: none;
+    stroke: var(--neutral-500);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
   .container-slots {
     pointer-events: none;
   }

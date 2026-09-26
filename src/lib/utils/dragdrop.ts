@@ -4,10 +4,17 @@
  */
 
 import type { DeviceType, DeviceFace, Rack, Slot } from "$lib/types";
-import { canPlaceDevice, findNextFreeChildPosition } from "./collision";
+import {
+  canPlaceDevice,
+  canPlaceInSlot,
+  findNextFreeChildPosition,
+  synthesizeCarrierForDevice,
+} from "./collision";
 import { RAIL_WIDTH } from "$lib/constants/layout";
 import { toInternalUnits, toHumanUnits } from "./position";
 import { effectiveFace } from "./effective-face";
+import { slotLayout } from "./slot-layout";
+import { CUSTOM_CARRIER_SLUG_PATTERN } from "./custom-carrier";
 
 /**
  * Shared drag state - workaround for browser security restriction
@@ -218,33 +225,34 @@ export function hideNativeDragGhost(dataTransfer: DataTransfer): void {
 }
 
 /**
- * Find the column index at a given X position within a container's slots.
- * Columns are derived from the distinct col values in the slot grid.
- * @param slots - Array of slots in the container
+ * Find the column index at a given X position within a container's cells.
+ *
+ * The drawn bands are walked, not the bare column widths, so a point landing in
+ * a gap or in the free space at the end of the row claims no column. The
+ * container is the whole input on purpose: a caller passing a slots array that
+ * did not come from this container is how hit testing and drop targeting used to
+ * disagree on a gapped carrier.
+ *
+ * @param containerType - The container being aimed at
  * @param xOffsetInRack - X position relative to rack interior (0 = left edge)
  * @param interiorWidth - Width of rack interior in pixels
- * @returns The matched column index, or null if outside the grid
+ * @param rackWidth - Nominal rack width in inches, which sizes the gaps
+ * @returns The matched column index, or null if outside the cells
  */
 export function colAtX(
-  slots: Slot[],
+  containerType: DeviceType,
   xOffsetInRack: number,
   interiorWidth: number,
+  rackWidth: number,
 ): number | null {
-  // Columns share their width_fraction within a row; use the bottom row (the
-  // first occurrence of each col) to walk the column boundaries left to right.
-  const cols = [...new Set(slots.map((s) => s.position.col))].sort(
-    (a, b) => a - b,
+  const hit = slotLayout(containerType, interiorWidth, rackWidth).slots.find(
+    (band) => xOffsetInRack >= band.x && xOffsetInRack < band.x + band.width,
   );
-  let accumulated = 0;
-  for (const col of cols) {
-    const colSlot = slots.find((s) => s.position.col === col)!;
-    const width = interiorWidth * (colSlot.width_fraction ?? 1.0);
-    if (xOffsetInRack >= accumulated && xOffsetInRack < accumulated + width) {
-      return col;
-    }
-    accumulated += width;
-  }
-  return null;
+  if (!hit) return null;
+  return (
+    (containerType.slots ?? []).find((s) => s.id === hit.id)?.position.col ??
+    null
+  );
 }
 
 /**
@@ -296,13 +304,20 @@ export function rowAtY(
 }
 
 /**
+ * Slot id meaning "make a new cell at the end of this row". A full generated
+ * carrier offers it instead of refusing the drop; the store then grows the
+ * split, or refuses when the row has no width left.
+ */
+export const NEW_CELL_SLOT_ID = "__new-cell__";
+
+/**
  * Container drop target information
  * Returned when a drop position is detected within a container slot
  */
 export interface ContainerDropTarget {
   /** ID of the container PlacedDevice */
   containerId: string;
-  /** Slot ID within the container */
+  /** Slot ID within the container, or NEW_CELL_SLOT_ID to grow a generated carrier */
   slotId: string;
   /** Position within the slot (0-indexed from bottom) */
   position: number;
@@ -313,7 +328,8 @@ export interface ContainerDropTarget {
  * (x) and row (y) so every cell of a 2x2 / half-height carrier is reachable.
  * No pre-selection is required: any container at the target U is considered.
  * If the targeted cell is occupied or unfit, the first free fitting cell is
- * used so a drop always lands somewhere fillable.
+ * used so a drop always lands somewhere fillable. A full generated carrier
+ * returns NEW_CELL_SLOT_ID instead, for a device that takes a carrier cell.
  *
  * @param rack - Target rack containing the container
  * @param deviceLibrary - Device library for type lookup
@@ -324,7 +340,8 @@ export interface ContainerDropTarget {
  * @param rackHeight - Rack height in U
  * @param uHeight - Height of one U in pixels
  * @param faceFilter - Active face; containers on the opposite face are ignored
- * @returns ContainerDropTarget if drop is on a fillable cell, null otherwise
+ * @returns ContainerDropTarget for a free fitting cell, or NEW_CELL_SLOT_ID
+ *   for a full generated carrier; null otherwise
  */
 export function detectContainerDropTarget(
   rack: Rack,
@@ -360,7 +377,7 @@ export function detectContainerDropTarget(
     if (targetU < containerBottomU || targetU > containerTopU) continue;
 
     const interiorWidth = rackWidth - RAIL_WIDTH * 2;
-    const col = colAtX(slots, xOffsetInRack, interiorWidth);
+    const col = colAtX(containerType, xOffsetInRack, interiorWidth, rack.width);
     const row = rowAtY(
       slots,
       mouseY,
@@ -385,14 +402,14 @@ export function detectContainerDropTarget(
     if (
       aimed &&
       !occupied.has(aimed.id) &&
-      isSlotCompatible(aimed, draggedDevice)
+      canPlaceInSlot(draggedDevice, aimed, rack.width)
     ) {
       return { containerId: container.id, slotId: aimed.id, position: 0 };
     }
 
     // Otherwise fall back to the first free cell (also covers an occupied aim).
     const fittingSlots = slots.filter((s) =>
-      isSlotCompatible(s, draggedDevice),
+      canPlaceInSlot(draggedDevice, s, rack.width),
     );
     const free = findNextFreeChildPosition(
       { ...containerType, slots: fittingSlots },
@@ -403,6 +420,23 @@ export function detectContainerDropTarget(
         containerId: container.id,
         slotId: free.slotId,
         position: free.position,
+      };
+    }
+
+    // A generated carrier can grow a cell, so aim past the last one instead
+    // of reporting the container full. Only a device that takes a carrier
+    // cell can grow one: a full-width rail device or a container falls through
+    // to the rail. The store rechecks the row's budget and refuses with a
+    // measured message when it cannot take the width.
+    if (
+      CUSTOM_CARRIER_SLUG_PATTERN.test(container.device_type) &&
+      !draggedDevice.slots?.length &&
+      synthesizeCarrierForDevice(draggedDevice, rack.width) !== null
+    ) {
+      return {
+        containerId: container.id,
+        slotId: NEW_CELL_SLOT_ID,
+        position: 0,
       };
     }
 
@@ -491,7 +525,7 @@ export function detectContainerHover(
 
     // Found a container at this position - resolve the cell under the cursor.
     const interiorWidth = rackWidth - RAIL_WIDTH * 2;
-    const col = colAtX(slots, xOffsetInRack, interiorWidth);
+    const col = colAtX(deviceType, xOffsetInRack, interiorWidth, rack.width);
     const row = rowAtY(
       slots,
       mouseY,
@@ -508,40 +542,11 @@ export function detectContainerHover(
     return {
       containerId: placedDevice.id,
       targetSlotId: slot?.id ?? null,
-      isValidTarget: slot ? isSlotCompatible(slot, draggedDevice) : false,
+      isValidTarget: slot
+        ? canPlaceInSlot(draggedDevice, slot, rack.width)
+        : false,
     };
   }
 
   return null;
-}
-
-/**
- * Check if a device is compatible with a slot.
- * A device is compatible if:
- * - The slot's accepts array is empty (accepts all) OR includes the device's category
- * - The device fits within the slot dimensions
- */
-function isSlotCompatible(slot: Slot, device: DeviceType): boolean {
-  // Check category is allowed (empty accepts = all allowed)
-  if (slot.accepts && slot.accepts.length > 0) {
-    if (!slot.accepts.includes(device.category)) {
-      return false;
-    }
-  }
-
-  // Check width fits (slot_width 1 = half, 2 = full)
-  const slotWidth = device.slot_width ?? 2;
-  const requiredFraction = slotWidth === 1 ? 0.5 : 1.0;
-  const availableFraction = slot.width_fraction ?? 1.0;
-  if (requiredFraction > availableFraction + 0.01) {
-    return false;
-  }
-
-  // Check height fits
-  const slotHeight = slot.height_units ?? 1;
-  if (device.u_height > slotHeight) {
-    return false;
-  }
-
-  return true;
 }

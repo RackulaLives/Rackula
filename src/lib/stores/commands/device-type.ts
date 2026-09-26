@@ -15,6 +15,8 @@ export interface DeviceTypeCommandStore {
   addDeviceTypeRaw(deviceType: DeviceType): void;
   removeDeviceTypeRaw(slug: string): void;
   updateDeviceTypeRaw(slug: string, updates: Partial<DeviceType>): void;
+  retypeDeviceRaw(deviceId: string, slug: string): void;
+  reslotDeviceRaw(deviceId: string, slotId: string): void;
   placeDeviceRaw(device: PlacedDevice): number;
   removeDeviceAtIndexRaw(index: number): void;
   getPlacedDevicesForType(slug: string): PlacedDevice[];
@@ -171,6 +173,69 @@ export function createDeleteDeviceTypeCommand(
             typeImageCopy.rear,
           );
       }
+    },
+  };
+}
+
+/**
+ * Point a placed device at a different device type.
+ *
+ * A custom split's type is keyed by the split itself, so growing, shrinking
+ * or re-gapping a row yields a different type. The carrier follows it while
+ * keeping its own id, which is what leaves its children attached and what
+ * makes the change copy-on-write: carriers still on the old type keep it.
+ *
+ * @param deviceId - The placed device to retype
+ * @param fromSlug - The type it currently uses, restored on undo
+ * @param toSlug - The type it should use
+ * @param store - Command store adapter
+ */
+export function createRetypeDeviceCommand(
+  deviceId: string,
+  fromSlug: string,
+  toSlug: string,
+  store: DeviceTypeCommandStore,
+): Command {
+  return {
+    type: "RETYPE_DEVICE",
+    description: `Retype ${deviceId}`,
+    timestamp: Date.now(),
+    execute() {
+      store.retypeDeviceRaw(deviceId, toSlug);
+    },
+    undo() {
+      store.retypeDeviceRaw(deviceId, fromSlug);
+    },
+  };
+}
+
+/**
+ * Move a placed child to a different cell of its container.
+ *
+ * Dropping a cell from a custom split renumbers every cell after it, so the
+ * survivors move with it in the same step: without this they would reference
+ * a cell id that no longer exists and the layout would fail to load.
+ *
+ * @param deviceId - The placed child to move
+ * @param fromSlotId - The cell it occupies now, restored on undo
+ * @param toSlotId - The cell it should occupy
+ * @param store - Command store adapter
+ */
+export function createReslotDeviceCommand(
+  deviceId: string,
+  fromSlotId: string,
+  toSlotId: string,
+  store: DeviceTypeCommandStore,
+): Command {
+  return {
+    type: "MOVE_TO_SLOT",
+    description: `Move ${deviceId} to ${toSlotId}`,
+    timestamp: Date.now(),
+    execute() {
+      store.reslotDeviceRaw(deviceId, toSlotId);
+    },
+    undo() {
+      store.reslotDeviceRaw(deviceId, fromSlotId);
     },
   };
 }

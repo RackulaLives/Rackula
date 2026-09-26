@@ -18,7 +18,13 @@
 
 import * as pako from "pako";
 import LZString from "lz-string";
-import type { Layout, DeviceType, PlacedDevice, RackGroup } from "$lib/types";
+import type {
+  Layout,
+  DeviceType,
+  PlacedDevice,
+  RackGroup,
+  RackWidth,
+} from "$lib/types";
 import {
   MinimalLayoutSchema,
   MinimalLayoutV2Schema,
@@ -49,10 +55,23 @@ import {
 
 /**
  * Normalize rack width to valid share format values (10 or 19)
- * Maps non-standard widths (21, 23) to 19
+ * Maps non-standard widths (21, 23) to 19; the exact width travels in `wx`
  */
 function normalizeRackWidth(width: number): 10 | 19 {
   return width === 10 ? 10 : 19;
+}
+
+/**
+ * The rack width a share link decodes to.
+ *
+ * `wx` carries the exact width when it is 21 or 23, and the encoder always
+ * writes the 19 inch fallback in `w` alongside it. A link that pairs `wx` with
+ * any other `w` was not written by this app, so `wx` is ignored and the
+ * fallback wins. An older reader knows nothing of `wx` and uses `w`, so both
+ * readers then agree on one width rather than rendering different racks.
+ */
+function decodeRackWidth(w: number, wx: 21 | 23 | undefined): RackWidth {
+  return wx !== undefined && w === 19 ? wx : normalizeRackWidth(w);
 }
 
 /**
@@ -117,7 +136,10 @@ function convertDeviceTypes(dt: MinimalDeviceType[]): DeviceType[] {
           })),
         }
       : {}),
+    ...(item.sg ? { slot_gaps: item.sg } : {}),
+    ...(item.ac ? { auto_created: true } : {}),
     ...(item.sw !== undefined ? { slot_width: item.sw } : {}),
+    ...(item.wm !== undefined ? { width_mm: item.wm } : {}),
     ...(item.sr ? { subdevice_role: item.sr } : {}),
   }));
 }
@@ -231,9 +253,16 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
             })),
           }
         : {}),
+      // A generated split travels with its cells; an all-zero list is the
+      // shipped look, so it is left out rather than padding every link.
+      ...(deviceType.slot_gaps && deviceType.slot_gaps.some((mm) => mm > 0)
+        ? { sg: deviceType.slot_gaps }
+        : {}),
+      ...(deviceType.auto_created ? { ac: true } : {}),
       ...(deviceType.slot_width !== undefined
         ? { sw: deviceType.slot_width }
         : {}),
+      ...(deviceType.width_mm !== undefined ? { wm: deviceType.width_mm } : {}),
       ...(deviceType.subdevice_role ? { sr: deviceType.subdevice_role } : {}),
     }));
 
@@ -243,6 +272,7 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
     n: rack.name,
     h: rack.height,
     w: normalizeRackWidth(rack.width),
+    ...(rack.width === 21 || rack.width === 23 ? { wx: rack.width } : {}),
     d: convertDevices(rack.devices),
   }));
 
@@ -286,7 +316,7 @@ function fromMinimalLayoutV1(minimal: MinimalLayout): Layout {
   const rack = createDefaultRack(
     minimal.r.n,
     minimal.r.h,
-    normalizeRackWidth(minimal.r.w),
+    decodeRackWidth(minimal.r.w, minimal.r.wx),
     "4-post-cabinet",
     false,
     1,
@@ -323,7 +353,7 @@ function fromMinimalLayoutV2(minimal: MinimalLayoutV2): Layout {
     const rack = createDefaultRack(
       minRack.n,
       minRack.h,
-      normalizeRackWidth(minRack.w),
+      decodeRackWidth(minRack.w, minRack.wx),
       "4-post-cabinet",
       false,
       1,
