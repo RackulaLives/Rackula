@@ -19,7 +19,7 @@ import type { SerializedImages } from "$lib/utils/image-encoding";
 
 /**
  * Order DeviceType fields according to schema v1.0.0
- * Field order: slug, manufacturer, model, part_number, u_height, slot_width, width_mm, height_mm, is_full_depth, is_powered,
+ * Field order: slug, manufacturer, model, part_number, u_height, slot_width, width_mm, height_mm, rack_widths, is_full_depth, is_powered,
  *              weight, weight_unit, airflow, front_image, rear_image, colour, category, tags,
  *              notes, serial_number, asset_tag, links, custom_fields, interfaces, power_ports,
  *              power_outlets, device_bays, inventory_items, subdevice_role, slots,

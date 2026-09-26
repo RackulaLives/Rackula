@@ -148,7 +148,7 @@ export function formatMm(lengthMm: number): string {
 
 /**
  * Rack units a measured height takes: the smallest multiple of 0.5U that
- * holds it, never below 0.5U.
+ * holds it, allowing 0.5 mm for rounding, never below 0.5U.
  */
 export function uHeightForMm(heightMm: number): number {
   const halfUnits = ((heightMm - FIT_TOLERANCE_MM) / MM_PER_U) * 2;
@@ -157,8 +157,9 @@ export function uHeightForMm(heightMm: number): number {
 }
 
 /**
- * Whether a device can be turned. Only a measured device has both sides known
- * in millimetres, and it always sits in a carrier.
+ * Whether a device can be turned. Only a measured device turns: its width is
+ * known in millimetres, and its height is height_mm or its rack units in
+ * millimetres. It always sits in a carrier.
  */
 export function canRotate(deviceType: Pick<DeviceType, "width_mm">): boolean {
   return deviceType.width_mm !== undefined;
@@ -176,8 +177,9 @@ export function getRotation(
 
 /**
  * A device as it stands in the rack after `rotation`. Turned 90 degrees, a
- * measured device's sides swap: its width becomes its height (measured, or its
- * rack units when not measured) and its height becomes its width.
+ * measured device's sides swap: its new width is its height (height_mm, or its
+ * rack units in millimetres when no height was measured), and its new height
+ * is its measured width.
  */
 export function orientDeviceType<
   T extends Pick<DeviceType, "width_mm" | "height_mm" | "u_height">,
