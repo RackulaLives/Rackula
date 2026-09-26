@@ -540,7 +540,8 @@ export function synthesizeCarrierForDevice(
  * (validStartPositions / primeKeyboardPlacement), and the store (placeDeviceSmart
  * via placeDeviceRecorded's requiresCarrier guard) share so bare-rails validity
  * agrees across all three: an invalid preview, no announced rail slot, and a
- * refused placement, all with the honest "requires a chassis" message.
+ * refused placement, all with the honest needs-a-bay message
+ * (chassisRequirementMessage).
  *
  * @param deviceType - The device being placed
  * @param rackWidth - Nominal width in inches of the target rack

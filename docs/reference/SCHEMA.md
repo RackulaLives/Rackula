@@ -183,7 +183,7 @@ In server-side persistence mode, no base64 image data appears in the stored layo
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `slots` | `Slot[]` | No | The cells a container offers its children. A device type with at least one slot is a container |
-| `slot_width` | `1` \| `2` | No | Cell width a device without `width_mm` needs: 1 is half a cell, 2 (the default) a full one |
+| `slot_width` | `1` \| `2` | No | Width a device without `width_mm` needs: 1 fits a cell of `width_fraction` 0.5 or more, 2 (the default) needs a full-width cell |
 | `slot_gaps` | `number[]` | No | Millimetres between neighbouring cells of a single-row container, one value per boundary: n cells need n - 1 gaps, and a wrong count is rejected |
 | `auto_created` | `boolean` | No | The type was generated for one carrier's split rather than authored in a library. Generated types stay out of the palette and are dropped once no placed carrier uses them |
 

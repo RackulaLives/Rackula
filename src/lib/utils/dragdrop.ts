@@ -304,8 +304,9 @@ export function rowAtY(
 }
 
 /**
- * Slot id meaning "make a new cell at the end of this row". A generated
- * carrier is never full: the drop grows the split instead of bouncing.
+ * Slot id meaning "make a new cell at the end of this row". A full generated
+ * carrier offers it instead of refusing the drop; the store then grows the
+ * split, or refuses when the row has no width left.
  */
 export const NEW_CELL_SLOT_ID = "__new-cell__";
 
@@ -316,7 +317,7 @@ export const NEW_CELL_SLOT_ID = "__new-cell__";
 export interface ContainerDropTarget {
   /** ID of the container PlacedDevice */
   containerId: string;
-  /** Slot ID within the container */
+  /** Slot ID within the container, or NEW_CELL_SLOT_ID to grow a generated carrier */
   slotId: string;
   /** Position within the slot (0-indexed from bottom) */
   position: number;
@@ -327,7 +328,8 @@ export interface ContainerDropTarget {
  * (x) and row (y) so every cell of a 2x2 / half-height carrier is reachable.
  * No pre-selection is required: any container at the target U is considered.
  * If the targeted cell is occupied or unfit, the first free fitting cell is
- * used so a drop always lands somewhere fillable.
+ * used so a drop always lands somewhere fillable. A full generated carrier
+ * returns NEW_CELL_SLOT_ID instead, for a device that takes a carrier cell.
  *
  * @param rack - Target rack containing the container
  * @param deviceLibrary - Device library for type lookup
@@ -338,7 +340,8 @@ export interface ContainerDropTarget {
  * @param rackHeight - Rack height in U
  * @param uHeight - Height of one U in pixels
  * @param faceFilter - Active face; containers on the opposite face are ignored
- * @returns ContainerDropTarget if drop is on a fillable cell, null otherwise
+ * @returns ContainerDropTarget for a free fitting cell, or NEW_CELL_SLOT_ID
+ *   for a full generated carrier; null otherwise
  */
 export function detectContainerDropTarget(
   rack: Rack,
