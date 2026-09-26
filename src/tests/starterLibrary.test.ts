@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { getStarterLibrary } from "$lib/data/starterLibrary";
+import { findStarterDevice, getStarterLibrary } from "$lib/data/starterLibrary";
+import {
+  MAX_TWO_COLUMN_CARRIER_U,
+  twoColumnCarrierSlug,
+} from "$lib/data/carriers";
 import { createLayout } from "$lib/utils/serialization";
 import { DeviceTypeSchema, InterfaceTypeSchema } from "$lib/schemas";
 
@@ -23,6 +27,22 @@ import { DeviceTypeSchema, InterfaceTypeSchema } from "$lib/schemas";
  * See: docs/guides/TESTING.md - "Zero-Change Rule"
  */
 describe("Starter Device Type Library", () => {
+  describe("Two-Column Carriers", () => {
+    // Placement synthesises carrier-Nu-2col for every height up to the max, so
+    // each must resolve, be that tall, and have columns of the same height.
+    it("defines a height-matched two-column carrier for every synthesis height", () => {
+      for (let u = 1; u <= MAX_TWO_COLUMN_CARRIER_U; u++) {
+        const carrier = findStarterDevice(twoColumnCarrierSlug(u));
+        expect(carrier?.u_height).toBe(u);
+        expect(carrier?.subdevice_role).toBe("parent");
+        expect(carrier?.slots?.map((s) => s.height_units)).toEqual([u, u]);
+        expect(carrier?.slots?.map((s) => s.width_fraction)).toEqual([
+          0.5, 0.5,
+        ]);
+      }
+    });
+  });
+
   describe("Schema Validation", () => {
     it("all devices pass DeviceTypeSchema validation", () => {
       const deviceTypes = getStarterLibrary();

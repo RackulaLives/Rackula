@@ -18,8 +18,8 @@
  *
  * 2. GENERIC HALF-WIDTH gear taller than 1U (no child role, e.g. the DeskPi
  *    2U 4-Pi RackMate) IS placeable on the rails via a height-matched carrier.
- *    synthesizeCarrierForDevice selects carrier-2u-2col (2U) so placeDeviceSmart
- *    can actually place it, and the preview reports it valid.
+ *    synthesizeCarrierForDevice selects carrier-Nu-2col (2U-8U) so
+ *    placeDeviceSmart can actually place it, and the preview reports it valid.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
@@ -35,6 +35,7 @@ import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { findStarterDevice } from "$lib/data/starterLibrary";
 import { findBrandDevice } from "$lib/data/brandPacks";
 import { findDeviceType } from "$lib/utils/device-lookup";
+import { MAX_TWO_COLUMN_CARRIER_U } from "$lib/data/carriers";
 import {
   synthesizeCarrierForDevice,
   requiresChassisBay,
@@ -60,6 +61,17 @@ const bladeHalf = findStarterDevice("blade-server-half")!; // 2U child
 const bladeFull = findStarterDevice("blade-server-full")!; // 4U child
 /** A real generic 2U half-width device (no child role): DeskPi 2U 4-Pi tray. */
 const genericTwoU = findBrandDevice("deskpi-rackmate-2u-4-pi")!; // 2U half-width
+/** A generic (non-child) half-width device of the given whole-U height. */
+function halfWidth(uHeight: number): DeviceType {
+  return {
+    slug: `half-width-${uHeight}u`,
+    model: `Half Width ${uHeight}U`,
+    u_height: uHeight,
+    slot_width: 1,
+    category: "storage",
+    colour: "#4A90D9",
+  };
+}
 /** A full-width whole-U rail device: no carrier applies, never a chassis bay. */
 const fullWidthRail: DeviceType = {
   slug: "server-1u",
@@ -111,16 +123,17 @@ describe("synthesizeCarrierForDevice (height-matched, child-aware)", () => {
     expect(synthesizeCarrierForDevice(halfU)).toBe("carrier-1u-2x2");
   });
 
+  it("returns the height-matched carrier for taller half-width devices (3U-8U)", () => {
+    for (let u = 3; u <= MAX_TWO_COLUMN_CARRIER_U; u++) {
+      expect(synthesizeCarrierForDevice(halfWidth(u))).toBe(
+        `carrier-${u}u-2col`,
+      );
+    }
+  });
+
   it("returns null (not a too-small carrier) for an integer height with no carrier", () => {
-    const threeU: DeviceType = {
-      slug: "three-u-half",
-      model: "Three U Half",
-      u_height: 3,
-      slot_width: 1,
-      category: "network",
-      colour: "#4A90D9",
-    };
-    expect(synthesizeCarrierForDevice(threeU)).toBeNull();
+    const tooTall = halfWidth(MAX_TWO_COLUMN_CARRIER_U + 1);
+    expect(synthesizeCarrierForDevice(tooTall)).toBeNull();
   });
 
   it("returns null (not a too-small carrier) for a non-integer height at or above 1U", () => {
@@ -154,6 +167,13 @@ describe("requiresChassisBay", () => {
 
   it("is false for a generic half-width device that has a rail carrier", () => {
     expect(requiresChassisBay(genericTwoU)).toBe(false);
+    expect(requiresChassisBay(halfWidth(4))).toBe(false);
+  });
+
+  it("is true for a half-width device taller than the tallest carrier", () => {
+    expect(requiresChassisBay(halfWidth(MAX_TWO_COLUMN_CARRIER_U + 1))).toBe(
+      true,
+    );
   });
 
   it("is false for a full-width whole-U rail device", () => {
@@ -224,6 +244,57 @@ describe("placeDeviceSmart (store) honesty", () => {
       (d) => d.container_id === carrier?.id,
     );
     expect(child?.device_type).toBe(genericTwoU.slug);
+  });
+
+  it("places a generic 4U half-width device via a synthesised 4U carrier", () => {
+    const { store, rackId } = setupRack(35);
+    const fourU = halfWidth(4);
+    store.addDeviceTypeRaw(fourU);
+
+    expect(store.placeDeviceSmart(rackId, fourU.slug, 5)).toBe(true);
+
+    const carrier = store.rack!.devices.find((d) =>
+      d.device_type.startsWith("carrier"),
+    );
+    expect(carrier?.device_type).toBe("carrier-4u-2col");
+    expect(carrier?.auto_created).toBe(true);
+
+    const child = store.rack!.devices.find(
+      (d) => d.container_id === carrier?.id,
+    );
+    expect(child?.device_type).toBe(fourU.slug);
+  });
+
+  it("places a second 4U half-width device beside the first in the same carrier", () => {
+    const { store, rackId } = setupRack(35);
+    const fourU = halfWidth(4);
+    store.addDeviceTypeRaw(fourU);
+
+    expect(store.placeDeviceSmart(rackId, fourU.slug, 5)).toBe(true);
+    expect(store.placeDeviceSmart(rackId, fourU.slug, 5)).toBe(true);
+
+    const carriers = store.rack!.devices.filter((d) =>
+      d.device_type.startsWith("carrier"),
+    );
+    // eslint-disable-next-line no-restricted-syntax -- two half-width devices share ONE carrier
+    expect(carriers).toHaveLength(1);
+    const slots = store
+      .rack!.devices.filter((d) => d.container_id === carriers[0]?.id)
+      .map((d) => d.slot_id)
+      .sort();
+    expect(slots).toEqual(["col-1", "col-2"]);
+  });
+
+  it("a 4U carrier occupies all four rail units", () => {
+    const { store, rackId } = setupRack(35);
+    const fourU = halfWidth(4);
+    store.addDeviceTypeRaw(fourU);
+    store.addDeviceTypeRaw(fullWidthRail);
+
+    expect(store.placeDeviceSmart(rackId, fourU.slug, 5)).toBe(true);
+    // U5-U8 are taken by the carrier; U9 is the first free rail unit above it.
+    expect(store.placeDeviceSmart(rackId, fullWidthRail.slug, 8)).toBe(false);
+    expect(store.placeDeviceSmart(rackId, fullWidthRail.slug, 9)).toBe(true);
   });
 
   it("places a 2U half-width blank via the 2U carrier (blank is carried, not bay-only)", () => {
