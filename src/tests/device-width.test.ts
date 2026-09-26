@@ -68,20 +68,20 @@ describe("canPlaceInSlot with width_mm", () => {
   });
 
   it("reads a 0.33 cell as a true third, with no fraction-sized overlap", () => {
-    // A third of the 19" opening is 150.3 mm.
+    // A third of the 19" opening is 150 mm, and the fit allows 0.5 mm over.
     expect(canPlaceInSlot(measuredDevice(150), thirdSlot, 19)).toBe(true);
     expect(canPlaceInSlot(measuredDevice(152), thirdSlot, 19)).toBe(false);
   });
 
   it("keeps a deliberate custom fraction instead of snapping it to a third", () => {
-    // 0.343 of the 19" opening is 154.6 mm. Snapping it down to a third (150.3)
+    // 0.343 of the 19" opening is 154.4 mm. Snapping it down to a third (150)
     // would reject a 152 mm device that fits, and snapping 0.657 up to two
     // thirds would accept one that does not.
     const custom = createTestSlot({ id: "left", width_fraction: 0.343 });
     expect(canPlaceInSlot(measuredDevice(152), custom, 19)).toBe(true);
 
     const wide = createTestSlot({ id: "left", width_fraction: 0.657 });
-    // 0.657 of the opening is 296.2 mm; two thirds would be 300.6.
+    // 0.657 of the opening is 295.7 mm; two thirds would be 300.
     expect(canPlaceInSlot(measuredDevice(299), wide, 19)).toBe(false);
   });
 
@@ -137,7 +137,7 @@ describe("carrier-first rule for measured devices", () => {
 
   it("carries a device too wide for any shipped cell, up to the full opening", () => {
     // 300 mm beats the 225 mm half cell the shipped carriers offer, and still
-    // fits the 451 mm opening: the whole point of a custom split.
+    // fits the 450 mm opening: the whole point of a custom split.
     const device = measuredDevice(300);
 
     expect(synthesizeCarrierForDevice(device, 19)?.type).toBeDefined();

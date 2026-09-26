@@ -30,8 +30,9 @@ export function validStartPositions(
   device: DeviceType,
   face: DeviceFace = "front",
 ): number[] {
-  // A device that can only live in a chassis bay (a chassis child, or a
-  // half-width device with no rail carrier) has no valid rail start position:
+  // A device that can only live in a chassis bay (a chassis child, a half-width
+  // device with no rail carrier, or measured gear wider than the rack's
+  // opening) has no valid rail start position:
   // announcing one would be dishonest and Enter would fail (#2854).
   if (requiresChassisBay(device, rack.width)) return [];
 
@@ -134,10 +135,11 @@ export function pickUpNoSpaceAnnouncement(
 }
 
 /**
- * Announced when a device that can only mount inside a chassis bay (a chassis
- * child, or a half-width device with no rail carrier) is armed: it has no rail
- * target in any rack, so the honest requirement is stated and placement mode
- * exits rather than leaving a stuck, futile cursor (#2854).
+ * Announced when a device that can only mount inside a bay (a chassis child, a
+ * half-width device with no rail carrier, or measured gear wider than the
+ * rack's opening) has no rail target in the rack being aimed at. Placement
+ * exits only when no rack in the layout can take it, rather than leaving a
+ * stuck, futile cursor (#2854).
  */
 export function pickUpNeedsChassisAnnouncement(device: DeviceType): string {
   const name = device.model ?? device.slug;

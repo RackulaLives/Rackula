@@ -67,7 +67,7 @@ describe("keyboard placement controller — full rack no-room toast (#2990)", ()
 
 describe("keyboard placement controller: no rail target in the rack (#3310)", () => {
   /**
-   * A 300 mm device: a custom split carries it in a 19 inch rack (451 mm of
+   * A 300 mm device: a custom split carries it in a 19 inch rack (450 mm of
    * opening) but nothing can in a 10 inch one (222 mm), so the layout still
    * holds a rack the device cannot use.
    */

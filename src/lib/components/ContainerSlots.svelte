@@ -45,7 +45,7 @@
   // Get slots from container type, defaulting to empty array
   const slots = $derived(containerType.slots ?? []);
 
-  // Below this a dimension would not read, so the gap goes uncoted rather
+  // Below this a dimension would not read, so the gap is left unlabelled rather
   // than printing digits on top of each other.
   const MIN_GAP_LABEL_PX = 14;
 

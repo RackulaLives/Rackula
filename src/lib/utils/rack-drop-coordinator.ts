@@ -448,8 +448,9 @@ export function resolveDropAction(
 }
 
 /**
- * Honest message for a device that can only mount inside a chassis bay (a
- * chassis child, or a half-width device with no rail carrier). Shown instead of
+ * Honest message for a device that can only mount inside a bay (a chassis
+ * child, a half-width device with no rail carrier, or measured gear wider than
+ * the rack's opening). Shown instead of
  * a misleading "No space" when such a device is dropped on bare rails.
  */
 export function chassisRequirementMessage(device: DeviceType): string {

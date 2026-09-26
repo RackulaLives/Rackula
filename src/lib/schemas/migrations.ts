@@ -12,11 +12,13 @@ import { UNITS_PER_U } from "$lib/types/constants";
 import { heightToInternalUnits } from "$lib/utils/position";
 
 /**
- * Current data-format version the running app reads and writes (MAJOR.MINOR).
+ * Base data-format version the running app writes when a layout uses no
+ * measured width (MAJOR.MINOR).
  *
  * This is the schema_version, distinct from the app `version` (provenance, bumps
- * every release). A reader gates loadability strictly on the MAJOR component of a
- * document's metadata.schema_version against this constant. See the versioning
+ * every release). A reader gates loadability on the MAJOR component of a
+ * document's metadata.schema_version against the newest MAJOR it reads,
+ * MEASURED_WIDTH_SCHEMA_VERSION. See the versioning
  * policy in docs/reference/SCHEMA.md (#1113).
  */
 export const SCHEMA_VERSION = "1.1";
@@ -49,15 +51,16 @@ const SCHEMA_VERSION_PATTERN = /^\d+\.\d+$/;
  * migration path. The check is read-only and non-destructive: it throws before
  * any parse or write so the original input is never modified.
  *
- * A stamp present but not shaped MAJOR.MINOR is refused before the MAJOR
- * comparison. parseInt reads a malformed stamp as MAJOR 0, so "2.O" (letter O)
+ * A string stamp not shaped MAJOR.MINOR is refused before the MAJOR
+ * comparison. A stamp that is not a string never gets here: the callers pass
+ * it as undefined, and the layout schema rejects it on the file door. parseInt reads a malformed stamp as MAJOR 0, so "2.O" (letter O)
  * would otherwise pass the newer-major check and then migrate as a legacy 1.x
  * document, reading its 2.x additions as this app's own format. Every writer
  * stamps MAJOR.MINOR digits (schemaVersionForWrite), so no file this app wrote
  * takes this path. MAJOR 0 stays readable: it is older, not malformed.
  *
  * @param schemaVersion - The document's metadata.schema_version, if present.
- * @throws Error when the stamp is malformed, or its MAJOR is newer than the app
+ * @throws Error when a string stamp is malformed, or its MAJOR is newer than the app
  *   understands.
  */
 export function assertSchemaVersionSupported(
