@@ -333,6 +333,98 @@ describe("adaptLegacyLayout", () => {
     });
   });
 
+  describe("tall half-width wrapping", () => {
+    it("wraps a legacy 4U half-width device into a height-matched carrier", () => {
+      const fourUHalf = createTestDeviceType({
+        slug: "four-u-half",
+        u_height: 4,
+        slot_width: 1,
+      });
+      const layout = createTestLayout({
+        device_types: [fourUHalf],
+        racks: [
+          createTestRack({
+            devices: [
+              createTestDevice({
+                id: "four-u-dev",
+                device_type: "four-u-half",
+                position: 10,
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const adapted = adaptLegacyLayout(layout);
+      const carrier = rackLevel(adapted).find((d) => d.auto_created);
+      expect(carrier?.device_type).toBe("carrier-4u-2col");
+
+      const child = children(adapted).find((d) => d.id === "four-u-dev");
+      expect(child?.container_id).toBe(carrier?.id);
+      expect(
+        adapted.device_types.find((t) => t.slug === "carrier-4u-2col")?.slots
+          ?.length,
+      ).toBeGreaterThan(0);
+    });
+
+    it("does not wrap a half-width device taller than the tallest carrier", () => {
+      // No carrier matches 9U, so the adapter leaves it for a chassis bay
+      // rather than inventing a too-small 1U carrier (#2854).
+      const nineUHalf = createTestDeviceType({
+        slug: "nine-u-half",
+        u_height: 9,
+        slot_width: 1,
+      });
+      const layout = createTestLayout({
+        device_types: [nineUHalf],
+        racks: [
+          createTestRack({
+            devices: [
+              createTestDevice({
+                id: "nine-u-dev",
+                device_type: "nine-u-half",
+                position: 10,
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const adapted = adaptLegacyLayout(layout);
+      expect(rackLevel(adapted).some((d) => d.auto_created)).toBe(false);
+      expect(
+        rackLevel(adapted).find((d) => d.id === "nine-u-dev"),
+      ).toBeDefined();
+    });
+
+    it("hydrates a 4U carrier whose type lost its slot grid", () => {
+      // A decoded share link can carry the carrier slug without its slots.
+      const layout = createTestLayout({
+        device_types: [
+          createTestDeviceType({ slug: "carrier-4u-2col", u_height: 4 }),
+        ],
+        racks: [
+          createTestRack({
+            devices: [
+              createTestDevice({
+                id: "carrier",
+                device_type: "carrier-4u-2col",
+                position: toInternalUnits(5),
+                auto_created: true,
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const adapted = adaptLegacyLayout(layout);
+      const carrierType = adapted.device_types.find(
+        (t) => t.slug === "carrier-4u-2col",
+      );
+      expect(carrierType?.slots?.map((s) => s.height_units)).toEqual([4, 4]);
+    });
+  });
+
   describe("sub-U single wrapping", () => {
     it("wraps a half-height device into a carrier-1u-2x2", () => {
       const subU = createTestDeviceType({

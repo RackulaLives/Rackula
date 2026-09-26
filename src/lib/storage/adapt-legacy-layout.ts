@@ -39,6 +39,11 @@ import type {
 import { UNITS_PER_U } from "$lib/types/constants";
 import { generateId } from "$lib/utils/device";
 import { findStarterDevice } from "$lib/data/starterLibrary";
+import {
+  MAX_TWO_COLUMN_CARRIER_U,
+  hasTwoColumnCarrier,
+  twoColumnCarrierSlug,
+} from "$lib/data/carriers";
 import { ensurePreCarrierBackup } from "./pre-carrier-backup";
 import { getStorageMode } from "./availability.svelte";
 import { markPreCarrierMigrationPending } from "./pre-carrier-migration-pending";
@@ -67,16 +72,20 @@ export const CARRIER_2X2_SLUG = "carrier-1u-2x2";
 /** Height-matched 2U carrier for whole-U half-width gear taller than 1U (#2854). */
 export const CARRIER_2U_2COL_SLUG = "carrier-2u-2col";
 
-/** Slot ids on carrier-1u-2col (full-height half-width columns). */
+/** Slot ids on every carrier-Nu-2col (full-height half-width columns). */
 const COL_SLOTS = ["col-1", "col-2"] as const;
 /** Slot ids on carrier-1u-2x2 (half-width half-height cells, bottom row first). */
 const GRID_SLOTS = ["r0-c0", "r0-c1", "r1-c0", "r1-c1"] as const;
 
-/** The carrier slugs this adapter knows how to hydrate from the starter library. */
+/**
+ * The carrier slugs this adapter knows how to hydrate from the starter library:
+ * the 2x2 grid plus every height-matched two-column carrier (1U-8U).
+ */
 const KNOWN_CARRIER_SLUGS = new Set<string>([
-  CARRIER_2COL_SLUG,
   CARRIER_2X2_SLUG,
-  CARRIER_2U_2COL_SLUG,
+  ...Array.from({ length: MAX_TWO_COLUMN_CARRIER_U }, (_, i) =>
+    twoColumnCarrierSlug(i + 1),
+  ),
 ]);
 
 /**
@@ -228,25 +237,36 @@ function buildCarrier(
   return { carrier, children };
 }
 
-/** Carrier shape a sub-U / half-width device needs. */
-type CarrierShape = "2col" | "2u-2col" | "2x2";
+/**
+ * Carrier shape a sub-U / half-width device needs: the 2x2 grid, or the
+ * two-column carrier of the given whole-U height.
+ */
+type CarrierShape = "2x2" | number;
 
-/** Pick the carrier shape for a device: sub-U gear needs the 2x2 grid, 2U gear needs 2u-2col, others use 2col. */
-function carrierShapeFor(deviceType: DeviceType | undefined): CarrierShape {
+/**
+ * Pick the carrier shape for a device: sub-U gear needs the 2x2 grid, whole-U
+ * gear a height-matched two-column carrier. Returns undefined when no carrier
+ * matches the height (taller than MAX_TWO_COLUMN_CARRIER_U): a too-small
+ * carrier would misstate the rail footprint (#2854), so the device is left
+ * for a chassis bay, as synthesizeCarrierForDevice does.
+ */
+function carrierShapeFor(
+  deviceType: DeviceType | undefined,
+): CarrierShape | undefined {
   if (isSubUHeight(deviceType)) return "2x2";
-  return deviceType?.u_height === 2 ? "2u-2col" : "2col";
+  const height = deviceType?.u_height ?? 1;
+  return hasTwoColumnCarrier(height) ? height : undefined;
 }
 
-const SHAPE_SLUG: Record<CarrierShape, string> = {
-  "2col": CARRIER_2COL_SLUG,
-  "2u-2col": CARRIER_2U_2COL_SLUG,
-  "2x2": CARRIER_2X2_SLUG,
-};
-const SHAPE_SLOTS: Record<CarrierShape, readonly string[]> = {
-  "2col": COL_SLOTS,
-  "2u-2col": COL_SLOTS,
-  "2x2": GRID_SLOTS,
-};
+/** Carrier slug for a shape. */
+function shapeSlug(shape: CarrierShape): string {
+  return shape === "2x2" ? CARRIER_2X2_SLUG : twoColumnCarrierSlug(shape);
+}
+
+/** Slot ids of the carrier for a shape. */
+function shapeSlots(shape: CarrierShape): readonly string[] {
+  return shape === "2x2" ? GRID_SLOTS : COL_SLOTS;
+}
 
 /**
  * Adapt one rack's devices to carrier-first. Returns the new device list plus
@@ -335,7 +355,11 @@ function adaptRackDevices(
     }
     // A forced bare pair always wraps as a 2-column carrier; otherwise the
     // device's own dimensions choose the shape.
-    const shape = forced ? "2col" : carrierShapeFor(dt);
+    const shape = forced ? 1 : carrierShapeFor(dt);
+    if (shape === undefined) {
+      result.push(d);
+      continue;
+    }
     const key = `${d.position}|${d.face}|${shape}`;
     const group = groups.get(key);
     if (group) group.items.push(d);
@@ -345,8 +369,8 @@ function adaptRackDevices(
   for (const { shape, items } of groups.values()) {
     const first = items[0];
     if (!first) continue;
-    const slug = SHAPE_SLUG[shape];
-    const slotIds = SHAPE_SLOTS[shape];
+    const slug = shapeSlug(shape);
+    const slotIds = shapeSlots(shape);
     // Chunk across as many carriers as needed so no device is ever dropped: a
     // group larger than one carrier's slot count spills into another carrier
     // rather than being silently truncated.
