@@ -557,4 +557,55 @@ describe("loading a turned device", () => {
       layout?.racks[0]?.devices.find((d) => d.container_id)?.rotation,
     ).toBe(90);
   });
+
+  it("sizes the cells of a hand-written pair from a turned device's footprint", async () => {
+    // Two bare devices on one U read as a pair. The second stands on its side:
+    // flat it is 88.9 mm wide and 3U, turned it is 133.35 mm wide and 2U.
+    const layout = await parseLayoutYaml(`
+version: "1.0"
+name: Hand Written
+racks:
+  - id: rack-a
+    name: Rack A
+    height: 12
+    width: 19
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: nas
+        device_type: wide-nas
+        position: 30
+        face: front
+      - id: pc
+        device_type: tall-pc
+        position: 30
+        face: front
+        rotation: 90
+device_types:
+  - slug: wide-nas
+    u_height: 1
+    width_mm: 300
+    category: storage
+    colour: "#336699"
+  - slug: tall-pc
+    u_height: 3
+    width_mm: 88.9
+    height_mm: 133.35
+    category: server
+    colour: "#336699"
+settings:
+  display_mode: label
+  show_labels_on_images: false
+`);
+
+    const devices = layout.racks[0]!.devices;
+    const pc = devices.find((d) => d.id === "pc");
+    expect(pc?.rotation).toBe(90);
+    expect(pc?.container_id).toBe(
+      devices.find((d) => d.id === "nas")?.container_id,
+    );
+  });
 });
