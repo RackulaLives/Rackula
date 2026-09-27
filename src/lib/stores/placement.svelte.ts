@@ -7,6 +7,7 @@
 
 import type { DeviceType, DeviceFace, DeviceRotation } from "$lib/types";
 import { canRotate, orientDeviceType } from "$lib/utils/device-width";
+import { rotationAnnouncement } from "$lib/utils/placement-keyboard";
 
 // State
 let isPlacing = $state(false);
@@ -112,8 +113,7 @@ function completePlacement(summary?: string): void {
 function toggleRotation(): boolean {
   if (!isPlacing || !pendingDevice || !canRotate(pendingDevice)) return false;
   rotation = rotation === 90 ? 0 : 90;
-  placementAnnouncement =
-    rotation === 90 ? "Rotated 90 degrees" : "Rotated back to 0 degrees";
+  placementAnnouncement = rotationAnnouncement(rotation);
   return true;
 }
 

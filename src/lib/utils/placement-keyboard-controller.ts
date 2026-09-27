@@ -18,7 +18,7 @@
  * `placement-keyboard` helpers so it stays unit-testable.
  */
 
-import type { Rack, DeviceType, DeviceFace } from "$lib/types";
+import type { Rack, DeviceType, DeviceFace, DeviceRotation } from "$lib/types";
 import { requiresChassisBay } from "./collision";
 import {
   validStartPositions,
@@ -32,6 +32,7 @@ import {
   singleRackAnnouncement,
   noRacksAnnouncement,
   placedAnnouncement,
+  rotationAnnouncement,
 } from "./placement-keyboard";
 
 import { NO_ROOM_MESSAGE } from "$lib/constants/toast-messages";
@@ -65,9 +66,10 @@ export interface PlacementKeyboardDeps {
   completePlacement: (summary: string) => void;
   /**
    * Turn the armed device 90 degrees, or back, before it is placed. Returns
-   * true when it turned. Optional so callers without a turn (tests) still work.
+   * the new turn, or null when the device cannot turn. Optional so callers
+   * without a turn (tests) still work.
    */
-  toggleRotation?: () => boolean;
+  toggleRotation?: () => DeviceRotation | null;
   /**
    * Show a visible "no room" cue matching the drag path's toast. Optional so
    * callers that don't wire a toast store (e.g. tests) still work; the
@@ -309,14 +311,25 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
       !event.metaKey &&
       !event.altKey
     ) {
-      if (!deps.toggleRotation?.()) return false;
+      const rotation = deps.toggleRotation?.();
+      if (rotation == null) return false;
       const rack = activeRack();
       const current = deps.getCursorPosition();
       const turned = deps.getPendingDevice();
       if (rack && current != null && turned) {
-        deps.setCursor(
-          rack.id,
-          initialCursorPosition(validFor(deps, rack, turned), current),
+        const next = initialCursorPosition(
+          validFor(deps, rack, turned),
+          current,
+        );
+        deps.setCursor(rack.id, next);
+        // One message, so the new slot does not replace the turn in the live
+        // region.
+        deps.announce(
+          `${rotationAnnouncement(rotation)}. ${
+            next == null
+              ? noSpaceAnnouncement(rack.name)
+              : positionAnnouncement(rack.name, next)
+          }`,
         );
       }
       return true;

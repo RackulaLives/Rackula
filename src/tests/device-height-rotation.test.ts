@@ -24,7 +24,12 @@ import {
   resetPlacementStore,
 } from "$lib/stores/placement.svelte";
 import { createPlacementKeyboardController } from "$lib/utils/placement-keyboard-controller";
-import type { DeviceType, PlacedDevice } from "$lib/types";
+import type {
+  DeviceRotation,
+  DeviceType,
+  PlacedDevice,
+  Rack,
+} from "$lib/types";
 import {
   createTestContainerChild,
   createTestDevice,
@@ -355,7 +360,7 @@ describe("turning a device before it is placed", () => {
   });
 
   it("turns the armed device on R during placement", () => {
-    const toggleRotation = vi.fn(() => true);
+    const toggleRotation = vi.fn((): DeviceRotation | null => 90);
     const controller = createPlacementKeyboardController({
       getRacks: () => [],
       getDeviceLibrary: () => [],
@@ -389,34 +394,55 @@ describe("turning a device before it is placed", () => {
     // Flat, the mini PC takes a 1U carrier and fits at the top U12. Turned it
     // needs a 5U carrier, so its highest start in a 12U rack is U8.
     const rack = createTestRack({ id: "rack-1", height: 12, devices: [] });
-    let turned = false;
-    let cursor: number | null = 12;
+    const { controller, announce, cursor } = turningController(rack, 12);
+
+    controller.handleKeyDown(new KeyboardEvent("keydown", { key: "r" }));
+    expect(cursor()).toBe(8);
+    expect(announce).toHaveBeenLastCalledWith(
+      "Rotated 90 degrees. U8 of Test Rack, available",
+    );
+  });
+
+  it("announces no space when the turned device fits nowhere in the rack", () => {
+    // Turned, the mini PC needs a 5U carrier, which a 4U rack cannot hold.
+    const rack = createTestRack({ id: "rack-1", height: 4, devices: [] });
+    const { controller, announce, cursor } = turningController(rack, 4);
+
+    controller.handleKeyDown(new KeyboardEvent("keydown", { key: "r" }));
+    expect(cursor()).toBeNull();
+    expect(announce).toHaveBeenLastCalledWith(
+      "Rotated 90 degrees. No space for this device in Test Rack",
+    );
+  });
+
+  function turningController(rack: Rack, start: number) {
+    let rotation: DeviceRotation = 0;
+    let cursor: number | null = start;
+    const announce = vi.fn();
     const controller = createPlacementKeyboardController({
       getRacks: () => [rack],
       getDeviceLibrary: () => [],
       getActiveRackId: () => rack.id,
       isPlacing: () => true,
-      getPendingDevice: () => orientDeviceType(miniPc(), turned ? 90 : 0),
+      getPendingDevice: () => orientDeviceType(miniPc(), rotation),
       getTargetFace: () => "front",
       getCursorPosition: () => cursor,
       setActiveRack: vi.fn(),
       setCursor: (_rackId, position) => {
         cursor = position;
       },
-      announce: vi.fn(),
+      announce,
       cancelPlacement: vi.fn(),
       abandonPlacement: vi.fn(),
       placeDevice: vi.fn(() => true),
       completePlacement: vi.fn(),
       toggleRotation: () => {
-        turned = !turned;
-        return true;
+        rotation = rotation === 90 ? 0 : 90;
+        return rotation;
       },
     });
-
-    controller.handleKeyDown(new KeyboardEvent("keydown", { key: "r" }));
-    expect(cursor).toBe(8);
-  });
+    return { controller, announce, cursor: () => cursor };
+  }
 });
 
 describe("loading a turned device", () => {

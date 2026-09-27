@@ -13,7 +13,7 @@
  * to a placeable position rather than letting the user hover an occupied slot.
  */
 
-import type { Rack, DeviceType, DeviceFace } from "$lib/types";
+import type { Rack, DeviceType, DeviceFace, DeviceRotation } from "$lib/types";
 import { getDropFeedback } from "./dragdrop";
 import { requiresChassisBay } from "./collision";
 import { pendingCollisionFace } from "./effective-face";
@@ -163,6 +163,11 @@ export function positionAnnouncement(
 ): string {
   const base = `U${position} of ${rackName}, available`;
   return atEdge ? `${base}, no further slots this way` : base;
+}
+
+/** Copy announced when the armed device turns before it is placed. */
+export function rotationAnnouncement(rotation: DeviceRotation): string {
+  return rotation === 90 ? "Rotated 90 degrees" : "Rotated back to 0 degrees";
 }
 
 /** Copy announced when a rack has no room for the armed device. */
