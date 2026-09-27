@@ -210,4 +210,19 @@ describe("schemaVersionForWrite", () => {
       schemaVersionForWrite(newer, [createTestDeviceType({ width_mm: 72 })]),
     ).toBe(newer);
   });
+
+  it("stamps a carrier with a gap as the measured-width format", () => {
+    // A carrier can outlive the measured device it was cut for. Its gaps move
+    // its cells, which a 1.x reader would drop without a word.
+    expect(
+      schemaVersionForWrite(undefined, [
+        { ...createTestDeviceType(), slot_gaps: [5] },
+      ]),
+    ).toBe(MEASURED_WIDTH_SCHEMA_VERSION);
+    expect(
+      schemaVersionForWrite(undefined, [
+        { ...createTestDeviceType(), slot_gaps: [0] },
+      ]),
+    ).toBe(SCHEMA_VERSION);
+  });
 });

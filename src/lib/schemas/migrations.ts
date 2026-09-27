@@ -125,11 +125,12 @@ function knownVersionForMajor(major: number): string | undefined {
  * The schema_version a writer stamps on a saved layout (#3108).
  *
  * The base stamp is MEASURED_WIDTH_SCHEMA_VERSION when a device type has
- * width_mm, otherwise SCHEMA_VERSION. A layout re-saved after load and
- * migration is in the current format, so an older, absent, or malformed stamp
- * (anything but MAJOR.MINOR digits) becomes the base stamp. The base stamp
- * tracks the content, so dropping the last measured device restamps the file
- * back to SCHEMA_VERSION and a 1.x release can open it again.
+ * width_mm or a positive slot gap, otherwise SCHEMA_VERSION. A layout re-saved
+ * after load and migration is in the current format, so an older, absent, or
+ * malformed stamp (anything but MAJOR.MINOR digits) becomes the base stamp.
+ * The base stamp tracks the content, so dropping the last measured device
+ * restamps the file back to SCHEMA_VERSION and a 1.x release can open it
+ * again.
  *
  * A stamp newer than the newest format this app knows for that MAJOR is kept
  * instead: unknown fields round-trip on save, so the file still carries that
@@ -153,13 +154,17 @@ function knownVersionForMajor(major: number): string | undefined {
  * trimmed form is what a kept stamp is written back as.
  *
  * @param current - The layout's metadata.schema_version, if any.
- * @param deviceTypes - The layout's device types, checked for width_mm.
+ * @param deviceTypes - The layout's device types, checked for width_mm and
+ * positive slot_gaps.
  */
 export function schemaVersionForWrite(
   current: string | undefined,
-  deviceTypes: Pick<DeviceType, "width_mm">[],
+  deviceTypes: Pick<DeviceType, "width_mm" | "slot_gaps">[],
 ): string {
-  const base = deviceTypes.some((dt) => dt.width_mm !== undefined)
+  const base = deviceTypes.some(
+    (dt) =>
+      dt.width_mm !== undefined || (dt.slot_gaps ?? []).some((mm) => mm > 0),
+  )
     ? MEASURED_WIDTH_SCHEMA_VERSION
     : SCHEMA_VERSION;
   const stamp = current?.trim();

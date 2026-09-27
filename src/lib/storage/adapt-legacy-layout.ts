@@ -50,6 +50,7 @@ import { ensurePreCarrierBackup } from "./pre-carrier-backup";
 import { getStorageMode } from "./availability.svelte";
 import { markPreCarrierMigrationPending } from "./pre-carrier-migration-pending";
 import { layoutDebug } from "$lib/utils/debug";
+import { fitsInRow } from "$lib/utils/slot-layout";
 
 /**
  * A placed device as it may appear in raw legacy input. The carrier-first model
@@ -326,11 +327,35 @@ function adaptRackDevices(
     else coLocated.set(key, [d]);
   }
   const forcedPairIds = new Set<string>();
+  // A hand-written pair holding a measured device wider than a half cell fits
+  // no shipped carrier, so it gets one carrier with a cell cut to each device,
+  // as long as both cells fit the row.
+  const customPairs: { pair: PlacedDevice[]; type: DeviceType }[] = [];
   for (const group of coLocated.values()) {
     if (group.length === 2 && group.every((d) => legacySlot(d) === undefined)) {
       for (const d of group) forcedPairIds.add(d.id);
+      const types = group.map((d) => deviceTypeBySlug.get(d.device_type));
+      if (!types.every((dt) => dt !== undefined)) continue;
+      const cells = types.map((dt) => cellForDevice(dt, rackWidth));
+      const hasWideMeasured = types.some(
+        (dt, i) =>
+          dt.width_mm !== undefined &&
+          cells[i]!.widthFraction > HALF_CELL_FRACTION,
+      );
+      if (!hasWideMeasured) continue;
+      const type = buildCustomCarrierType(
+        Math.max(...cells.map((cell) => cell.heightUnits)),
+        cells,
+        [0],
+      );
+      if (fitsInRow(type, rackWidth, 0)) {
+        customPairs.push({ pair: group, type });
+      }
     }
   }
+  const customPairIds = new Set(
+    customPairs.flatMap(({ pair }) => pair.map((d) => d.id)),
+  );
 
   // Group candidates that need a carrier by (position, face, carrier shape) so
   // a legacy half-width pair lands in one shared 2-column carrier, while a
@@ -346,6 +371,7 @@ function adaptRackDevices(
     cell: CarrierCell;
   }[] = [];
   for (const d of snapped) {
+    if (customPairIds.has(d.id)) continue;
     const dt = deviceTypeBySlug.get(d.device_type);
     const forced = forcedPairIds.has(d.id);
     if (!forced && !needsCarrier(d, dt)) {
@@ -382,6 +408,20 @@ function adaptRackDevices(
       [device],
       device.position,
       device.face ?? "front",
+    );
+    generatedTypes.push(type);
+    result.push(carrier, ...children);
+    changed = true;
+  }
+
+  for (const { pair, type } of customPairs) {
+    const first = pair[0]!;
+    const { carrier, children } = buildCarrier(
+      type.slug,
+      ["col-1", "col-2"],
+      pair,
+      first.position,
+      first.face ?? "front",
     );
     generatedTypes.push(type);
     result.push(carrier, ...children);
