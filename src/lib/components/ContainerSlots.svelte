@@ -42,6 +42,11 @@
     onslotclick,
   }: Props = $props();
 
+  // Per instance: carriers sharing a type, and the front and rear copies of
+  // one carrier, must not render the same SVG id.
+  const uid = $props.id();
+  const hatchId = `slot-gap-hatch-${uid}`;
+
   // Get slots from container type, defaulting to empty array
   const slots = $derived(containerType.slots ?? []);
 
@@ -122,7 +127,7 @@
 >
   <defs>
     <pattern
-      id="slot-gap-hatch-{containerType.slug}"
+      id={hatchId}
       width="6"
       height="6"
       patternUnits="userSpaceOnUse"
@@ -140,7 +145,7 @@
       y={0}
       width={gap.width}
       height={containerHeight}
-      fill="url(#slot-gap-hatch-{containerType.slug})"
+      fill="url(#{hatchId})"
     />
     {#if gap.width >= MIN_GAP_LABEL_PX}
       <text

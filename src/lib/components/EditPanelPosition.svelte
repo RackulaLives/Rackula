@@ -142,7 +142,8 @@
 
   function setGap(index: number, mm: number): boolean {
     const gaps = editableGaps;
-    if (!gaps) return false;
+    // A cleared or unreadable field is not a gap of 0 mm.
+    if (!gaps || !Number.isFinite(mm)) return false;
     const next = [...gaps];
     next[index] = Math.max(0, mm);
     return layoutStore.updateDeviceTypeSlotGaps(
@@ -170,7 +171,7 @@
           value={gap}
           onchange={(e) => {
             // A refused gap leaves the carrier as it was, so show its gap again.
-            if (!setGap(index, Number(e.currentTarget.value))) {
+            if (!setGap(index, e.currentTarget.valueAsNumber)) {
               e.currentTarget.value = String(gap);
             }
           }}
