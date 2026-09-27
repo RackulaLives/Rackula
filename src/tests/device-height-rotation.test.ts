@@ -403,19 +403,39 @@ describe("turning a device before it is placed", () => {
     );
   });
 
-  it("announces no space when the turned device fits nowhere in the rack", () => {
+  it("keeps the cursor when the turned device fits nowhere, so turning back restores it", () => {
     // Turned, the mini PC needs a 5U carrier, which a 4U rack cannot hold.
     const rack = createTestRack({ id: "rack-1", height: 4, devices: [] });
     const { controller, announce, cursor } = turningController(rack, 4);
+    const r = () =>
+      controller.handleKeyDown(new KeyboardEvent("keydown", { key: "r" }));
 
-    controller.handleKeyDown(new KeyboardEvent("keydown", { key: "r" }));
-    expect(cursor()).toBeNull();
+    r();
+    expect(cursor()).toBe(4);
     expect(announce).toHaveBeenLastCalledWith(
       "Rotated 90 degrees. No space for this device in Test Rack",
     );
+
+    r();
+    expect(cursor()).toBe(4);
+    expect(announce).toHaveBeenLastCalledWith(
+      "Rotated back to 0 degrees. U4 of Test Rack, available",
+    );
   });
 
-  function turningController(rack: Rack, start: number) {
+  it("gives the shelf reason when the turn makes the device wider than the opening", () => {
+    // 500 mm tall: flat it fits the 450 mm opening, turned it is 500 mm wide.
+    const tall = miniPc({ u_height: 12, height_mm: 500 });
+    const rack = createTestRack({ id: "rack-1", height: 42, devices: [] });
+    const { controller, announce } = turningController(rack, 20, tall);
+
+    controller.handleKeyDown(new KeyboardEvent("keydown", { key: "r" }));
+    expect(announce).toHaveBeenLastCalledWith(
+      "Rotated 90 degrees. Mini PC must be placed in a shelf or carrier cell wide enough for it. Drop it onto a shelf.",
+    );
+  });
+
+  function turningController(rack: Rack, start: number, device = miniPc()) {
     let rotation: DeviceRotation = 0;
     let cursor: number | null = start;
     const announce = vi.fn();
@@ -424,7 +444,7 @@ describe("turning a device before it is placed", () => {
       getDeviceLibrary: () => [],
       getActiveRackId: () => rack.id,
       isPlacing: () => true,
-      getPendingDevice: () => orientDeviceType(miniPc(), rotation),
+      getPendingDevice: () => orientDeviceType(device, rotation),
       getTargetFace: () => "front",
       getCursorPosition: () => cursor,
       setActiveRack: vi.fn(),

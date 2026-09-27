@@ -304,7 +304,8 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     // R turns the armed device before it is placed, whether the pointer or
     // the keyboard is aiming it. A device that cannot turn leaves the key
     // alone. A turn changes the device's height, so a primed cursor moves to
-    // the nearest slot the device fits as it now stands.
+    // the nearest slot the device fits as it now stands. Where it fits
+    // nowhere the cursor stays, so turning back finds the same slot.
     if (
       (event.key === "r" || event.key === "R") &&
       !event.ctrlKey &&
@@ -321,16 +322,17 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
           validFor(deps, rack, turned),
           current,
         );
-        deps.setCursor(rack.id, next);
+        deps.setCursor(rack.id, next ?? current);
         // One message, so the new slot does not replace the turn in the live
-        // region.
-        deps.announce(
-          `${rotationAnnouncement(rotation)}. ${
-            next == null
-              ? noSpaceAnnouncement(rack.name)
-              : positionAnnouncement(rack.name, next)
-          }`,
-        );
+        // region. A turn that leaves no rail target gives the real reason, as
+        // the pick-up path does.
+        const where =
+          next != null
+            ? positionAnnouncement(rack.name, next)
+            : requiresChassisBay(turned, rack.width)
+              ? pickUpNeedsChassisAnnouncement(turned)
+              : noSpaceAnnouncement(rack.name);
+        deps.announce(`${rotationAnnouncement(rotation)}. ${where}`);
       }
       return true;
     }
