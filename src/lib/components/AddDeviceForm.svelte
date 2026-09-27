@@ -132,7 +132,7 @@
         : 1,
   );
   const cropWidthLabel = $derived(
-    isHalfWidth
+    isHalfWidth && widthValue == null
       ? `a half-width ${getCropUnitHeight(uHeight)}U device in a ${cropRackWidth} inch rack`
       : undefined,
   );
