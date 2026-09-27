@@ -4,6 +4,7 @@
  */
 
 import type panzoom from "panzoom";
+import { untrack } from "svelte";
 import { cubicOut } from "svelte/easing";
 import type { Rack, RackGroup, DeviceType } from "$lib/types";
 import {
@@ -176,7 +177,13 @@ export function getCanvasStore() {
 
 function setCurrentZoom(scale: number): void {
   currentZoom = scale;
-  lodTier = nextLodTier(lodTier, scale);
+  // Untracked: Canvas.svelte calls this from the $effect that installs
+  // panzoom. Tracking the tier there rebuilt panzoom on every tier change and
+  // looped on a zoomed-out canvas (#3428).
+  lodTier = nextLodTier(
+    untrack(() => lodTier),
+    scale,
+  );
 }
 
 function scheduleViewportSave(): void {
