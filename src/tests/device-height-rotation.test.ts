@@ -435,10 +435,28 @@ describe("turning a device before it is placed", () => {
     );
   });
 
+  it("refuses Enter on the kept slot with the shelf reason", () => {
+    const tall = miniPc({ u_height: 12, height_mm: 500 });
+    const rack = createTestRack({ id: "rack-1", height: 42, devices: [] });
+    const { controller, announce, placeDevice } = turningController(
+      rack,
+      20,
+      tall,
+    );
+
+    controller.handleKeyDown(new KeyboardEvent("keydown", { key: "r" }));
+    controller.handleKeyDown(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(placeDevice).not.toHaveBeenCalled();
+    expect(announce).toHaveBeenLastCalledWith(
+      "Mini PC must be placed in a shelf or carrier cell wide enough for it. Drop it onto a shelf.",
+    );
+  });
+
   function turningController(rack: Rack, start: number, device = miniPc()) {
     let rotation: DeviceRotation = 0;
     let cursor: number | null = start;
     const announce = vi.fn();
+    const placeDevice = vi.fn(() => true);
     const controller = createPlacementKeyboardController({
       getRacks: () => [rack],
       getDeviceLibrary: () => [],
@@ -454,14 +472,14 @@ describe("turning a device before it is placed", () => {
       announce,
       cancelPlacement: vi.fn(),
       abandonPlacement: vi.fn(),
-      placeDevice: vi.fn(() => true),
+      placeDevice,
       completePlacement: vi.fn(),
       toggleRotation: () => {
         rotation = rotation === 90 ? 0 : 90;
         return rotation;
       },
     });
-    return { controller, announce, cursor: () => cursor };
+    return { controller, announce, placeDevice, cursor: () => cursor };
   }
 });
 

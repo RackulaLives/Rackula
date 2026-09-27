@@ -261,16 +261,17 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     const rack = activeRack();
     const position = deps.getCursorPosition();
     if (!rack) return;
+    // A device with no rail target here gets the honest reason instead of "no
+    // room" (#3310), also on a slot R kept after a turn left it none.
+    if (requiresChassisBay(device, rack.width)) {
+      const reason = pickUpNeedsChassisAnnouncement(device);
+      deps.announce(reason);
+      deps.showToast?.(reason);
+      return;
+    }
     if (position == null) {
       // No valid slot in this rack (e.g. it is full). Tell the user rather than
-      // letting Enter silently do nothing. A device with no rail target here
-      // gets the honest reason instead of "no room" (#3310).
-      if (requiresChassisBay(device, rack.width)) {
-        const reason = pickUpNeedsChassisAnnouncement(device);
-        deps.announce(reason);
-        deps.showToast?.(reason);
-        return;
-      }
+      // letting Enter silently do nothing.
       deps.announce(noSpaceAnnouncement(rack.name));
       deps.showToast?.(NO_ROOM_MESSAGE);
       return;
