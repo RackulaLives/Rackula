@@ -81,11 +81,11 @@
     ]
   },
   "dependencies": {
-    "@lucide/svelte": "^1.47.0",
-    "bits-ui": "^2.19.2",
+    "@lucide/svelte": "^1.48.0",
+    "bits-ui": "^2.19.3",
     "browser-fs-access": "^0.38.0",
     "debug": "^4.4.3",
-    "dompurify": "^3.4.15",
+    "dompurify": "^3.4.16",
     "fuse.js": "^7.5.0",
     "js-yaml": "^4.3.2",
     "jspdf": "^4.2.1",
