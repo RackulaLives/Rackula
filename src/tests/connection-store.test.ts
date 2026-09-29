@@ -510,6 +510,50 @@ describe("connection store", () => {
     });
   });
 
+  describe("getConnectionsForRack", () => {
+    it("keeps an unrelated rack's bucket identity when a device in another rack is edited", () => {
+      const otherRackId = layoutStore.addRack("Other Rack", 42)!.id;
+      placeDeviceWithPorts(layoutStore, rackId, "device-a", 5, ["1000base-t"]);
+      const b = placeDeviceWithPorts(layoutStore, otherRackId, "device-b", 5, [
+        "1000base-t",
+        "1000base-t",
+      ]);
+      const store = getConnectionStore();
+      const inOther = expectConnection(
+        store.addConnection({
+          a_port_id: b.ports[0].id,
+          b_port_id: b.ports[1].id,
+        }),
+      );
+      const before = store.getConnectionsForRack(otherRackId);
+      expect(before).toEqual([inOther]);
+
+      layoutStore.updateDeviceName(rackId, 0, "renamed");
+
+      expect(store.getConnectionsForRack(otherRackId)).toBe(before);
+    });
+
+    it("lists a cross-rack connection under both racks", () => {
+      const otherRackId = layoutStore.addRack("Other Rack", 42)!.id;
+      const a = placeDeviceWithPorts(layoutStore, rackId, "device-a", 5, [
+        "1000base-t",
+      ]);
+      const b = placeDeviceWithPorts(layoutStore, otherRackId, "device-b", 5, [
+        "1000base-t",
+      ]);
+      const store = getConnectionStore();
+      const cross = expectConnection(
+        store.addConnection({
+          a_port_id: a.ports[0].id,
+          b_port_id: b.ports[0].id,
+        }),
+      );
+
+      expect(store.getConnectionsForRack(rackId)).toEqual([cross]);
+      expect(store.getConnectionsForRack(otherRackId)).toEqual([cross]);
+    });
+  });
+
   describe("undo/redo", () => {
     it("undoes and redoes addConnection through the layout store history", () => {
       const a = placeDeviceWithPorts(layoutStore, rackId, "device-a", 5, [

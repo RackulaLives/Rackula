@@ -461,7 +461,11 @@
     {/if}
 
     {#if hasRacks}
-      <div class="panzoom-container" bind:this={panzoomContainer}>
+      <div
+        class="panzoom-container"
+        class:panning={canvasStore.isPanning}
+        bind:this={panzoomContainer}
+      >
         <RackCanvasView
           {partyMode}
           {enableLongPress}
@@ -524,7 +528,10 @@
     cursor: grab;
   }
 
-  .panzoom-container:active {
+  /* Keyed to an actual pan, not :active. cursor is inherited, so toggling it
+     on every press restyled the whole canvas subtree on each click, about
+     300 ms at 100 racks with 4x CPU throttling (#3374). */
+  .panzoom-container.panning {
     cursor: grabbing;
   }
 

@@ -29,6 +29,7 @@ import type {
   PlacedDevice,
   PlacedPort,
   PortDirection,
+  Rack,
   RackView,
 } from "$lib/types";
 import { inferDirection } from "$lib/utils/port-utils";
@@ -537,6 +538,68 @@ export function buildPortAnchorMap(
   }
 
   return map;
+}
+
+/**
+ * Index connections by the racks their ports live in (#3373), so each rack
+ * face scans only its own connections instead of the whole layout's.
+ *
+ * A connection goes in the bucket of every rack holding one of its ports, so
+ * a cross-rack connection sits in both racks' buckets. A face only draws a
+ * connection whose two ports are both anchored on its own devices, so its
+ * rack's bucket always contains every connection it can draw. Buckets keep
+ * layout order, which keeps buildRenderedConnections' per-face channel
+ * index, and so the routing, identical to a scan of the full list.
+ *
+ * Pass the previous index to keep an unchanged bucket's array identity: a
+ * rack whose bucket holds the same connection objects in the same order gets
+ * the previous array back, so a derivation reading it does not re-run.
+ */
+export function indexConnectionsByRack(
+  racks: Rack[],
+  connections: Connection[],
+  previous?: Map<string, Connection[]>,
+): Map<string, Connection[]> {
+  const rackIdsByPort = new Map<string, string[]>();
+  for (const rack of racks) {
+    for (const device of rack.devices) {
+      for (const port of device.ports ?? []) {
+        const rackIds = rackIdsByPort.get(port.id);
+        if (!rackIds) rackIdsByPort.set(port.id, [rack.id]);
+        else if (!rackIds.includes(rack.id)) rackIds.push(rack.id);
+      }
+    }
+  }
+
+  const buckets = new Map<string, Connection[]>();
+  const addTo = (rackId: string, connection: Connection) => {
+    const bucket = buckets.get(rackId);
+    if (!bucket) buckets.set(rackId, [connection]);
+    else if (bucket[bucket.length - 1] !== connection) bucket.push(connection);
+  };
+  for (const connection of connections) {
+    for (const rackId of rackIdsByPort.get(connection.a_port_id) ?? []) {
+      addTo(rackId, connection);
+    }
+    for (const rackId of rackIdsByPort.get(connection.b_port_id) ?? []) {
+      addTo(rackId, connection);
+    }
+  }
+
+  if (previous) {
+    for (const [rackId, bucket] of buckets) {
+      const prior = previous.get(rackId);
+      if (
+        prior &&
+        prior.length === bucket.length &&
+        prior.every((c, i) => c === bucket[i])
+      ) {
+        buckets.set(rackId, prior);
+      }
+    }
+  }
+
+  return buckets;
 }
 
 export interface RenderedConnection {

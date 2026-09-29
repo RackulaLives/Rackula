@@ -22,6 +22,7 @@ import {
   createTestDeviceType,
   createTestInterfaceTemplate,
   createTestPlacedPort,
+  createTestRack,
 } from "./factories";
 import {
   DEFAULT_GUTTER_OFFSET,
@@ -37,6 +38,7 @@ import {
   computeDeviceOffset,
   cubicBezierPointAt,
   cubicBezierTangentAt,
+  indexConnectionsByRack,
   resolveArrowDirection,
   resolveConnectionPortDirection,
   trimCubicBezier,
@@ -596,5 +598,133 @@ describe("buildRenderedConnections", () => {
     expect(rendered.map((r) => r.connection.id)).toEqual(["conn-1", "conn-3"]);
     expect(rendered[0].geometry.side).toBe("right");
     expect(rendered[1].geometry.side).toBe("left");
+  });
+});
+
+describe("indexConnectionsByRack", () => {
+  function rackWithPorts(id: string, portIds: string[]) {
+    return createTestRack({
+      id,
+      devices: [
+        createTestDevice({
+          id: `${id}-dev`,
+          ports: portIds.map((pid) => createTestPlacedPort({ id: pid })),
+        }),
+      ],
+    });
+  }
+
+  const rackA = rackWithPorts("rack-a", ["a1", "a2", "a3"]);
+  const rackB = rackWithPorts("rack-b", ["b1", "b2"]);
+  const inA1 = createTestConnection({
+    id: "in-a-1",
+    a_port_id: "a1",
+    b_port_id: "a2",
+  });
+  const inB = createTestConnection({
+    id: "in-b",
+    a_port_id: "b1",
+    b_port_id: "b2",
+  });
+  const cross = createTestConnection({
+    id: "cross",
+    a_port_id: "a3",
+    b_port_id: "b1",
+  });
+  const inA2 = createTestConnection({
+    id: "in-a-2",
+    a_port_id: "a2",
+    b_port_id: "a3",
+  });
+  const dangling = createTestConnection({
+    id: "dangling",
+    a_port_id: "gone",
+    b_port_id: "also-gone",
+  });
+  const connections = [inA1, inB, cross, inA2, dangling];
+
+  it("buckets each connection under the racks its ports live in, in layout order", () => {
+    const index = indexConnectionsByRack([rackA, rackB], connections);
+
+    expect(index.get("rack-a")?.map((c) => c.id)).toEqual([
+      "in-a-1",
+      "cross",
+      "in-a-2",
+    ]);
+    expect(index.get("rack-b")?.map((c) => c.id)).toEqual(["in-b", "cross"]);
+  });
+
+  it("puts a connection with no resolvable port in no bucket", () => {
+    const index = indexConnectionsByRack([rackA, rackB], connections);
+
+    const bucketed = [...index.values()].flat().map((c) => c.id);
+    expect(bucketed).not.toContain("dangling");
+  });
+
+  it("indexes ports on container children, which live in rack.devices too", () => {
+    const rack = createTestRack({
+      id: "rack-c",
+      devices: [
+        createTestDevice({ id: "parent" }),
+        createTestDevice({
+          id: "child",
+          container_id: "parent",
+          ports: [createTestPlacedPort({ id: "c1" })],
+        }),
+      ],
+    });
+    const conn = createTestConnection({ a_port_id: "c1", b_port_id: "x" });
+
+    expect(indexConnectionsByRack([rack], [conn]).get("rack-c")).toEqual([
+      conn,
+    ]);
+  });
+
+  it("reuses an unchanged rack's bucket array so its face does not recompute", () => {
+    const before = indexConnectionsByRack([rackA, rackB], connections);
+
+    // Editing a device in rack A replaces rack A but leaves rack B and
+    // every connection object untouched.
+    const editedA = {
+      ...rackA,
+      devices: [{ ...rackA.devices[0], name: "renamed" }],
+    };
+    const after = indexConnectionsByRack([editedA, rackB], connections, before);
+
+    expect(after.get("rack-b")).toBe(before.get("rack-b"));
+    expect(after.get("rack-a")).toBe(before.get("rack-a"));
+  });
+
+  it("returns a new bucket only for the racks whose connections changed", () => {
+    const before = indexConnectionsByRack([rackA, rackB], connections);
+
+    const updatedInB = { ...inB, label: "uplink" };
+    const after = indexConnectionsByRack(
+      [rackA, rackB],
+      [inA1, updatedInB, cross, inA2],
+      before,
+    );
+
+    expect(after.get("rack-a")).toBe(before.get("rack-a"));
+    expect(after.get("rack-b")).not.toBe(before.get("rack-b"));
+    expect(after.get("rack-b")?.map((c) => c.label)).toEqual([
+      "uplink",
+      undefined,
+    ]);
+  });
+
+  it("routes a face's bucket exactly as it routes the full connection list", () => {
+    const portAnchors = new Map<string, ResolvedPortAnchor>([
+      ["a1", makeResolvedAnchor("a1", 10, 50)],
+      ["a2", makeResolvedAnchor("a2", 190, 300)],
+      ["a3", makeResolvedAnchor("a3", 10, 500)],
+    ]);
+    const rackBounds = { x: 0, y: 0, width: 220, height: 900 };
+    const bucket =
+      indexConnectionsByRack([rackA, rackB], connections).get("rack-a") ?? [];
+
+    expect(buildRenderedConnections(bucket, portAnchors, rackBounds)).toEqual(
+      buildRenderedConnections(connections, portAnchors, rackBounds),
+    );
   });
 });

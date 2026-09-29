@@ -24,6 +24,7 @@
   import { appDebug } from "$lib/utils/debug";
   import { hapticTap } from "$lib/utils/haptics";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
+  import { anchor, rackAnchorKey } from "$lib/utils/anchor-registry";
   import {
     RACK_PADDING_HIDDEN,
     ANNOTATION_WIDTH_COMPACT,
@@ -187,6 +188,9 @@
       return { uNumber, yPosition };
     }),
   );
+  // The shared columns keep their rails but drop the numbers on a zoomed-out
+  // canvas, like each rack's own labels (LOD, #3367).
+  const columnULabels = $derived(canvasStore.lodTier === "full" ? uLabels : []);
 
   // Column height must match Rack.svelte viewBoxHeight when hideRackName=true
   const uColumnHeight = $derived(
@@ -444,6 +448,7 @@
         <div
           class="bay-container"
           data-rack-id={rack.id}
+          {@attach anchor(rackAnchorKey(rack.id))}
           class:active={isActive}
           class:selected={isSelected}
           role="presentation"
@@ -515,7 +520,7 @@
       {#if bayIndex < racks.length - 1}
         <div class="u-labels-column">
           <ULabels
-            {uLabels}
+            uLabels={columnULabels}
             {uColumnHeight}
             railWidth={RAIL_WIDTH}
             topPadding={RACK_PADDING_HIDDEN}
@@ -540,7 +545,7 @@
         {#if reversedIndex > 0}
           <div class="u-labels-column">
             <ULabels
-              {uLabels}
+              uLabels={columnULabels}
               {uColumnHeight}
               railWidth={RAIL_WIDTH}
               topPadding={RACK_PADDING_HIDDEN}
@@ -558,6 +563,7 @@
           <div
             class="bay-container"
             data-rack-id={rack.id}
+            {@attach anchor(rackAnchorKey(rack.id))}
             class:active={isActive}
             class:selected={isSelected}
             role="presentation"
