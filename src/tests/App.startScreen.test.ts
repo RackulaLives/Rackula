@@ -6,6 +6,7 @@ vi.mock("$lib/storage/load-pipeline", () => ({
   loadFromApi: vi.fn(async () => true),
   loadFromFile: vi.fn(async () => true),
   finalizeLayoutLoad: vi.fn(),
+  loadWorkingCopyServerImages: vi.fn(async () => {}),
 }));
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";

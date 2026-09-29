@@ -37,6 +37,7 @@ export {
   finalizeLayoutLoad,
   loadFromApi,
   loadFromFile,
+  loadWorkingCopyServerImages,
   restoreFromSnapshot,
 } from "./load-pipeline";
 export {
