@@ -255,6 +255,19 @@ describe("load-pipeline", () => {
       });
     }
 
+    // Holds the fetch open so a test can change state while it is in flight.
+    function deferFetch() {
+      let resolve!: (
+        value: Awaited<ReturnType<typeof eagerFetchServerImages>>,
+      ) => void;
+      vi.mocked(eagerFetchServerImages).mockReturnValue(
+        new Promise((r) => {
+          resolve = r;
+        }),
+      );
+      return resolve;
+    }
+
     it("puts the fetched faces into the image store", async () => {
       const key = placementKey(layoutId, deviceId);
       const front = { dataUrl: "data:image/png;base64,AA==", filename: "f" };
@@ -302,19 +315,22 @@ describe("load-pipeline", () => {
     it("drops the result when another layout was opened during the fetch", async () => {
       const key = placementKey(layoutId, deviceId);
       const front = { dataUrl: "data:image/png;base64,AA==", filename: "f" };
-      vi.mocked(eagerFetchServerImages).mockResolvedValue({
-        images: new Map([[key, { front }]]),
-        failedImagesCount: 1,
-        failedKeys: [key],
-      });
+      const resolveFetch = deferFetch();
       const layout = layoutWithImage();
+      layoutStore.loadLayout(layout);
+
+      const pending = loadWorkingCopyServerImages(layout);
       layoutStore.loadLayout(
         createTestLayout({
           metadata: { id: "33333333-3333-4333-8333-333333333333" },
         }),
       );
-
-      await loadWorkingCopyServerImages(layout);
+      resolveFetch({
+        images: new Map([[key, { front }]]),
+        failedImagesCount: 1,
+        failedKeys: [key],
+      });
+      await pending;
 
       expect(mockImageStore.setDeviceImage).not.toHaveBeenCalled();
       expect(toastStore.toasts).not.toContainEqual(
@@ -325,16 +341,18 @@ describe("load-pipeline", () => {
     it("keeps a face the user set while the fetch was in flight", async () => {
       const key = placementKey(layoutId, deviceId);
       const front = { dataUrl: "data:image/png;base64,AA==", filename: "f" };
-      vi.mocked(eagerFetchServerImages).mockResolvedValue({
+      const resolveFetch = deferFetch();
+      const layout = layoutWithImage();
+      layoutStore.loadLayout(layout);
+
+      const pending = loadWorkingCopyServerImages(layout);
+      mockImageStore.hasImage.mockReturnValue(true);
+      resolveFetch({
         images: new Map([[key, { front }]]),
         failedImagesCount: 0,
         failedKeys: [],
       });
-      mockImageStore.hasImage.mockReturnValue(true);
-      const layout = layoutWithImage();
-      layoutStore.loadLayout(layout);
-
-      await loadWorkingCopyServerImages(layout);
+      await pending;
 
       expect(mockImageStore.setDeviceImage).not.toHaveBeenCalled();
     });
@@ -342,14 +360,7 @@ describe("load-pipeline", () => {
     it("drops the result when the same layout was reloaded during the fetch", async () => {
       const key = placementKey(layoutId, deviceId);
       const front = { dataUrl: "data:image/png;base64,AA==", filename: "f" };
-      let resolveFetch!: (
-        value: Awaited<ReturnType<typeof eagerFetchServerImages>>,
-      ) => void;
-      vi.mocked(eagerFetchServerImages).mockReturnValue(
-        new Promise((resolve) => {
-          resolveFetch = resolve;
-        }),
-      );
+      const resolveFetch = deferFetch();
       const layout = layoutWithImage();
       layoutStore.loadLayout(layout);
 
@@ -372,17 +383,19 @@ describe("load-pipeline", () => {
     it("does not restore a face the user cleared during the fetch", async () => {
       const key = placementKey(layoutId, deviceId);
       const front = { dataUrl: "data:image/png;base64,AA==", filename: "f" };
-      vi.mocked(eagerFetchServerImages).mockResolvedValue({
+      const resolveFetch = deferFetch();
+      const layout = layoutWithImage();
+      layoutStore.loadLayout(layout);
+
+      const pending = loadWorkingCopyServerImages(layout);
+      const rackId = layoutStore.layout.racks[0]!.id;
+      layoutStore.updateDevicePlacementImage(rackId, 0, "front", undefined);
+      resolveFetch({
         images: new Map([[key, { front }]]),
         failedImagesCount: 0,
         failedKeys: [],
       });
-      const layout = layoutWithImage();
-      layoutStore.loadLayout(layout);
-      const rackId = layoutStore.layout.racks[0]!.id;
-      layoutStore.updateDevicePlacementImage(rackId, 0, "front", undefined);
-
-      await loadWorkingCopyServerImages(layout);
+      await pending;
 
       expect(mockImageStore.setDeviceImage).not.toHaveBeenCalled();
     });
