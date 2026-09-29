@@ -179,6 +179,8 @@ export interface RackSlotControls {
   canMoveLeft: boolean;
   /** The slot can move right (it is not the last slot). */
   canMoveRight: boolean;
+  /** The slot is a group, which moves between rows (up/down), not along one. */
+  movesRow: boolean;
   /** The rack to bay from, or null when baying is not offered for this slot. */
   baySource: string | null;
 }
@@ -206,6 +208,7 @@ export function getRackSlotControls(
     canReorder,
     canMoveLeft: canReorder && slot.index > 0,
     canMoveRight: canReorder && slot.index < slot.length - 1,
+    movesRow: slot?.movesRow ?? false,
     baySource: baySourceForItem(slot?.item, activeRackId),
   };
 }

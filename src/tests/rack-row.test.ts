@@ -500,12 +500,13 @@ describe("getRackSlotControls (verb bar reorder + bay gating, #2822)", () => {
     };
 
     // a is alone in the standalone row, so it has nothing to swap with.
-    expect(getRackSlotControls([a, m1], [bay], "a", "a").canReorder).toBe(
-      false,
-    );
+    const standalone = getRackSlotControls([a, m1], [bay], "a", "a");
+    expect(standalone.canReorder).toBe(false);
+    expect(standalone.movesRow).toBe(false);
     // The group row sits below the standalone row, so it can move up only.
     const group = getRackSlotControls([a, m1], [bay], "m1", "m1");
     expect(group.canReorder).toBe(true);
+    expect(group.movesRow).toBe(true);
     expect(group.canMoveLeft).toBe(true);
     expect(group.canMoveRight).toBe(false);
   });

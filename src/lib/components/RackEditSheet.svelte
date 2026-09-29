@@ -8,7 +8,13 @@
   import SegmentedControl from "./SegmentedControl.svelte";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import SavedIndicator from "./ui/SavedIndicator.svelte";
-  import { IconChevronLeft, IconChevronRight, IconPlus } from "./icons";
+  import {
+    IconChevronDown,
+    IconChevronLeft,
+    IconChevronRight,
+    IconChevronUp,
+    IconPlus,
+  } from "./icons";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
@@ -168,7 +174,10 @@
     resizeError = null;
     layoutStore.updateRack(rack.id, { height: newHeight });
     // Reset view to center the resized rack
-    canvasStore.fitAll(layoutStore.rack ? [layoutStore.rack] : []);
+    canvasStore.fitAll(
+      layoutStore.rack ? [layoutStore.rack] : [],
+      layoutStore.rack_groups,
+    );
     return true;
   }
 
@@ -222,20 +231,34 @@
             class="row-action"
             onclick={() => layoutStore.moveRackInRow(rack.id, "left")}
             disabled={!slotControls.canMoveLeft}
-            aria-label="Move rack left"
+            aria-label={slotControls.movesRow
+              ? "Move group up"
+              : "Move rack left"}
           >
-            <IconChevronLeft />
-            <span>Left</span>
+            {#if slotControls.movesRow}
+              <IconChevronUp />
+              <span>Up</span>
+            {:else}
+              <IconChevronLeft />
+              <span>Left</span>
+            {/if}
           </button>
           <button
             type="button"
             class="row-action"
             onclick={() => layoutStore.moveRackInRow(rack.id, "right")}
             disabled={!slotControls.canMoveRight}
-            aria-label="Move rack right"
+            aria-label={slotControls.movesRow
+              ? "Move group down"
+              : "Move rack right"}
           >
-            <IconChevronRight />
-            <span>Right</span>
+            {#if slotControls.movesRow}
+              <IconChevronDown />
+              <span>Down</span>
+            {:else}
+              <IconChevronRight />
+              <span>Right</span>
+            {/if}
           </button>
         {/if}
         {#if baySource}

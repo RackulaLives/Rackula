@@ -72,6 +72,20 @@ describe("RackEditSheet row actions (#2833)", () => {
     expect(button("Move rack right")).toBeEnabled();
   });
 
+  it("moves a group between rows with up/down controls", async () => {
+    addRack("A");
+    const b = addRack("B");
+    const layout = getLayoutStore();
+    const { groupId } = layout.createBayedRack(b.id);
+    render(RackEditSheet, { props: { rack: b } });
+
+    expect(queryButton("Move rack left")).toBeNull();
+    expect(button("Move group down")).toBeDisabled();
+    await fireEvent.click(button("Move group up"));
+
+    expect(rowOrder()[0]).toBe(groupId);
+  });
+
   it("offers no reorder for a single-rack row", () => {
     const solo = addRack("Solo");
     render(RackEditSheet, { props: { rack: solo } });
