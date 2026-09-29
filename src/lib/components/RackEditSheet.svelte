@@ -153,6 +153,14 @@
 
   // Validate and apply height change
   function attemptHeightChange(newHeight: number): boolean {
+    // Bayed racks must all share a height, so the store rejects per-rack
+    // height changes. Revert the input and say why, as EditPanelRack does.
+    if (layoutStore.getRackGroupForRack(rack.id)?.layout_preset === "bayed") {
+      resizeError = "Bayed racks must share the same height.";
+      rackHeight = rack.height;
+      return false;
+    }
+
     // Validate the resize
     const validation = canResizeRackTo(
       rack,

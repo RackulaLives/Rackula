@@ -86,6 +86,22 @@ describe("RackEditSheet row actions (#2833)", () => {
     expect(rowOrder()[0]).toBe(groupId);
   });
 
+  it("rejects a per-rack height change for a bayed rack", async () => {
+    const a = addRack("A");
+    getLayoutStore().createBayedRack(a.id);
+    render(RackEditSheet, { props: { rack: a } });
+
+    const height = screen.getByLabelText("Height");
+    await fireEvent.input(height, { target: { value: "24" } });
+    await fireEvent.change(height);
+
+    expect(
+      screen.getByText(/bayed racks must share the same height/i),
+    ).toBeInTheDocument();
+    expect(height).toHaveValue(42);
+    expect(getLayoutStore().getRackById(a.id)?.height).toBe(42);
+  });
+
   it("offers no reorder for a single-rack row", () => {
     const solo = addRack("Solo");
     render(RackEditSheet, { props: { rack: solo } });
