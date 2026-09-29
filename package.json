@@ -63,7 +63,7 @@
     "happy-dom": "^20.14.5",
     "husky": "^9.1.7",
     "jsdom": "^30.1.1",
-    "lint-staged": "^17.5.1",
+    "lint-staged": "^17.6.0",
     "prettier": "^3.9.9",
     "prettier-plugin-svelte": "^4.1.1",
     "sharp": "^0.35.4",
