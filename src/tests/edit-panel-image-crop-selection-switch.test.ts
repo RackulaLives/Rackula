@@ -44,10 +44,12 @@ describe("EditPanelImage crop frame + selection switch (#3411)", () => {
     expect(
       await screen.findByText(/frame matches a 1U device in a 19 inch rack/i),
     ).toBeInTheDocument();
+    const { width, height } = screen.getByTestId("crop-frame").style;
 
     // Workspace jump while the dialog is open: a different device is selected.
     await rerender({ selectedDeviceInfo: deviceInfo(4, 10) });
 
+    expect(screen.getByTestId("crop-frame")).toHaveStyle({ width, height });
     expect(
       screen.getByText(/frame matches a 1U device in a 19 inch rack/i),
     ).toBeInTheDocument();
