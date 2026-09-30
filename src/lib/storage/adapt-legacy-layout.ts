@@ -38,11 +38,18 @@ import type {
 } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { generateId } from "$lib/utils/device";
+import { isNarrowDevice } from "$lib/utils/device-width";
 import { findStarterDevice } from "$lib/data/starterLibrary";
+import {
+  buildCustomCarrierType,
+  cellForDevice,
+  type CarrierCell,
+} from "$lib/utils/custom-carrier";
 import { ensurePreCarrierBackup } from "./pre-carrier-backup";
 import { getStorageMode } from "./availability.svelte";
 import { markPreCarrierMigrationPending } from "./pre-carrier-migration-pending";
 import { layoutDebug } from "$lib/utils/debug";
+import { fitsInRow } from "$lib/utils/slot-layout";
 
 /**
  * A placed device as it may appear in raw legacy input. The carrier-first model
@@ -60,6 +67,9 @@ type LegacyPlacedDevice = PlacedDevice & {
 function legacySlot(d: PlacedDevice): "left" | "right" | "full" | undefined {
   return (d as LegacyPlacedDevice).slot_position;
 }
+
+/** Widest cell the shipped carriers offer: half the rack opening. */
+const HALF_CELL_FRACTION = 0.5;
 
 /** Stable synthesized-carrier slugs (defined in C1's starter library). */
 export const CARRIER_2COL_SLUG = "carrier-1u-2col";
@@ -149,11 +159,6 @@ function snapToWholeU(position: number): number {
   return wholeU * UNITS_PER_U;
 }
 
-/** True when this device type mounts at half the rack width (slot_width 1). */
-function isHalfWidth(deviceType: DeviceType | undefined): boolean {
-  return (deviceType?.slot_width ?? 2) === 1;
-}
-
 /** True when this device type needs a height grid (sub-1U height). */
 function isSubUHeight(deviceType: DeviceType | undefined): boolean {
   const h = deviceType?.u_height ?? 1;
@@ -161,8 +166,8 @@ function isSubUHeight(deviceType: DeviceType | undefined): boolean {
 }
 
 /**
- * A rack-level device must move into a carrier when it is half-width or sub-U
- * height, or it carries a legacy left/right slot_position. Full-width whole-U
+ * A rack-level device must move into a carrier when it is narrow (half-width or
+ * measured) or sub-U height, or it carries a legacy left/right slot_position. Full-width whole-U
  * gear stays on the rails.
  */
 function needsCarrier(
@@ -173,7 +178,10 @@ function needsCarrier(
   if (slot === "left" || slot === "right") {
     return true;
   }
-  return isHalfWidth(deviceType) || isSubUHeight(deviceType);
+  return (
+    (deviceType !== undefined && isNarrowDevice(deviceType)) ||
+    isSubUHeight(deviceType)
+  );
 }
 
 interface CarrierBuild {
@@ -256,8 +264,15 @@ const SHAPE_SLOTS: Record<CarrierShape, readonly string[]> = {
 function adaptRackDevices(
   devices: PlacedDevice[],
   deviceTypeBySlug: Map<string, DeviceType>,
-): { devices: PlacedDevice[]; carrierSlugs: Set<string>; changed: boolean } {
+  rackWidth: number,
+): {
+  devices: PlacedDevice[];
+  carrierSlugs: Set<string>;
+  generatedTypes: DeviceType[];
+  changed: boolean;
+} {
   const carrierSlugs = new Set<string>();
+  const generatedTypes: DeviceType[] = [];
 
   // Drop children whose container no longer exists in this rack (#2911)
   // before any other processing, so a dangling reference can never survive
@@ -311,11 +326,35 @@ function adaptRackDevices(
     else coLocated.set(key, [d]);
   }
   const forcedPairIds = new Set<string>();
+  // A hand-written pair holding a measured device wider than a half cell fits
+  // no shipped carrier, so it gets one carrier with a cell cut to each device,
+  // as long as both cells fit the row.
+  const customPairs: { pair: PlacedDevice[]; type: DeviceType }[] = [];
   for (const group of coLocated.values()) {
     if (group.length === 2 && group.every((d) => legacySlot(d) === undefined)) {
       for (const d of group) forcedPairIds.add(d.id);
+      const types = group.map((d) => deviceTypeBySlug.get(d.device_type));
+      if (!types.every((dt) => dt !== undefined)) continue;
+      const cells = types.map((dt) => cellForDevice(dt, rackWidth));
+      const hasWideMeasured = types.some(
+        (dt, i) =>
+          dt.width_mm !== undefined &&
+          cells[i]!.widthFraction > HALF_CELL_FRACTION,
+      );
+      if (!hasWideMeasured) continue;
+      const type = buildCustomCarrierType(
+        Math.max(...cells.map((cell) => cell.heightUnits)),
+        cells,
+        [0],
+      );
+      if (fitsInRow(type, rackWidth, 0)) {
+        customPairs.push({ pair: group, type });
+      }
     }
   }
+  const customPairIds = new Set(
+    customPairs.flatMap(({ pair }) => pair.map((d) => d.id)),
+  );
 
   // Group candidates that need a carrier by (position, face, carrier shape) so
   // a legacy half-width pair lands in one shared 2-column carrier, while a
@@ -326,13 +365,30 @@ function adaptRackDevices(
     string,
     { shape: CarrierShape; items: PlacedDevice[] }
   >();
+  const customWrapped: {
+    device: PlacedDevice;
+    deviceType: DeviceType;
+    cell: CarrierCell;
+  }[] = [];
   for (const d of snapped) {
+    if (customPairIds.has(d.id)) continue;
     const dt = deviceTypeBySlug.get(d.device_type);
     const forced = forcedPairIds.has(d.id);
     if (!forced && !needsCarrier(d, dt)) {
       result.push(d);
       continue;
     }
+    // A measured device wider than a half cell has no shipped carrier that
+    // fits it. Forcing it into one wrote a file that would not load again
+    // ("too wide to fit slot col-1"), so it gets a carrier cut to its width.
+    if (!forced && dt?.width_mm !== undefined) {
+      const cell = cellForDevice(dt, rackWidth);
+      if (cell.widthFraction > HALF_CELL_FRACTION) {
+        customWrapped.push({ device: d, deviceType: dt, cell });
+        continue;
+      }
+    }
+
     // A forced bare pair always wraps as a 2-column carrier; otherwise the
     // device's own dimensions choose the shape.
     const shape = forced ? "2col" : carrierShapeFor(dt);
@@ -340,6 +396,36 @@ function adaptRackDevices(
     const group = groups.get(key);
     if (group) group.items.push(d);
     else groups.set(key, { shape, items: [d] });
+  }
+
+  // One carrier per custom-cut device: the cell is that device's width, so
+  // it cannot be shared with a neighbour.
+  for (const { device, deviceType, cell } of customWrapped) {
+    const type = buildCustomCarrierType(deviceType.u_height, [cell], []);
+    const { carrier, children } = buildCarrier(
+      type.slug,
+      ["col-1"],
+      [device],
+      device.position,
+      device.face ?? "front",
+    );
+    generatedTypes.push(type);
+    result.push(carrier, ...children);
+    changed = true;
+  }
+
+  for (const { pair, type } of customPairs) {
+    const first = pair[0]!;
+    const { carrier, children } = buildCarrier(
+      type.slug,
+      ["col-1", "col-2"],
+      pair,
+      first.position,
+      first.face ?? "front",
+    );
+    generatedTypes.push(type);
+    result.push(carrier, ...children);
+    changed = true;
   }
 
   for (const { shape, items } of groups.values()) {
@@ -368,6 +454,7 @@ function adaptRackDevices(
   return {
     devices: [...result, ...passthrough],
     carrierSlugs,
+    generatedTypes,
     changed,
   };
 }
@@ -641,21 +728,35 @@ export function adaptLegacyLayout(layout: Layout): Layout {
   }
 
   let racksChanged = false;
+  // Generated carriers are cut per file, so they cannot come from the starter
+  // library the way the shipped slugs do; they are merged in below.
+  const generatedCarrierTypes: DeviceType[] = [];
   const racks = layout.racks.map((rack) => {
     if (!rack || !Array.isArray(rack.devices)) return rack;
-    const { devices, carrierSlugs, changed } = adaptRackDevices(
+    const { devices, carrierSlugs, generatedTypes, changed } = adaptRackDevices(
       rack.devices,
       deviceTypeBySlug,
+      rack.width ?? 19,
     );
     if (changed) racksChanged = true;
     for (const slug of carrierSlugs) referencedCarrierSlugs.add(slug);
+    for (const type of generatedTypes) {
+      if (!generatedCarrierTypes.some((t) => t.slug === type.slug)) {
+        generatedCarrierTypes.push(type);
+      }
+    }
     return changed ? { ...rack, devices } : rack;
   });
 
-  const { deviceTypes, changed: typesChanged } = hydrateCarrierTypes(
+  const { deviceTypes: hydrated, changed: typesChanged } = hydrateCarrierTypes(
     layout.device_types ?? [],
     referencedCarrierSlugs,
   );
+  const missingGenerated = generatedCarrierTypes.filter(
+    (type) => !hydrated.some((dt) => dt.slug === type.slug),
+  );
+  const deviceTypes =
+    missingGenerated.length > 0 ? [...hydrated, ...missingGenerated] : hydrated;
 
   // Legacy cables -> connections migration (#3091): converts fragile
   // device-id + interface-name Cable references into stable PlacedPort.id

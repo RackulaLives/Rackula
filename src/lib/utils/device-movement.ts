@@ -203,6 +203,7 @@ export function canMoveChildCell(
       child.slot_id,
       siblings,
       direction,
+      rack.width,
     ) !== null
   );
 }

@@ -8,6 +8,7 @@ import {
 import { sessionDebug } from "$lib/utils/debug";
 import { getStorageMode, type StorageMode } from "./availability.svelte";
 import { parseLayoutObject } from "$lib/utils/yaml";
+import { stampLayoutForWrite } from "$lib/schemas/migrations";
 
 const log = sessionDebug.storage;
 const STORAGE_KEY = "Rackula:autosave";
@@ -60,7 +61,9 @@ export function saveSession(
 ): boolean {
   try {
     const sessionData: SessionData = {
-      layout,
+      // Stamp the data-format version, as the file and archive doors do, so an
+      // autosaved measured layout does not claim 1.x in localStorage (#3310).
+      layout: stampLayoutForWrite(layout),
       savedAt: new Date().toISOString(),
       serverUpdatedAt,
       changesSinceExport: backup.changesSinceExport,

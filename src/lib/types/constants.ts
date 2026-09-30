@@ -115,6 +115,17 @@ export const TELCO_RACK_WIDTH = 23;
 export const ALLOWED_RACK_WIDTHS: readonly number[] = [10, 19, 21, 23] as const;
 
 /**
+ * Millimetres per inch.
+ */
+export const MM_PER_INCH = 25.4;
+
+/**
+ * Width taken by the mounting ears, in inches. A rack width with no published
+ * clear opening (23") is approximated as its nominal width minus this.
+ */
+export const RACK_EAR_ALLOWANCE_IN = 1.25;
+
+/**
  * Default internal rack depth in millimetres.
  */
 export const DEFAULT_RACK_DEPTH_MM = 1000;

@@ -11,6 +11,7 @@ import { createDefaultRack } from "$lib/utils/serialization";
 import { layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { generateRackId } from "$lib/utils/rack";
+import { findChildrenTooWideForRack } from "$lib/utils/collision";
 import {
   createAddRackCommand,
   createDeleteRackCommand,
@@ -735,6 +736,24 @@ export function updateRack(
         id,
       );
       // Silently reject - UI should show toast
+      return;
+    }
+  }
+
+  // A narrower opening can leave measured children too wide for their cells.
+  if (updates.width !== undefined) {
+    const rack = ctx.getLayout().racks[rackIndex]!;
+    if (
+      findChildrenTooWideForRack(
+        rack.devices,
+        ctx.getLayout().device_types,
+        updates.width,
+      ).length > 0
+    ) {
+      layoutDebug.state(
+        "updateRack: rejected width change for rack %s, children too wide",
+        id,
+      );
       return;
     }
   }

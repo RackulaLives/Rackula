@@ -7,11 +7,12 @@ import { describe, it, expect } from "vitest";
 import { getChildYInSlot, getSlotRects } from "$lib/utils/slot-geometry";
 import { getStarterLibrary } from "$lib/data/starterLibrary";
 import { colAtX, rowAtY } from "$lib/utils/dragdrop";
-import type { Slot } from "$lib/types";
-import { createTestSlot } from "./factories";
+import type { DeviceType, Slot } from "$lib/types";
+import { createTestDeviceType, createTestSlot } from "./factories";
 
 const U = 20;
 const WIDTH = 400;
+const RACK_19 = 19;
 
 function cells2x2() {
   return [
@@ -173,7 +174,11 @@ describe("hit-testing matches rendering on regular grids", () => {
   // columns or widths are not covered yet (#3342).
   function cellAt(slots: Slot[], heightU: number, x: number, y: number) {
     // Container at U1 in a rack exactly its height, so its top edge is y 0.
-    const col = colAtX(slots, x, WIDTH);
+    const container: DeviceType = {
+      ...createTestDeviceType({ u_height: heightU }),
+      slots,
+    };
+    const col = colAtX(container, x, WIDTH, RACK_19);
     const row = rowAtY(slots, y, heightU, U, 1, heightU);
     return slots.find((s) => s.position.col === col && s.position.row === row)
       ?.id;

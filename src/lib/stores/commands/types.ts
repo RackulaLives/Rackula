@@ -11,6 +11,7 @@
 export type CommandType =
   | "ADD_DEVICE_TYPE"
   | "UPDATE_DEVICE_TYPE"
+  | "RETYPE_DEVICE"
   | "DELETE_DEVICE_TYPE"
   | "PLACE_DEVICE"
   | "MOVE_DEVICE"

@@ -53,7 +53,7 @@ describe("findNextSlotForChild", () => {
     const carrier = twoColCarrier();
     const child = halfWidthChild();
 
-    const next = findNextSlotForChild(carrier, child, "col-1", []);
+    const next = findNextSlotForChild(carrier, child, "col-1", [], 19);
 
     expect(next).toEqual({ slotId: "col-2" });
   });
@@ -62,7 +62,7 @@ describe("findNextSlotForChild", () => {
     const carrier = twoColCarrier();
     const child = halfWidthChild();
 
-    const next = findNextSlotForChild(carrier, child, "col-2", []);
+    const next = findNextSlotForChild(carrier, child, "col-2", [], 19);
 
     expect(next).toEqual({ slotId: "col-1" });
   });
@@ -85,7 +85,7 @@ describe("findNextSlotForChild", () => {
     });
 
     // From c1, c2 is taken by the sibling, so the next reachable cell is c3.
-    const next = findNextSlotForChild(carrier, child, "c1", [sibling]);
+    const next = findNextSlotForChild(carrier, child, "c1", [sibling], 19);
 
     expect(next).toEqual({ slotId: "c3" });
   });
@@ -99,7 +99,7 @@ describe("findNextSlotForChild", () => {
       device_type: "half-server",
     });
 
-    const next = findNextSlotForChild(carrier, child, "col-1", [sibling]);
+    const next = findNextSlotForChild(carrier, child, "col-1", [sibling], 19);
 
     expect(next).toBeNull();
   });
@@ -114,7 +114,7 @@ describe("findNextSlotForChild", () => {
     });
     const child = createTestDeviceType({ slug: "full", u_height: 1 });
 
-    const next = findNextSlotForChild(carrier, child, "only", []);
+    const next = findNextSlotForChild(carrier, child, "only", [], 19);
 
     expect(next).toBeNull();
   });
@@ -137,7 +137,13 @@ describe("findNextSlotForChild", () => {
     });
 
     // Currently in the wide cell; the only other cell (narrow) does not fit.
-    const fromWide = findNextSlotForChild(carrier, fullWidthChild, "wide", []);
+    const fromWide = findNextSlotForChild(
+      carrier,
+      fullWidthChild,
+      "wide",
+      [],
+      19,
+    );
     expect(fromWide).toBeNull();
   });
 
@@ -145,7 +151,7 @@ describe("findNextSlotForChild", () => {
     const carrier = twoColCarrier();
     const child = halfWidthChild();
 
-    const next = findNextSlotForChild(carrier, child, "nonexistent", []);
+    const next = findNextSlotForChild(carrier, child, "nonexistent", [], 19);
 
     expect(next).toBeNull();
   });
@@ -192,6 +198,7 @@ describe("findAdjacentSlotForChild (#2295)", () => {
         "col-1",
         [],
         "right",
+        19,
       ),
     ).toEqual({ slotId: "col-2" });
   });
@@ -204,6 +211,7 @@ describe("findAdjacentSlotForChild (#2295)", () => {
         "col-2",
         [],
         "left",
+        19,
       ),
     ).toEqual({ slotId: "col-1" });
   });
@@ -216,6 +224,7 @@ describe("findAdjacentSlotForChild (#2295)", () => {
         "r0-c1",
         [],
         "up",
+        19,
       ),
     ).toEqual({ slotId: "r1-c1" });
   });
@@ -228,6 +237,7 @@ describe("findAdjacentSlotForChild (#2295)", () => {
         "r1-c0",
         [],
         "down",
+        19,
       ),
     ).toEqual({ slotId: "r0-c0" });
   });
@@ -237,10 +247,10 @@ describe("findAdjacentSlotForChild (#2295)", () => {
     const child = halfWidthChild();
 
     expect(
-      findAdjacentSlotForChild(carrier, child, "col-2", [], "right"),
+      findAdjacentSlotForChild(carrier, child, "col-2", [], "right", 19),
     ).toBeNull();
     expect(
-      findAdjacentSlotForChild(carrier, child, "col-1", [], "up"),
+      findAdjacentSlotForChild(carrier, child, "col-1", [], "up", 19),
     ).toBeNull();
   });
 
@@ -265,6 +275,7 @@ describe("findAdjacentSlotForChild (#2295)", () => {
         "c0",
         [siblingIn("c1")],
         "right",
+        19,
       ),
     ).toEqual({ slotId: "c2" });
   });
@@ -277,6 +288,7 @@ describe("findAdjacentSlotForChild (#2295)", () => {
         "col-1",
         [siblingIn("col-2")],
         "right",
+        19,
       ),
     ).toBeNull();
   });

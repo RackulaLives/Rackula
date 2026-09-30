@@ -36,6 +36,7 @@ describe("PortIndicators keyed #each (duplicate names, no PlacedPort)", () => {
         selected: false,
         uHeight: 30,
         rackWidth: 300,
+        nominalRackWidth: 19,
       },
     });
 

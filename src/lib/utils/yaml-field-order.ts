@@ -19,10 +19,11 @@ import type { SerializedImages } from "$lib/utils/image-encoding";
 
 /**
  * Order DeviceType fields according to schema v1.0.0
- * Field order: slug, manufacturer, model, part_number, u_height, slot_width, is_full_depth, is_powered,
+ * Field order: slug, manufacturer, model, part_number, u_height, slot_width, width_mm, is_full_depth, is_powered,
  *              weight, weight_unit, airflow, front_image, rear_image, colour, category, tags,
  *              notes, serial_number, asset_tag, links, custom_fields, interfaces, power_ports,
- *              power_outlets, device_bays, inventory_items, subdevice_role, slots, va_rating
+ *              power_outlets, device_bays, inventory_items, subdevice_role, slots,
+ *              slot_gaps, auto_created, va_rating
  */
 function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
   const ordered: Record<string, unknown> = {};
@@ -36,6 +37,7 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
   // --- Physical Properties ---
   ordered.u_height = dt.u_height;
   if (dt.slot_width !== undefined) ordered.slot_width = dt.slot_width;
+  if (dt.width_mm !== undefined) ordered.width_mm = dt.width_mm;
   // Preserve rack_widths whenever defined, including an explicitly-empty array,
   // so an author's `rack_widths: []` survives save/load losslessly (#2927).
   if (dt.rack_widths !== undefined) ordered.rack_widths = dt.rack_widths;
@@ -79,6 +81,9 @@ function orderDeviceTypeFields(dt: DeviceType): Record<string, unknown> {
 
   // --- Container Support ---
   if (dt.slots !== undefined && dt.slots.length > 0) ordered.slots = dt.slots;
+  if (dt.slot_gaps !== undefined && dt.slot_gaps.length > 0)
+    ordered.slot_gaps = dt.slot_gaps;
+  if (dt.auto_created) ordered.auto_created = true;
 
   // --- Power Device Properties ---
   if (dt.va_rating !== undefined) ordered.va_rating = dt.va_rating;
@@ -281,6 +286,7 @@ const KNOWN_DEVICE_TYPE_KEYS = new Set<string>([
   "part_number",
   "u_height",
   "slot_width",
+  "width_mm",
   "rack_widths",
   "is_full_depth",
   "is_powered",
@@ -304,6 +310,8 @@ const KNOWN_DEVICE_TYPE_KEYS = new Set<string>([
   "inventory_items",
   "subdevice_role",
   "slots",
+  "slot_gaps",
+  "auto_created",
   "va_rating",
 ]);
 

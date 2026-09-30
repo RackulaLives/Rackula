@@ -160,7 +160,10 @@ async function addLayoutFolderToZip(
   };
   const layoutMetadata: LayoutMetadata = {
     ...source,
-    schema_version: schemaVersionForWrite(source.schema_version),
+    schema_version: schemaVersionForWrite(
+      source.schema_version,
+      layout.device_types,
+    ),
   };
 
   // Build folder name: "{Layout Name}-{UUID}"

@@ -100,6 +100,7 @@ import {
 import {
   addDeviceTypeRecorded as addDeviceTypeRecordedImpl,
   updateDeviceTypeRecorded as updateDeviceTypeRecordedImpl,
+  updateDeviceTypeSlotGaps as updateDeviceTypeSlotGapsImpl,
   deleteDeviceTypeRecorded as deleteDeviceTypeRecordedImpl,
   deleteMultipleDeviceTypesRecorded as deleteMultipleDeviceTypesRecordedImpl,
 } from "./layout/recorded-device-type-actions";
@@ -128,6 +129,7 @@ import {
 import {
   duplicateDevice as duplicateDeviceImpl,
   placeInContainer as placeInContainerImpl,
+  extendCustomCarrier as extendCustomCarrierImpl,
   placeDeviceSmart as placeDeviceSmartImpl,
   moveDeviceToRack as moveDeviceToRackImpl,
   moveDeviceToSlot as moveDeviceToSlotImpl,
@@ -360,6 +362,8 @@ export function createLayoutStore(
     // Placement actions
     placeDevice,
     placeInContainer,
+    extendCustomCarrier,
+    updateDeviceTypeSlotGaps,
     placeDeviceSmart,
     moveDevice,
     moveDeviceToRack,
@@ -703,8 +707,11 @@ export function createLayoutStore(
    * Update a device type in the library
    * Uses undo/redo support via updateDeviceTypeRecorded
    */
-  function updateDeviceType(slug: string, updates: Partial<DeviceType>): void {
-    updateDeviceTypeRecorded(slug, updates);
+  function updateDeviceType(
+    slug: string,
+    updates: Partial<DeviceType>,
+  ): boolean {
+    return updateDeviceTypeRecorded(slug, updates);
   }
 
   /**
@@ -751,6 +758,35 @@ export function createLayoutStore(
       containerId,
       slotId,
       position,
+    );
+  }
+
+  /**
+   * Set the gaps between the cells of a placed generated carrier, in one undo
+   * step. Refuses a set that would overflow the row.
+   */
+  function updateDeviceTypeSlotGaps(
+    rackId: string,
+    carrierId: string,
+    gapsMm: number[],
+  ): boolean {
+    return updateDeviceTypeSlotGapsImpl(stateAccess, rackId, carrierId, gapsMm);
+  }
+
+  /**
+   * Add a cell to a generated carrier and place a device in it, in one undo
+   * step. Refuses when the row cannot take the width, naming what is left.
+   */
+  function extendCustomCarrier(
+    rackId: string,
+    carrierId: string,
+    deviceTypeSlug: string,
+  ): boolean {
+    return extendCustomCarrierImpl(
+      stateAccess,
+      rackId,
+      carrierId,
+      deviceTypeSlug,
     );
   }
 
@@ -1226,8 +1262,8 @@ export function createLayoutStore(
   function updateDeviceTypeRecorded(
     slug: string,
     updates: Partial<DeviceType>,
-  ): void {
-    updateDeviceTypeRecordedImpl(stateAccess, slug, updates);
+  ): boolean {
+    return updateDeviceTypeRecordedImpl(stateAccess, slug, updates);
   }
 
   function deleteDeviceTypeRecorded(slug: string): void {
