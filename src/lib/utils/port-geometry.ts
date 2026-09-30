@@ -63,13 +63,6 @@ export const PORT_ZONE_GAP = 6;
 export const DEVICE_ICON_X = 8;
 
 /**
- * Vertical distance of a grouped badge's centre from the bottom of the
- * device. Only PortIndicators' grouped badges use it; it goes away when the
- * count chip replaces them (#3453).
- */
-export const PORT_Y_OFFSET = 8;
-
-/**
  * Ports stop rendering individually beyond this count; PortIndicators falls
  * back to grouped badges. Grouped badges have no per-port anchor: click-to-
  * connect (#1932) cannot target an individual port on a high-density device

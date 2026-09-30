@@ -3,22 +3,24 @@
   Renders network interface port indicators on device SVG elements.
 
   Features:
-  - Color-coded circles by interface type
-  - Low-density mode: individual ports (≤24 ports)
-  - High-density mode: grouped badges (>24 ports)
+  - Markers colour-coded by interface type; shape by medium (#3450):
+    pluggable types are rounded squares, copper and the rest are circles
+  - Strip mode: one marker per port on the shared right-aligned grid
+  - Chip mode: a single count chip for more than 24 ports, and for a strip
+    collapsed on a narrow rack
   - Management interface indicator (inner white dot)
-  - PoE indicator (lightning bolt) for PSE interfaces
+  - PoE indicator (ring inside the marker) for PSE interfaces
   - SVG-native click targets (Safari compatible, fixes #400)
   - Hover tooltips with port details (#251)
 -->
 <script lang="ts">
+  import type { ClassValue } from "svelte/elements";
   import type {
     InterfaceTemplate,
     InterfaceType,
     KnownInterfaceType,
     PlacedPort,
     PortClickInfo,
-    PortDirection,
     RackView,
   } from "$lib/types";
   import {
@@ -27,14 +29,17 @@
   } from "$lib/stores/portTooltip.svelte";
   import { getConnectionCreationStore } from "$lib/stores/connection-creation.svelte";
   import {
+    getDominantInterfaceType,
     getPortCategory,
-    inferDirection,
+    getPortMarkerShape,
     isKnownInterfaceType,
+    type PortMarkerShape,
   } from "$lib/utils/port-utils";
   import {
     computeVisiblePortLayout,
-    HIGH_DENSITY_THRESHOLD,
-    PORT_Y_OFFSET,
+    getPortChipPosition,
+    PORT_MARKER_SIZE,
+    PORT_PITCH,
   } from "$lib/utils/port-geometry";
 
   interface Props {
@@ -90,6 +95,7 @@
   const INTERFACE_COLORS: Partial<Record<KnownInterfaceType, string>> = {
     "1000base-t": "var(--colour-port-1gbe)", // Emerald - 1GbE
     "10gbase-t": "var(--colour-port-10gbe)", // Blue - 10GbE copper
+    "1000base-x-sfp": "var(--colour-port-sfp)", // Cyan - 1GbE SFP
     "10gbase-x-sfpp": "var(--colour-port-sfpp)", // Purple - SFP+
     "25gbase-x-sfp28": "var(--colour-port-sfp28)", // Amber - SFP28
     "40gbase-x-qsfpp": "var(--colour-port-qsfpp)", // Red - QSFP+
@@ -103,13 +109,18 @@
     av: "var(--colour-port-av)",
   };
 
-  // Constants for port rendering
-  const PORT_RADIUS = 3;
+  // Corner radius of a square marker, as a share of its size.
+  const MARKER_CORNER_RATIO = 0.2;
 
-  // Badge dimensions for high-density mode
-  const BADGE_WIDTH = 24;
-  const BADGE_HEIGHT = 8;
-  const BADGE_SPACING = 4;
+  // The PoE ring sits just inside the marker's own outline, so it never
+  // reaches into the neighbouring cell on the PORT_PITCH grid.
+  const POE_RING_SIZE = PORT_MARKER_SIZE - 0.5;
+
+  // One hit target per grid cell: neighbours touch but do not overlap.
+  const HIT_TARGET_RADIUS = PORT_PITCH / 2;
+
+  // Space between the chip's edge and its marker.
+  const CHIP_PADDING = 2;
 
   // An unknown type (#3289) falls back to its category colour.
   function getInterfaceColor(type: InterfaceType): string {
@@ -117,14 +128,6 @@
       (isKnownInterfaceType(type) ? INTERFACE_COLORS[type] : undefined) ??
       CATEGORY_COLORS[getPortCategory(type)]
     );
-  }
-
-  // Direction arrow shown for input/output ports (none for bidirectional,
-  // and none when an AV type has no explicit or inferred direction).
-  function getPortDirection(
-    iface: InterfaceTemplate,
-  ): PortDirection | undefined {
-    return iface.direction ?? inferDirection(iface.type, iface.mgmt_only);
   }
 
   // Filter interfaces for current view
@@ -135,15 +138,10 @@
     }),
   );
 
-  // Check if we're in high-density mode
-  const isHighDensity = $derived(
-    visibleInterfaces.length > HIGH_DENSITY_THRESHOLD,
-  );
-
-  // Port positions (right-aligned grid), keyed by PlacedPort.id where one
-  // exists. Delegates to the shared geometry helper (#3089) so this layout
-  // and the one ConnectionLayer (#1931) will look up an anchor from are
-  // always identical.
+  // Port positions (right-aligned grid, or stacked on the chip centre when a
+  // narrow rack collapses the strip), keyed by PlacedPort.id where one exists.
+  // Delegates to the shared geometry helper (#3089) so this layout and the one
+  // ConnectionLayer (#1931) will look up an anchor from are always identical.
   const portPositions = $derived(
     computeVisiblePortLayout({
       interfaces,
@@ -157,42 +155,31 @@
     })),
   );
 
-  // Group ports by type for high-density mode
-  const portGroups = $derived.by(() => {
-    if (!isHighDensity) return [];
+  // The count chip, when the ports do not render as a strip: more than
+  // HIGH_DENSITY_THRESHOLD ports, or a strip collapsed on a narrow rack. Its
+  // marker takes the shape and colour of the most frequent visible type.
+  const chip = $derived.by(() => {
+    const position = getPortChipPosition({
+      interfaces,
+      ports,
+      rackView,
+      deviceWidth,
+      deviceHeight,
+    });
+    const type = getDominantInterfaceType(
+      visibleInterfaces.map((iface) => iface.type),
+    );
+    if (!position || type === undefined) return undefined;
 
-    // Use object instead of Map for ESLint compatibility. Prototype-free, so an
-    // unknown type named like "constructor" (#3289) gets its own group.
-    const groups: Record<string, InterfaceTemplate[]> = Object.create(null);
-    for (const iface of visibleInterfaces) {
-      const key = iface.type;
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(iface);
-    }
-
-    return Object.entries(groups).map(([type, ifaces]) => ({
-      type,
-      count: ifaces.length,
+    const markerRight = position.x + CHIP_PADDING + PORT_MARKER_SIZE;
+    return {
+      ...position,
+      shape: getPortMarkerShape(type),
       color: getInterfaceColor(type),
-    }));
-  });
-
-  // Calculate badge positions for high-density mode
-  const badgePositions = $derived.by(() => {
-    if (portGroups.length === 0) return [];
-
-    const totalWidth =
-      portGroups.length * (BADGE_WIDTH + BADGE_SPACING) - BADGE_SPACING;
-    const startX = (deviceWidth - totalWidth) / 2;
-    const y = deviceHeight - PORT_Y_OFFSET;
-
-    return portGroups.map((group, i) => ({
-      ...group,
-      x: startX + i * (BADGE_WIDTH + BADGE_SPACING),
-      y: y - BADGE_HEIGHT / 2,
-    }));
+      markerX: markerRight - PORT_MARKER_SIZE / 2,
+      // The count is centred in the space right of the marker.
+      textX: (markerRight + position.x + position.width) / 2,
+    };
   });
 
   function handlePortClick(
@@ -226,125 +213,141 @@
   }
 </script>
 
+<!-- A marker outline centred on (cx, cy): a rounded square or a circle. -->
+{#snippet marker(
+  shape: PortMarkerShape,
+  cx: number,
+  cy: number,
+  size: number,
+  classes: ClassValue,
+  fill: string,
+)}
+  {#if shape === "square"}
+    <rect
+      class={classes}
+      x={cx - size / 2}
+      y={cy - size / 2}
+      width={size}
+      height={size}
+      rx={size * MARKER_CORNER_RATIO}
+      {fill}
+    />
+  {:else}
+    <circle class={classes} {cx} {cy} r={size / 2} {fill} />
+  {/if}
+{/snippet}
+
 {#if showPorts && visibleInterfaces.length > 0}
   <g class="port-indicators">
-    {#if !isHighDensity}
-      <!-- Individual port circles for low-density devices -->
+    {#if chip}
+      <!-- Count chip: the dominant type's marker, then the visible port count.
+           No handlers of its own. On a collapsed strip the per-port hit
+           targets below stack on its centre. -->
+      <rect
+        class="port-chip"
+        x={chip.x}
+        y={chip.y}
+        width={chip.width}
+        height={chip.height}
+        rx="2"
+      />
+      {@render marker(
+        chip.shape,
+        chip.markerX,
+        chip.cy,
+        PORT_MARKER_SIZE,
+        "port-marker",
+        chip.color,
+      )}
+      <text
+        class="port-count-text"
+        x={chip.textX}
+        y={chip.cy}
+        text-anchor="middle"
+        dominant-baseline="central"
+      >
+        {chip.count}
+      </text>
+    {:else}
+      <!-- One marker per port in strip mode -->
       <!-- Keyed by PlacedPort.id when available; falls back to the loop
            index, not iface.name, since duplicate interface names are legal
            (see port-geometry.ts) and legacy layouts can leave every port
            undefined, which would make an iface.name-only fallback collide. -->
       {#each portPositions as { iface, port, x, y, color }, i (port?.id ?? i)}
-        <circle
-          class="port-circle"
-          class:port-connection-source={port?.id === connectionSourcePortId}
-          class:port-connection-target={isConnectionCreationMode &&
-            port?.id != null &&
-            port.id !== connectionSourcePortId}
-          cx={x}
-          cy={y}
-          r={PORT_RADIUS}
-          fill={color}
-          stroke-width="0.5"
-        />
+        {@const shape = getPortMarkerShape(iface.type)}
+        {@render marker(
+          shape,
+          x,
+          y,
+          PORT_MARKER_SIZE,
+          [
+            "port-marker",
+            port?.id === connectionSourcePortId && "port-connection-source",
+            isConnectionCreationMode &&
+              port?.id != null &&
+              port.id !== connectionSourcePortId &&
+              "port-connection-target",
+          ],
+          color,
+        )}
+
+        <!-- PoE indicator (ring inside the marker for PSE interfaces) -->
+        {#if iface.poe_mode === "pse"}
+          {@render marker(
+            shape,
+            x,
+            y,
+            POE_RING_SIZE,
+            "port-poe-indicator",
+            "none",
+          )}
+        {/if}
 
         <!-- Management interface indicator (smaller inner circle) -->
         {#if iface.mgmt_only}
           <circle class="port-mgmt-indicator" cx={x} cy={y} r={1} />
         {/if}
-
-        <!-- PoE indicator (lightning bolt for PSE interfaces) -->
-        {#if iface.poe_mode === "pse"}
-          <text
-            class="port-poe-indicator"
-            {x}
-            y={y - PORT_RADIUS - 2}
-            text-anchor="middle"
-            dominant-baseline="auto"
-          >
-            ⚡
-          </text>
-        {/if}
-
-        <!-- Direction arrow (input/output only; bidirectional and unset show nothing) -->
-        {#if getPortDirection(iface) === "input"}
-          <text
-            class="port-direction-indicator"
-            x={x - PORT_RADIUS - 2}
-            y={y + 2}
-            text-anchor="end"
-          >
-            &#8594;
-          </text>
-        {:else if getPortDirection(iface) === "output"}
-          <text
-            class="port-direction-indicator"
-            x={x + PORT_RADIUS + 2}
-            y={y + 2}
-            text-anchor="start"
-          >
-            &#8594;
-          </text>
-        {/if}
-      {/each}
-
-      <!-- Invisible SVG click targets (larger than visual ports, Safari compatible) -->
-      {#each portPositions as { iface, port, x, y }, i (port?.id ?? i)}
-        <circle
-          class="port-hit-target"
-          class:port-connection-source={port?.id === connectionSourcePortId}
-          class:port-connection-target={isConnectionCreationMode &&
-            port?.id != null &&
-            port.id !== connectionSourcePortId}
-          cx={x}
-          cy={y}
-          r={6}
-          fill="transparent"
-          role="button"
-          tabindex="0"
-          aria-label="{iface.label ?? iface.name} ({iface.type}){port?.id ===
-          connectionSourcePortId
-            ? ', connection source'
-            : isConnectionCreationMode &&
-                port?.id != null &&
-                port.id !== connectionSourcePortId
-              ? ', potential connection target'
-              : ''}"
-          onclick={() => handlePortClick(iface, port)}
-          onmouseenter={(e) => handlePortMouseEnter(e, iface)}
-          onmouseleave={handlePortMouseLeave}
-          onkeydown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              handlePortClick(iface, port);
-            }
-          }}
-        >
-          <title>{iface.label ?? iface.name} ({iface.type})</title>
-        </circle>
-      {/each}
-    {:else}
-      <!-- Grouped port summary for high-density devices -->
-      {#each badgePositions as { type, count, color, x, y } (type)}
-        <g class="port-group-badge" transform="translate({x}, {y})">
-          <rect
-            width={BADGE_WIDTH}
-            height={BADGE_HEIGHT}
-            rx="2"
-            fill={color}
-            stroke-width="0.5"
-          />
-          <text
-            x={BADGE_WIDTH / 2}
-            y={BADGE_HEIGHT - 2}
-            text-anchor="middle"
-            class="port-count-text"
-          >
-            {count}
-          </text>
-        </g>
       {/each}
     {/if}
+
+    <!-- Invisible SVG click targets, one per port cell (Safari compatible).
+         Rendered in chip mode too when the strip collapsed: they stack on the
+         chip centre so each port stays reachable by keyboard. -->
+    {#each portPositions as { iface, port, x, y }, i (port?.id ?? i)}
+      <circle
+        class="port-hit-target"
+        class:port-connection-source={port?.id === connectionSourcePortId}
+        class:port-connection-target={isConnectionCreationMode &&
+          port?.id != null &&
+          port.id !== connectionSourcePortId}
+        cx={x}
+        cy={y}
+        r={HIT_TARGET_RADIUS}
+        fill="transparent"
+        role="button"
+        tabindex="0"
+        aria-label="{iface.label ?? iface.name} ({iface.type}){port?.id ===
+        connectionSourcePortId
+          ? ', connection source'
+          : isConnectionCreationMode &&
+              port?.id != null &&
+              port.id !== connectionSourcePortId
+            ? ', potential connection target'
+            : ''}"
+        onclick={() => handlePortClick(iface, port)}
+        onmouseenter={(e) => handlePortMouseEnter(e, iface)}
+        onmouseleave={handlePortMouseLeave}
+        onkeydown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handlePortClick(iface, port);
+          }
+        }}
+      >
+        <title>{iface.label ?? iface.name} ({iface.type})</title>
+      </circle>
+    {/each}
   </g>
 {/if}
 
@@ -353,9 +356,9 @@
     pointer-events: none;
   }
 
-  .port-circle {
+  .port-marker {
     stroke: var(--colour-port-stroke);
-    transition: r 150ms ease-out;
+    stroke-width: 0.5;
   }
 
   .port-mgmt-indicator {
@@ -364,14 +367,13 @@
   }
 
   .port-poe-indicator {
-    font-size: 6px;
+    stroke: var(--colour-port-power);
+    stroke-width: 0.75;
     pointer-events: none;
   }
 
-  .port-direction-indicator {
-    fill: var(--colour-port-indicator);
-    font-size: 6px;
-    pointer-events: none;
+  .port-chip {
+    fill: var(--colour-port-chip-bg);
   }
 
   .port-hit-target {
@@ -409,18 +411,5 @@
     stroke: var(--colour-selection, var(--dracula-pink, #ff79c6));
     stroke-width: 1;
     stroke-dasharray: 1.5 1;
-  }
-
-  .port-group-badge rect {
-    stroke: var(--colour-port-stroke);
-    transition: transform 150ms ease-out;
-  }
-
-  /* Respect reduced motion preference */
-  @media (prefers-reduced-motion: reduce) {
-    .port-circle,
-    .port-group-badge rect {
-      transition: none;
-    }
   }
 </style>

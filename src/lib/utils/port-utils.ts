@@ -101,6 +101,45 @@ export function getPortCategory(type: string): PortCategory {
   return "network";
 }
 
+/** Outline a port marker is drawn with on the rack canvas. */
+export type PortMarkerShape = "circle" | "square";
+
+/**
+ * Marker shape for an interface type (#3450): shape encodes the medium, colour
+ * keeps encoding the speed. Pluggable cages (the `-x-` types: SFP, SFP+, SFP28
+ * and the QSFP families) are squares; copper and every other or unknown type
+ * is a circle. String matching, so an unknown pluggable type from a newer
+ * build (#3289) still gets a square.
+ */
+export function getPortMarkerShape(type: string): PortMarkerShape {
+  return type.includes("-x-") ? "square" : "circle";
+}
+
+/**
+ * The most frequent interface type in the list, or undefined for an empty
+ * list. A tie goes to the type that appears first. The count chip (#3453)
+ * takes its marker shape and colour from it.
+ */
+export function getDominantInterfaceType(
+  types: readonly InterfaceType[],
+): InterfaceType | undefined {
+  const counts = new Map<InterfaceType, number>();
+  for (const type of types) {
+    counts.set(type, (counts.get(type) ?? 0) + 1);
+  }
+  let dominant: InterfaceType | undefined;
+  let highest = 0;
+  // Map iterates in insertion order, so only a strictly higher count replaces
+  // an earlier type.
+  for (const [type, count] of counts) {
+    if (count > highest) {
+      dominant = type;
+      highest = count;
+    }
+  }
+  return dominant;
+}
+
 /**
  * Infer the default signal direction for an interface type (spike #1927).
  * Used when an InterfaceTemplate (or PlacedPort) does not set `direction`
