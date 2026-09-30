@@ -504,6 +504,32 @@ describe("buildPortAnchorMap", () => {
     expect(anchors.size).toBe(0);
   });
 
+  it("anchors every port at one shared point on a 10-inch rack, where the strip collapses to the chip (#3451)", () => {
+    const interfaces = Array.from({ length: 4 }, (_, i) =>
+      createTestInterfaceTemplate({ name: `eth${i}` }),
+    );
+    const ports = interfaces.map((_, i) =>
+      createTestPlacedPort({ id: `port-${i}`, template_index: i }),
+    );
+    const deviceType = {
+      ...createTestDeviceType({ slug: "mini-switch", u_height: 1 }),
+      interfaces,
+    };
+    const device = createTestDevice({ device_type: "mini-switch", ports });
+    const bySlug = new Map([[deviceType.slug, deviceType]]);
+    const narrowDims = { ...rackDims, rackWidth: 116, interiorWidth: 82 };
+
+    const anchors = buildPortAnchorMap([device], bySlug, "front", narrowDims);
+
+    // Each port keeps an anchor, so its connections keep drawing...
+    expect([...anchors.keys()]).toEqual(ports.map((port) => port.id));
+    // ...and they all meet at the chip centre.
+    const points = [...anchors.values()].map(
+      ({ anchor }) => `${anchor.x},${anchor.y}`,
+    );
+    expect(new Set(points).size).toBe(1);
+  });
+
   it("skips a device whose type is missing from the library without throwing", () => {
     const device = createTestDevice({ device_type: "unknown-slug" });
     expect(() =>
