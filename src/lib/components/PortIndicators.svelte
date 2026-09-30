@@ -119,9 +119,6 @@
   // One hit target per grid cell: neighbours touch but do not overlap.
   const HIT_TARGET_RADIUS = PORT_PITCH / 2;
 
-  // Space between the chip's edge and its marker.
-  const CHIP_PADDING = 2;
-
   // An unknown type (#3289) falls back to its category colour.
   function getInterfaceColor(type: InterfaceType): string {
     return (
@@ -138,7 +135,7 @@
     }),
   );
 
-  // Port positions (right-aligned grid, or stacked on the chip centre when a
+  // Port positions (right-aligned grid, or stacked on the chip's marker when a
   // narrow rack collapses the strip), keyed by PlacedPort.id where one exists.
   // Delegates to the shared geometry helper (#3089) so this layout and the one
   // ConnectionLayer (#1931) will look up an anchor from are always identical.
@@ -171,12 +168,11 @@
     );
     if (!position || type === undefined) return undefined;
 
-    const markerRight = position.x + CHIP_PADDING + PORT_MARKER_SIZE;
+    const markerRight = position.markerCx + PORT_MARKER_SIZE / 2;
     return {
       ...position,
       shape: getPortMarkerShape(type),
       color: getInterfaceColor(type),
-      markerX: markerRight - PORT_MARKER_SIZE / 2,
       // The count is centred in the space right of the marker.
       textX: (markerRight + position.x + position.width) / 2,
     };
@@ -242,7 +238,7 @@
     {#if chip}
       <!-- Count chip: the dominant type's marker, then the visible port count.
            No handlers of its own. On a collapsed strip the per-port hit
-           targets below stack on its centre. -->
+           targets below stack on its marker. -->
       <rect
         class="port-chip"
         x={chip.x}
@@ -253,8 +249,8 @@
       />
       {@render marker(
         chip.shape,
-        chip.markerX,
-        chip.cy,
+        chip.markerCx,
+        chip.markerCy,
         PORT_MARKER_SIZE,
         "port-marker",
         chip.color,
@@ -313,7 +309,7 @@
 
     <!-- Invisible SVG click targets, one per port cell (Safari compatible).
          Rendered in chip mode too when the strip collapsed: they stack on the
-         chip centre so each port stays reachable by keyboard. -->
+         chip's marker so each port stays reachable by keyboard. -->
     {#each portPositions as { iface, port, x, y }, i (port?.id ?? i)}
       <circle
         class="port-hit-target"

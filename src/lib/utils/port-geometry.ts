@@ -50,6 +50,9 @@ export const PORT_CHIP_WIDTH = 24;
 /** Count chip box height. */
 export const PORT_CHIP_HEIGHT = 10;
 
+/** Space between the count chip's left edge and its marker. */
+export const PORT_CHIP_MARKER_INSET = 2;
+
 /** Narrowest label zone a strip may leave; below this the strip collapses to the chip. */
 export const LABEL_MIN_WIDTH = 48;
 
@@ -64,7 +67,7 @@ export const DEVICE_ICON_X = 8;
 
 /**
  * Ports stop rendering individually beyond this count; PortIndicators falls
- * back to grouped badges. Grouped badges have no per-port anchor: click-to-
+ * back to the count chip. That chip has no per-port anchor: click-to-
  * connect (#1932) cannot target an individual port on a high-density device
  * until multi-row layout (#356) replaces this threshold.
  */
@@ -126,11 +129,15 @@ export interface PortChipPosition extends ZoneRect {
   cx: number;
   /** Chip centre y. */
   cy: number;
+  /** Centre x of the chip's marker, at the left of the box. */
+  markerCx: number;
+  /** Centre y of the chip's marker. */
+  markerCy: number;
   /** Visible ports the chip stands for. */
   count: number;
   /**
    * True when the chip is a narrow-width collapse of HIGH_DENSITY_THRESHOLD
-   * or fewer ports: every port is anchored at (cx, cy) and
+   * or fewer ports: every port is anchored at (markerCx, markerCy) and
    * computeVisiblePortLayout returns one entry per port there. False above
    * the threshold, where no port has an anchor (#356).
    */
@@ -313,11 +320,23 @@ export function computeDeviceZones(options: DeviceZoneOptions): DeviceZones {
 }
 
 /**
+ * Centre of the marker at the left of a chip box. Collapsed ports anchor
+ * here, not at the chip centre, so a cable ends on the marker and does not
+ * stop in the middle of the count.
+ */
+function chipMarkerCentre(chip: ZoneRect): { x: number; y: number } {
+  return {
+    x: chip.x + PORT_CHIP_MARKER_INSET + PORT_MARKER_SIZE / 2,
+    y: chip.y + chip.height / 2,
+  };
+}
+
+/**
  * The count chip for a device, or undefined when its ports render as a strip
- * or it has no visible ports. PortIndicators draws the chip from this and
- * collapsed ports anchor to its centre, so the two cannot drift apart.
- * `anchored` tells a narrow-width collapse (every port anchored at the
- * centre) from a high-density chip (no per-port anchors).
+ * or it has no visible ports. PortIndicators draws the chip and its marker
+ * from this and collapsed ports anchor to the marker, so the two cannot
+ * drift apart. `anchored` tells a narrow-width collapse (every port anchored
+ * at the marker) from a high-density chip (no per-port anchors).
  */
 export function getPortChipPosition(
   options: PortGeometryOptions,
@@ -335,6 +354,7 @@ export function getPortChipPosition(
   const { width, height } = zones.portZone;
   const x = zones.portZone.x + (offset?.x ?? 0);
   const y = zones.portZone.y + (offset?.y ?? 0);
+  const marker = chipMarkerCentre({ x, y, width, height });
   return {
     x,
     y,
@@ -342,6 +362,8 @@ export function getPortChipPosition(
     height,
     cx: x + width / 2,
     cy: y + height / 2,
+    markerCx: marker.x,
+    markerCy: marker.y,
     count,
     anchored: count <= HIGH_DENSITY_THRESHOLD,
   };
@@ -352,8 +374,8 @@ export function getPortChipPosition(
  * view, in declaration order:
  * - strip: each port at its grid cell centre, row-major (left to right, then
  *   top to bottom), the grid right-aligned and vertically centred.
- * - chip from a narrow-width collapse: one entry per port, all at the chip
- *   centre, so every port keeps an anchor and its connections keep drawing.
+ * - chip from a narrow-width collapse: one entry per port, all at the chip's
+ *   marker, so every port keeps an anchor and its connections keep drawing.
  * - chip above HIGH_DENSITY_THRESHOLD: an empty array. That mode has no
  *   per-port position, by design (see module docs, #1932 and #356).
  */
@@ -378,8 +400,7 @@ export function computeVisiblePortLayout(
   const originY = portZone.y + (offset?.y ?? 0);
 
   if (zones.mode === "chip") {
-    const x = originX + portZone.width / 2;
-    const y = originY + portZone.height / 2;
+    const { x, y } = chipMarkerCentre({ ...portZone, x: originX, y: originY });
     return visible.map(({ iface, port }) => ({ iface, port, x, y }));
   }
 
@@ -398,7 +419,7 @@ export function computeVisiblePortLayout(
  * lookup ConnectionLayer (#1931) uses to locate a Connection's a_port_id /
  * b_port_id endpoints; entries with no matching PlacedPort (legacy layouts,
  * or grouped/high-density devices) are simply absent. Ports collapsed into
- * the chip on a narrow device all share the chip-centre anchor.
+ * the chip on a narrow device all share the chip's marker as their anchor.
  */
 export function getPortAnchors(options: PortGeometryOptions): PortAnchor[] {
   const anchors: PortAnchor[] = [];
