@@ -8,6 +8,8 @@
  * The estimation is calibrated for system-ui/sans-serif fonts used in device labels.
  */
 
+import type { DeviceZones } from "$lib/utils/port-geometry";
+
 // =============================================================================
 // Shared Constants - Used by RackDevice.svelte and export.ts for consistency
 // =============================================================================
@@ -27,9 +29,42 @@ export const DEVICE_LABEL_ICON_SPACE_LEFT = 28;
 /** Space reserved for grip icon on right side of device label */
 export const DEVICE_LABEL_ICON_SPACE_RIGHT = 20;
 
+/**
+ * Estimated width of the REAR tag: 4 capitals at 8px, weight 600, with
+ * 0.06em letter spacing (RackDevice's .rear-badge).
+ */
+export const REAR_TAG_WIDTH = 24;
+
+/** Space between the label and an in-flow REAR tag. */
+export const REAR_TAG_GAP = 4;
+
 // =============================================================================
 // Types
 // =============================================================================
+
+/** Where a device's name label sits and how wide it may be. */
+export interface DeviceLabelLayout {
+  /** Label x: the device centre when centred, else the label's left edge. */
+  x: number;
+  anchor: "middle" | "start";
+  /** Width to fit the label into. Never negative. */
+  availableWidth: number;
+  /**
+   * Right edge and vertical centre of the REAR tag when it sits in the flow,
+   * between the label and the port zone. Undefined when the tag keeps its
+   * floating top-right position (no visible ports) or is not shown.
+   */
+  rearTag?: { x: number; y: number };
+}
+
+export interface DeviceLabelLayoutOptions {
+  /** Zones from computeDeviceZones() for this device and rack face. */
+  zones: DeviceZones;
+  /** Rendered device width, matching RackDevice's deviceWidth. */
+  deviceWidth: number;
+  /** The back of a full-depth device is in view, so the REAR tag shows. */
+  isRearTreatment: boolean;
+}
 
 export interface FontSizeOptions {
   maxFontSize: number;
@@ -209,4 +244,49 @@ export function fitTextToWidth(
   }
 
   return { text, fontSize };
+}
+
+/**
+ * Lays out a device's name label against its zones (#3450).
+ *
+ * With no visible ports the label stays centred in the device, as before.
+ * With ports it starts at the label zone's left edge and stops short of the
+ * port zone. On the back of a full-depth device the REAR tag then takes the
+ * right end of the label zone, vertically centred, and the label gives up
+ * that width so it never runs under the tag.
+ */
+export function computeDeviceLabelLayout(
+  options: DeviceLabelLayoutOptions,
+): DeviceLabelLayout {
+  const { zones, deviceWidth, isRearTreatment } = options;
+
+  if (zones.mode === "none") {
+    return {
+      x: deviceWidth / 2,
+      anchor: "middle",
+      availableWidth: zones.labelWidth,
+    };
+  }
+
+  if (!isRearTreatment) {
+    return {
+      x: zones.labelX,
+      anchor: "start",
+      availableWidth: zones.labelWidth,
+    };
+  }
+
+  return {
+    x: zones.labelX,
+    anchor: "start",
+    availableWidth: Math.max(
+      0,
+      zones.labelWidth - REAR_TAG_WIDTH - REAR_TAG_GAP,
+    ),
+    rearTag: {
+      // The label zone ends PORT_ZONE_GAP short of the port zone.
+      x: zones.labelX + zones.labelWidth,
+      y: zones.portZone.y + zones.portZone.height / 2,
+    },
+  };
 }

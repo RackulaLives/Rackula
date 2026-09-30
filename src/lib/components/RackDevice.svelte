@@ -41,13 +41,16 @@
   import { hapticTap } from "$lib/utils/haptics";
   import { DEVICE_IMAGE_OVERFLOW, RAIL_WIDTH } from "$lib/constants/layout";
   import {
+    computeDeviceLabelLayout,
     fitTextToWidth,
     DEVICE_LABEL_MAX_FONT,
     DEVICE_LABEL_MIN_FONT,
     DEVICE_LABEL_IMAGE_MAX_FONT,
-    DEVICE_LABEL_ICON_SPACE_LEFT,
-    DEVICE_LABEL_ICON_SPACE_RIGHT,
   } from "$lib/utils/text-sizing";
+  import {
+    computeDeviceZones,
+    countVisiblePorts,
+  } from "$lib/utils/port-geometry";
   import { toHumanUnits } from "$lib/utils/position";
   import { Tween, prefersReducedMotion } from "svelte/motion";
   import { cubicOut } from "svelte/easing";
@@ -411,10 +414,19 @@
     return slot?.name ?? slotId ?? "Unknown";
   }
 
-  // Calculate available width for centered text (accounting for icon areas)
-  // Uses shared constants from text-sizing.ts for consistency with exports
-  const textAvailableWidth = $derived(
-    deviceWidth - DEVICE_LABEL_ICON_SPACE_LEFT - DEVICE_LABEL_ICON_SPACE_RIGHT,
+  // Icon, label and port zones for the face in view (#3450). A device with no
+  // visible ports keeps the centred label; one with ports gets a left-aligned
+  // label that stops short of the port zone.
+  const labelLayout = $derived(
+    computeDeviceLabelLayout({
+      zones: computeDeviceZones({
+        deviceWidth,
+        deviceHeight,
+        visiblePortCount: countVisiblePorts(device.interfaces ?? [], rackView),
+      }),
+      deviceWidth,
+      isRearTreatment,
+    }),
   );
 
   // Fit display name to available width with auto-sizing
@@ -422,8 +434,14 @@
     fitTextToWidth(displayName, {
       maxFontSize: DEVICE_LABEL_MAX_FONT,
       minFontSize: DEVICE_LABEL_MIN_FONT,
-      availableWidth: textAvailableWidth,
+      availableWidth: labelLayout.availableWidth,
     }),
+  );
+
+  // The REAR tag sits in the flow, left of the port zone, only in label mode.
+  // Image and placeholder modes keep it floating at the top right.
+  const inFlowRearTag = $derived(
+    showImage || showImagePlaceholder ? undefined : labelLayout.rearTag,
   );
 
   // Image overlay uses slightly smaller max font and full width (no icons in image mode)
@@ -1001,14 +1019,15 @@
         />
       {/if}
     {:else}
-      <!-- Device name (centered, auto-sized) -->
+      <!-- Device name (auto-sized): centred, or left-aligned in the label zone
+         when the device shows ports -->
       {#if showNameLabels}
         <text
           class="device-name"
-          x={deviceWidth / 2}
+          x={labelLayout.x}
           y={deviceHeight / 2}
           dominant-baseline="middle"
-          text-anchor="middle"
+          text-anchor={labelLayout.anchor}
           style="font-size: {fittedLabel.fontSize}px"
         >
           {fittedLabel.text}
@@ -1028,8 +1047,20 @@
       {/if}
     {/if}
 
-    <!-- Rear affordance: marks this as the back of a full-depth device. -->
-    {#if isRearTreatment}
+    <!-- Rear affordance: marks this as the back of a full-depth device. With
+       ports in view it sits left of the port zone instead of floating over it. -->
+    {#if inFlowRearTag}
+      <text
+        class="rear-badge"
+        x={inFlowRearTag.x}
+        y={inFlowRearTag.y}
+        text-anchor="end"
+        dominant-baseline="middle"
+        aria-hidden="true"
+      >
+        REAR
+      </text>
+    {:else if isRearTreatment}
       <text
         class="rear-badge"
         x={deviceWidth - 4}

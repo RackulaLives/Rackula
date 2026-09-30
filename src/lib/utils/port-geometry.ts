@@ -226,6 +226,17 @@ function visiblePorts(
 }
 
 /**
+ * How many of a device's ports sit on the rack face in view: the
+ * visiblePortCount that computeDeviceZones() takes.
+ */
+export function countVisiblePorts(
+  interfaces: InterfaceTemplate[],
+  rackView: RackView,
+): number {
+  return visiblePorts(interfaces, [], rackView).length;
+}
+
+/**
  * Strip grid for a port count: 1 row up to PORT_MAX_COLUMNS ports, one more
  * row per further PORT_MAX_COLUMNS, with the ports spread evenly over the rows.
  */

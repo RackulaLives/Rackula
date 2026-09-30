@@ -4,12 +4,20 @@ import {
   truncateWithEllipsis,
   fitTextToWidth,
   wrapText,
+  computeDeviceLabelLayout,
+  REAR_TAG_WIDTH,
   DEVICE_LABEL_MAX_FONT,
   DEVICE_LABEL_MIN_FONT,
   DEVICE_LABEL_IMAGE_MAX_FONT,
   DEVICE_LABEL_ICON_SPACE_LEFT,
   DEVICE_LABEL_ICON_SPACE_RIGHT,
 } from "$lib/utils/text-sizing";
+import {
+  computeDeviceZones,
+  countVisiblePorts,
+  PORT_ZONE_GAP,
+} from "$lib/utils/port-geometry";
+import { createTestInterfaceTemplate } from "./factories";
 
 describe("Text Sizing Utility", () => {
   describe("calculateFontSize", () => {
@@ -238,6 +246,124 @@ describe("Text Sizing Utility", () => {
 
     it("returns no lines for empty text", () => {
       expect(wrapText("   ", 100, 11)).toEqual([]);
+    });
+  });
+
+  describe("computeDeviceLabelLayout", () => {
+    /** 19-inch rack interior width (BASE_RACK_WIDTH - 2 * RAIL_WIDTH). */
+    const WIDE = 186;
+    /** 10-inch rack interior width. */
+    const NARROW = 82;
+    /** 1U device height (U_HEIGHT_PX). */
+    const ONE_U = 22;
+
+    function layoutFor(
+      deviceWidth: number,
+      visiblePortCount: number,
+      isRearTreatment = false,
+    ) {
+      const zones = computeDeviceZones({
+        deviceWidth,
+        deviceHeight: ONE_U,
+        visiblePortCount,
+      });
+      return {
+        zones,
+        layout: computeDeviceLabelLayout({
+          zones,
+          deviceWidth,
+          isRearTreatment,
+        }),
+      };
+    }
+
+    function fit(name: string, availableWidth: number) {
+      return fitTextToWidth(name, {
+        maxFontSize: DEVICE_LABEL_MAX_FONT,
+        minFontSize: DEVICE_LABEL_MIN_FONT,
+        availableWidth,
+      });
+    }
+
+    it("keeps the centred label and its width when no ports are visible", () => {
+      for (const isRearTreatment of [false, true]) {
+        const { layout } = layoutFor(WIDE, 0, isRearTreatment);
+        expect(layout.anchor).toBe("middle");
+        expect(layout.x).toBe(WIDE / 2);
+        expect(layout.availableWidth).toBe(
+          WIDE - DEVICE_LABEL_ICON_SPACE_LEFT - DEVICE_LABEL_ICON_SPACE_RIGHT,
+        );
+        expect(layout.rearTag).toBeUndefined();
+      }
+    });
+
+    it("starts the label at the label zone and keeps it left of the ports", () => {
+      for (const count of [1, 12, 24, 48]) {
+        const { zones, layout } = layoutFor(WIDE, count);
+        expect(layout.anchor).toBe("start");
+        expect(layout.x).toBe(zones.labelX);
+        expect(layout.availableWidth).toBeLessThanOrEqual(zones.labelWidth);
+        expect(layout.x + layout.availableWidth).toBeLessThanOrEqual(
+          zones.portZone.x - PORT_ZONE_GAP,
+        );
+        expect(layout.rearTag).toBeUndefined();
+      }
+    });
+
+    it("gives the label less room on a device with ports than on one without", () => {
+      expect(layoutFor(WIDE, 24).layout.availableWidth).toBeLessThan(
+        layoutFor(WIDE, 0).layout.availableWidth,
+      );
+    });
+
+    it("puts the REAR tag between the label and the port zone", () => {
+      for (const count of [4, 24, 48]) {
+        const { zones, layout } = layoutFor(WIDE, count, true);
+        const front = layoutFor(WIDE, count).layout;
+        const tag = layout.rearTag;
+        if (!tag) throw new Error("expected an in-flow REAR tag");
+
+        // Right-anchored immediately left of the port zone, vertically centred.
+        expect(tag.x).toBe(zones.portZone.x - PORT_ZONE_GAP);
+        expect(tag.y).toBe(ONE_U / 2);
+        // The label gives up the tag's width and never runs under it.
+        expect(layout.availableWidth).toBeLessThan(front.availableWidth);
+        expect(layout.x + layout.availableWidth).toBeLessThan(
+          tag.x - REAR_TAG_WIDTH,
+        );
+      }
+    });
+
+    it("truncates a long name on a 24-port 1U device instead of overflowing", () => {
+      const name = "Core Distribution Patch Panel Row 12 Cabinet 4 Upper";
+      const { layout } = layoutFor(WIDE, 24);
+      const fitted = fit(name, layout.availableWidth);
+
+      expect(fitted.text.endsWith("…")).toBe(true);
+      // The same name keeps more of its text when no ports take room.
+      expect(
+        fit(name, layoutFor(WIDE, 0).layout.availableWidth).text.length,
+      ).toBeGreaterThan(fitted.text.length);
+    });
+
+    it("never returns a negative width on a narrow rack", () => {
+      for (const count of [0, 4, 24, 48]) {
+        for (const isRearTreatment of [false, true]) {
+          const { layout } = layoutFor(NARROW, count, isRearTreatment);
+          expect(layout.availableWidth).toBeGreaterThanOrEqual(0);
+        }
+      }
+    });
+
+    it("counts only the ports on the face in view", () => {
+      const interfaces = [
+        createTestInterfaceTemplate({ name: "eth0" }),
+        createTestInterfaceTemplate({ name: "eth1", position: "front" }),
+        createTestInterfaceTemplate({ name: "mgmt", position: "rear" }),
+      ];
+      expect(countVisiblePorts(interfaces, "front")).toBe(2);
+      expect(countVisiblePorts(interfaces, "rear")).toBe(1);
+      expect(countVisiblePorts([], "front")).toBe(0);
     });
   });
 });
