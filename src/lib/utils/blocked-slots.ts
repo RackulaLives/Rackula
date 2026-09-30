@@ -61,7 +61,7 @@ export function getBlockedSlots(
 
     // A blank custom name falls back the same way an unset one does.
     const deviceName =
-      placedDevice.name?.trim() || deviceType.model || deviceType.slug;
+      placedDevice.name?.trim() || deviceType.model?.trim() || deviceType.slug;
 
     blocked.push({ bottom, top, deviceName });
   }

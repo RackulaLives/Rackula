@@ -167,6 +167,32 @@ describe("getBlockedSlots", () => {
       // A blank custom name is not a name: it falls back like an unset one.
       expect(names).toEqual(["Core Patch A", "Patch Panel", "Patch Panel"]);
     });
+
+    it("falls back to the slug when the type's model is blank", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "blank-model-panel",
+            position: 5,
+            face: "front",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "blank-model-panel",
+          model: "   ",
+          u_height: 1,
+          is_full_depth: false,
+        }),
+      ];
+
+      const [slot] = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      expect(slot.deviceName).toBe("blank-model-panel");
+    });
   });
 
   describe("filtering", () => {
