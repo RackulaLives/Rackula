@@ -19,7 +19,13 @@
   import type { DeviceFace } from "$lib/types";
   import RackDualView from "./RackDualView.svelte";
   import BayedRackView from "./BayedRackView.svelte";
-  import { organizeRackRow, baySourceForItem } from "$lib/utils/rack-row";
+  import { baySourceForItem } from "$lib/utils/rack-row";
+  import {
+    computeCanvasLayout,
+    CANVAS_PADDING,
+    CANVAS_ROW_GAP,
+    CANVAS_SLOT_GAP,
+  } from "$lib/utils/canvas";
   import { bayRack } from "$lib/actions/selection-actions";
   import { getMinResizeHeight, snapResizeHeight } from "$lib/utils/rack-resize";
   import { U_HEIGHT_PX, getRackWidth } from "$lib/constants/layout";
@@ -101,10 +107,15 @@
   const activeRackId = $derived(layoutStore.activeRackId);
   const rackGroups = $derived(layoutStore.rack_groups);
 
-  // Lay racks out as a single horizontal row ordered by Rack.position. Bayed
-  // groups stay contiguous and render flush; standalone racks are spaced. See
-  // organizeRackRow for the ordering and grouping rules.
-  const rowItems = $derived(organizeRackRow(racks, rackGroups));
+  // Lay racks out as stacked rows: each group is its own row and standalone
+  // racks share one. The camera (fit-all, focus) reads the same model, so the
+  // rows, their order and the slot order here must come from it. See
+  // computeCanvasLayout and organizeRackRows.
+  const canvasLayout = $derived(
+    computeCanvasLayout(racks, rackGroups, {
+      showAnnotations: uiStore.showAnnotations,
+    }),
+  );
 
   // The selected bayed group's id, or null when the selection is not a group.
   // Drives the bay-level resize handle on a bay slot.
@@ -482,7 +493,7 @@
     if (success) {
       hapticSuccess();
       // Reset view to show full rack after placement completes
-      canvasStore.fitAll(layoutStore.racks);
+      canvasStore.fitAll(layoutStore.racks, layoutStore.rack_groups);
     } else {
       // Block-live UX (D5): the placement was refused (carrier-required,
       // collision, or out of bounds); tell the user rather than fail silently.
@@ -597,9 +608,11 @@
   }
 </script>
 
-<!-- Single bottom-aligned row: every rack lives in this one row, ordered by
-     Rack.position. Standalone racks are spaced; bayed groups render flush via
-     BayedRackView. There is no free 2D placement. role="list" gives the rack
+<!-- Stacked rows (#3370): each rack group is its own bottom-aligned row and
+     standalone racks share one row, ordered by Rack.position. Bayed groups
+     render flush via BayedRackView. There is no free 2D placement. The gaps and
+     padding come from the computeCanvasLayout constants so the camera model
+     matches what renders. role="list" gives the rack
      containers (role="listitem", see RackDualView and Rack) a valid required
      parent. The racks are listitems, not options, because each holds interactive
      device buttons and an interactive option may not contain focusable
@@ -611,6 +624,9 @@
   aria-label="Racks"
   class:swipe-next={swipeAnimationDirection === "next"}
   class:swipe-previous={swipeAnimationDirection === "previous"}
+  style:--canvas-padding="{CANVAS_PADDING}px"
+  style:--canvas-row-gap="{CANVAS_ROW_GAP}px"
+  style:--canvas-slot-gap="{CANVAS_SLOT_GAP}px"
 >
   {#snippet resizeGrip(target: ResizeTarget, side: ResizeGrip, heightU: number)}
     {@const scale = 1 / canvasStore.zoom}
@@ -635,242 +651,262 @@
       <span class="grip-square" aria-hidden="true"></span>
     </button>
   {/snippet}
-  {#each rowItems as item (item.kind === "rack" ? `rack:${item.rack.id}` : `group:${item.group.id}`)}
-    <div class="row-slot">
-      {#if item.kind === "rack"}
-        {@const rack = item.rack}
-        {@const isActive = rack.id === activeRackId}
-        {@const isSelected =
-          selectionStore.selectedType === "rack" &&
-          selectionStore.selectedRackId === rack.id}
-        <div
-          class="rack-wrapper"
-          class:active={isActive}
-          class:resizable={isSelected}
-          style:transform={resizeDrag?.target.kind === "rack" &&
-          resizeDrag.target.rackId === rack.id &&
-          resizeDrag.grip === "bottom"
-            ? `translateY(${(resizeDrag.previewHeight - resizeDrag.startHeight) * U_HEIGHT_PX}px)`
-            : undefined}
-        >
-          <RackDualView
-            {rack}
-            deviceLibrary={layoutStore.device_types}
-            selected={isSelected}
-            {isActive}
-            selectedDeviceId={selectionStore.selectedType === "device" &&
-            selectionStore.selectedRackId === rack.id
-              ? selectionStore.selectedDeviceId
-              : null}
-            displayMode={uiStore.displayMode}
-            showLabelsOnImages={uiStore.showLabelsOnImages}
-            showAnnotations={uiStore.showAnnotations}
-            annotationField={uiStore.annotationField}
-            showBanana={uiStore.showBanana}
-            {partyMode}
-            {enableLongPress}
-            onselect={(e) => handleRackSelect(e)}
-            ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
-            ondevicedrop={(e) => handleDeviceDrop(e)}
-            ondevicemove={(e) => handleDeviceMove(e)}
-            ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-            onplacementtap={(e) => handlePlacementTap(rack.id, e)}
-            onlongpress={(e) => onracklongpress?.(e)}
-            onfocus={() => onrackfocus?.([rack.id])}
-            onexport={() => onrackexport?.([rack.id])}
-            onedit={() => onrackedit?.(rack.id)}
-            onrename={() => onrackrename?.(rack.id)}
-            onduplicate={() => onrackduplicate?.(rack.id)}
-            ondelete={() => onrackdelete?.(rack.id)}
-          />
-          {#if isSelected}
-            {@render resizeGrip(
-              { kind: "rack", rackId: rack.id },
-              "top",
-              rack.height,
-            )}
-            {@render resizeGrip(
-              { kind: "rack", rackId: rack.id },
-              "bottom",
-              rack.height,
-            )}
-            {#if resizeDrag?.target.kind === "rack" && resizeDrag.target.rackId === rack.id}
-              <div
-                class="resize-readout resize-readout-{resizeDrag.grip}"
-                role="status"
-                aria-live="polite"
-              >
-                {resizeDrag.previewHeight}U
-              </div>
-            {/if}
-            <!-- Resistant right-edge drag, gated to match the verb bar bay
+  {#each canvasLayout.rows as row (row.key)}
+    <div class="canvas-row">
+      {#each row.slots as { item } (item.kind === "rack" ? `rack:${item.rack.id}` : `group:${item.group.id}`)}
+        <div class="row-slot">
+          {#if item.kind === "rack"}
+            {@const rack = item.rack}
+            {@const isActive = rack.id === activeRackId}
+            {@const isSelected =
+              selectionStore.selectedType === "rack" &&
+              selectionStore.selectedRackId === rack.id}
+            <div
+              class="rack-wrapper"
+              class:active={isActive}
+              class:resizable={isSelected}
+              style:transform={resizeDrag?.target.kind === "rack" &&
+              resizeDrag.target.rackId === rack.id &&
+              resizeDrag.grip === "bottom"
+                ? `translateY(${(resizeDrag.previewHeight - resizeDrag.startHeight) * U_HEIGHT_PX}px)`
+                : undefined}
+            >
+              <RackDualView
+                {rack}
+                deviceLibrary={layoutStore.device_types}
+                selected={isSelected}
+                {isActive}
+                selectedDeviceId={selectionStore.selectedType === "device" &&
+                selectionStore.selectedRackId === rack.id
+                  ? selectionStore.selectedDeviceId
+                  : null}
+                displayMode={uiStore.displayMode}
+                showLabelsOnImages={uiStore.showLabelsOnImages}
+                showAnnotations={uiStore.showAnnotations}
+                annotationField={uiStore.annotationField}
+                showBanana={uiStore.showBanana}
+                {partyMode}
+                {enableLongPress}
+                onselect={(e) => handleRackSelect(e)}
+                ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
+                ondevicedrop={(e) => handleDeviceDrop(e)}
+                ondevicemove={(e) => handleDeviceMove(e)}
+                ondevicemoverack={(e) => handleDeviceMoveRack(e)}
+                onplacementtap={(e) => handlePlacementTap(rack.id, e)}
+                onlongpress={(e) => onracklongpress?.(e)}
+                onfocus={() => onrackfocus?.([rack.id])}
+                onexport={() => onrackexport?.([rack.id])}
+                onedit={() => onrackedit?.(rack.id)}
+                onrename={() => onrackrename?.(rack.id)}
+                onduplicate={() => onrackduplicate?.(rack.id)}
+                ondelete={() => onrackdelete?.(rack.id)}
+              />
+              {#if isSelected}
+                {@render resizeGrip(
+                  { kind: "rack", rackId: rack.id },
+                  "top",
+                  rack.height,
+                )}
+                {@render resizeGrip(
+                  { kind: "rack", rackId: rack.id },
+                  "bottom",
+                  rack.height,
+                )}
+                {#if resizeDrag?.target.kind === "rack" && resizeDrag.target.rackId === rack.id}
+                  <div
+                    class="resize-readout resize-readout-{resizeDrag.grip}"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {resizeDrag.previewHeight}U
+                  </div>
+                {/if}
+                <!-- Resistant right-edge drag, gated to match the verb bar bay
                  action (#2823): baySourceForItem offers it only on an empty
                  standalone rack (populated standalone racks show no bay
                  affordance), ANDed with the bayed-racks setting (#2742) and
                  suppressed in read-only mode. Pull right past the snap threshold
                  to create a bayed rack. -->
-            {#if !uiStore.readOnly && uiStore.enableBayedRacks && baySourceForItem(item, activeRackId) !== null}
-              {@const bayGripScale = 1 / canvasStore.zoom}
-              <button
-                type="button"
-                class="bay-edge-grip"
-                aria-label="Drag right to bay a new rack"
-                title="Drag right to create a bayed rack"
-                tabindex="-1"
-                style:--bay-grip-scale={bayGripScale}
-                onpointerdown={(e) => handleBayDragStart(rack.id, e)}
-                onpointermove={handleBayDragMove}
-                onpointerup={handleBayDragEnd}
-                onpointercancel={handleBayDragCancel}
-                onmousedown={blockPan}
-                ontouchstart={blockPan}
-              >
-                <span class="edge-grip-bar" aria-hidden="true"></span>
-              </button>
-              {#if bayGhost && bayGhost.rackId === rack.id}
-                <div
-                  class="bay-ghost"
-                  class:armed={bayGhost.armed}
-                  style:width="{bayGhost.widthPx}px"
-                  aria-hidden="true"
-                ></div>
-                <div class="bay-drag-readout" role="status" aria-live="polite">
-                  {bayGhost.armed ? "Release to bay" : "Pull to bay"}
-                </div>
+                {#if !uiStore.readOnly && uiStore.enableBayedRacks && baySourceForItem(item, activeRackId) !== null}
+                  {@const bayGripScale = 1 / canvasStore.zoom}
+                  <button
+                    type="button"
+                    class="bay-edge-grip"
+                    aria-label="Drag right to bay a new rack"
+                    title="Drag right to create a bayed rack"
+                    tabindex="-1"
+                    style:--bay-grip-scale={bayGripScale}
+                    onpointerdown={(e) => handleBayDragStart(rack.id, e)}
+                    onpointermove={handleBayDragMove}
+                    onpointerup={handleBayDragEnd}
+                    onpointercancel={handleBayDragCancel}
+                    onmousedown={blockPan}
+                    ontouchstart={blockPan}
+                  >
+                    <span class="edge-grip-bar" aria-hidden="true"></span>
+                  </button>
+                  {#if bayGhost && bayGhost.rackId === rack.id}
+                    <div
+                      class="bay-ghost"
+                      class:armed={bayGhost.armed}
+                      style:width="{bayGhost.widthPx}px"
+                      aria-hidden="true"
+                    ></div>
+                    <div
+                      class="bay-drag-readout"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {bayGhost.armed ? "Release to bay" : "Pull to bay"}
+                    </div>
+                  {/if}
+                {/if}
               {/if}
-            {/if}
-          {/if}
-        </div>
-      {:else if item.group.layout_preset === "bayed"}
-        {@const isBaySelected = item.group.id === selectedGroupId}
-        {@const bayTarget = {
-          kind: "bay" as const,
-          groupId: item.group.id,
-          rackIds: item.racks.map((member) => member.id),
-        }}
-        <!-- Bayed/touring racks render flush (no gap) via the stacked dual view.
+            </div>
+          {:else if item.group.layout_preset === "bayed"}
+            {@const isBaySelected = item.group.id === selectedGroupId}
+            {@const bayTarget = {
+              kind: "bay" as const,
+              groupId: item.group.id,
+              rackIds: item.racks.map((member) => member.id),
+            }}
+            <!-- Bayed/touring racks render flush (no gap) via the stacked dual view.
              The wrapper hosts the one bay-level resize handle that resizes every
              member together, preserving the equal-height invariant (#2740). -->
-        <div class="bay-wrapper" class:resizable={isBaySelected}>
-          <BayedRackView
-            group={item.group}
-            racks={item.racks}
-            deviceLibrary={layoutStore.device_types}
-            {activeRackId}
-            selectedDeviceId={selectionStore.selectedType === "device"
-              ? selectionStore.selectedDeviceId
-              : null}
-            selectedRackId={selectionStore.selectedType === "rack"
-              ? selectionStore.selectedRackId
-              : null}
-            {selectedGroupId}
-            displayMode={uiStore.displayMode}
-            showLabelsOnImages={uiStore.showLabelsOnImages}
-            showAnnotations={uiStore.showAnnotations}
-            annotationField={uiStore.annotationField}
-            {partyMode}
-            {enableLongPress}
-            ongroupselect={(e) => handleGroupSelect(e)}
-            ondeviceselect={(e) => handleDeviceSelect(e.detail.rackId, e)}
-            ondevicedrop={(e) => handleDeviceDrop(e)}
-            ondevicemove={(e) => handleDeviceMove(e)}
-            ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-            onplacementtap={(e) => handlePlacementTap(e.detail.rackId, e)}
-            onlongpress={(e) => onracklongpress?.(e)}
-            onfocus={(rackIds) => onrackfocus?.(rackIds)}
-            onexport={(rackIds) => onrackexport?.(rackIds)}
-            onedit={(rackId) => onrackedit?.(rackId)}
-            onrename={(rackId) => onrackrename?.(rackId)}
-            onduplicate={(rackId) => onrackduplicate?.(rackId)}
-            ondelete={(rackId) => onrackdelete?.(rackId)}
-            enableBayDrag={isBaySelected &&
-              uiStore.enableBayedRacks &&
-              !uiStore.readOnly}
-            {bayGhost}
-            onbaydragstart={handleBayDragStart}
-            onbaydragmove={handleBayDragMove}
-            onbaydragend={handleBayDragEnd}
-            onbaydragcancel={handleBayDragCancel}
-          />
-          {#if isBaySelected && uiStore.enableBayedRacks}
-            <!-- One bay-level handle (AC6). It lives on the top edge: the bay is
+            <div class="bay-wrapper" class:resizable={isBaySelected}>
+              <BayedRackView
+                group={item.group}
+                racks={item.racks}
+                deviceLibrary={layoutStore.device_types}
+                {activeRackId}
+                selectedDeviceId={selectionStore.selectedType === "device"
+                  ? selectionStore.selectedDeviceId
+                  : null}
+                selectedRackId={selectionStore.selectedType === "rack"
+                  ? selectionStore.selectedRackId
+                  : null}
+                {selectedGroupId}
+                displayMode={uiStore.displayMode}
+                showLabelsOnImages={uiStore.showLabelsOnImages}
+                showAnnotations={uiStore.showAnnotations}
+                annotationField={uiStore.annotationField}
+                {partyMode}
+                {enableLongPress}
+                ongroupselect={(e) => handleGroupSelect(e)}
+                ondeviceselect={(e) => handleDeviceSelect(e.detail.rackId, e)}
+                ondevicedrop={(e) => handleDeviceDrop(e)}
+                ondevicemove={(e) => handleDeviceMove(e)}
+                ondevicemoverack={(e) => handleDeviceMoveRack(e)}
+                onplacementtap={(e) => handlePlacementTap(e.detail.rackId, e)}
+                onlongpress={(e) => onracklongpress?.(e)}
+                onfocus={(rackIds) => onrackfocus?.(rackIds)}
+                onexport={(rackIds) => onrackexport?.(rackIds)}
+                onedit={(rackId) => onrackedit?.(rackId)}
+                onrename={(rackId) => onrackrename?.(rackId)}
+                onduplicate={(rackId) => onrackduplicate?.(rackId)}
+                ondelete={(rackId) => onrackdelete?.(rackId)}
+                enableBayDrag={isBaySelected &&
+                  uiStore.enableBayedRacks &&
+                  !uiStore.readOnly}
+                {bayGhost}
+                onbaydragstart={handleBayDragStart}
+                onbaydragmove={handleBayDragMove}
+                onbaydragend={handleBayDragEnd}
+                onbaydragcancel={handleBayDragCancel}
+              />
+              {#if isBaySelected && uiStore.enableBayedRacks}
+                <!-- One bay-level handle (AC6). It lives on the top edge: the bay is
                  bottom-anchored in the row, so a top grip grows upward to match
                  the drag with no preview transform. A bottom grip cannot: the
                  stacked front+rear rows grow the wrapper by twice the height
                  delta, so no single translateY tracks the pointer.
                  Gated on the bayed-racks setting (#2742). -->
-            {@render resizeGrip(bayTarget, "top", item.racks[0]?.height ?? 0)}
-            {#if resizeDrag?.target.kind === "bay" && resizeDrag.target.groupId === item.group.id}
-              <div
-                class="resize-readout resize-readout-{resizeDrag.grip}"
-                role="status"
-                aria-live="polite"
-              >
-                {resizeDrag.previewHeight}U
+                {@render resizeGrip(
+                  bayTarget,
+                  "top",
+                  item.racks[0]?.height ?? 0,
+                )}
+                {#if resizeDrag?.target.kind === "bay" && resizeDrag.target.groupId === item.group.id}
+                  <div
+                    class="resize-readout resize-readout-{resizeDrag.grip}"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {resizeDrag.previewHeight}U
+                  </div>
+                {/if}
+              {/if}
+            </div>
+          {:else}
+            <!-- Standard row layout for non-bayed groups -->
+            <div class="rack-group">
+              <div class="group-label">{item.group.name ?? "Group"}</div>
+              <div class="group-racks">
+                {#each item.racks as rack (rack.id)}
+                  {@const isActive = rack.id === activeRackId}
+                  {@const isSelected =
+                    selectionStore.selectedType === "rack" &&
+                    selectionStore.selectedRackId === rack.id}
+                  <div class="rack-wrapper" class:active={isActive}>
+                    <RackDualView
+                      {rack}
+                      deviceLibrary={layoutStore.device_types}
+                      selected={isSelected}
+                      {isActive}
+                      selectedDeviceId={selectionStore.selectedType ===
+                        "device" && selectionStore.selectedRackId === rack.id
+                        ? selectionStore.selectedDeviceId
+                        : null}
+                      displayMode={uiStore.displayMode}
+                      showLabelsOnImages={uiStore.showLabelsOnImages}
+                      showAnnotations={uiStore.showAnnotations}
+                      annotationField={uiStore.annotationField}
+                      showBanana={uiStore.showBanana}
+                      {partyMode}
+                      {enableLongPress}
+                      onselect={(e) => handleRackSelect(e)}
+                      ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
+                      ondevicedrop={(e) => handleDeviceDrop(e)}
+                      ondevicemove={(e) => handleDeviceMove(e)}
+                      ondevicemoverack={(e) => handleDeviceMoveRack(e)}
+                      onplacementtap={(e) => handlePlacementTap(rack.id, e)}
+                      onlongpress={(e) => onracklongpress?.(e)}
+                      onfocus={() => onrackfocus?.([rack.id])}
+                      onexport={() => onrackexport?.([rack.id])}
+                      onedit={() => onrackedit?.(rack.id)}
+                      onrename={() => onrackrename?.(rack.id)}
+                      onduplicate={() => onrackduplicate?.(rack.id)}
+                      ondelete={() => onrackdelete?.(rack.id)}
+                    />
+                  </div>
+                {/each}
               </div>
-            {/if}
+            </div>
           {/if}
         </div>
-      {:else}
-        <!-- Standard row layout for non-bayed groups -->
-        <div class="rack-group">
-          <div class="group-label">{item.group.name ?? "Group"}</div>
-          <div class="group-racks">
-            {#each item.racks as rack (rack.id)}
-              {@const isActive = rack.id === activeRackId}
-              {@const isSelected =
-                selectionStore.selectedType === "rack" &&
-                selectionStore.selectedRackId === rack.id}
-              <div class="rack-wrapper" class:active={isActive}>
-                <RackDualView
-                  {rack}
-                  deviceLibrary={layoutStore.device_types}
-                  selected={isSelected}
-                  {isActive}
-                  selectedDeviceId={selectionStore.selectedType === "device" &&
-                  selectionStore.selectedRackId === rack.id
-                    ? selectionStore.selectedDeviceId
-                    : null}
-                  displayMode={uiStore.displayMode}
-                  showLabelsOnImages={uiStore.showLabelsOnImages}
-                  showAnnotations={uiStore.showAnnotations}
-                  annotationField={uiStore.annotationField}
-                  showBanana={uiStore.showBanana}
-                  {partyMode}
-                  {enableLongPress}
-                  onselect={(e) => handleRackSelect(e)}
-                  ondeviceselect={(e) => handleDeviceSelect(rack.id, e)}
-                  ondevicedrop={(e) => handleDeviceDrop(e)}
-                  ondevicemove={(e) => handleDeviceMove(e)}
-                  ondevicemoverack={(e) => handleDeviceMoveRack(e)}
-                  onplacementtap={(e) => handlePlacementTap(rack.id, e)}
-                  onlongpress={(e) => onracklongpress?.(e)}
-                  onfocus={() => onrackfocus?.([rack.id])}
-                  onexport={() => onrackexport?.([rack.id])}
-                  onedit={() => onrackedit?.(rack.id)}
-                  onrename={() => onrackrename?.(rack.id)}
-                  onduplicate={() => onrackduplicate?.(rack.id)}
-                  ondelete={() => onrackdelete?.(rack.id)}
-                />
-              </div>
-            {/each}
-          </div>
-        </div>
-      {/if}
+      {/each}
     </div>
   {/each}
 </div>
 
 <style>
   .racks-wrapper {
-    /* Single bottom-aligned row: racks share a common baseline (their bases)
+    /* Rows stack top to bottom, left-aligned. */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--canvas-row-gap);
+    padding: var(--canvas-padding);
+  }
+
+  .canvas-row {
+    /* Bottom-aligned row: racks share a common baseline (their bases)
        whatever their height, like racks standing on a floor. flex-end also
        stops shorter racks stretching to match the tallest. */
     display: flex;
     flex-direction: row;
     align-items: flex-end;
-    gap: var(--space-6);
-    padding: var(--space-4);
+    gap: var(--canvas-slot-gap);
   }
 
   .racks-wrapper.swipe-next {

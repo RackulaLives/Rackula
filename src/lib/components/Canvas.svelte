@@ -169,7 +169,7 @@
       if (onfitall) {
         onfitall();
       } else {
-        canvasStore.fitAll(racks);
+        canvasStore.fitAll(racks, layoutStore.rack_groups);
       }
     },
   });
@@ -318,7 +318,7 @@
 
       // Center content on initial load
       requestAnimationFrame(() => {
-        canvasStore.fitAll(racks);
+        canvasStore.fitAll(racks, layoutStore.rack_groups);
       });
 
       return () => {
@@ -407,7 +407,8 @@
 <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (role="application" makes this interactive per WAI-ARIA) -->
 <CanvasContextMenu
   onnewrack={handleNewRack}
-  onfitall={() => onfitall?.() ?? canvasStore.fitAll(racks)}
+  onfitall={() =>
+    onfitall ? onfitall() : canvasStore.fitAll(racks, layoutStore.rack_groups)}
   onresetzoom={() => onresetzoom?.() ?? canvasStore.resetZoom()}
   {displayMode}
   {ontoggledisplaymode}
