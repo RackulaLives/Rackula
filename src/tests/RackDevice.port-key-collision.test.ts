@@ -52,4 +52,35 @@ describe("PortIndicators keyed #each (duplicate names, no PlacedPort)", () => {
       getAllByRole("button", { name: "SFP+ (25gbase-x-sfp28)" }).length,
     ).toBe(1);
   });
+
+  it("keeps one hit target per interface when a 10-inch rack collapses the ports onto the chip centre (#3451)", () => {
+    const device: DeviceType = {
+      ...createTestDeviceType({ slug: "mini-switch", u_height: 1 }),
+      interfaces: [
+        { name: "SFP+", type: "10gbase-x-sfpp" },
+        { name: "SFP+", type: "25gbase-x-sfp28" },
+        { name: "eth0", type: "1000base-t" },
+      ],
+    };
+
+    // Collapsed chip mode returns every port at the same point; the keys
+    // (PlacedPort.id, or the loop index here) must still be unique.
+    const { getAllByRole } = render(RackDevice, {
+      props: {
+        device,
+        position: 6,
+        rackHeight: 42,
+        rackId: "rack-1",
+        deviceIndex: 0,
+        selected: false,
+        uHeight: 22,
+        rackWidth: 116,
+        nominalRackWidth: 10,
+      },
+    });
+
+    expect(
+      getAllByRole("button", { name: /\((10gbase|25gbase|1000base)/ }).length,
+    ).toBe(device.interfaces?.length);
+  });
 });

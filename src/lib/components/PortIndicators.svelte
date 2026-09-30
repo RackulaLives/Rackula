@@ -140,7 +140,7 @@
     visibleInterfaces.length > HIGH_DENSITY_THRESHOLD,
   );
 
-  // Port positions (centered horizontally), keyed by PlacedPort.id where one
+  // Port positions (right-aligned grid), keyed by PlacedPort.id where one
   // exists. Delegates to the shared geometry helper (#3089) so this layout
   // and the one ConnectionLayer (#1931) will look up an anchor from are
   // always identical.
