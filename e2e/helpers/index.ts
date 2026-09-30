@@ -13,6 +13,7 @@ export {
   RACK_WITH_DEVICE_SHARE,
   MULTI_RACK_SHARE,
   BAYED_RACK_SHARE,
+  STACKED_ROWS_SHARE,
   createTestLayout,
   gotoWithRack,
   gotoMobileWithRack,

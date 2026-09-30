@@ -12,6 +12,8 @@ import { setServerBaseUpdatedAt } from "./server-base";
 import type { Layout } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
 import { loadSavedLayout, loadSnapshot, PersistenceError } from "./api";
+import { eagerFetchServerImages } from "./server-load-images";
+import { placementKey } from "$lib/utils/placement-key";
 import { extractFolderArchive } from "$lib/utils/archive";
 import { openFilePicker } from "$lib/utils/file";
 import { layoutDebug } from "$lib/utils/debug";
@@ -62,6 +64,13 @@ export interface FinalizeLayoutLoadOptions {
 }
 
 /**
+ * Bumped by every {@link finalizeLayoutLoad}, which replaces the whole image
+ * set. A background image fetch started before a bump is stale, even when the
+ * newly opened layout has the same id (a server copy or snapshot of it).
+ */
+let finalizeGeneration = 0;
+
+/**
  * Common layout loading process
  * Updates stores, clears session, and fits view
  */
@@ -78,6 +87,8 @@ export function finalizeLayoutLoad(
   const toastStore = getToastStore();
   const selectionStore = getSelectionStore();
   const canvasStore = getCanvasStore();
+
+  finalizeGeneration++;
 
   // Always reset images: clear → load bundled base → overlay custom
   imageStore.clearAllImages();
@@ -121,6 +132,75 @@ export function finalizeLayoutLoad(
     );
   } else if (successMessage !== null) {
     toastStore.showToast(successMessage, "success");
+  }
+}
+
+/**
+ * Server mode: load a restored working copy's custom faces from the asset API
+ * (#3412). The localStorage working copy holds the layout but no images, so a
+ * reload that keeps it would otherwise show every placed device without its
+ * front/rear override. Fetch failures get the same per-device warning toasts as
+ * a server load.
+ *
+ * Call it after the working copy is in the store, without awaiting it, so a
+ * slow or missing asset never holds up the restore. The user can act while the
+ * fetch is in flight, so the result is dropped when another layout, or another
+ * version of this one, is now open. A face is applied only while its device
+ * still references it and the user has not set one in the meantime, so a face
+ * set or cleared during the fetch is kept as the user left it. Never rejects.
+ */
+export async function loadWorkingCopyServerImages(
+  layout: Layout,
+): Promise<void> {
+  const layoutId = layout.metadata?.id;
+  if (!layoutId) return;
+  const generation = finalizeGeneration;
+
+  try {
+    const { images, failedKeys } = await eagerFetchServerImages(
+      layout,
+      layoutId,
+      new Map(),
+    );
+
+    const current = getLayoutStore().layout;
+    if (
+      generation !== finalizeGeneration ||
+      current.metadata?.id !== layoutId
+    ) {
+      return;
+    }
+
+    const currentDevices = new Map(
+      current.racks
+        .flatMap((rack) => rack.devices)
+        .map((device) => [placementKey(layoutId, device.id), device]),
+    );
+    const imageStore = getImageStore();
+    for (const [key, deviceImages] of images) {
+      const device = currentDevices.get(key);
+      if (
+        deviceImages.front &&
+        device?.front_image &&
+        !imageStore.hasImage(key, "front")
+      ) {
+        imageStore.setDeviceImage(key, "front", deviceImages.front);
+      }
+      if (
+        deviceImages.rear &&
+        device?.rear_image &&
+        !imageStore.hasImage(key, "rear")
+      ) {
+        imageStore.setDeviceImage(key, "rear", deviceImages.rear);
+      }
+    }
+
+    const toastStore = getToastStore();
+    for (const message of resolveImageFailureMessages(failedKeys, layout)) {
+      toastStore.showToast(message, "warning");
+    }
+  } catch (error) {
+    layoutDebug.state("working copy image load failed: %O", error);
   }
 }
 

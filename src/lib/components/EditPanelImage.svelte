@@ -49,15 +49,22 @@
   // the dialog title does not change during its exit transition.
   let cropFile = $state<File | null>(null);
   let cropFace = $state<"front" | "rear">("front");
-  // Where a confirmed crop is written, pinned when the file is chosen: the
-  // selection and the active layout can both change while the dialog is open,
-  // and the image belongs to the device it was chosen for.
-  let cropTarget: {
+  // Where a confirmed crop is written and the frame it is cropped to, pinned
+  // when the file is chosen: the selection, the active layout and the rack's
+  // devices can all change while the dialog is open, and the image belongs to
+  // the device it was chosen for. The device is kept by id, since its index
+  // can shift.
+  let cropTarget = $state<{
     slug: string;
     key: string;
+    layoutId: string;
     rackId: string;
-    deviceIndex: number;
-  } | null = null;
+    deviceId: string;
+    uHeight: number;
+    rackWidth: number;
+    widthFraction: number;
+    widthLabel: string | undefined;
+  } | null>(null);
 
   // Current placement overrides (if any)
   const placementFrontImage = $derived(
@@ -118,8 +125,13 @@
     cropTarget = {
       slug: selectedDeviceInfo.device.slug,
       key: placementKey(layoutId, selectedDeviceInfo.placedDevice.id),
+      layoutId,
       rackId: selectedDeviceInfo.rack.id,
-      deviceIndex: selectedDeviceInfo.deviceIndex,
+      deviceId: selectedDeviceInfo.placedDevice.id,
+      uHeight: selectedDeviceInfo.device.u_height,
+      rackWidth: selectedDeviceInfo.rack.width,
+      widthFraction: cropWidthFraction,
+      widthLabel: cropWidthLabel,
     };
     cropFile = file;
 
@@ -134,10 +146,20 @@
     if (!target) return;
     try {
       const data = await fileToImageData(cropped, target.slug, face);
+      const deviceIndex =
+        layoutId === target.layoutId
+          ? (layoutStore
+              .getRackById(target.rackId)
+              ?.devices.findIndex((d) => d.id === target.deviceId) ?? -1)
+          : -1;
+      if (deviceIndex === -1) {
+        errors[face] = "Device is no longer in this layout, image not saved";
+        return;
+      }
       imageStore.setDeviceImage(target.key, face, data);
       layoutStore.updateDevicePlacementImage(
         target.rackId,
-        target.deviceIndex,
+        deviceIndex,
         face,
         data.filename,
       );
@@ -246,10 +268,10 @@
 <ImageCropDialog
   file={cropFile}
   face={cropFace}
-  uHeight={selectedDeviceInfo.device.u_height}
-  rackWidth={selectedDeviceInfo.rack.width}
-  widthFraction={cropWidthFraction}
-  widthLabel={cropWidthLabel}
+  uHeight={cropTarget?.uHeight ?? selectedDeviceInfo.device.u_height}
+  rackWidth={cropTarget?.rackWidth ?? selectedDeviceInfo.rack.width}
+  widthFraction={cropTarget?.widthFraction ?? cropWidthFraction}
+  widthLabel={cropTarget ? cropTarget.widthLabel : cropWidthLabel}
   onconfirm={handleCropConfirm}
   oncancel={() => (cropFile = null)}
 />

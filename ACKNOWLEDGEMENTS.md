@@ -96,6 +96,10 @@ To add yourself to this list, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Contributors who made merged pull requests in each release. For the full contributors table, see above.
 
+### v26.9.2
+
+- @p-paul: fix: pin label-sync to the real v2.3.3 commit (#3436, #3435, #3312)
+
 ### v26.9.1
 
 - @p-paul: fix: land a drop on the U under the cursor (#3387, #3345)

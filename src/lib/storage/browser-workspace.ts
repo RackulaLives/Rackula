@@ -403,6 +403,25 @@ export function hasLayoutBody(id: string): boolean {
 }
 
 /**
+ * The `savedAt` stamped inside a layout body on disk, or null when there is no
+ * readable body or it carries no timestamp. This dates the body that actually
+ * loads; the index `updatedAt` can lag it when a body write succeeded but the
+ * index write after it was refused (#3386).
+ */
+export function readLayoutBodySavedAt(id: string): string | null {
+  const serialized = safeGetItem(layoutBodyKey(id));
+  if (!serialized) return null;
+  try {
+    const parsed: unknown = JSON.parse(serialized);
+    return isRecord(parsed) && typeof parsed.savedAt === "string"
+      ? parsed.savedAt
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Remove a layout body and drop its library entry. Open set is left to the
  * caller. Reports whether the deletion was actually recorded.
  *

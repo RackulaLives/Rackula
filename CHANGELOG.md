@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [26.9.2] - 2026-09-29
+
+### I COUNTED TO A HUNDRED RACKS
+
+Ah ah ah. One hundred racks. It took most of September, because every time I got to forty the page froze and I had to start again from one. That is not a bug, that is counting with feeling. Now the page keeps breathing while it loads, the labels step back when you zoom out, and I can count all the way to a hundred without anyone checking whether I have died. Again.
+
+### This release
+
+Big layouts got faster: loading yields to the browser, labels drop out when zoomed out, and connections are looked up per rack. Rack groups now wrap into stacked rows, device images can be cropped, and server mode stops losing custom images.
+
+### Added
+
+- Crop tool for front and rear device images (#3311, PR #3312)
+- Rack groups wrap into stacked rows, one row per group with standalone racks sharing a row, instead of one long row. Moving a group moves it up or down a row (#3370, PR #3419)
+- On launch, a one-time warning names any open layout whose edits from a previous session were never saved (#3386, PR #3415)
+
+### Changed
+
+- A zoomed-out canvas drops text labels by level-of-detail tier (#3367, PR #3418)
+
+### Fixed
+
+- Saving in server mode no longer deletes a layout's uploaded images when they are not loaded in memory (#3404, PR #3410)
+- A server-mode reload that keeps the working copy loads its custom device images (#3412, PR #3413)
+- Large layouts load without blocking the page (#3366, #3368, PR #3416)
+- Selecting a device no longer forces a style and layout recalculation (#3374, PR #3417)
+- Connections are indexed by rack, so layouts with many connections draw faster (#3373, PR #3414)
+- The canvas no longer freezes in a panzoom rebuild loop when fit-all zooms below the label threshold, as in narrow windows or layouts of about ten racks (#3428, PR #3435)
+- The crop dialog stays on the device it was opened for when the selection or workspace changes, and skips the save if that device is gone (#3411, PR #3421)
+- Layouts with duplicate connection ids load with unique ids, and exact duplicates are dropped (#3284, PR #3422)
+- Image exports draw carrier children inside their carrier (#3362, PR #3425)
+- NetBox import continues past null values and malformed components (#3336, PR #3424)
+
+### Technical
+
+- The NetBox importer generates valid brand pack export names for vendors such as D-Link, and rejects name clashes (#3286, PR #3420)
+- The Label Sync workflow is pinned to the real v2.3.3 commit (PR #3436)
+- An upgrade-corpus fixture captures a 26.9.2 layout
+- Dependency updates across svelte, bits-ui, @lucide/svelte, dompurify, marked, hono, wrangler, eslint, typescript-eslint, vitest, jsdom, tsx, lint-staged, @types/node, and GitHub Actions (23 PRs, PR #3396 through PR #3446)
+
 ## [26.9.1] - 2026-09-20
 
 ### IT SAID SAVED BECAUSE IT WAS BEING POLITE

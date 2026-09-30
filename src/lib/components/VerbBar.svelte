@@ -38,6 +38,8 @@
     disabled?: boolean;
     /** Draw a divider before this item, separating position from object verbs. */
     dividerBefore?: boolean;
+    /** Overrides the id's default icon, e.g. up/down chevrons for a group. */
+    icon?: Component<{ size?: number }>;
   }
 
   interface Props {
@@ -100,7 +102,7 @@
     onkeydown={handleKeydown}
   >
     {#each verbs as verb, index (verb.id)}
-      {@const Icon = iconForVerb[verb.id]}
+      {@const Icon = verb.icon ?? iconForVerb[verb.id]}
       {@const shortcut = getActionTooltip(verb.id)?.shortcut}
       {#if verb.dividerBefore}
         <span class="verb-divider" aria-hidden="true"></span>

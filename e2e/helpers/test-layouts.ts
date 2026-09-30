@@ -170,6 +170,32 @@ const BAYED_RACK_MINIMAL: MinimalLayoutV2 = {
   dt: [{ s: "srv", h: 1, c: "#4A90A4", x: "s" }],
 };
 
+/**
+ * Two standalone racks, a two-bay bayed group and a two-rack row group, all
+ * 12U, for the stacked-row canvas (#3370). Share decodes give every rack the
+ * same position, so this also covers the insertion-order tie-break.
+ */
+const STACKED_ROWS_MINIMAL: MinimalLayoutV2 = {
+  v: APP_VERSION,
+  n: "Stacked Rows Layout",
+  rs: [
+    { i: "0", n: "Solo One", h: 12, w: 19, d: [] },
+    { i: "1", n: "Bay Left", h: 12, w: 19, d: [] },
+    { i: "2", n: "Bay Right", h: 12, w: 19, d: [] },
+    { i: "3", n: "Solo Two", h: 12, w: 19, d: [] },
+    { i: "4", n: "Row Left", h: 12, w: 19, d: [] },
+    { i: "5", n: "Row Right", h: 12, w: 19, d: [] },
+  ],
+  rg: [
+    { rs: ["1", "2"], p: "bayed" },
+    { rs: ["4", "5"], n: "Aisle Row", p: "row" },
+  ],
+  dt: [],
+};
+
+/** Standalone racks plus a bayed group and a row group, each its own row. */
+export const STACKED_ROWS_SHARE = encodeMinimal(STACKED_ROWS_MINIMAL);
+
 /** Two standalone racks (12U each), each with one named 1U server. */
 export const MULTI_RACK_SHARE = encodeMinimal(MULTI_RACK_MINIMAL);
 
