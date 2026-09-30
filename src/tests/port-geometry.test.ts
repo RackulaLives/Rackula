@@ -488,7 +488,7 @@ describe("getPortAnchor", () => {
 });
 
 describe("collapsed chip (narrow device, 24 or fewer ports)", () => {
-  it("anchors every PlacedPort at the same chip-centre point", () => {
+  it("anchors every PlacedPort at the chip's marker centre", () => {
     const options = optionsWithPorts(12, { deviceWidth: NARROW });
     const chip = getPortChipPosition(options);
 
@@ -500,10 +500,24 @@ describe("collapsed chip (narrow device, 24 or fewer ports)", () => {
     );
     for (const anchor of anchors) {
       expect({ x: anchor.x, y: anchor.y }).toEqual({
-        x: chip?.cx,
-        y: chip?.cy,
+        x: chip?.markerCx,
+        y: chip?.markerCy,
       });
     }
+  });
+
+  it("keeps the marker inside the chip box, left of the chip's centre, clear of the count", () => {
+    const chip = getPortChipPosition(
+      optionsWithPorts(12, { deviceWidth: NARROW }),
+    );
+    if (!chip) throw new Error("expected a chip on a narrow device");
+    const half = PORT_MARKER_SIZE / 2;
+
+    expect(chip.markerCx - half).toBeGreaterThanOrEqual(chip.x);
+    expect(chip.markerCx + half).toBeLessThan(chip.cx);
+    expect(chip.markerCy - half).toBeGreaterThanOrEqual(chip.y);
+    expect(chip.markerCy + half).toBeLessThanOrEqual(chip.y + chip.height);
+    expect(chip.markerCy).toBe(chip.cy);
   });
 
   it("puts the chip centre in the middle of the port zone", () => {
@@ -537,10 +551,12 @@ describe("collapsed chip (narrow device, 24 or fewer ports)", () => {
 
     expect(movedChip?.cx).toBe((localChip?.cx ?? NaN) + offset.x);
     expect(movedChip?.cy).toBe((localChip?.cy ?? NaN) + offset.y);
+    expect(movedChip?.markerCx).toBe((localChip?.markerCx ?? NaN) + offset.x);
+    expect(movedChip?.markerCy).toBe((localChip?.markerCy ?? NaN) + offset.y);
     expect(getPortAnchor("port-0", moved)).toEqual({
       portId: "port-0",
-      x: movedChip?.cx,
-      y: movedChip?.cy,
+      x: movedChip?.markerCx,
+      y: movedChip?.markerCy,
     });
   });
 });

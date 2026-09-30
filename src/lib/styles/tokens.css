@@ -260,6 +260,7 @@
 
   /* Port/Interface Indicators */
   --colour-port-1gbe: var(--emerald-500);
+  --colour-port-sfp: var(--dracula-cyan);
   --colour-port-10gbe: var(--blue-500);
   --colour-port-sfpp: var(--purple-500);
   --colour-port-sfp28: var(--amber-500);
@@ -272,6 +273,12 @@
   --colour-port-stroke: rgba(0, 0, 0, 0.3);
   --colour-port-indicator: white;
   --colour-port-hover: rgba(255, 255, 255, 0.2);
+  --colour-port-chip-bg: rgba(
+    0,
+    0,
+    0,
+    0.45
+  ); /* Count chip fill, over any device colour */
   --shadow-port-text: 0 0.5px 1px rgba(0, 0, 0, 0.5);
 
   /* Glow Effects - Dracula style neon glows */

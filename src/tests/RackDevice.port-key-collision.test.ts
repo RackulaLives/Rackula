@@ -53,7 +53,7 @@ describe("PortIndicators keyed #each (duplicate names, no PlacedPort)", () => {
     ).toBe(1);
   });
 
-  it("keeps one hit target per interface when a 10-inch rack collapses the ports onto the chip centre (#3451)", () => {
+  it("keeps one hit target per interface when a 10-inch rack collapses the ports onto the chip marker (#3451)", () => {
     const device: DeviceType = {
       ...createTestDeviceType({ slug: "mini-switch", u_height: 1 }),
       interfaces: [

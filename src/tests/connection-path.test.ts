@@ -523,7 +523,7 @@ describe("buildPortAnchorMap", () => {
 
     // Each port keeps an anchor, so its connections keep drawing...
     expect([...anchors.keys()]).toEqual(ports.map((port) => port.id));
-    // ...and they all meet at the chip centre.
+    // ...and they all meet at the chip's marker.
     const points = [...anchors.values()].map(
       ({ anchor }) => `${anchor.x},${anchor.y}`,
     );
