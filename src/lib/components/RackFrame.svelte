@@ -8,9 +8,15 @@
   Must be rendered as an early SVG layer (devices render on top).
 -->
 <script lang="ts">
-  import type { URange } from "$lib/utils/collision";
-  import type { FormFactor } from "$lib/types";
+  import type { BlockedSlot } from "$lib/utils/blocked-slots";
+  import type { FormFactor, RackView } from "$lib/types";
   import { frameChromeFor } from "$lib/utils/rack-frame-chrome";
+  import { fitTextToWidth } from "$lib/utils/text-sizing";
+
+  /** Blocked-slot caption font size range, and its inset from the rails */
+  const BLOCKED_CAPTION_MAX_FONT = 10;
+  const BLOCKED_CAPTION_MIN_FONT = 9;
+  const BLOCKED_CAPTION_PADDING_X = 4;
 
   interface Props {
     /** Total rack width in pixels */
@@ -43,8 +49,10 @@
     nameYOffset: number;
     /** Unique rack identifier for SVG pattern IDs */
     rackId: string;
-    /** Blocked slot ranges for crosshatch overlay */
-    blockedSlots?: URange[];
+    /** Face this frame shows; blocked slots are captioned with the other face */
+    viewFace?: RackView;
+    /** Blocked slot ranges for the hatch overlay, each naming its device */
+    blockedSlots?: BlockedSlot[];
     /** Drop preview data for highlighting drop target U slots */
     dropPreview?: {
       position: number;
@@ -73,6 +81,7 @@
     viewLabel,
     nameYOffset,
     rackId,
+    viewFace,
     blockedSlots = [],
     dropPreview = null,
     isPlacementMode = false,
@@ -83,6 +92,36 @@
   const patternId = $derived(
     `blocked-crosshatch-${rackId.replace(/[^a-zA-Z0-9_-]/g, "_")}${viewLabel ? `-${viewLabel.toLowerCase()}` : ""}`,
   );
+
+  // Caption for a blocked range: names the half-depth device on the other face.
+  // `full` feeds the hover title; `fitted` is sized and truncated for the rack
+  // interior. When the full text does not fit, the caption drops to
+  // "<name> (<face>)" and shortens the name, never the face: the face is the
+  // part that explains the hatch. Null when the viewed face is unknown.
+  function blockedCaption(slot: BlockedSlot) {
+    if (!viewFace) return null;
+    const otherFace = viewFace === "rear" ? "front" : "rear";
+    const full = `${slot.deviceName} (${otherFace}, half depth)`;
+    const fit = (text: string) =>
+      fitTextToWidth(text, {
+        maxFontSize: BLOCKED_CAPTION_MAX_FONT,
+        minFontSize: BLOCKED_CAPTION_MIN_FONT,
+        availableWidth: interiorWidth - 2 * BLOCKED_CAPTION_PADDING_X,
+      });
+    let fitted = fit(full);
+    if (fitted.text !== full) {
+      const suffix = ` (${otherFace})`;
+      fitted = fit(`${slot.deviceName}${suffix}`);
+      if (!fitted.text.endsWith(suffix)) {
+        const keep = Math.max(1, fitted.text.length - suffix.length - 1);
+        fitted = {
+          ...fitted,
+          text: `${slot.deviceName.slice(0, keep)}…${suffix}`,
+        };
+      }
+    }
+    return { full, fitted };
+  }
 
   // Frame chrome geometry. The per-form-factor decorative chrome is disabled
   // (issue #2805); every form factor renders the generic frame (solid top/bottom
@@ -260,25 +299,21 @@
 
 <!-- SVG Defs for blocked slots pattern -->
 <defs>
-  <!-- Crosshatch pattern for blocked slots - uses two overlapping diagonal line sets
-       for better visibility and accessibility (not relying solely on color) -->
-  <pattern id={patternId} patternUnits="userSpaceOnUse" width="8" height="8">
-    <!-- First diagonal (top-left to bottom-right) -->
+  <!-- Diagonal hatch for blocked slots: a texture, so the state does not rely
+       on colour alone. One line per tile, rotated, so tiles join cleanly. -->
+  <pattern
+    id={patternId}
+    patternUnits="userSpaceOnUse"
+    width="8"
+    height="8"
+    patternTransform="rotate(45)"
+  >
     <line
-      x1="0"
+      x1="4"
       y1="0"
-      x2="8"
+      x2="4"
       y2="8"
-      class="blocked-crosshatch-line"
-      stroke-width="1.5"
-    />
-    <!-- Second diagonal (top-right to bottom-left) -->
-    <line
-      x1="8"
-      y1="0"
-      x2="0"
-      y2="8"
-      class="blocked-crosshatch-line"
+      class="blocked-hatch-line"
       stroke-width="1.5"
     />
   </pattern>
@@ -296,23 +331,45 @@
     transform="translate(0, {rackPadding + railWidth})"
   >
     {#each blockedSlots as slot (slot.bottom + "-" + slot.top)}
-      <!-- Background wash with improved opacity -->
-      <rect
-        class="blocked-slot blocked-slot-bg"
-        x={railWidth}
-        y={slotY(slot)}
-        width={slotWidth}
-        height={slotHeight(slot)}
-      />
-      <!-- Crosshatch pattern for accessibility (visual texture, not just color) -->
-      <rect
-        class="blocked-slot blocked-slot-pattern"
-        x={railWidth}
-        y={slotY(slot)}
-        width={slotWidth}
-        height={slotHeight(slot)}
-        fill="url(#{patternId})"
-      />
+      {@const caption =
+        slot.top - slot.bottom + 1 >= 1 ? blockedCaption(slot) : null}
+      <g>
+        {#if caption}
+          <title>{caption.full}</title>
+        {/if}
+        <!-- Background wash -->
+        <rect
+          class="blocked-slot blocked-slot-bg"
+          x={railWidth}
+          y={slotY(slot)}
+          width={slotWidth}
+          height={slotHeight(slot)}
+        />
+        <!-- Hatch pattern for accessibility (visual texture, not just colour) -->
+        <rect
+          class="blocked-slot blocked-slot-pattern"
+          x={railWidth}
+          y={slotY(slot)}
+          width={slotWidth}
+          height={slotHeight(slot)}
+          fill="url(#{patternId})"
+        />
+        <!-- Caption naming the blocking device. The title above carries the
+             untruncated text, so the visible copy is hidden from assistive tech. -->
+        {#if caption}
+          <text
+            class="blocked-slot-caption"
+            x={rackWidth / 2}
+            y={slotY(slot) + slotHeight(slot) / 2}
+            font-size={caption.fitted.fontSize}
+            text-anchor="middle"
+            dominant-baseline="central"
+            aria-hidden="true"
+          >
+            {caption.fitted.text}
+          </text>
+        {/if}
+      </g>
     {/each}
   </g>
 {/if}
@@ -431,14 +488,27 @@
     }
   }
 
-  /* Blocked Slots - Crosshatch pattern for half-depth conflicts
-     Uses both pattern and color for accessibility (WCAG: not relying solely on color) */
-  .blocked-crosshatch-line {
-    stroke: var(--colour-blocked-stroke, rgba(239, 68, 68, 0.45));
+  /* Blocked Slots - neutral hatch for slots a half-depth device occupies on
+     the other face. A normal state, so it stays out of the error colours.
+     Uses both pattern and colour for accessibility (WCAG: not relying solely on colour) */
+  .blocked-hatch-line {
+    stroke: var(--colour-blocked-stroke, rgba(161, 161, 170, 0.45));
   }
 
   .blocked-slot-bg {
-    fill: var(--colour-blocked-bg, rgba(239, 68, 68, 0.12));
+    fill: var(--colour-blocked-bg, rgba(161, 161, 170, 0.12));
+  }
+
+  /* The interior-coloured outline keeps the caption legible over the hatch. */
+  .blocked-slot-caption {
+    fill: var(--colour-text-muted);
+    stroke: var(--rack-interior);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+    font-family: var(--font-family, system-ui, sans-serif);
+    pointer-events: none;
+    user-select: none;
   }
 
   .blocked-slot-pattern {

@@ -11,6 +11,14 @@ import { doRangesOverlap, type URange } from "$lib/utils/collision";
 import { effectiveFace } from "./effective-face";
 
 /**
+ * A blocked U range, plus the name of the opposite-face device that blocks it
+ * (the placed device's custom name, else its type's model, else the slug).
+ */
+export interface BlockedSlot extends URange {
+  deviceName: string;
+}
+
+/**
  * Calculate which U slots should show hatching for the given view.
  *
  * Hatching indicates "there's a device here on the other side that you can't see".
@@ -23,14 +31,14 @@ import { effectiveFace } from "./effective-face";
  * @param rack - The rack containing devices
  * @param view - The view to calculate blocked slots for ('front' or 'rear')
  * @param deviceLibrary - Array of device types to look up device heights
- * @returns Array of U ranges that should show hatching
+ * @returns Array of U ranges that should show hatching, each naming its device
  */
 export function getBlockedSlots(
   rack: Rack,
   view: RackView,
   deviceLibrary: DeviceType[],
-): URange[] {
-  const blocked: URange[] = [];
+): BlockedSlot[] {
+  const blocked: BlockedSlot[] = [];
 
   for (const placedDevice of rack.devices) {
     // Find the device type to get height and depth.
@@ -51,7 +59,11 @@ export function getBlockedSlots(
     const bottom = positionU;
     const top = positionU + deviceType.u_height - 1;
 
-    blocked.push({ bottom, top });
+    // A blank custom name falls back the same way an unset one does.
+    const deviceName =
+      placedDevice.name?.trim() || deviceType.model?.trim() || deviceType.slug;
+
+    blocked.push({ bottom, top, deviceName });
   }
 
   return blocked;
