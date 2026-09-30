@@ -14,7 +14,6 @@ import {
   requiresChassisBay,
   synthesizeCarrierForDevice,
   CARRIER_2COL_SLUG,
-  CARRIER_2X2_SLUG,
 } from "$lib/utils/collision";
 import {
   requiresCarrier,
@@ -156,22 +155,16 @@ describe("carrier-first rule for measured devices", () => {
     }
   });
 
-  it("carries sub-U measured gear in the shipped 2x2 grid", () => {
-    // A cut cell is as tall as the carrier around it, so only a whole-U device
-    // gets one. Sub-U gear takes the grid whose cells are half a U tall.
-    const device = { ...measuredDevice(100, "half-u"), u_height: 0.5 };
+  it("cuts a carrier for sub-U measured gear, on whole-U rails", () => {
+    // Rails register whole U only, so a half-U cell still gets a 1U carrier,
+    // and 300 mm is no obstacle: the cell is cut to it. Without a cut carrier a
+    // sub-U measured device had nowhere to go at all.
+    const device = { ...measuredDevice(300, "half-u"), u_height: 0.5 };
+    const plan = synthesizeCarrierForDevice(device, 19);
 
-    expect(synthesizeCarrierForDevice(device, 19)?.slug).toBe(CARRIER_2X2_SLUG);
+    expect(plan?.type?.u_height).toBe(1);
+    expect(plan?.type?.slots?.[0]?.height_units).toBe(0.5);
     expect(requiresChassisBay(device, 19)).toBe(false);
-  });
-
-  it("refuses sub-U measured gear too wide for a 2x2 cell", () => {
-    // 300 mm beats the grid's 225 mm cell, and the grid is the only carrier a
-    // sub-U device has, so it needs an existing bay.
-    const device = { ...measuredDevice(300, "wide-half-u"), u_height: 0.5 };
-
-    expect(synthesizeCarrierForDevice(device, 19)).toBeNull();
-    expect(requiresChassisBay(device, 19)).toBe(true);
   });
 
   it("keeps the shipped carrier for half-width gear with no measured width", () => {

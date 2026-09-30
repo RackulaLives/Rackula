@@ -15,6 +15,7 @@ import type {
   DeviceType,
   PlacedDevice,
   DeviceFace,
+  DeviceRotation,
   RackView,
   DisplayMode,
   Connection,
@@ -109,6 +110,7 @@ import {
   moveDeviceRecorded as moveDeviceRecordedImpl,
   removeDeviceRecorded as removeDeviceRecordedImpl,
   updateDeviceFaceRecorded as updateDeviceFaceRecordedImpl,
+  rotateDeviceRecorded as rotateDeviceRecordedImpl,
   updateDeviceNameRecorded as updateDeviceNameRecordedImpl,
   updateDevicePlacementImageRecorded as updateDevicePlacementImageRecordedImpl,
   updateDeviceColourRecorded as updateDeviceColourRecordedImpl,
@@ -373,6 +375,7 @@ export function createLayoutStore(
     moveDeviceSmart,
     removeDeviceFromRack,
     updateDeviceFace,
+    rotateDevice,
     updateDeviceName,
     updateDevicePlacementImage,
     updateDeviceColour,
@@ -793,13 +796,15 @@ export function createLayoutStore(
   /**
    * Place a device carrier-first. Sub-U / half-width gear is wrapped in a
    * synthesised carrier (or fills an existing one); whole-U full-width gear
-   * mounts directly to the rails.
+   * mounts directly to the rails. A measured device can be placed turned 90
+   * degrees.
    */
   function placeDeviceSmart(
     rackId: string,
     deviceTypeSlug: string,
     position: number,
     face?: DeviceFace,
+    rotation?: DeviceRotation,
   ): boolean {
     return placeDeviceSmartImpl(
       stateAccess,
@@ -807,6 +812,7 @@ export function createLayoutStore(
       deviceTypeSlug,
       position,
       face,
+      rotation,
     );
   }
 
@@ -966,6 +972,14 @@ export function createLayoutStore(
     filename: string | undefined,
   ): void {
     updateDevicePlacementImageRecorded(rackId, deviceIndex, face, filename);
+  }
+
+  /**
+   * Turn a device onto its side, or back flat
+   * @returns true when the device turned
+   */
+  function rotateDevice(rackId: string, deviceIndex: number): boolean {
+    return rotateDeviceRecordedImpl(stateAccess, rackId, deviceIndex);
   }
 
   /**

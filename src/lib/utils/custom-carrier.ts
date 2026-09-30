@@ -107,6 +107,17 @@ export function cellsOf(containerType: DeviceType): CarrierCell[] {
 }
 
 /**
+ * Rail height of a generated carrier: the whole U that holds its tallest
+ * cell, at least 1U. Rails register whole U only, so a device 4.5U tall gets a
+ * 5U carrier and sits in it at its own height.
+ *
+ * @param cells - The carrier's cells
+ */
+export function carrierUHeight(cells: CarrierCell[]): number {
+  return Math.max(1, ...cells.map((cell) => Math.ceil(cell.heightUnits)));
+}
+
+/**
  * The cell a device needs: its measured width over the rack opening, or a
  * half cell when it only carries the half-width descriptor.
  *

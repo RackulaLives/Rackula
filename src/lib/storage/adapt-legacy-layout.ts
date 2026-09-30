@@ -38,10 +38,11 @@ import type {
 } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { generateId } from "$lib/utils/device";
-import { isNarrowDevice } from "$lib/utils/device-width";
+import { isNarrowDevice, orientDeviceType } from "$lib/utils/device-width";
 import { findStarterDevice } from "$lib/data/starterLibrary";
 import {
   buildCustomCarrierType,
+  carrierUHeight,
   cellForDevice,
   type CarrierCell,
 } from "$lib/utils/custom-carrier";
@@ -333,7 +334,11 @@ function adaptRackDevices(
   for (const group of coLocated.values()) {
     if (group.length === 2 && group.every((d) => legacySlot(d) === undefined)) {
       for (const d of group) forcedPairIds.add(d.id);
-      const types = group.map((d) => deviceTypeBySlug.get(d.device_type));
+      // Each cell is cut to the device as it stands, turned or flat.
+      const types = group.map((d) => {
+        const dt = deviceTypeBySlug.get(d.device_type);
+        return dt && orientDeviceType(dt, d.rotation);
+      });
       if (!types.every((dt) => dt !== undefined)) continue;
       const cells = types.map((dt) => cellForDevice(dt, rackWidth));
       const hasWideMeasured = types.some(
@@ -367,12 +372,13 @@ function adaptRackDevices(
   >();
   const customWrapped: {
     device: PlacedDevice;
-    deviceType: DeviceType;
     cell: CarrierCell;
   }[] = [];
   for (const d of snapped) {
     if (customPairIds.has(d.id)) continue;
-    const dt = deviceTypeBySlug.get(d.device_type);
+    // Every decision below reads the device as it stands, turned or flat.
+    const found = deviceTypeBySlug.get(d.device_type);
+    const dt = found && orientDeviceType(found, d.rotation);
     const forced = forcedPairIds.has(d.id);
     if (!forced && !needsCarrier(d, dt)) {
       result.push(d);
@@ -384,7 +390,7 @@ function adaptRackDevices(
     if (!forced && dt?.width_mm !== undefined) {
       const cell = cellForDevice(dt, rackWidth);
       if (cell.widthFraction > HALF_CELL_FRACTION) {
-        customWrapped.push({ device: d, deviceType: dt, cell });
+        customWrapped.push({ device: d, cell });
         continue;
       }
     }
@@ -400,8 +406,8 @@ function adaptRackDevices(
 
   // One carrier per custom-cut device: the cell is that device's width, so
   // it cannot be shared with a neighbour.
-  for (const { device, deviceType, cell } of customWrapped) {
-    const type = buildCustomCarrierType(deviceType.u_height, [cell], []);
+  for (const { device, cell } of customWrapped) {
+    const type = buildCustomCarrierType(carrierUHeight([cell]), [cell], []);
     const { carrier, children } = buildCarrier(
       type.slug,
       ["col-1"],

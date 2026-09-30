@@ -43,6 +43,8 @@ export interface CreateDeviceTypeInput {
   slot_width?: SlotWidth;
   /** Measured width in millimetres */
   width_mm?: number;
+  /** Measured height in millimetres */
+  height_mm?: number;
   /** Rack widths this device is compatible with (e.g., [10], [19], [10, 19]) */
   rack_widths?: RackWidth[];
   /** Legacy alias for notes */
@@ -114,6 +116,9 @@ export function createDeviceType(data: CreateDeviceTypeInput): DeviceType {
   }
   if (data.width_mm !== undefined) {
     deviceType.width_mm = data.width_mm;
+  }
+  if (data.height_mm !== undefined) {
+    deviceType.height_mm = data.height_mm;
   }
   if (data.rack_widths && data.rack_widths.length > 0) {
     deviceType.rack_widths = data.rack_widths;

@@ -23,6 +23,7 @@ import {
 } from "$lib/utils/collision";
 import type { CellDirection } from "$lib/utils/collision";
 import { findDeviceType } from "$lib/utils/device-lookup";
+import { orientDeviceType } from "$lib/utils/device-width";
 import { toHumanUnits } from "$lib/utils/position";
 import type { DeviceFace, DeviceType, Rack } from "$lib/types";
 
@@ -213,7 +214,7 @@ function nextSlotForSelectedDevice(
 
   return findNextSlotForChild(
     containerType,
-    childType,
+    orientDeviceType(childType, child.rotation),
     child.slot_id,
     siblings,
     rack.width,

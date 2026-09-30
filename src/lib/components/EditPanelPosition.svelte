@@ -21,6 +21,7 @@
   import type { Rack, SelectedDeviceInfo } from "$lib/types";
   import type { CellDirection } from "$lib/utils/collision";
   import { isGeneratedCarrier } from "$lib/utils/custom-carrier";
+  import { canRotate, getRotation } from "$lib/utils/device-width";
   import { gapsFor } from "$lib/utils/slot-layout";
 
   interface Props {
@@ -48,6 +49,22 @@
       deviceIndex,
       direction,
     );
+  }
+
+  // Only a measured device turns, and it always sits in a carrier.
+  const canTurn = $derived(
+    isChildDevice && canRotate(selectedDeviceInfo.device),
+  );
+  const rotation = $derived(
+    getRotation(
+      selectedDeviceInfo.device,
+      selectedDeviceInfo.placedDevice.rotation,
+    ),
+  );
+
+  function rotateDevice() {
+    const { rack, deviceIndex } = selectedDeviceInfo;
+    layoutStore.rotateDevice(rack.id, deviceIndex);
   }
 
   const canMoveChildLeft = $derived(isChildDevice && canMoveCell("left"));
@@ -281,6 +298,30 @@
       ? "Use arrow keys to move between cells"
       : "Use ↑↓ keys to move device"}
   </p>
+  {#if canTurn}
+    <div class="info-row position-row">
+      <span class="info-label">Rotation</span>
+      <div class="position-controls">
+        <span class="info-value position-value" data-testid="device-rotation"
+          >{rotation}°</span
+        >
+        <div class="position-buttons">
+          <button
+            type="button"
+            class="position-btn"
+            data-testid="btn-rotate-device"
+            onclick={rotateDevice}
+            aria-label={rotation === 90
+              ? "Rotate device back to 0 degrees"
+              : "Rotate device 90 degrees onto its side"}
+            title={rotation === 90 ? "Rotate back to 0°" : "Rotate 90°"}
+          >
+            <span class="arrow-label">↻</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>

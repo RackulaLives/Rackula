@@ -120,6 +120,11 @@ export const ALLOWED_RACK_WIDTHS: readonly number[] = [10, 19, 21, 23] as const;
 export const MM_PER_INCH = 25.4;
 
 /**
+ * Millimetres per rack unit (1.75 in).
+ */
+export const MM_PER_U = 1.75 * MM_PER_INCH;
+
+/**
  * Width taken by the mounting ears, in inches. A rack width with no published
  * clear opening (23") is approximated as its nominal width minus this.
  */

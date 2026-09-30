@@ -109,6 +109,7 @@ function convertDevices(devices: PlacedDevice[]): MinimalDevice[] {
       ...(isChild ? { ci: parentIndex } : {}),
       ...(isChild ? { si: d.slot_id } : {}),
       ...(d.auto_created ? { a: 1 as const } : {}),
+      ...(d.rotation ? { r: d.rotation } : {}),
     };
   });
 }
@@ -140,6 +141,7 @@ function convertDeviceTypes(dt: MinimalDeviceType[]): DeviceType[] {
     ...(item.ac ? { auto_created: true } : {}),
     ...(item.sw !== undefined ? { slot_width: item.sw } : {}),
     ...(item.wm !== undefined ? { width_mm: item.wm } : {}),
+    ...(item.hm !== undefined ? { height_mm: item.hm } : {}),
     ...(item.sr ? { subdevice_role: item.sr } : {}),
   }));
 }
@@ -166,6 +168,7 @@ function convertMinimalDevices(devices: MinimalDevice[]): PlacedDevice[] {
     };
     if (d.n) base.name = d.n;
     if (d.a) base.auto_created = true;
+    if (d.r) base.rotation = d.r;
 
     // Trust a parent reference only when it points at a real, in-range
     // container device that is not itself a child. This preserves any container
@@ -263,6 +266,9 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
         ? { sw: deviceType.slot_width }
         : {}),
       ...(deviceType.width_mm !== undefined ? { wm: deviceType.width_mm } : {}),
+      ...(deviceType.height_mm !== undefined
+        ? { hm: deviceType.height_mm }
+        : {}),
       ...(deviceType.subdevice_role ? { sr: deviceType.subdevice_role } : {}),
     }));
 

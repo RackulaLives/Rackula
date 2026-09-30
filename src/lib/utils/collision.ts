@@ -19,8 +19,19 @@ import type {
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { effectiveFace } from "./effective-face";
-import { fitsSlotWidth, isNarrowDevice, requiresCarrier } from "./device-width";
-import { buildCustomCarrierType, cellForDevice } from "./custom-carrier";
+import {
+  fitsSlotWidth,
+  isNarrowDevice,
+  orientDeviceType,
+  requiresCarrier,
+} from "./device-width";
+import {
+  buildCustomCarrierType,
+  carrierUHeight,
+  cellForDevice,
+  cellsOf,
+} from "./custom-carrier";
+import { fitsInRow, gapsFor } from "./slot-layout";
 
 /**
  * Check if a placed device is a container child.
@@ -420,7 +431,11 @@ export function findChildrenTooWideForRack(
       deviceTypes,
     )?.slots?.find((s) => s.id === child.slot_id);
     if (!childType || !slot) return false;
-    return !fitsSlotWidth(childType, slot.width_fraction, rackWidth);
+    return !fitsSlotWidth(
+      orientDeviceType(childType, child.rotation),
+      slot.width_fraction,
+      rackWidth,
+    );
   });
 }
 
@@ -457,15 +472,15 @@ export function isWholeURailPosition(positionInternal: number): boolean {
 
 /**
  * Pick the carrier a narrow device (half-width, or measured) must mount inside.
- * A measured whole-U device gets a carrier generated around one cell cut to its
- * own width, so the rack opening is its only ceiling. Everything else takes a
- * shipped carrier, whose cells are half-width: a sub-U device the 2x2 grid, a
- * whole-U device a height-matched column carrier (1U or 2U).
+ * A measured device gets a carrier generated around one cell cut to its own
+ * size, whatever its height: the carrier takes the whole U that holds the cell,
+ * so the rack opening is the only ceiling. Everything else takes a shipped
+ * carrier, whose cells are half-width: a sub-U device the 2x2 grid, a whole-U
+ * device a height-matched column carrier (1U or 2U).
  *
  * Returns null (no rail carrier) when:
  * - the device is full-width (there is no full-width carrier to synthesise);
- * - a measured width is wider than the rack opening, or wider than a half cell
- *   for sub-U gear, which has only the 2x2 grid to mount in;
+ * - a measured width is wider than the rack opening;
  * - the device is a chassis child (subdevice_role "child") - it mounts only
  *   inside an existing parent bay, never on the rails;
  * - the whole-U height has no matching carrier defined (e.g. a 3U half-width) -
@@ -494,20 +509,12 @@ export function synthesizeCarrierForDevice(
   }
 
   // A measured device gets a cell cut to its own width, so the shipped half
-  // cell is no longer the ceiling. Only the whole opening can refuse it.
+  // cell is no longer the ceiling. Only the whole opening can refuse it. The
+  // carrier is whole-U, so a height between whole U still gets one.
   if (deviceType.width_mm !== undefined) {
-    // A cut cell is as tall as its carrier, so it can only be cut for a whole-U
-    // device. Sub-U gear takes the 2x2 grid, whose cells are half-U tall, as
-    // long as the measured width still fits one of that grid's half cells.
-    if (deviceType.u_height < 1) {
-      return fitsSlotWidth(deviceType, 0.5, rackWidth)
-        ? { slug: CARRIER_2X2_SLUG }
-        : null;
-    }
-    if (!Number.isInteger(deviceType.u_height)) return null;
     const cell = cellForDevice(deviceType, rackWidth);
     if (cell.widthFraction > 1) return null;
-    const type = buildCustomCarrierType(deviceType.u_height, [cell], []);
+    const type = buildCustomCarrierType(carrierUHeight([cell]), [cell], []);
     return { slug: type.slug, type };
   }
 
@@ -526,6 +533,58 @@ export function synthesizeCarrierForDevice(
   if (deviceType.u_height === 1) return { slug: CARRIER_2COL_SLUG };
   if (deviceType.u_height === 2) return { slug: CARRIER_2U_2COL_SLUG };
   return null;
+}
+
+/**
+ * Rebuild a generated carrier around its children as they stand: each cell is
+ * cut to its child's footprint, and the carrier takes the whole U holding its
+ * tallest child. A cell with no child keeps its shape.
+ *
+ * @param rack - The rack holding the carrier
+ * @param carrier - The placed generated carrier
+ * @param carrierType - Its current type
+ * @param deviceTypes - Layout device types, for the rail check when it grows
+ * @param footprintOf - A child's footprint: its type turned as it stands, with
+ *   any change the caller is about to make already applied
+ * @returns The reshaped type, or null when the cells overflow the opening or
+ *   the carrier would grow into a device or past the rack top
+ */
+export function reshapeCarrier(
+  rack: Rack,
+  carrier: PlacedDevice,
+  carrierType: DeviceType,
+  deviceTypes: DeviceType[],
+  footprintOf: (child: PlacedDevice) => DeviceType | undefined,
+): DeviceType | null {
+  const cells = cellsOf(carrierType).map((cell, index) => {
+    const slotId = carrierType.slots?.[index]?.id;
+    const child = rack.devices.find(
+      (d) => d.container_id === carrier.id && d.slot_id === slotId,
+    );
+    const footprint = child && footprintOf(child);
+    return footprint ? cellForDevice(footprint, rack.width) : cell;
+  });
+  const type = buildCustomCarrierType(
+    carrierUHeight(cells),
+    cells,
+    gapsFor(carrierType),
+  );
+
+  if (!fitsInRow(type, rack.width, 0)) return null;
+  if (
+    type.u_height > carrierType.u_height &&
+    !canPlaceDevice(
+      rack,
+      deviceTypes,
+      type.u_height,
+      carrier.position,
+      rack.devices.indexOf(carrier),
+      carrier.face,
+    )
+  ) {
+    return null;
+  }
+  return type;
 }
 
 /**

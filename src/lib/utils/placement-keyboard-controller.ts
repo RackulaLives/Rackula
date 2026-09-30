@@ -8,6 +8,7 @@
  *   - Up / Down       move the U-slot cursor within the focused rack
  *   - Tab / Shift+Tab move between racks (Left / Right are aliases)
  *   - Enter / Space   place the armed device at the cursor
+ *   - R               turn the armed device 90 degrees, or back
  *   - Escape          cancel placement with no side effects
  *
  * The cursor only lands on a valid (placeable) slot, mirroring how the drag
@@ -17,7 +18,7 @@
  * `placement-keyboard` helpers so it stays unit-testable.
  */
 
-import type { Rack, DeviceType, DeviceFace } from "$lib/types";
+import type { Rack, DeviceType, DeviceFace, DeviceRotation } from "$lib/types";
 import { requiresChassisBay } from "./collision";
 import {
   validStartPositions,
@@ -31,6 +32,7 @@ import {
   singleRackAnnouncement,
   noRacksAnnouncement,
   placedAnnouncement,
+  rotationAnnouncement,
 } from "./placement-keyboard";
 
 import { NO_ROOM_MESSAGE } from "$lib/constants/toast-messages";
@@ -62,6 +64,12 @@ export interface PlacementKeyboardDeps {
     face: DeviceFace,
   ) => boolean;
   completePlacement: (summary: string) => void;
+  /**
+   * Turn the armed device 90 degrees, or back, before it is placed. Returns
+   * the new turn, or null when the device cannot turn. Optional so callers
+   * without a turn (tests) still work.
+   */
+  toggleRotation?: () => DeviceRotation | null;
   /**
    * Show a visible "no room" cue matching the drag path's toast. Optional so
    * callers that don't wire a toast store (e.g. tests) still work; the
@@ -253,6 +261,14 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     const rack = activeRack();
     const position = deps.getCursorPosition();
     if (!rack) return;
+    // A device with no rail target here gets the honest reason instead of "no
+    // room" (#3310), also on a slot R kept after a turn left it none.
+    if (requiresChassisBay(device, rack.width)) {
+      const reason = pickUpNeedsChassisAnnouncement(device);
+      deps.announce(reason);
+      deps.showToast?.(reason);
+      return;
+    }
     if (position == null) {
       // No valid slot in this rack (e.g. it is full). Tell the user rather than
       // letting Enter silently do nothing. A device with no rail target here
@@ -290,6 +306,42 @@ export function createPlacementKeyboardController(deps: PlacementKeyboardDeps) {
     // Escape always cancels, even before the cursor is primed.
     if (event.key === "Escape") {
       deps.cancelPlacement();
+      return true;
+    }
+
+    // R turns the armed device before it is placed, whether the pointer or
+    // the keyboard is aiming it. A device that cannot turn leaves the key
+    // alone. A turn changes the device's height, so a primed cursor moves to
+    // the nearest slot the device fits as it now stands. Where it fits
+    // nowhere the cursor stays, so turning back finds the same slot.
+    if (
+      (event.key === "r" || event.key === "R") &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
+      const rotation = deps.toggleRotation?.();
+      if (rotation == null) return false;
+      const rack = activeRack();
+      const current = deps.getCursorPosition();
+      const turned = deps.getPendingDevice();
+      if (rack && current != null && turned) {
+        const next = initialCursorPosition(
+          validFor(deps, rack, turned),
+          current,
+        );
+        deps.setCursor(rack.id, next ?? current);
+        // One message, so the new slot does not replace the turn in the live
+        // region. A turn that leaves no rail target gives the real reason, as
+        // the pick-up path does.
+        const where =
+          next != null
+            ? positionAnnouncement(rack.name, next)
+            : requiresChassisBay(turned, rack.width)
+              ? pickUpNeedsChassisAnnouncement(turned)
+              : noSpaceAnnouncement(rack.name);
+        deps.announce(`${rotationAnnouncement(rotation)}. ${where}`);
+      }
       return true;
     }
 

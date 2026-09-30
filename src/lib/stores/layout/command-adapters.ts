@@ -33,6 +33,7 @@ import {
   updateDeviceNameRaw,
   updateDevicePlacementImageRaw,
   updateDeviceColourRaw,
+  updateDeviceRotationRaw,
   updateDeviceContainerLinkageRaw,
   updateDeviceNotesRaw,
   updateDeviceIpRaw,
@@ -133,6 +134,14 @@ export function getCommandStoreAdapter(
         return;
       }
       updateDeviceColourRaw(ctx, rackId, index, colour);
+    },
+    updateDeviceRotationRaw: (index, rotation) => {
+      const rackId = resolveAdapterRackId(ctx, "updateDeviceRotationRaw");
+      if (!rackId) {
+        layoutDebug.device("updateDeviceRotationRaw: No rack available");
+        return;
+      }
+      updateDeviceRotationRaw(ctx, rackId, index, rotation);
     },
     updateDeviceContainerLinkageRaw: (index, containerId, slotId) =>
       updateDeviceContainerLinkageRaw(ctx, index, containerId, slotId),

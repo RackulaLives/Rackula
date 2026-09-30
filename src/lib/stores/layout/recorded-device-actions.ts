@@ -8,13 +8,29 @@
  * correct rack.
  */
 
-import type { DeviceFace, DeviceType, PlacedDevice, Rack } from "$lib/types";
+import type {
+  DeviceFace,
+  DeviceRotation,
+  DeviceType,
+  PlacedDevice,
+  Rack,
+} from "$lib/types";
 import { UNITS_PER_U, DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
-import { canPlaceDevice } from "$lib/utils/collision";
-import { requiresCarrier } from "$lib/utils/device-width";
+import {
+  canPlaceDevice,
+  canPlaceInContainer,
+  reshapeCarrier,
+} from "$lib/utils/collision";
+import {
+  canRotate,
+  getRotation,
+  orientDeviceType,
+  requiresCarrier,
+} from "$lib/utils/device-width";
 import {
   buildCustomCarrierType,
+  carrierUHeight,
   cellsOf,
   isGeneratedCarrier,
   isOrphanedAfterRetype,
@@ -28,6 +44,7 @@ import {
   findConnectionsForDevices,
   retypeCarrierCommands,
 } from "./recorded-device-type-actions";
+import { getToastStore } from "$lib/stores/toast.svelte";
 import { debug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { instantiatePorts } from "$lib/utils/port-utils";
@@ -43,6 +60,7 @@ import {
   createUpdateDeviceNameCommand,
   createUpdateDevicePlacementImageCommand,
   createUpdateDeviceColourCommand,
+  createUpdateDeviceRotationCommand,
   createDetachContainerCommand,
   createUpdateDeviceNotesCommand,
   createUpdateDeviceIpCommand,
@@ -445,7 +463,9 @@ function shrinkCustomCarrier(
   const gaps = [...gapsFor(carrierType)];
   gaps.splice(index > 0 ? index - 1 : 0, 1);
 
-  return buildCustomCarrierType(carrierType.u_height, cells, gaps);
+  // Its own height, not the height it had: losing the tallest child would
+  // otherwise leave a carrier standing several U taller than anything in it.
+  return buildCustomCarrierType(carrierUHeight(cells), cells, gaps);
 }
 
 /**
@@ -743,6 +763,122 @@ export function updateDeviceFaceRecorded(
   );
   history.execute(command);
   ctx.markDirty();
+}
+
+/**
+ * Turn a device onto its side, or back flat, with undo/redo support.
+ *
+ * Turning 90 degrees swaps a measured device's width and height. In a
+ * generated carrier the carrier is reshaped around it in the same undo step:
+ * its cell is recut and the carrier grows or shrinks to the whole U holding
+ * its tallest child. In any other carrier the turned device must fit its cell.
+ * A turn that does not fit is refused, and the refusal is announced.
+ *
+ * @param ctx - Layout state access
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @returns true when the device turned
+ */
+export function rotateDeviceRecorded(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  deviceIndex: number,
+): boolean {
+  const rack = getRackById(ctx, rackId);
+  const device = rack?.devices[deviceIndex];
+  if (!rack || !device) return false;
+
+  const layout = ctx.getLayout();
+  const deviceType = findDeviceTypeInArray(
+    layout.device_types,
+    device.device_type,
+  );
+  if (!deviceType || !canRotate(deviceType)) return false;
+
+  // A measured device always sits in a carrier: that is what it turns inside.
+  const container = rack.devices.find((d) => d.id === device.container_id);
+  const containerType =
+    container &&
+    findDeviceTypeInArray(layout.device_types, container.device_type);
+  if (!container || !containerType || !device.slot_id) return false;
+
+  const adapter = getCommandStoreAdapter(ctx);
+  const deviceName = deviceType.model ?? deviceType.slug;
+  const rotation: DeviceRotation =
+    getRotation(deviceType, device.rotation) === 90 ? 0 : 90;
+  const footprint = orientDeviceType(deviceType, rotation);
+  const carrierCommands: Command[] = [];
+  let fits: boolean;
+
+  if (isGeneratedCarrier(containerType)) {
+    const reshaped = reshapeCarrier(
+      rack,
+      container,
+      containerType,
+      layout.device_types,
+      (child) => {
+        if (child.id === device.id) return footprint;
+        const type = findDeviceTypeInArray(
+          layout.device_types,
+          child.device_type,
+        );
+        return type && orientDeviceType(type, child.rotation);
+      },
+    );
+    fits = reshaped !== null;
+    if (reshaped && reshaped.slug !== containerType.slug) {
+      carrierCommands.push(
+        ...retypeCarrierCommands(
+          layout,
+          container,
+          containerType,
+          reshaped,
+          adapter,
+        ),
+      );
+    }
+  } else {
+    fits = canPlaceInContainer(
+      rack,
+      layout.device_types,
+      container,
+      containerType,
+      footprint,
+      device.slot_id,
+      device.position,
+      device.id,
+    );
+  }
+
+  if (!fits) {
+    getToastStore().showToast(
+      rotation === 90
+        ? `No room to stand ${deviceName} on its side here`
+        : `No room to lay ${deviceName} flat here`,
+      "warning",
+    );
+    return false;
+  }
+
+  ctx.setActiveRackId(rackId);
+  const rotate = createUpdateDeviceRotationCommand(
+    deviceIndex,
+    device.rotation,
+    rotation === 0 ? undefined : rotation,
+    adapter,
+    deviceName,
+  );
+  const command =
+    carrierCommands.length > 0
+      ? createBatchCommand(`Rotate ${deviceName}`, [rotate, ...carrierCommands])
+      : rotate;
+  // Pinned to this rack: the rotation resolves its device by index in whichever
+  // rack is active, while the carrier retype is global. Undone from another
+  // rack, an unpinned batch would put the carrier back and leave the device
+  // turned inside it.
+  ctx.getHistory().execute(createInRackCommand(rackId, command, adapter));
+  ctx.markDirty();
+  return true;
 }
 
 /**

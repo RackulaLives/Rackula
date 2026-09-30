@@ -7,22 +7,27 @@
  * drop share one rule.
  */
 
-import type { DeviceType } from "$lib/types";
-import { MM_PER_INCH, RACK_EAR_ALLOWANCE_IN } from "$lib/types/constants";
+import type { DeviceRotation, DeviceType } from "$lib/types";
+import {
+  MIN_DEVICE_HEIGHT,
+  MM_PER_INCH,
+  MM_PER_U,
+  RACK_EAR_ALLOWANCE_IN,
+} from "$lib/types/constants";
 
 /** Float tolerance so third-width cells (0.33 / 0.34) accept a third. */
 const WIDTH_FIT_TOLERANCE = 0.01;
 
-/** How far a measured width may exceed its cell, for rounding on entry. */
-const WIDTH_FIT_TOLERANCE_MM = 0.5;
+/** How far a measured side may exceed the space it is fitted to, for rounding. */
+const FIT_TOLERANCE_MM = 0.5;
 
 type WidthFields = Pick<DeviceType, "slot_width" | "width_mm">;
 
-/** Units accepted when entering a device width. */
-export const WIDTH_UNITS = ["mm", "cm", "in"] as const;
-export type WidthUnit = (typeof WIDTH_UNITS)[number];
+/** Units accepted when entering a measured side, width or height. */
+export const LENGTH_UNITS = ["mm", "cm", "in"] as const;
+export type LengthUnit = (typeof LENGTH_UNITS)[number];
 
-const MM_PER_UNIT: Record<WidthUnit, number> = {
+const MM_PER_UNIT: Record<LengthUnit, number> = {
   mm: 1,
   cm: 10,
   in: MM_PER_INCH,
@@ -88,7 +93,7 @@ export function fitsSlotWidth(
   if (deviceType.width_mm !== undefined) {
     const cellMm =
       cellFraction(slotWidthFraction) * getRackOpeningMm(rackWidth);
-    return deviceType.width_mm <= cellMm + WIDTH_FIT_TOLERANCE_MM;
+    return deviceType.width_mm <= cellMm + FIT_TOLERANCE_MM;
   }
   const requiredFraction = (deviceType.slot_width ?? 2) === 1 ? 0.5 : 1.0;
   return requiredFraction <= (slotWidthFraction ?? 1.0) + WIDTH_FIT_TOLERANCE;
@@ -127,16 +132,64 @@ export function requiresCarrier(
 }
 
 /**
- * Convert an entered width to millimetres, rounded to 0.1 mm.
+ * Convert an entered length to millimetres, rounded to 0.1 mm.
  */
-export function toMillimetres(value: number, unit: WidthUnit): number {
+export function toMillimetres(value: number, unit: LengthUnit): number {
   return Math.round(value * MM_PER_UNIT[unit] * 10) / 10;
 }
 
 /**
- * Format a width in both unit systems, for example "72 mm (2.83 in)".
+ * Format a length in both unit systems, for example "72 mm (2.83 in)".
  */
-export function formatWidthMm(widthMm: number): string {
-  const inches = Math.round((widthMm / MM_PER_INCH) * 100) / 100;
-  return `${widthMm} mm (${inches} in)`;
+export function formatMm(lengthMm: number): string {
+  const inches = Math.round((lengthMm / MM_PER_INCH) * 100) / 100;
+  return `${lengthMm} mm (${inches} in)`;
+}
+
+/**
+ * Rack units a measured height takes: the smallest multiple of 0.5U that
+ * holds it, allowing 0.5 mm for rounding, never below 0.5U.
+ */
+export function uHeightForMm(heightMm: number): number {
+  const halfUnits = ((heightMm - FIT_TOLERANCE_MM) / MM_PER_U) * 2;
+  // The epsilon keeps float noise at an exact multiple from adding a half U.
+  return Math.max(MIN_DEVICE_HEIGHT, Math.ceil(halfUnits - 1e-9) / 2);
+}
+
+/**
+ * Whether a device can be turned. Only a measured device turns: its width is
+ * known in millimetres, and its height is height_mm or its rack units in
+ * millimetres. It always sits in a carrier.
+ */
+export function canRotate(deviceType: Pick<DeviceType, "width_mm">): boolean {
+  return deviceType.width_mm !== undefined;
+}
+
+/**
+ * A placed device's turn, or 0 when its type cannot turn.
+ */
+export function getRotation(
+  deviceType: Pick<DeviceType, "width_mm">,
+  rotation: DeviceRotation | undefined,
+): DeviceRotation {
+  return canRotate(deviceType) ? (rotation ?? 0) : 0;
+}
+
+/**
+ * A device as it stands in the rack after `rotation`. Turned 90 degrees, a
+ * measured device's sides swap: its new width is its height (height_mm, or its
+ * rack units in millimetres when no height was measured), and its new height
+ * is its measured width.
+ */
+export function orientDeviceType<
+  T extends Pick<DeviceType, "width_mm" | "height_mm" | "u_height">,
+>(deviceType: T, rotation: DeviceRotation | undefined): T {
+  if (getRotation(deviceType, rotation) !== 90) return deviceType;
+  const widthMm = deviceType.width_mm!;
+  return {
+    ...deviceType,
+    width_mm: deviceType.height_mm ?? deviceType.u_height * MM_PER_U,
+    height_mm: widthMm,
+    u_height: uHeightForMm(widthMm),
+  };
 }

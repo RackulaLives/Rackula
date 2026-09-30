@@ -56,7 +56,15 @@
     cancelPlacement: () => placementStore.cancelPlacement(),
     abandonPlacement: () => placementStore.abandonPlacement(),
     placeDevice: (rackId, slug, position, face) =>
-      layoutStore.placeDeviceSmart(rackId, slug, position, face),
+      layoutStore.placeDeviceSmart(
+        rackId,
+        slug,
+        position,
+        face,
+        placementStore.rotation,
+      ),
+    toggleRotation: () =>
+      placementStore.toggleRotation() ? placementStore.rotation : null,
     completePlacement: (summary) => placementStore.completePlacement(summary),
     showToast: (message) => toastStore.showToast(message, "warning", 3000),
     onPlaced: () =>
