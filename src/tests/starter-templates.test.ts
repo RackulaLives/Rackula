@@ -152,12 +152,13 @@ describe("shipped template files", () => {
       );
       const layout = await parseLayoutYaml(readFileSync(path, "utf8"));
 
-      for (const deviceType of layout.device_types) {
-        const libraryDevice = findStarterDevice(deviceType.slug);
-        if (libraryDevice) {
-          expect(deviceType).toEqual(libraryDevice);
-        }
-      }
+      const embedded = layout.device_types.filter((deviceType) =>
+        findStarterDevice(deviceType.slug),
+      );
+
+      expect(embedded).toEqual(
+        embedded.map((deviceType) => findStarterDevice(deviceType.slug)),
+      );
     },
   );
 });
