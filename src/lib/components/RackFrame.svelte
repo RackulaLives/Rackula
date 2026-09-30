@@ -95,16 +95,31 @@
 
   // Caption for a blocked range: names the half-depth device on the other face.
   // `full` feeds the hover title; `fitted` is sized and truncated for the rack
-  // interior. Null when the viewed face is unknown.
+  // interior. When the full text does not fit, the caption drops to
+  // "<name> (<face>)" and shortens the name, never the face: the face is the
+  // part that explains the hatch. Null when the viewed face is unknown.
   function blockedCaption(slot: BlockedSlot) {
     if (!viewFace) return null;
     const otherFace = viewFace === "rear" ? "front" : "rear";
     const full = `${slot.deviceName} (${otherFace}, half depth)`;
-    const fitted = fitTextToWidth(full, {
-      maxFontSize: BLOCKED_CAPTION_MAX_FONT,
-      minFontSize: BLOCKED_CAPTION_MIN_FONT,
-      availableWidth: interiorWidth - 2 * BLOCKED_CAPTION_PADDING_X,
-    });
+    const fit = (text: string) =>
+      fitTextToWidth(text, {
+        maxFontSize: BLOCKED_CAPTION_MAX_FONT,
+        minFontSize: BLOCKED_CAPTION_MIN_FONT,
+        availableWidth: interiorWidth - 2 * BLOCKED_CAPTION_PADDING_X,
+      });
+    let fitted = fit(full);
+    if (fitted.text !== full) {
+      const suffix = ` (${otherFace})`;
+      fitted = fit(`${slot.deviceName}${suffix}`);
+      if (!fitted.text.endsWith(suffix)) {
+        const keep = Math.max(1, fitted.text.length - suffix.length - 1);
+        fitted = {
+          ...fitted,
+          text: `${slot.deviceName.slice(0, keep)}…${suffix}`,
+        };
+      }
+    }
     return { full, fitted };
   }
 
