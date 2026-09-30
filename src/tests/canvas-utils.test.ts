@@ -8,22 +8,17 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateRacksBoundingBox,
+  computeCanvasLayout,
   racksToPositions,
+  racksToPositionsWithIds,
   calculateFitAll,
   ensureVisibleTransform,
+  type Bounds,
+  type CanvasSlot,
 } from "$lib/utils/canvas";
+import type { RackGroup } from "$lib/types";
 import { createTestRack } from "./factories";
-import {
-  U_HEIGHT_PX,
-  BASE_RACK_WIDTH,
-  RAIL_WIDTH,
-  RACK_PADDING_HIDDEN,
-  NAME_Y_OFFSET,
-  DUAL_VIEW_GAP,
-  DUAL_VIEW_EXTRA_HEIGHT,
-  SELECTION_HIGHLIGHT_PADDING,
-  RACK_ROW_PADDING,
-} from "$lib/constants/layout";
+import { RACK_ROW_PADDING } from "$lib/constants/layout";
 
 describe("Canvas Utils", () => {
   describe("calculateRacksBoundingBox", () => {
@@ -50,52 +45,190 @@ describe("Canvas Utils", () => {
     });
   });
 
-  describe("racksToPositions", () => {
-    it("returns empty array for no racks", () => {
-      const positions = racksToPositions([]);
-      expect(positions).toEqual([]);
+  describe("computeCanvasLayout (#3370)", () => {
+    const bay = (id: string, rackIds: string[], name?: string): RackGroup => ({
+      id,
+      name,
+      rack_ids: rackIds,
+      layout_preset: "bayed",
+    });
+    const rowGroup = (id: string, rackIds: string[]): RackGroup => ({
+      id,
+      name: id,
+      rack_ids: rackIds,
+      layout_preset: "row",
+    });
+    const slotIds = (slot: CanvasSlot) => slot.racks.map((r) => r.id);
+    const contains = (outer: Bounds, inner: Bounds) =>
+      inner.x >= outer.x &&
+      inner.y >= outer.y &&
+      inner.x + inner.width <= outer.x + outer.width &&
+      inner.y + inner.height <= outer.y + outer.height;
+
+    it("returns no rows and zero bounds for no racks", () => {
+      expect(computeCanvasLayout([], [])).toEqual({
+        rows: [],
+        bounds: { x: 0, y: 0, width: 0, height: 0 },
+      });
     });
 
-    it("calculates position for single ungrouped rack", () => {
-      const rack = createTestRack({ height: 42, width: 19 });
-      const positions = racksToPositions([rack]);
+    it("stacks each group in its own row below the standalone row", () => {
+      const racks = [
+        createTestRack({ id: "a", position: 0 }),
+        createTestRack({ id: "m1", position: 1 }),
+        createTestRack({ id: "m2", position: 2 }),
+        createTestRack({ id: "b", position: 3 }),
+        createTestRack({ id: "r1", position: 4 }),
+      ];
+      const { rows } = computeCanvasLayout(racks, [
+        bay("bay", ["m1", "m2"]),
+        rowGroup("row", ["r1"]),
+      ]);
 
-      // eslint-disable-next-line no-restricted-syntax -- one rack input should produce exactly one position output
-      expect(positions).toHaveLength(1);
-
-      // The width should be: 2 * rackWidthPx + DUAL_VIEW_GAP + SELECTION_HIGHLIGHT_PADDING * 2
-      const expectedRackWidthPx = Math.round((BASE_RACK_WIDTH * 19) / 19);
-      const expectedWidth =
-        expectedRackWidthPx * 2 +
-        DUAL_VIEW_GAP +
-        SELECTION_HIGHLIGHT_PADDING * 2;
-      expect(positions[0].width).toBe(expectedWidth);
-
-      // The height calculation should account for actual rendered dimensions
-      expect(positions[0].height).toBeGreaterThan(0);
+      expect(rows.map((row) => row.slots.map(slotIds))).toEqual([
+        [["a"], ["b"]],
+        [["m1", "m2"]],
+        [["r1"]],
+      ]);
+      // Rows never overlap: each starts below the previous one's bottom.
+      for (let i = 1; i < rows.length; i++) {
+        const above = rows[i - 1]!;
+        expect(rows[i]!.y).toBeGreaterThan(above.y + above.height);
+      }
     });
 
-    it("includes selection highlight padding in dimensions", () => {
-      const rack = createTestRack({ height: 42, width: 19 });
-      const positions = racksToPositions([rack]);
+    it("bottom-aligns the slots of a row without overlapping them", () => {
+      const racks = [
+        createTestRack({ id: "tall", position: 0, height: 42 }),
+        createTestRack({ id: "short", position: 1, height: 12 }),
+      ];
+      const [row] = computeCanvasLayout(racks, []).rows;
+      const [tall, short] = row!.slots;
 
-      // Width should include 2 * SELECTION_HIGHLIGHT_PADDING
-      const rackWidthPx = Math.round((BASE_RACK_WIDTH * 19) / 19);
-      const baseWidth = rackWidthPx * 2 + DUAL_VIEW_GAP;
-      expect(positions[0].width).toBe(
-        baseWidth + SELECTION_HIGHLIGHT_PADDING * 2,
-      );
+      expect(tall!.y + tall!.height).toBe(short!.y + short!.height);
+      expect(short!.x).toBeGreaterThan(tall!.x + tall!.width);
+      expect(short!.height).toBeLessThan(tall!.height);
+    });
 
-      // Height should include 2 * SELECTION_HIGHLIGHT_PADDING
-      // In dual-view mode, hideRackName=true so RACK_PADDING_HIDDEN is used
-      const baseHeight =
-        RACK_PADDING_HIDDEN +
-        RAIL_WIDTH * 2 +
-        42 * U_HEIGHT_PX +
-        DUAL_VIEW_EXTRA_HEIGHT;
-      expect(positions[0].height).toBe(
-        baseHeight + SELECTION_HIGHLIGHT_PADDING * 2,
-      );
+    it("sizes a single-view rack narrower than a dual-view rack", () => {
+      const racks = [
+        createTestRack({ id: "front", position: 0, show_rear: false }),
+        createTestRack({ id: "dual", position: 1, show_rear: true }),
+      ];
+      const [front, dual] = computeCanvasLayout(racks, []).rows[0]!.slots;
+
+      expect(front!.width).toBeLessThan(dual!.width);
+    });
+
+    it("includes row-group chrome around the member racks", () => {
+      const racks = [
+        createTestRack({ id: "g1", position: 0, height: 42 }),
+        createTestRack({ id: "g2", position: 1, height: 24 }),
+      ];
+      const [slot] = computeCanvasLayout(racks, [rowGroup("row", ["g1", "g2"])])
+        .rows[0]!.slots;
+      const [g1, g2] = slot!.racks;
+
+      // Members sit strictly inside the group box (border, padding, label).
+      for (const member of [g1!, g2!]) {
+        expect(contains(slot!, member)).toBe(true);
+        expect(member.y).toBeGreaterThan(slot!.y);
+      }
+      // Members are left to right in position order and share a baseline.
+      expect(g2!.x).toBeGreaterThan(g1!.x + g1!.width);
+      expect(g1!.y + g1!.height).toBe(g2!.y + g2!.height);
+    });
+
+    it("gives bayed members the group's shared box", () => {
+      const racks = [
+        createTestRack({ id: "m1", position: 0 }),
+        createTestRack({ id: "m2", position: 1 }),
+      ];
+      const [slot] = computeCanvasLayout(racks, [bay("bay", ["m1", "m2"])])
+        .rows[0]!.slots;
+
+      for (const member of slot!.racks) {
+        expect(member).toMatchObject({
+          x: slot!.x,
+          y: slot!.y,
+          width: slot!.width,
+          height: slot!.height,
+        });
+      }
+    });
+
+    it("widens racks and bays, not rows, when annotations are shown", () => {
+      const racks = [
+        createTestRack({ id: "a", position: 0 }),
+        createTestRack({ id: "m1", position: 1 }),
+        createTestRack({ id: "m2", position: 2 }),
+      ];
+      const groups = [bay("bay", ["m1", "m2"])];
+      const plain = computeCanvasLayout(racks, groups);
+      const annotated = computeCanvasLayout(racks, groups, {
+        showAnnotations: true,
+      });
+
+      for (const [i, row] of annotated.rows.entries()) {
+        const before = plain.rows[i]!;
+        expect(row.slots[0]!.width).toBeGreaterThan(before.slots[0]!.width);
+        expect(row.height).toBe(before.height);
+      }
+    });
+
+    it("makes a named bayed group taller than an unnamed one", () => {
+      const racks = [createTestRack({ id: "m1", position: 0 })];
+      const unnamed = computeCanvasLayout(racks, [bay("g", ["m1"])]);
+      const named = computeCanvasLayout(racks, [bay("g", ["m1"], "Bay A")]);
+
+      expect(named.bounds.height).toBeGreaterThan(unnamed.bounds.height);
+    });
+
+    it("bounds every slot, including group chrome", () => {
+      const racks = [
+        createTestRack({ id: "a", position: 0 }),
+        createTestRack({ id: "m1", position: 1 }),
+        createTestRack({ id: "r1", position: 2 }),
+      ];
+      const layout = computeCanvasLayout(racks, [
+        bay("bay", ["m1"]),
+        rowGroup("row", ["r1"]),
+      ]);
+
+      for (const slot of layout.rows.flatMap((row) => row.slots)) {
+        expect(contains(layout.bounds, slot)).toBe(true);
+      }
+      expect(
+        calculateRacksBoundingBox(
+          racksToPositions(racks, [
+            bay("bay", ["m1"]),
+            rowGroup("row", ["r1"]),
+          ]),
+        ),
+      ).toEqual(layout.bounds);
+    });
+  });
+
+  describe("racksToPositionsWithIds", () => {
+    it("maps a bayed group to one box and row-group members to their own", () => {
+      const racks = [
+        createTestRack({ id: "m1", position: 0 }),
+        createTestRack({ id: "m2", position: 1 }),
+        createTestRack({ id: "r1", position: 2 }),
+        createTestRack({ id: "r2", position: 3 }),
+      ];
+      const groups: RackGroup[] = [
+        { id: "bay", rack_ids: ["m1", "m2"], layout_preset: "bayed" },
+        { id: "row", rack_ids: ["r1", "r2"], layout_preset: "row" },
+      ];
+
+      const targets = racksToPositionsWithIds(racks, groups);
+
+      expect(targets.map((t) => t.rackIds)).toEqual([
+        ["m1", "m2"],
+        ["r1"],
+        ["r2"],
+      ]);
     });
   });
 
@@ -113,68 +246,42 @@ describe("Canvas Utils", () => {
       expect(result.zoom).toBeLessThan(1);
       expect(result.zoom).toBeGreaterThan(0);
     });
+
+    it("frames stacked group rows inside the viewport", () => {
+      const racks = [
+        createTestRack({ id: "a", position: 0, height: 12 }),
+        createTestRack({ id: "m1", position: 1, height: 12 }),
+        createTestRack({ id: "r1", position: 2, height: 12 }),
+      ];
+      const groups: RackGroup[] = [
+        { id: "bay", rack_ids: ["m1"], layout_preset: "bayed" },
+        { id: "row", name: "Row", rack_ids: ["r1"], layout_preset: "row" },
+      ];
+      const viewport = { width: 1600, height: 1000 };
+
+      const { zoom, panX, panY } = calculateFitAll(
+        racksToPositions(racks, groups),
+        viewport.width,
+        viewport.height,
+      );
+
+      // Every slot, chrome included, lands on screen.
+      for (const slot of computeCanvasLayout(racks, groups).rows.flatMap(
+        (row) => row.slots,
+      )) {
+        expect(slot.x * zoom + panX).toBeGreaterThanOrEqual(0);
+        expect(slot.y * zoom + panY).toBeGreaterThanOrEqual(0);
+        expect((slot.x + slot.width) * zoom + panX).toBeLessThanOrEqual(
+          viewport.width,
+        );
+        expect((slot.y + slot.height) * zoom + panY).toBeLessThanOrEqual(
+          viewport.height,
+        );
+      }
+    });
   });
 
-  describe("48U rack height calculation", () => {
-    /**
-     * This test verifies that the bounding box calculation for 48U racks
-     * correctly accounts for all visual elements.
-     *
-     * The rendered height of a RackDualView for a 48U rack includes:
-     * 1. The Rack SVG height (when hideRackName=true):
-     *    - RACK_PADDING_HIDDEN (4px)
-     *    - RAIL_WIDTH * 2 (34px)
-     *    - rack.height * U_HEIGHT_PX (1056px for 48U)
-     *    - NAME_Y_OFFSET (4px for overflow)
-     *    = 1098px
-     *
-     * 2. RackDualView wrapper overhead (DUAL_VIEW_EXTRA_HEIGHT = 64px):
-     *    - padding-top (12px)
-     *    - gap (8px)
-     *    - rack name height (~24px with line-height)
-     *    - rack name margin-bottom (4px)
-     *    - padding-bottom (12px)
-     *    + 4px buffer for browser rendering = 64px
-     *
-     * The getDualViewDimensions function should return a height that
-     * matches or exceeds the actual rendered height to prevent cutoff.
-     */
-    it("48U rack bounding box should be large enough to include all content", () => {
-      const rack = createTestRack({ height: 48, width: 19 });
-      const positions = racksToPositions([rack]);
-
-      // eslint-disable-next-line no-restricted-syntax -- one rack input should produce exactly one position output
-      expect(positions).toHaveLength(1);
-
-      // Calculate expected height from the formula in getDualViewDimensions
-      // In dual-view mode, hideRackName=true so RACK_PADDING_HIDDEN is used
-      const formulaHeight =
-        RACK_PADDING_HIDDEN +
-        RAIL_WIDTH * 2 +
-        48 * U_HEIGHT_PX +
-        DUAL_VIEW_EXTRA_HEIGHT +
-        SELECTION_HIGHLIGHT_PADDING * 2;
-
-      // Calculate actual SVG height (what Rack.svelte renders with hideRackName=true)
-      const actualSvgHeight =
-        RACK_PADDING_HIDDEN + RAIL_WIDTH * 2 + 48 * U_HEIGHT_PX + NAME_Y_OFFSET;
-
-      // Wrapper overhead from RackDualView CSS
-      // padding (12+12) + gap (8) + name (~24) + margin (4) = ~60px
-      // DUAL_VIEW_EXTRA_HEIGHT = 64 includes 4px buffer for browser rendering
-      const estimatedWrapperOverhead = 64;
-
-      const actualRenderedHeight = actualSvgHeight + estimatedWrapperOverhead;
-
-      // The bounding box height (positions[0].height) should be >= actual rendered height
-      // to ensure the content fits without cutoff
-      expect(positions[0].height).toBe(formulaHeight);
-
-      // The formula should produce a height that's >= the actual rendered height
-      // If this fails, we need to increase DUAL_VIEW_EXTRA_HEIGHT
-      expect(positions[0].height).toBeGreaterThanOrEqual(actualRenderedHeight);
-    });
-
+  describe("48U rack fit-all", () => {
     it("48U rack fit-all should not cut off the bottom", () => {
       const rack = createTestRack({ height: 48, width: 19 });
 

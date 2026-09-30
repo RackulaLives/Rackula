@@ -5,13 +5,54 @@
  * an existing one (with defensive ID/position assignment for older layouts).
  */
 
-import type { Layout } from "$lib/types";
+import type { Connection, Layout } from "$lib/types";
 import { createLayout } from "$lib/utils/serialization";
 import { generateId } from "$lib/utils/device";
 import { generateRackId } from "$lib/utils/rack";
 import { adaptLegacyLayout } from "$lib/storage";
 import type { LayoutStateAccess } from "./types";
 import { generateUniqueDeviceId } from "./mutators";
+
+/**
+ * Make Connection ids unique across the layout (#3284). Removal and undo work
+ * by id, so two connections sharing an id would be removed together and only
+ * one restored. Runs after the port-id remap so endpoints are final. A later
+ * connection that repeats an earlier one's id AND endpoints (in either
+ * direction) is an exact duplicate and is dropped; one that repeats only the id
+ * keeps its endpoints and gets a fresh id. The first occurrence always keeps
+ * its id, so a valid layout passes through unchanged.
+ */
+function dedupeConnectionIds(connections: Connection[]): Connection[] {
+  const seenIds = new Set<string>();
+  // Every original id is reserved up front so a regenerated id can never take
+  // a later connection's original id and break first-occurrence-wins.
+  const originalIds = new Set(connections.map((c) => c.id));
+  const endpointsById = new Map<string, Connection[]>();
+  const result: Connection[] = [];
+  for (const connection of connections) {
+    const originalId = connection.id;
+    if (originalId && !seenIds.has(originalId)) {
+      seenIds.add(originalId);
+      endpointsById.set(originalId, [connection]);
+      result.push(connection);
+      continue;
+    }
+    const isExactDuplicate = (endpointsById.get(originalId) ?? []).some(
+      (kept) =>
+        (kept.a_port_id === connection.a_port_id &&
+          kept.b_port_id === connection.b_port_id) ||
+        (kept.a_port_id === connection.b_port_id &&
+          kept.b_port_id === connection.a_port_id),
+    );
+    if (isExactDuplicate) continue;
+    endpointsById.get(originalId)?.push(connection);
+    result.push({
+      ...connection,
+      id: generateUniqueDeviceId(seenIds, originalIds),
+    });
+  }
+  return result;
+}
 
 /**
  * Create a new layout with the given name
@@ -194,15 +235,17 @@ export function loadLayout(
   // `connections: {}`) must not throw here either, matching the same guard
   // added to dropDanglingConnections above (#3090 review).
   const connections = Array.isArray(layoutData.connections)
-    ? layoutData.connections.map((connection) => ({
-        ...connection,
-        a_port_id: seenPortIds.has(connection.a_port_id)
-          ? connection.a_port_id
-          : (portIdRemap.get(connection.a_port_id) ?? connection.a_port_id),
-        b_port_id: seenPortIds.has(connection.b_port_id)
-          ? connection.b_port_id
-          : (portIdRemap.get(connection.b_port_id) ?? connection.b_port_id),
-      }))
+    ? dedupeConnectionIds(
+        layoutData.connections.map((connection) => ({
+          ...connection,
+          a_port_id: seenPortIds.has(connection.a_port_id)
+            ? connection.a_port_id
+            : (portIdRemap.get(connection.a_port_id) ?? connection.a_port_id),
+          b_port_id: seenPortIds.has(connection.b_port_id)
+            ? connection.b_port_id
+            : (portIdRemap.get(connection.b_port_id) ?? connection.b_port_id),
+        })),
+      )
     : layoutData.connections;
 
   // Ensure runtime view is set, show_rear defaults, and all racks have valid IDs

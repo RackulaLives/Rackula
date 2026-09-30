@@ -15,6 +15,7 @@
   import VerbBar, { type VerbItem } from "./VerbBar.svelte";
   import { getVerbsForSelection } from "$lib/actions/verb-bars";
   import { getRackSlotControls } from "$lib/utils/rack-row";
+  import { IconChevronDown, IconChevronUp } from "./icons";
   import {
     computeVerbBarPosition,
     VERB_BAR_LOW_ZOOM_THRESHOLD,
@@ -99,6 +100,7 @@
           canReorder: false,
           canMoveLeft: false,
           canMoveRight: false,
+          movesRow: false,
           baySource: null,
         },
   );
@@ -127,14 +129,19 @@
     const position: VerbItem[] =
       slotControls.canReorder && !ctx.readOnly
         ? [
+            // A group moves between rows, so it reads as up/down.
             {
               id: "move-rack-left",
-              label: "Move rack left",
+              label: slotControls.movesRow ? "Move group up" : "Move rack left",
+              icon: slotControls.movesRow ? IconChevronUp : undefined,
               disabled: !slotControls.canMoveLeft,
             },
             {
               id: "move-rack-right",
-              label: "Move rack right",
+              label: slotControls.movesRow
+                ? "Move group down"
+                : "Move rack right",
+              icon: slotControls.movesRow ? IconChevronDown : undefined,
               disabled: !slotControls.canMoveRight,
             },
           ]

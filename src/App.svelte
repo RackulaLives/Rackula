@@ -46,12 +46,14 @@
     listSavedLayouts,
     loadSavedLayout,
     finalizeLayoutLoad,
+    loadWorkingCopyServerImages,
     handleSaveToServer,
     reconcileSession,
     applyReconcile,
     uploadSnapshot,
     setServerBaseUpdatedAt,
     resolveBrowserLaunch,
+    previousSessionUnsavedNotice,
     deleteLayoutBody,
     clearBrowserWriteFailure,
     loadWorkspaceIndex,
@@ -434,16 +436,20 @@
         const activeEntry = launch.index.activeId
           ? launch.index.library[launch.index.activeId]
           : undefined;
-        if (
+        const flipNotice =
           activeEntry &&
           detectModeFlip(activeEntry.storageMode) === "server-to-browser"
-        ) {
-          showStorageToast(
-            "This deployment now stores layouts in your browser; your previous server library is not loaded here.",
-            "warning",
-            0,
-          );
-        }
+            ? "This deployment now stores layouts in your browser; your previous server library is not loaded here."
+            : null;
+        // A previous session's last write was refused, so the layout reopens
+        // at an older stored version. Say so; the chip stays on this session's
+        // durability, which is fine as loaded (#3386). Joined with the flip
+        // notice because the toast gate allows only one startup toast.
+        const unsavedNotice = previousSessionUnsavedNotice(launch.index);
+        const launchNotice = [flipNotice, unsavedNotice]
+          .filter((notice) => notice !== null)
+          .join(" ");
+        if (launchNotice) showStorageToast(launchNotice, "warning", 0);
 
         // restoreWorkspace hydrates the active tab and restores its durability
         // (dirty by autosave convention, not explicitly saved). deleteBody wires
@@ -573,6 +579,12 @@
                   : localSession.serverUpdatedAt,
               );
               restoreLocalSession(localSession);
+              // The working copy holds no images; a copy the server knows has
+              // its custom faces on disk. Fetch them in the background so a
+              // slow asset never delays the restore (#3412).
+              if (reason !== "unknown-to-server") {
+                void loadWorkingCopyServerImages(localSession.layout);
+              }
             },
             toast: (m, t) => toastStore.showToast(m, t),
           });

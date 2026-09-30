@@ -197,7 +197,10 @@
     resizeError = null;
     layoutStore.updateRack(selectedRack.id, { height: newHeight });
     // Reset view to center the resized rack
-    canvasStore.fitAll(layoutStore.activeRack ? [layoutStore.activeRack] : []);
+    canvasStore.fitAll(
+      layoutStore.activeRack ? [layoutStore.activeRack] : [],
+      layoutStore.rack_groups,
+    );
     return true;
   }
 

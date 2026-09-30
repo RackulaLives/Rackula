@@ -72,6 +72,36 @@ describe("RackEditSheet row actions (#2833)", () => {
     expect(button("Move rack right")).toBeEnabled();
   });
 
+  it("moves a group between rows with up/down controls", async () => {
+    addRack("A");
+    const b = addRack("B");
+    const layout = getLayoutStore();
+    const { groupId } = layout.createBayedRack(b.id);
+    render(RackEditSheet, { props: { rack: b } });
+
+    expect(queryButton("Move rack left")).toBeNull();
+    expect(button("Move group down")).toBeDisabled();
+    await fireEvent.click(button("Move group up"));
+
+    expect(rowOrder()[0]).toBe(groupId);
+  });
+
+  it("rejects a per-rack height change for a bayed rack", async () => {
+    const a = addRack("A");
+    getLayoutStore().createBayedRack(a.id);
+    render(RackEditSheet, { props: { rack: a } });
+
+    const height = screen.getByLabelText("Height");
+    await fireEvent.input(height, { target: { value: "24" } });
+    await fireEvent.change(height);
+
+    expect(
+      screen.getByText(/bayed racks must share the same height/i),
+    ).toBeInTheDocument();
+    expect(height).toHaveValue(42);
+    expect(getLayoutStore().getRackById(a.id)?.height).toBe(42);
+  });
+
   it("offers no reorder for a single-rack row", () => {
     const solo = addRack("Solo");
     render(RackEditSheet, { props: { rack: solo } });

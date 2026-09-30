@@ -37,6 +37,7 @@ export {
   finalizeLayoutLoad,
   loadFromApi,
   loadFromFile,
+  loadWorkingCopyServerImages,
   restoreFromSnapshot,
 } from "./load-pipeline";
 export {
@@ -94,7 +95,11 @@ export {
   type LibraryEntry,
   type LayoutBodyResult,
 } from "./browser-workspace";
-export { resolveBrowserLaunch, type BrowserLaunch } from "./browser-launch";
+export {
+  resolveBrowserLaunch,
+  previousSessionUnsavedNotice,
+  type BrowserLaunch,
+} from "./browser-launch";
 export {
   persistBrowserWorkspace,
   type PersistTab,

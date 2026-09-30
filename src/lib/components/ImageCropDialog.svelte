@@ -390,6 +390,7 @@
       {/if}
       <div
         class="crop-frame"
+        data-testid="crop-frame"
         aria-hidden="true"
         style="left: {frameLeft}px; top: {frameTop}px; width: {frame.width}px; height: {frame.height}px;"
       >

@@ -29,12 +29,13 @@
  * already present in the brand pack file are skipped (idempotent re-runs).
  */
 
-import { writeFile, mkdir, readFile } from "fs/promises";
+import { writeFile, mkdir, readFile, readdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join, dirname, relative } from "path";
 import { fileURLToPath } from "url";
 import { spawnSync } from "child_process";
 import yaml from "js-yaml";
+import { brandPackArrayName } from "../src/lib/utils/brand-pack-identifier";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -312,6 +313,22 @@ function extractExistingSlugs(content: string): Set<string> {
   return slugs;
 }
 
+/**
+ * Return the brand pack file that already exports `name`, if any. Distinct
+ * vendors can sanitise to the same identifier ("A-B" and "AB"), and a new pack
+ * reusing one would be a duplicate binding in brandPacks/index.ts.
+ */
+async function findExportOwner(name: string): Promise<string | null> {
+  if (!existsSync(BRAND_PACKS_DIR)) return null;
+  const pattern = new RegExp(`\\bexport\\s+const\\s+${name}\\b`);
+  for (const file of await readdir(BRAND_PACKS_DIR)) {
+    if (!file.endsWith(".ts")) continue;
+    const content = await readFile(join(BRAND_PACKS_DIR, file), "utf-8");
+    if (pattern.test(content)) return file;
+  }
+  return null;
+}
+
 interface WriteBrandPackResult {
   filePath: string;
   added: NetBoxDevice[];
@@ -355,8 +372,13 @@ async function writeBrandPackDevices(
     return { filePath, added, skipped, created: false };
   }
 
-  const vendorLower = vendor.toLowerCase();
-  const arrayName = `${vendorLower}Devices`;
+  const arrayName = brandPackArrayName(vendor);
+  const clash = await findExportOwner(arrayName);
+  if (clash) {
+    throw new Error(
+      `Cannot create ${filePath}: export name "${arrayName}" is already used by ${clash}`,
+    );
+  }
   const newFile = `/**
  * ${vendor} Brand Pack
  * Pre-defined device types for ${vendor} equipment
