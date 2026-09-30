@@ -6,6 +6,7 @@ import {
   TEMPLATE_FILES,
 } from "$lib/templates/starter-templates";
 import { parseLayoutYaml } from "$lib/utils/yaml";
+import { findStarterDevice } from "$lib/data/starterLibrary";
 
 /**
  * A minimal but schema-valid layout YAML, parameterised by name so each fake
@@ -135,4 +136,28 @@ describe("shipped template files", () => {
       }
     }
   });
+
+  // A layout renders from its own embedded device types, not the library, so a
+  // template's copy of a starter device is what the user gets. A stale copy
+  // silently lacks whatever the library device gained since (ports, depth):
+  // #3464. Comparing against the library keeps the copies from drifting.
+  it.each(TEMPLATE_FILES)(
+    "%s embeds starter-library devices exactly as the library defines them",
+    async (id) => {
+      const path = join(
+        process.cwd(),
+        "static",
+        "templates",
+        `${id}.rackula.yaml`,
+      );
+      const layout = await parseLayoutYaml(readFileSync(path, "utf8"));
+
+      for (const deviceType of layout.device_types) {
+        const libraryDevice = findStarterDevice(deviceType.slug);
+        if (libraryDevice) {
+          expect(deviceType).toEqual(libraryDevice);
+        }
+      }
+    },
+  );
 });

@@ -47,31 +47,85 @@ racks:
         position: 3
         face: "front"
 device_types:
-  - slug: "24-port-switch"
-    model: "Switch (24-Port)"
+  - slug: 24-port-switch
+    model: Switch (24-Port)
     u_height: 1
-    colour: "#7B6BA8"
-    category: "network"
-  - slug: "2u-server"
-    model: "Server"
+    slot_width: 2
+    colour: "#7968A6"
+    category: network
+    interfaces:
+      - name: "1"
+        type: 1000base-t
+      - name: "2"
+        type: 1000base-t
+      - name: "3"
+        type: 1000base-t
+      - name: "4"
+        type: 1000base-t
+      - name: "5"
+        type: 1000base-t
+      - name: "6"
+        type: 1000base-t
+      - name: "7"
+        type: 1000base-t
+      - name: "8"
+        type: 1000base-t
+      - name: "9"
+        type: 1000base-t
+      - name: "10"
+        type: 1000base-t
+      - name: "11"
+        type: 1000base-t
+      - name: "12"
+        type: 1000base-t
+      - name: "13"
+        type: 1000base-t
+      - name: "14"
+        type: 1000base-t
+      - name: "15"
+        type: 1000base-t
+      - name: "16"
+        type: 1000base-t
+      - name: "17"
+        type: 1000base-t
+      - name: "18"
+        type: 1000base-t
+      - name: "19"
+        type: 1000base-t
+      - name: "20"
+        type: 1000base-t
+      - name: "21"
+        type: 1000base-t
+      - name: "22"
+        type: 1000base-t
+      - name: "23"
+        type: 1000base-t
+      - name: "24"
+        type: 1000base-t
+  - slug: 2u-server
+    model: Server
     u_height: 2
+    slot_width: 2
     colour: "#4A7A8A"
-    category: "server"
-  - slug: "1u-server"
-    model: "Server"
+    category: server
+  - slug: 1u-server
+    model: Server
     u_height: 1
+    slot_width: 2
     colour: "#4A7A8A"
-    category: "server"
-  - slug: "4u-storage"
-    model: "Storage"
+    category: server
+  - slug: 4u-storage
+    model: Storage
     u_height: 4
+    slot_width: 2
     colour: "#3D7A4A"
-    category: "storage"
-  - slug: "4u-ups"
-    model: "UPS"
+    category: storage
+  - slug: 4u-ups
+    model: UPS
     u_height: 4
+    slot_width: 2
     colour: "#A84A4A"
-    category: "power"
+    category: power
 settings:
   display_mode: "label"
   show_labels_on_images: false
