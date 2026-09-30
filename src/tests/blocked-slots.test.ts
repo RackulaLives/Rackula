@@ -11,7 +11,7 @@ import {
   isPositionBlocked,
   wouldOverlapBlocked,
 } from "$lib/utils/blocked-slots";
-import type { URange } from "$lib/utils/collision";
+import type { BlockedSlot } from "$lib/utils/blocked-slots";
 import {
   createTestRack,
   createTestDeviceType,
@@ -37,6 +37,7 @@ describe("getBlockedSlots", () => {
       const deviceLibrary = [
         createTestDeviceType({
           slug: "half-depth-panel",
+          model: "Patch Panel",
           u_height: 2,
           is_full_depth: false, // Half-depth device
         }),
@@ -53,6 +54,8 @@ describe("getBlockedSlots", () => {
       const blocked = blockedSlots[0];
       expect(blocked.bottom).toBe(8); // U8 in human units, not 48 in internal units
       expect(blocked.top).toBe(9); // U8 + 2 - 1 = U9
+      // The range names the device that blocks it, for the hatch caption
+      expect(blocked.deviceName).toBe("Patch Panel");
     });
 
     it("handles 1U half-depth device at U1", () => {
@@ -70,6 +73,7 @@ describe("getBlockedSlots", () => {
       const deviceLibrary = [
         createTestDeviceType({
           slug: "half-depth-1u",
+          model: null,
           u_height: 1,
           is_full_depth: false,
         }),
@@ -81,6 +85,8 @@ describe("getBlockedSlots", () => {
       expect(blockedSlots.length).toBe(1);
       expect(blockedSlots[0].bottom).toBe(1);
       expect(blockedSlots[0].top).toBe(1);
+      // No custom name and no model: the slug is the last fallback
+      expect(blockedSlots[0].deviceName).toBe("half-depth-1u");
     });
 
     it("handles multiple half-depth devices", () => {
@@ -117,6 +123,49 @@ describe("getBlockedSlots", () => {
       // Second device at U20-U21
       expect(blockedSlots[1].bottom).toBe(20);
       expect(blockedSlots[1].top).toBe(21);
+    });
+  });
+
+  describe("deviceName", () => {
+    it("uses the placed device's custom name, falling back to the type name", () => {
+      const rack = createTestRack({
+        height: 42,
+        devices: [
+          createTestDevice({
+            device_type: "half-depth-panel",
+            name: "Core Patch A",
+            position: 5,
+            face: "front",
+          }),
+          createTestDevice({
+            device_type: "half-depth-panel",
+            position: 20,
+            face: "front",
+          }),
+          createTestDevice({
+            device_type: "half-depth-panel",
+            name: "   ",
+            position: 30,
+            face: "front",
+          }),
+        ],
+      });
+
+      const deviceLibrary = [
+        createTestDeviceType({
+          slug: "half-depth-panel",
+          model: "Patch Panel",
+          u_height: 2,
+          is_full_depth: false,
+        }),
+      ];
+
+      const names = getBlockedSlots(rack, "rear", deviceLibrary).map(
+        (slot) => slot.deviceName,
+      );
+
+      // A blank custom name is not a name: it falls back like an unset one.
+      expect(names).toEqual(["Core Patch A", "Patch Panel", "Patch Panel"]);
     });
   });
 
@@ -206,7 +255,9 @@ describe("getBlockedSlots", () => {
 // overlapping (the whole-U invariant depends on it); a device strictly adjacent
 // does not.
 describe("isPositionBlocked", () => {
-  const blocked: URange[] = [{ bottom: 5, top: 9 }];
+  const blocked: BlockedSlot[] = [
+    { bottom: 5, top: 9, deviceName: "Patch Panel" },
+  ];
 
   it("treats the range edges as blocked (inclusive)", () => {
     expect(isPositionBlocked(blocked, 5)).toBe(true);
@@ -224,7 +275,9 @@ describe("isPositionBlocked", () => {
 });
 
 describe("wouldOverlapBlocked", () => {
-  const blocked: URange[] = [{ bottom: 5, top: 9 }];
+  const blocked: BlockedSlot[] = [
+    { bottom: 5, top: 9, deviceName: "Patch Panel" },
+  ];
 
   it("reports overlap when the device touches the bottom edge", () => {
     // Device spans U4-U5: its top edge touches the blocked bottom (U5).

@@ -577,6 +577,7 @@
       rackName={rack.name}
       {viewLabel}
       nameYOffset={NAME_Y_OFFSET}
+      viewFace={faceFilter}
       {blockedSlots}
       dropPreview={activePreview}
       {isPlacementMode}

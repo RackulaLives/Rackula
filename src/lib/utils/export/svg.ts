@@ -68,6 +68,11 @@ const DARK_TEXT = "#ffffff";
 const LIGHT_TEXT = "#1a1a1a";
 const DARK_GRID = "#505050";
 const LIGHT_GRID = "#a0a0a0";
+// Blocked-slot hatch: neutral grey, since a half-depth device on the other
+// face is a normal state. Dark matches the canvas --colour-blocked-* tokens
+// (--neutral-400); light uses --neutral-600 to stay visible on a pale interior.
+const DARK_BLOCKED_RGB = "161, 161, 170";
+const LIGHT_BLOCKED_RGB = "82, 82, 91";
 
 /**
  * Filter devices by face for export.
@@ -574,6 +579,7 @@ export function generateExportSVG(
   const rackRail = isDark ? DARK_RACK_RAIL : LIGHT_RACK_RAIL;
   const textColor = isDark ? DARK_TEXT : LIGHT_TEXT;
   const gridColor = isDark ? DARK_GRID : LIGHT_GRID;
+  const blockedRgb = isDark ? DARK_BLOCKED_RGB : LIGHT_BLOCKED_RGB;
 
   // Create SVG
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -792,10 +798,7 @@ export function generateExportSVG(
           );
           rect.setAttribute("width", "4");
           rect.setAttribute("height", "8");
-          rect.setAttribute(
-            "fill",
-            isDark ? "rgba(239, 68, 68, 0.35)" : "rgba(239, 68, 68, 0.35)",
-          );
+          rect.setAttribute("fill", `rgba(${blockedRgb}, 0.35)`);
           pattern.appendChild(rect);
           defs.appendChild(pattern);
         }
@@ -816,7 +819,7 @@ export function generateExportSVG(
           bgRect.setAttribute("y", String(slotY));
           bgRect.setAttribute("width", String(slotWidth));
           bgRect.setAttribute("height", String(slotHeight));
-          bgRect.setAttribute("fill", "rgba(239, 68, 68, 0.08)");
+          bgRect.setAttribute("fill", `rgba(${blockedRgb}, 0.08)`);
           bgRect.setAttribute("opacity", "0.5");
           rackGroup.appendChild(bgRect);
 
