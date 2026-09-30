@@ -8,6 +8,7 @@
  * The estimation is calibrated for system-ui/sans-serif fonts used in device labels.
  */
 
+import { LABEL_MIN_WIDTH, PORT_ZONE_GAP } from "$lib/utils/port-geometry";
 import type { DeviceZones } from "$lib/utils/port-geometry";
 
 // =============================================================================
@@ -50,11 +51,23 @@ export interface DeviceLabelLayout {
   /** Width to fit the label into. Never negative. */
   availableWidth: number;
   /**
+   * Whether the category icon is drawn. False when ports leave the label
+   * less than LABEL_MIN_WIDTH (e.g. 10-inch racks): the label wins and takes
+   * the icon's space.
+   */
+  showIcon: boolean;
+  /**
    * Right edge and vertical centre of the REAR tag when it sits in the flow,
-   * between the label and the port zone. Undefined when the tag keeps its
-   * floating top-right position (no visible ports) or is not shown.
+   * between the label and the port zone. Undefined when the tag floats, is
+   * omitted for lack of room, or is not shown.
    */
   rearTag?: { x: number; y: number };
+  /**
+   * The REAR tag keeps its floating top-right position: true only when no
+   * ports are visible. With ports it is in the flow (rearTag) or omitted,
+   * never floated over the port zone.
+   */
+  floatRearTag: boolean;
 }
 
 export interface DeviceLabelLayoutOptions {
@@ -249,11 +262,18 @@ export function fitTextToWidth(
 /**
  * Lays out a device's name label against its zones (#3450).
  *
- * With no visible ports the label stays centred in the device, as before.
+ * With no visible ports the label stays centred in the device, as before,
+ * and the REAR tag floats at the top right.
+ *
  * With ports it starts at the label zone's left edge and stops short of the
  * port zone. On the back of a full-depth device the REAR tag then takes the
  * right end of the label zone, vertically centred, and the label gives up
  * that width so it never runs under the tag.
+ *
+ * On a narrow device the label wins: when the zones leave it less than
+ * LABEL_MIN_WIDTH the icon is dropped and the label starts near the left
+ * edge, and when the REAR tag would leave it less than half of that the tag
+ * is omitted (the rear view header and the muted body already say "rear").
  */
 export function computeDeviceLabelLayout(
   options: DeviceLabelLayoutOptions,
@@ -265,28 +285,37 @@ export function computeDeviceLabelLayout(
       x: deviceWidth / 2,
       anchor: "middle",
       availableWidth: zones.labelWidth,
+      showIcon: true,
+      floatRearTag: true,
     };
   }
 
-  if (!isRearTreatment) {
+  const showIcon = zones.labelWidth >= LABEL_MIN_WIDTH;
+  const x = showIcon ? zones.labelX : PORT_ZONE_GAP;
+  // The label zone ends PORT_ZONE_GAP short of the port zone.
+  const labelEnd = zones.portZone.x - PORT_ZONE_GAP;
+  const availableWidth = Math.max(0, labelEnd - x);
+  const widthBesideTag = availableWidth - REAR_TAG_WIDTH - REAR_TAG_GAP;
+
+  if (!isRearTreatment || widthBesideTag < LABEL_MIN_WIDTH / 2) {
     return {
-      x: zones.labelX,
+      x,
       anchor: "start",
-      availableWidth: zones.labelWidth,
+      availableWidth,
+      showIcon,
+      floatRearTag: false,
     };
   }
 
   return {
-    x: zones.labelX,
+    x,
     anchor: "start",
-    availableWidth: Math.max(
-      0,
-      zones.labelWidth - REAR_TAG_WIDTH - REAR_TAG_GAP,
-    ),
+    availableWidth: widthBesideTag,
+    showIcon,
     rearTag: {
-      // The label zone ends PORT_ZONE_GAP short of the port zone.
-      x: zones.labelX + zones.labelWidth,
+      x: labelEnd,
       y: zones.portZone.y + zones.portZone.height / 2,
     },
+    floatRearTag: false,
   };
 }

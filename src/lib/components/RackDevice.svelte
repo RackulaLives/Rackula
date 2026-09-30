@@ -438,10 +438,13 @@
     }),
   );
 
-  // The REAR tag sits in the flow, left of the port zone, only in label mode.
-  // Image and placeholder modes keep it floating at the top right.
-  const inFlowRearTag = $derived(
-    showImage || showImagePlaceholder ? undefined : labelLayout.rearTag,
+  // Image and placeholder modes keep the REAR tag floating at the top right.
+  // In label mode the layout decides: floating (no visible ports), in the
+  // flow left of the port zone, or omitted when the label needs the room.
+  const isLabelMode = $derived(!showImage && !showImagePlaceholder);
+  const inFlowRearTag = $derived(isLabelMode ? labelLayout.rearTag : undefined);
+  const floatRearTag = $derived(
+    isRearTreatment && (!isLabelMode || labelLayout.floatRearTag),
   );
 
   // Image overlay uses slightly smaller max font and full width (no icons in image mode)
@@ -1036,8 +1039,9 @@
 
       <!-- Category icon (vertically centered)
          Safari 18.x fix #411: Use SVG-native component instead of foreignObject
-         to avoid transform inheritance bug -->
-      {#if deviceHeight >= 22}
+         to avoid transform inheritance bug.
+         A narrow device with ports gives the icon's space to the label. -->
+      {#if deviceHeight >= 22 && (labelLayout.showIcon || !showNameLabels)}
         <CategoryIconSVG
           category={device.category}
           size={14}
@@ -1048,7 +1052,8 @@
     {/if}
 
     <!-- Rear affordance: marks this as the back of a full-depth device. With
-       ports in view it sits left of the port zone instead of floating over it. -->
+       ports in view it sits left of the port zone instead of floating over it,
+       or is left out when the label needs the room. -->
     {#if inFlowRearTag}
       <text
         class="rear-badge"
@@ -1060,7 +1065,7 @@
       >
         REAR
       </text>
-    {:else if isRearTreatment}
+    {:else if floatRearTag}
       <text
         class="rear-badge"
         x={deviceWidth - 4}

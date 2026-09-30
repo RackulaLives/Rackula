@@ -15,6 +15,7 @@ import {
 import {
   computeDeviceZones,
   countVisiblePorts,
+  LABEL_MIN_WIDTH,
   PORT_ZONE_GAP,
 } from "$lib/utils/port-geometry";
 import { createTestInterfaceTemplate } from "./factories";
@@ -353,6 +354,51 @@ describe("Text Sizing Utility", () => {
           expect(layout.availableWidth).toBeGreaterThanOrEqual(0);
         }
       }
+    });
+
+    it("keeps the icon and the in-flow REAR tag on a 19-inch rack", () => {
+      for (const count of [0, 4, 24, 48]) {
+        expect(layoutFor(WIDE, count).layout.showIcon).toBe(true);
+        expect(layoutFor(WIDE, count, true).layout.showIcon).toBe(true);
+      }
+      expect(layoutFor(WIDE, 24, true).layout.rearTag).toBeDefined();
+      expect(layoutFor(WIDE, 24, true).layout.floatRearTag).toBe(false);
+    });
+
+    it("drops the icon so the label wins on a narrow rack with ports", () => {
+      for (const count of [1, 12, 24, 48]) {
+        const { zones, layout } = layoutFor(NARROW, count);
+        expect(zones.labelWidth).toBeLessThan(LABEL_MIN_WIDTH);
+        expect(layout.showIcon).toBe(false);
+        expect(layout.anchor).toBe("start");
+        // The label takes the icon's space and still stops before the ports.
+        expect(layout.x).toBeLessThan(zones.labelX);
+        expect(layout.availableWidth).toBeGreaterThan(zones.labelWidth);
+        expect(layout.x + layout.availableWidth).toBeLessThanOrEqual(
+          zones.portZone.x - PORT_ZONE_GAP,
+        );
+      }
+    });
+
+    it("omits the REAR tag when it would squeeze the label on a narrow rack", () => {
+      for (const count of [4, 24, 48]) {
+        const { layout } = layoutFor(NARROW, count, true);
+        const front = layoutFor(NARROW, count).layout;
+        expect(layout.rearTag).toBeUndefined();
+        // Not floated either: the top-right tag would sit on the chip.
+        expect(layout.floatRearTag).toBe(false);
+        expect(layout.showIcon).toBe(false);
+        expect(layout.x).toBe(front.x);
+        expect(layout.availableWidth).toBe(front.availableWidth);
+      }
+    });
+
+    it("keeps the icon and the floating REAR tag on a narrow rack without ports", () => {
+      const { layout } = layoutFor(NARROW, 0, true);
+      expect(layout.showIcon).toBe(true);
+      expect(layout.anchor).toBe("middle");
+      expect(layout.rearTag).toBeUndefined();
+      expect(layout.floatRearTag).toBe(true);
     });
 
     it("counts only the ports on the face in view", () => {
