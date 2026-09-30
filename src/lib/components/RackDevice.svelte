@@ -41,13 +41,16 @@
   import { hapticTap } from "$lib/utils/haptics";
   import { DEVICE_IMAGE_OVERFLOW, RAIL_WIDTH } from "$lib/constants/layout";
   import {
+    computeDeviceLabelLayout,
     fitTextToWidth,
     DEVICE_LABEL_MAX_FONT,
     DEVICE_LABEL_MIN_FONT,
     DEVICE_LABEL_IMAGE_MAX_FONT,
-    DEVICE_LABEL_ICON_SPACE_LEFT,
-    DEVICE_LABEL_ICON_SPACE_RIGHT,
   } from "$lib/utils/text-sizing";
+  import {
+    computeDeviceZones,
+    countVisiblePorts,
+  } from "$lib/utils/port-geometry";
   import { toHumanUnits } from "$lib/utils/position";
   import { Tween, prefersReducedMotion } from "svelte/motion";
   import { cubicOut } from "svelte/easing";
@@ -411,10 +414,19 @@
     return slot?.name ?? slotId ?? "Unknown";
   }
 
-  // Calculate available width for centered text (accounting for icon areas)
-  // Uses shared constants from text-sizing.ts for consistency with exports
-  const textAvailableWidth = $derived(
-    deviceWidth - DEVICE_LABEL_ICON_SPACE_LEFT - DEVICE_LABEL_ICON_SPACE_RIGHT,
+  // Icon, label and port zones for the face in view (#3450). A device with no
+  // visible ports keeps the centred label; one with ports gets a left-aligned
+  // label that stops short of the port zone.
+  const labelLayout = $derived(
+    computeDeviceLabelLayout({
+      zones: computeDeviceZones({
+        deviceWidth,
+        deviceHeight,
+        visiblePortCount: countVisiblePorts(device.interfaces ?? [], rackView),
+      }),
+      deviceWidth,
+      isRearTreatment,
+    }),
   );
 
   // Fit display name to available width with auto-sizing
@@ -422,8 +434,17 @@
     fitTextToWidth(displayName, {
       maxFontSize: DEVICE_LABEL_MAX_FONT,
       minFontSize: DEVICE_LABEL_MIN_FONT,
-      availableWidth: textAvailableWidth,
+      availableWidth: labelLayout.availableWidth,
     }),
+  );
+
+  // Image and placeholder modes keep the REAR tag floating at the top right.
+  // In label mode the layout decides: floating (no visible ports), in the
+  // flow left of the port zone, or omitted when the label needs the room.
+  const isLabelMode = $derived(!showImage && !showImagePlaceholder);
+  const inFlowRearTag = $derived(isLabelMode ? labelLayout.rearTag : undefined);
+  const floatRearTag = $derived(
+    isRearTreatment && (!isLabelMode || labelLayout.floatRearTag),
   );
 
   // Image overlay uses slightly smaller max font and full width (no icons in image mode)
@@ -1001,14 +1022,15 @@
         />
       {/if}
     {:else}
-      <!-- Device name (centered, auto-sized) -->
+      <!-- Device name (auto-sized): centred, or left-aligned in the label zone
+         when the device shows ports -->
       {#if showNameLabels}
         <text
           class="device-name"
-          x={deviceWidth / 2}
+          x={labelLayout.x}
           y={deviceHeight / 2}
           dominant-baseline="middle"
-          text-anchor="middle"
+          text-anchor={labelLayout.anchor}
           style="font-size: {fittedLabel.fontSize}px"
         >
           {fittedLabel.text}
@@ -1017,8 +1039,9 @@
 
       <!-- Category icon (vertically centered)
          Safari 18.x fix #411: Use SVG-native component instead of foreignObject
-         to avoid transform inheritance bug -->
-      {#if deviceHeight >= 22}
+         to avoid transform inheritance bug.
+         A narrow device with ports gives the icon's space to the label. -->
+      {#if deviceHeight >= 22 && (labelLayout.showIcon || !showNameLabels)}
         <CategoryIconSVG
           category={device.category}
           size={14}
@@ -1028,8 +1051,21 @@
       {/if}
     {/if}
 
-    <!-- Rear affordance: marks this as the back of a full-depth device. -->
-    {#if isRearTreatment}
+    <!-- Rear affordance: marks this as the back of a full-depth device. With
+       ports in view it sits left of the port zone instead of floating over it,
+       or is left out when the label needs the room. -->
+    {#if inFlowRearTag}
+      <text
+        class="rear-badge"
+        x={inFlowRearTag.x}
+        y={inFlowRearTag.y}
+        text-anchor="end"
+        dominant-baseline="middle"
+        aria-hidden="true"
+      >
+        REAR
+      </text>
+    {:else if floatRearTag}
       <text
         class="rear-badge"
         x={deviceWidth - 4}
