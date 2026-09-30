@@ -41,6 +41,7 @@ Big layouts got faster: loading yields to the browser, labels drop out when zoom
 
 - The NetBox importer generates valid brand pack export names for vendors such as D-Link, and rejects name clashes (#3286, PR #3420)
 - The Label Sync workflow is pinned to the real v2.3.3 commit (PR #3436)
+- An upgrade-corpus fixture captures a 26.9.2 layout
 - Dependency updates across svelte, bits-ui, @lucide/svelte, dompurify, marked, hono, wrangler, eslint, typescript-eslint, vitest, jsdom, tsx, lint-staged, @types/node, and GitHub Actions (23 PRs, PR #3396 through PR #3446)
 
 ## [26.9.1] - 2026-09-20
