@@ -55,7 +55,7 @@ npx tsx scripts/import-netbox-devices.ts --vendor Synology --slug DS920+ --width
 - Without them, `--slug` in a terminal shows the spec sheet link from the file's `comments` and asks for the size.
 - `--all` skips 0U devices and lists them at the end, each with its spec sheet link and the command to import it.
 
-The height sets `u_height` and is kept as `height_mm`. Brand packs cannot carry a measured `width_mm`, so the width only decides between half width (`slot_width: 1`, up to half of a 19" opening) and full width. A half-width device must fit a shipped carrier, 0.5U, 1U or 2U tall; a taller one, such as the 4U DS920+, is imported full width and mounts on the rails.
+The device is written as a measured device, the same as one made with Add Device: `width_mm` and `height_mm` hold the size, `u_height` is derived from the height, and it mounts in a carrier cut to its size (see [SPEC.md](../reference/SPEC.md#mounting-model)).
 
 ### Using GitHub Actions
 

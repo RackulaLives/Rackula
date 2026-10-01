@@ -45,7 +45,7 @@ import { spawnSync } from "child_process";
 import { createInterface, type Interface } from "readline/promises";
 import yaml from "js-yaml";
 import { brandPackArrayName } from "../src/lib/utils/brand-pack-identifier";
-import { fitsSlotWidth, uHeightForMm } from "../src/lib/utils/device-width";
+import { uHeightForMm } from "../src/lib/utils/device-width";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -73,8 +73,8 @@ interface NetBoxDevice {
   weight_unit?: string;
   subdevice_role?: string;
   comments?: string;
-  // Not NetBox fields: set when a 0U device is sized (sizeZeroUDevice).
-  slot_width?: 1;
+  // Not NetBox fields: the measured front of a 0U device, from the user.
+  width_mm?: number;
   height_mm?: number;
 }
 
@@ -300,8 +300,8 @@ function deviceToTypeScript(device: NetBoxDevice): string {
     `\t\tmodel: '${device.model}',`,
   ];
 
-  if (device.slot_width) {
-    lines.push(`\t\tslot_width: ${device.slot_width},`);
+  if (device.width_mm !== undefined) {
+    lines.push(`\t\twidth_mm: ${device.width_mm},`);
   }
   if (device.height_mm !== undefined) {
     lines.push(`\t\theight_mm: ${device.height_mm},`);
@@ -474,28 +474,6 @@ function runGenerateBundledImages(): boolean {
   return result.status === 0;
 }
 
-/**
- * Size a 0U device from its front face. Brand packs cannot carry width_mm
- * (brandpacks.test.ts), so the width only picks half or full width against a
- * 19" opening, and the height is rounded to a size Rackula can place: half
- * width only at 0.5U, 1U or 2U, the shipped carriers (synthesizeCarrierForDevice),
- * otherwise full width on the rails at a whole U.
- */
-function sizeZeroUDevice(
-  size: ZeroUSize,
-): Pick<NetBoxDevice, "u_height" | "slot_width" | "height_mm"> {
-  const uHeight = uHeightForMm(size.heightMm);
-  const halfWidth = fitsSlotWidth({ width_mm: size.widthMm }, 0.5, 19);
-  if (halfWidth && uHeight === 0.5) {
-    return { u_height: 0.5, slot_width: 1, height_mm: size.heightMm };
-  }
-  const wholeU = Math.ceil(uHeight);
-  if (halfWidth && wholeU <= 2) {
-    return { u_height: wholeU, slot_width: 1, height_mm: size.heightMm };
-  }
-  return { u_height: wholeU, height_mm: size.heightMm };
-}
-
 /** The first link in a NetBox comments field, usually the vendor spec sheet. */
 function specLink(device: NetBoxDevice): string | undefined {
   return device.comments?.match(/https?:\/\/[^\s)\]'"<>]+/)?.[0];
@@ -610,16 +588,12 @@ async function importDevice(
         skippedZeroU: true,
       };
     }
-    Object.assign(device, sizeZeroUDevice(size));
-    const width =
-      device.slot_width === 1
-        ? "half width"
-        : fitsSlotWidth({ width_mm: size.widthMm }, 0.5, 19)
-          ? "full width, as no carrier holds a half-width device this tall"
-          : "full width";
-    console.log(
-      `  Sized from ${size.widthMm} x ${size.heightMm} mm: ${device.u_height}U, ${width}`,
-    );
+    // A measured device, as the Add Device form makes one: u_height is
+    // derived from the height and it mounts in a carrier cut to its size.
+    device.width_mm = size.widthMm;
+    device.height_mm = size.heightMm;
+    device.u_height = uHeightForMm(size.heightMm);
+    console.log(`  Size: ${size.widthMm} x ${size.heightMm} mm`);
   } else if (options.widthMm !== undefined) {
     console.log(
       `  ⏭️  --width-mm and --height-mm ignored: NetBox already gives it ${device.u_height}U`,
@@ -761,9 +735,9 @@ async function main(): Promise<void> {
       skippedZeroU.push({ file: slug, device: result.device });
     } else if (
       result.device &&
-      (result.device.u_height >= 1 || result.device.height_mm !== undefined)
+      (result.device.u_height >= 1 || result.device.width_mm !== undefined)
     ) {
-      // Only import rack-mountable devices (1U or higher) and sized 0U devices
+      // Only import rack-mountable devices (1U or higher) and measured 0U devices
       importedDevices.push(result.device);
     }
   }
