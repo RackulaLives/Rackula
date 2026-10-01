@@ -598,10 +598,15 @@ export const DeviceTypeSchema = z
     }
 
     // Each normalled pair joins two interfaces of this device type, and a jack
-    // belongs to at most one pair.
+    // belongs to at most one pair. Pairs reference interfaces by name, so a
+    // name shared by several interfaces (legal elsewhere) is ambiguous here.
     if (data.patch_bay_normals) {
-      const portNames = new Set(
-        (data.interfaces ?? []).map((iface: { name: string }) => iface.name),
+      const names = (data.interfaces ?? []).map(
+        (iface: { name: string }) => iface.name,
+      );
+      const portNames = new Set(names);
+      const sharedNames = new Set(
+        names.filter((name, index) => names.indexOf(name) !== index),
       );
       const usedPorts = new Set<string>();
       data.patch_bay_normals.forEach((pair, index) => {
@@ -612,6 +617,12 @@ export const DeviceTypeSchema = z
               code: z.ZodIssueCode.custom,
               path: ["patch_bay_normals", index, side],
               message: `Normalled pair references unknown interface "${name}"`,
+            });
+          } else if (sharedNames.has(name)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["patch_bay_normals", index, side],
+              message: `Normalled pair references "${name}", which names more than one interface`,
             });
           } else if (usedPorts.has(name)) {
             ctx.addIssue({

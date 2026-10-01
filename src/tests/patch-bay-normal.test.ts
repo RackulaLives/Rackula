@@ -159,6 +159,20 @@ describe("DeviceTypeSchema patch_bay_normals", () => {
     );
   });
 
+  it("rejects a pair that names an interface shared by several ports", () => {
+    const deviceType = createPatchBay(PAIRS);
+    deviceType.interfaces!.push(
+      createTestInterfaceTemplate({ name: "1 Top", type: "trs-1-4" }),
+    );
+
+    const result = DeviceTypeSchema.safeParse(deviceType);
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toContainEqual(
+      expect.objectContaining({ path: ["patch_bay_normals", 0, "top"] }),
+    );
+  });
+
   it("rejects a pair whose top and bottom are the same port", () => {
     const result = DeviceTypeSchema.safeParse(
       createPatchBay([{ top: "1 Top", bottom: "1 Top", mode: "full-normal" }]),

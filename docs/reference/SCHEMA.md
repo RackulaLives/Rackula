@@ -452,7 +452,7 @@ A normalled jack pair on a patch bay. Normalling is a property of the device typ
 | `bottom` | `string` | Yes | Name of the bottom jack's interface |
 | `mode` | `PatchBayNormalMode` | Yes | `full-normal`, `half-normal`, or `non-normal` |
 
-Both names must match an interface on the same device type, and an interface can be in at most one pair.
+Each name must match exactly one interface on the same device type, and an interface can be in at most one pair.
 
 | Mode | Behaviour |
 | --- | --- |
