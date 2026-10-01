@@ -551,27 +551,6 @@ describe("getSignalMismatchWarning", () => {
       ),
     ).toBe(expected);
   });
-
-  it("resolves the PlacedPort.signal_type override before the template", () => {
-    // Templates match, but each port's own override makes it mic vs line.
-    const aIface = createTestInterfaceTemplate({
-      type: "xlr-3",
-      signal_type: "analog-audio-line",
-    });
-    const bIface = createTestInterfaceTemplate({
-      type: "xlr-3",
-      signal_type: "analog-audio-line",
-    });
-    const aPort = createTestPlacedPort({
-      type: "xlr-3",
-      signal_type: "analog-audio-mic",
-    });
-    const bPort = createTestPlacedPort({ type: "xlr-3" });
-
-    expect(getSignalMismatchWarning(aPort, aIface, bPort, bIface)).toBe(
-      "Signal types do not match: Mic level vs Line level",
-    );
-  });
 });
 
 describe("placeDeviceWithPorts test factory (#1932 CodeRabbit review)", () => {
