@@ -264,6 +264,15 @@ export const SignalTypeSchema = z.enum([
   "control-midi",
 ]);
 
+/**
+ * Patch bay normalling mode for a vertical jack pair (spike #1927; #1945)
+ */
+export const PatchBayNormalModeSchema = z.enum([
+  "full-normal",
+  "half-normal",
+  "non-normal",
+]);
+
 // ============================================================================
 // Container Slot Schemas (v0.6.0)
 // ============================================================================
@@ -345,6 +354,18 @@ export const InterfaceTemplateSchema = z
     poe_type: PoETypeSchema.optional(),
     direction: PortDirectionSchema.optional(),
     signal_type: SignalTypeSchema.optional(),
+  })
+  .passthrough();
+
+/**
+ * Patch bay normalled jack pair. top and bottom reference
+ * InterfaceTemplate.name on the same device type (checked by DeviceTypeSchema).
+ */
+export const PatchBayNormalSchema = z
+  .object({
+    top: z.string().min(1, "Top port name is required"),
+    bottom: z.string().min(1, "Bottom port name is required"),
+    mode: PatchBayNormalModeSchema,
   })
   .passthrough();
 
@@ -512,6 +533,7 @@ export const DeviceTypeSchema = z
     power_outlets: z.array(PowerOutletSchema).optional(),
     device_bays: z.array(DeviceBaySchema).optional(),
     inventory_items: z.array(InventoryItemSchema).optional(),
+    patch_bay_normals: z.array(PatchBayNormalSchema).optional(),
 
     // --- Subdevice Support ---
     subdevice_role: SubdeviceRoleSchema.optional(),
@@ -574,6 +596,34 @@ export const DeviceTypeSchema = z
         });
       }
     }
+
+    // Each normalled pair joins two interfaces of this device type, and a jack
+    // belongs to at most one pair.
+    if (data.patch_bay_normals) {
+      const portNames = new Set(
+        (data.interfaces ?? []).map((iface: { name: string }) => iface.name),
+      );
+      const usedPorts = new Set<string>();
+      data.patch_bay_normals.forEach((pair, index) => {
+        for (const side of ["top", "bottom"] as const) {
+          const name = pair[side];
+          if (!portNames.has(name)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["patch_bay_normals", index, side],
+              message: `Normalled pair references unknown interface "${name}"`,
+            });
+          } else if (usedPorts.has(name)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["patch_bay_normals", index, side],
+              message: `Interface "${name}" is already in another normalled pair`,
+            });
+          }
+          usedPorts.add(name);
+        }
+      });
+    }
   });
 
 /**
@@ -596,6 +646,9 @@ export const PlacedDeviceSchema = z
 
     // --- Port Instances ---
     ports: z.array(PlacedPortSchema).default([]),
+    patch_bay_normal_overrides: z
+      .record(z.string(), PatchBayNormalModeSchema)
+      .optional(),
 
     // --- Placement Image Override ---
     front_image: z.string().optional(),
