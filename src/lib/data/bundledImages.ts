@@ -103,6 +103,8 @@ import apcSmx3000rmlv2uFront from "$lib/assets/device-images/apc/apc-smx3000rmlv
 import apcSmx3000rmlv2uRear from "$lib/assets/device-images/apc/apc-smx3000rmlv2u.rear.webp";
 
 // APPLE images
+import appleMacMiniM12020Front from "$lib/assets/device-images/apple/apple-mac-mini-m1-2020.front.webp";
+import appleMacMiniM12020Rear from "$lib/assets/device-images/apple/apple-mac-mini-m1-2020.rear.webp";
 import appleXserveFront from "$lib/assets/device-images/apple/apple-xserve.front.webp";
 import appleXserveRaidFront from "$lib/assets/device-images/apple/apple-xserve-raid.front.webp";
 
@@ -529,6 +531,10 @@ import fortinetFs424ePoeRear from "$lib/assets/device-images/fortinet/fortinet-f
 import fortinetFsT1024eFront from "$lib/assets/device-images/fortinet/fortinet-fs-t1024e.front.webp";
 import fortinetFsT1024eRear from "$lib/assets/device-images/fortinet/fortinet-fs-t1024e.rear.webp";
 
+// GMKTEC images
+import gmktecNucboxG5Front from "$lib/assets/device-images/gmktec/gmktec-nucbox-g5.front.webp";
+import gmktecNucboxG5Rear from "$lib/assets/device-images/gmktec/gmktec-nucbox-g5.rear.webp";
+
 // HPE images
 import hpeAruba193048gFront from "$lib/assets/device-images/hpe/hpe-aruba-1930-48g.front.webp";
 import hpeAruba193048gRear from "$lib/assets/device-images/hpe/hpe-aruba-1930-48g.rear.webp";
@@ -787,6 +793,8 @@ import juniperSrx345Front from "$lib/assets/device-images/juniper/juniper-srx345
 import juniperSrx345Rear from "$lib/assets/device-images/juniper/juniper-srx345.rear.webp";
 
 // LENOVO images
+import lenovoThinkcentreM720qTinyFront from "$lib/assets/device-images/lenovo/lenovo-thinkcentre-m720q-tiny.front.webp";
+import lenovoThinkcentreM720qTinyRear from "$lib/assets/device-images/lenovo/lenovo-thinkcentre-m720q-tiny.rear.webp";
 import lenovoThinksystemSr250V2Front from "$lib/assets/device-images/lenovo/lenovo-thinksystem-sr250-v2.front.webp";
 import lenovoThinksystemSr250V2Rear from "$lib/assets/device-images/lenovo/lenovo-thinksystem-sr250-v2.rear.webp";
 import lenovoThinksystemSr645Front from "$lib/assets/device-images/lenovo/lenovo-thinksystem-sr645.front.webp";
@@ -830,6 +838,8 @@ import netgearGs108pev3Rear from "$lib/assets/device-images/netgear/netgear-gs10
 import netgearGs108ppFront from "$lib/assets/device-images/netgear/netgear-gs108pp.front.webp";
 import netgearGs108ppRear from "$lib/assets/device-images/netgear/netgear-gs108pp.rear.webp";
 import netgearGs116Front from "$lib/assets/device-images/netgear/netgear-gs116.front.webp";
+import netgearGs308epFront from "$lib/assets/device-images/netgear/netgear-gs308ep.front.webp";
+import netgearGs308epRear from "$lib/assets/device-images/netgear/netgear-gs308ep.rear.webp";
 import netgearGs308tFront from "$lib/assets/device-images/netgear/netgear-gs308t.front.webp";
 import netgearGs308tRear from "$lib/assets/device-images/netgear/netgear-gs308t.rear.webp";
 import netgearProsafeGs510tppFront from "$lib/assets/device-images/netgear/netgear-prosafe-gs510tpp.front.webp";
@@ -910,6 +920,8 @@ import supermicroSys6029pTrFront from "$lib/assets/device-images/supermicro/supe
 import supermicroSys6029pTrRear from "$lib/assets/device-images/supermicro/supermicro-sys-6029p-tr.rear.webp";
 
 // SYNOLOGY images
+import synologyDs920PlusFront from "$lib/assets/device-images/synology/synology-ds920-plus.front.webp";
+import synologyDs920PlusRear from "$lib/assets/device-images/synology/synology-ds920-plus.rear.webp";
 import synologyFs6400Front from "$lib/assets/device-images/synology/synology-fs6400.front.webp";
 import synologyFs6400Rear from "$lib/assets/device-images/synology/synology-fs6400.rear.webp";
 import synologyRs2416rpPlusFront from "$lib/assets/device-images/synology/synology-rs2416rp-plus.front.webp";
@@ -1131,6 +1143,10 @@ const BUNDLED_IMAGES: Record<string, BundledImageSet> = {
   },
 
   // APPLE
+  "apple-mac-mini-m1-2020": {
+    front: appleMacMiniM12020Front,
+    rear: appleMacMiniM12020Rear,
+  },
   "apple-xserve": { front: appleXserveFront },
   "apple-xserve-raid": { front: appleXserveRaidFront },
 
@@ -1783,6 +1799,9 @@ const BUNDLED_IMAGES: Record<string, BundledImageSet> = {
     rear: fortinetFsT1024eRear,
   },
 
+  // GMKTEC
+  "gmktec-nucbox-g5": { front: gmktecNucboxG5Front, rear: gmktecNucboxG5Rear },
+
   // HPE
   "hpe-aruba-1930-48g": {
     front: hpeAruba193048gFront,
@@ -2214,6 +2233,10 @@ const BUNDLED_IMAGES: Record<string, BundledImageSet> = {
   "juniper-srx345": { front: juniperSrx345Front, rear: juniperSrx345Rear },
 
   // LENOVO
+  "lenovo-thinkcentre-m720q-tiny": {
+    front: lenovoThinkcentreM720qTinyFront,
+    rear: lenovoThinkcentreM720qTinyRear,
+  },
   "lenovo-thinksystem-sr250-v2": {
     front: lenovoThinksystemSr250V2Front,
     rear: lenovoThinksystemSr250V2Rear,
@@ -2281,6 +2304,7 @@ const BUNDLED_IMAGES: Record<string, BundledImageSet> = {
   },
   "netgear-gs108pp": { front: netgearGs108ppFront, rear: netgearGs108ppRear },
   "netgear-gs116": { front: netgearGs116Front },
+  "netgear-gs308ep": { front: netgearGs308epFront, rear: netgearGs308epRear },
   "netgear-gs308t": { front: netgearGs308tFront, rear: netgearGs308tRear },
   "netgear-prosafe-gs510tpp": {
     front: netgearProsafeGs510tppFront,
@@ -2351,6 +2375,10 @@ const BUNDLED_IMAGES: Record<string, BundledImageSet> = {
   },
 
   // SYNOLOGY
+  "synology-ds920-plus": {
+    front: synologyDs920PlusFront,
+    rear: synologyDs920PlusRear,
+  },
   "synology-fs6400": { front: synologyFs6400Front, rear: synologyFs6400Rear },
   "synology-rs2416rp-plus": {
     front: synologyRs2416rpPlusFront,

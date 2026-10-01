@@ -45,6 +45,7 @@ import { vertivDevices } from "./vertiv";
 import { fsDevices } from "./fs";
 import { intelDevices } from "./intel";
 import { beelinkDevices } from "./beelink";
+import { gmktecDevices } from "./gmktec";
 import { raspberryPiDevices } from "./raspberry-pi";
 import { zimaDevices } from "./zima";
 
@@ -162,6 +163,7 @@ const BRAND_PACK_REGISTRY: ReadonlyArray<
   // Mini PCs / SBCs
   { id: "intel", title: "Intel", devices: intelDevices, icon: "intel" },
   { id: "beelink", title: "Beelink", devices: beelinkDevices, icon: "beelink" },
+  { id: "gmktec", title: "GMKtec", devices: gmktecDevices },
   {
     id: "raspberry-pi",
     title: "Raspberry Pi",

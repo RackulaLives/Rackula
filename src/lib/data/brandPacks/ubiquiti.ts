@@ -1223,4 +1223,18 @@ export const ubiquitiDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
   },
+  {
+    slug: "ubiquiti-unifi-cloud-gateway-ultra",
+    u_height: 1,
+    manufacturer: "Ubiquiti",
+    model: "UniFi Cloud Gateway Ultra",
+    width_mm: 141.8,
+    height_mm: 30,
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+    airflow: "passive",
+  },
 ];

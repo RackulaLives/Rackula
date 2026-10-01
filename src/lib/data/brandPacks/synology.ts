@@ -314,4 +314,17 @@ export const synologyDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.storage,
     category: "storage",
   },
+  {
+    slug: "synology-ds920-plus",
+    u_height: 4,
+    manufacturer: "Synology",
+    model: "DS920+",
+    width_mm: 199,
+    height_mm: 166,
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.storage,
+    category: "storage",
+    front_image: true,
+    rear_image: true,
+  },
 ];

@@ -51,4 +51,18 @@ export const appleDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.server,
     category: "server",
   },
+  {
+    slug: "apple-mac-mini-m1-2020",
+    u_height: 1,
+    manufacturer: "Apple",
+    model: "Mac mini (M1 2020)",
+    width_mm: 197,
+    height_mm: 36,
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+    front_image: true,
+    rear_image: true,
+    airflow: "passive",
+  },
 ];

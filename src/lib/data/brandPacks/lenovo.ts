@@ -111,4 +111,17 @@ export const lenovoDevices: DeviceType[] = [
     front_image: true,
     rear_image: true,
   },
+  {
+    slug: "lenovo-thinkcentre-m720q-tiny",
+    u_height: 1,
+    manufacturer: "Lenovo",
+    model: "ThinkCentre M720q Tiny",
+    width_mm: 179,
+    height_mm: 34.5,
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.server,
+    category: "server",
+    front_image: true,
+    rear_image: true,
+  },
 ];

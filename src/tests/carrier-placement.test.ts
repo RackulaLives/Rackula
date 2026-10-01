@@ -14,6 +14,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
 import { findStarterDevice } from "$lib/data/starterLibrary";
+import { getAllBrandDevices } from "$lib/data/brandPacks";
+import {
+  MEASURED_WIDTH_SCHEMA_VERSION,
+  schemaVersionForWrite,
+} from "$lib/schemas/migrations";
 import {
   findNextFreeChildPosition,
   synthesizeCarrierForDevice,
@@ -185,6 +190,18 @@ describe("placeDeviceSmart (store carrier-first flow)", () => {
     expect(carrierIn(store)).toBeUndefined();
     const placed = store.rack!.devices.find((d) => d.device_type === dt.slug);
     expect(placed?.container_id).toBeUndefined();
+  });
+
+  it("embeds a measured brand device's width_mm, so the save stamps the measured format", () => {
+    const { store, rackId } = setupRack();
+    const measured = getAllBrandDevices().find((d) => d.width_mm !== undefined);
+    expect(measured).toBeDefined();
+
+    expect(store.placeDeviceSmart(rackId, measured!.slug, 5)).toBe(true);
+
+    expect(schemaVersionForWrite(undefined, store.device_types)).toBe(
+      MEASURED_WIDTH_SCHEMA_VERSION,
+    );
   });
 
   it("hints on the first auto-created carrier only, not on later ones", () => {

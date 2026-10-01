@@ -235,4 +235,18 @@ export const netgearDevices: DeviceType[] = [
     colour: CATEGORY_COLOURS.network,
     category: "network",
   },
+  {
+    slug: "netgear-gs308ep",
+    u_height: 1,
+    manufacturer: "Netgear",
+    model: "GS308EP",
+    width_mm: 158,
+    height_mm: 27,
+    is_full_depth: false,
+    colour: CATEGORY_COLOURS.network,
+    category: "network",
+    front_image: true,
+    rear_image: true,
+    airflow: "passive",
+  },
 ];
