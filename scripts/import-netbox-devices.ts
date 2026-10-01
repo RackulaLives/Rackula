@@ -6,19 +6,27 @@
  * Can be run locally or as a GitHub Action.
  *
  * Usage:
- *   npx tsx scripts/import-netbox-devices.ts --vendor Ubiquiti --slug ubiquiti-usw-pro-24
+ *   npx tsx scripts/import-netbox-devices.ts --vendor Ubiquiti --slug USW-Pro-24
+ *   npx tsx scripts/import-netbox-devices.ts --vendor Synology --slug DS920+ --width-mm 199 --height-mm 166
  *   npx tsx scripts/import-netbox-devices.ts --vendor Ubiquiti --all
  *   npx tsx scripts/import-netbox-devices.ts --vendor Ubiquiti --list
  *   npx tsx scripts/import-netbox-devices.ts --list-vendors
  *
  * Options:
  *   --vendor <name>   Vendor name (case-sensitive, matches NetBox folder name)
- *   --slug <slug>     Import a specific device by slug
+ *   --slug <file>     Import one device by its NetBox file name, as --list shows it
  *   --all             Import all devices from the vendor
  *   --list            List available devices without importing
  *   --list-vendors    List all available vendors
  *   --dry-run         Show what would be imported without making changes
  *   --images-only     Only download images, don't update TypeScript files
+ *   --width-mm <n>    Front width of a 0U device, with --slug
+ *   --height-mm <n>   Front height of a 0U device, with --slug
+ *
+ * NetBox gives 0U to gear that does not mount on the rails and records no size
+ * for it. A 0U device is imported only with its width and height: from
+ * --width-mm/--height-mm, or asked for when --slug runs in a terminal. --all
+ * skips 0U devices and lists them at the end with the command to import each.
  *
  * On a real (non-dry-run, non-images-only) import, the script writes new
  * device definitions to src/lib/data/brandPacks/<vendor>.ts (creating the
@@ -34,8 +42,10 @@ import { existsSync } from "fs";
 import { join, dirname, relative } from "path";
 import { fileURLToPath } from "url";
 import { spawnSync } from "child_process";
+import { createInterface, type Interface } from "readline/promises";
 import yaml from "js-yaml";
 import { brandPackArrayName } from "../src/lib/utils/brand-pack-identifier";
+import { fitsSlotWidth, uHeightForMm } from "../src/lib/utils/device-width";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -63,6 +73,9 @@ interface NetBoxDevice {
   weight_unit?: string;
   subdevice_role?: string;
   comments?: string;
+  // Not NetBox fields: set when a 0U device is sized (sizeZeroUDevice).
+  slot_width?: 1;
+  height_mm?: number;
 }
 
 interface ImportOptions {
@@ -73,6 +86,13 @@ interface ImportOptions {
   listVendors?: boolean;
   dryRun?: boolean;
   imagesOnly?: boolean;
+  widthMm?: number;
+  heightMm?: number;
+}
+
+interface ZeroUSize {
+  widthMm: number;
+  heightMm: number;
 }
 
 function parseArgs(): ImportOptions {
@@ -102,6 +122,12 @@ function parseArgs(): ImportOptions {
       case "--images-only":
         options.imagesOnly = true;
         break;
+      case "--width-mm":
+        options.widthMm = Number(args[++i]);
+        break;
+      case "--height-mm":
+        options.heightMm = Number(args[++i]);
+        break;
       case "--help":
         printHelp();
         process.exit(0);
@@ -120,20 +146,29 @@ Usage:
 
 Options:
   --vendor <name>   Vendor name (required, case-sensitive)
-  --slug <slug>     Import a specific device by slug
+  --slug <file>     Import one device by its NetBox file name, as --list shows it
   --all             Import all rack-mountable devices from vendor
   --list            List available devices without importing
   --list-vendors    List all available vendors
   --dry-run         Show what would be imported without changes
   --images-only     Only download images, skip TypeScript updates
+  --width-mm <n>    Front width of a 0U device in mm, with --slug
+  --height-mm <n>   Front height of a 0U device in mm, with --slug
   --help            Show this help message
+
+A 0U device (desktop gear, NetBox records no size for it) is imported only
+with its width and height. Without --width-mm/--height-mm, --slug asks for
+them in a terminal, and --all lists 0U devices at the end.
 
 Examples:
   # List all Ubiquiti devices
   npx tsx scripts/import-netbox-devices.ts --vendor Ubiquiti --list
 
   # Import a specific device
-  npx tsx scripts/import-netbox-devices.ts --vendor Ubiquiti --slug ubiquiti-usw-pro-24
+  npx tsx scripts/import-netbox-devices.ts --vendor Ubiquiti --slug USW-Pro-24
+
+  # Import a 0U device with its size from the spec sheet
+  npx tsx scripts/import-netbox-devices.ts --vendor Synology --slug DS920+ --width-mm 199 --height-mm 166
 
   # Import all Dell PowerEdge servers
   npx tsx scripts/import-netbox-devices.ts --vendor Dell --all
@@ -263,10 +298,19 @@ function deviceToTypeScript(device: NetBoxDevice): string {
     `\t\tu_height: ${device.u_height},`,
     `\t\tmanufacturer: '${device.manufacturer}',`,
     `\t\tmodel: '${device.model}',`,
+  ];
+
+  if (device.slot_width) {
+    lines.push(`\t\tslot_width: ${device.slot_width},`);
+  }
+  if (device.height_mm !== undefined) {
+    lines.push(`\t\theight_mm: ${device.height_mm},`);
+  }
+  lines.push(
     `\t\tis_full_depth: ${device.is_full_depth ?? true},`,
     `\t\tcolour: ${categoryColour},`,
     `\t\tcategory: '${category}',`,
-  ];
+  );
 
   if (device.front_image) {
     lines.push(`\t\tfront_image: true,`);
@@ -430,6 +474,109 @@ function runGenerateBundledImages(): boolean {
   return result.status === 0;
 }
 
+/**
+ * Size a 0U device from its front face. Brand packs cannot carry width_mm
+ * (brandpacks.test.ts), so the width only picks half or full width against a
+ * 19" opening, and the height is rounded to a size Rackula can place: half
+ * width only at 0.5U, 1U or 2U, the shipped carriers (synthesizeCarrierForDevice),
+ * otherwise full width on the rails at a whole U.
+ */
+function sizeZeroUDevice(
+  size: ZeroUSize,
+): Pick<NetBoxDevice, "u_height" | "slot_width" | "height_mm"> {
+  const uHeight = uHeightForMm(size.heightMm);
+  const halfWidth = fitsSlotWidth({ width_mm: size.widthMm }, 0.5, 19);
+  if (halfWidth && uHeight === 0.5) {
+    return { u_height: 0.5, slot_width: 1, height_mm: size.heightMm };
+  }
+  const wholeU = Math.ceil(uHeight);
+  if (halfWidth && wholeU <= 2) {
+    return { u_height: wholeU, slot_width: 1, height_mm: size.heightMm };
+  }
+  return { u_height: wholeU, height_mm: size.heightMm };
+}
+
+/** The first link in a NetBox comments field, usually the vendor spec sheet. */
+function specLink(device: NetBoxDevice): string | undefined {
+  return device.comments?.match(/https?:\/\/[^\s)\]'"<>]+/)?.[0];
+}
+
+function isPositiveNumber(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
+/** Ask for a length in mm until it is valid; undefined when left blank. */
+async function askMm(
+  rl: Interface,
+  label: string,
+): Promise<number | undefined> {
+  for (;;) {
+    const answer = (await rl.question(`  ${label} in mm: `)).trim();
+    if (answer === "") return undefined;
+    const value = Number(answer);
+    if (isPositiveNumber(value)) return value;
+    console.log(`  "${answer}" is not a positive number of millimetres`);
+  }
+}
+
+/**
+ * The size of a 0U device imported with --slug: from --width-mm/--height-mm,
+ * or asked for in a terminal. undefined skips the device.
+ */
+async function zeroUSize(
+  device: NetBoxDevice,
+  options: ImportOptions,
+): Promise<ZeroUSize | undefined> {
+  if (options.widthMm !== undefined && options.heightMm !== undefined) {
+    return { widthMm: options.widthMm, heightMm: options.heightMm };
+  }
+  console.log(
+    `  ⚠️  0U in NetBox: it does not mount on the rails, and NetBox records no size for it`,
+  );
+  const link = specLink(device);
+  if (link) console.log(`  Spec sheet: ${link}`);
+  if (options.dryRun || !process.stdin.isTTY) return undefined;
+
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(
+      "  Set its front width and height to import it? [y/N] ",
+    );
+    if (!/^y(es)?$/i.test(answer.trim())) return undefined;
+    const widthMm = await askMm(rl, "Width");
+    if (widthMm === undefined) return undefined;
+    const heightMm = await askMm(rl, "Height");
+    if (heightMm === undefined) return undefined;
+    return { widthMm, heightMm };
+  } finally {
+    rl.close();
+  }
+}
+
+/** Quote a command-line argument only when the shell needs it. */
+function shellArg(value: string): string {
+  return /^[\w.+-]+$/.test(value) ? value : `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+function printZeroUSummary(
+  vendor: string,
+  skipped: Array<{ file: string; device: NetBoxDevice }>,
+): void {
+  console.log(`
+⚠️  Skipped ${skipped.length} 0U device(s)
+NetBox gives 0U to gear that does not mount on the rack rails, such as a
+desktop NAS, mini PC or small switch, and records no width or height for it.
+Rackula needs a size to place it. Import each one with the width and height
+of its front face, from its spec sheet:`);
+  for (const { file, device } of skipped) {
+    const link = specLink(device);
+    console.log(`\n  ${device.model}${link ? ` (spec sheet: ${link})` : ""}`);
+    console.log(
+      `  npx tsx scripts/import-netbox-devices.ts --vendor ${shellArg(vendor)} --slug ${shellArg(file)} --width-mm <width> --height-mm <height>`,
+    );
+  }
+}
+
 async function importDevice(
   vendor: string,
   slug: string,
@@ -438,6 +585,7 @@ async function importDevice(
   device: NetBoxDevice | null;
   frontImage: boolean;
   rearImage: boolean;
+  skippedZeroU?: boolean;
 }> {
   console.log(`\nImporting: ${slug}`);
 
@@ -450,6 +598,33 @@ async function importDevice(
 
   console.log(`  Model: ${device.model}`);
   console.log(`  Height: ${device.u_height}U`);
+
+  if (device.u_height === 0) {
+    const size = options.slug ? await zeroUSize(device, options) : undefined;
+    if (!size) {
+      console.log(`  ⏭️  0U device skipped, listed at the end`);
+      return {
+        device,
+        frontImage: false,
+        rearImage: false,
+        skippedZeroU: true,
+      };
+    }
+    Object.assign(device, sizeZeroUDevice(size));
+    const width =
+      device.slot_width === 1
+        ? "half width"
+        : fitsSlotWidth({ width_mm: size.widthMm }, 0.5, 19)
+          ? "full width, as no carrier holds a half-width device this tall"
+          : "full width";
+    console.log(
+      `  Sized from ${size.widthMm} x ${size.heightMm} mm: ${device.u_height}U, ${width}`,
+    );
+  } else if (options.widthMm !== undefined) {
+    console.log(
+      `  ⏭️  --width-mm and --height-mm ignored: NetBox already gives it ${device.u_height}U`,
+    );
+  }
 
   if (options.dryRun) {
     console.log(`  [DRY RUN] Would import this device`);
@@ -534,6 +709,24 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  if (options.widthMm !== undefined || options.heightMm !== undefined) {
+    if (!options.slug) {
+      console.error(
+        "Error: --width-mm and --height-mm size one device, use them with --slug",
+      );
+      process.exit(1);
+    }
+    if (
+      !isPositiveNumber(options.widthMm ?? NaN) ||
+      !isPositiveNumber(options.heightMm ?? NaN)
+    ) {
+      console.error(
+        "Error: give both --width-mm and --height-mm as positive numbers of millimetres",
+      );
+      process.exit(1);
+    }
+  }
+
   console.log(`\n🔌 NetBox Device Import`);
   console.log(`========================`);
   console.log(`Vendor: ${options.vendor}`);
@@ -555,16 +748,22 @@ async function main(): Promise<void> {
     slugsToImport = await listVendorDevices(options.vendor);
     console.log(`Found ${slugsToImport.length} device(s)`);
   } else {
-    console.error("Error: Specify --slug <slug> or --all");
+    console.error("Error: Specify --slug <file> or --all");
     process.exit(1);
   }
 
   const importedDevices: NetBoxDevice[] = [];
+  const skippedZeroU: Array<{ file: string; device: NetBoxDevice }> = [];
 
   for (const slug of slugsToImport) {
     const result = await importDevice(options.vendor, slug, options);
-    if (result.device && result.device.u_height >= 1) {
-      // Only import rack-mountable devices (1U or higher)
+    if (result.skippedZeroU && result.device) {
+      skippedZeroU.push({ file: slug, device: result.device });
+    } else if (
+      result.device &&
+      (result.device.u_height >= 1 || result.device.height_mm !== undefined)
+    ) {
+      // Only import rack-mountable devices (1U or higher) and sized 0U devices
       importedDevices.push(result.device);
     }
   }
@@ -643,6 +842,10 @@ async function main(): Promise<void> {
         `3. Images only were downloaded; re-run without --images-only to write device definitions`,
       );
     }
+  }
+
+  if (skippedZeroU.length > 0) {
+    printZeroUSummary(options.vendor, skippedZeroU);
   }
 }
 

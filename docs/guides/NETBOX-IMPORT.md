@@ -34,12 +34,28 @@ npm run generate-bundled-images
 npx tsx scripts/import-netbox-devices.ts --vendor Ubiquiti --list
 
 # Import a specific device
-npx tsx scripts/import-netbox-devices.ts --vendor Ubiquiti --slug ubiquiti-usw-pro-24
+npx tsx scripts/import-netbox-devices.ts --vendor Ubiquiti --slug USW-Pro-24
 
 # Import all devices from a vendor (dry run first!)
 npx tsx scripts/import-netbox-devices.ts --vendor Dell --all --dry-run
 npx tsx scripts/import-netbox-devices.ts --vendor Dell --all
 ```
+
+`--slug` takes the NetBox file name as `--list` prints it (`USW-Pro-24`, from `USW-Pro-24.yaml`), not the `slug` field inside the file (`ubiquiti-usw-pro-24`).
+
+### 0U Devices
+
+NetBox gives `u_height: 0` to gear that does not mount on the rack rails, such as a desktop NAS, mini PC or small switch, and records no width or height for it. Rackula needs a size to place it, so a 0U device is imported only with the width and height of its front face, in millimetres, from its spec sheet:
+
+```bash
+npx tsx scripts/import-netbox-devices.ts --vendor Synology --slug DS920+ --width-mm 199 --height-mm 166
+```
+
+- `--width-mm` and `--height-mm` apply only to a 0U device. They are ignored for a device NetBox already gives a height.
+- Without them, `--slug` in a terminal shows the spec sheet link from the file's `comments` and asks for the size.
+- `--all` skips 0U devices and lists them at the end, each with its spec sheet link and the command to import it.
+
+The height sets `u_height` and is kept as `height_mm`. Brand packs cannot carry a measured `width_mm`, so the width only decides between half width (`slot_width: 1`, up to half of a 19" opening) and full width. A half-width device must fit a shipped carrier, 0.5U, 1U or 2U tall; a taller one, such as the 4U DS920+, is imported full width and mounts on the rails.
 
 ### Using GitHub Actions
 
