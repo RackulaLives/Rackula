@@ -837,6 +837,8 @@ export type ExportView = "front" | "rear" | "both";
 export interface ExportOptions {
   /** Output format */
   format: ExportFormat;
+  /** What a CSV export contains: rack devices (default) or the patch list */
+  csvContent?: "devices" | "patch-list";
   /** Which racks to include */
   scope: ExportScope;
   /** Include rack names in export */
