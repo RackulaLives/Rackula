@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { resetHistoryStore } from "$lib/stores/history.svelte";
-import { createTestDeviceType } from "./factories";
+import { createTestDeviceType, createTestInterfaceTemplate } from "./factories";
 
 describe("Rack Actions Undo/Redo", () => {
   beforeEach(() => {
@@ -59,6 +59,47 @@ describe("Rack Actions Undo/Redo", () => {
 
       // The duplicate should NOT be affected by the mutation
       expect(dupDevice.ports![0].name).toBe("eth0");
+    });
+  });
+
+  describe("duplicateRack port ids (#3479)", () => {
+    it("gives the copy fresh port ids and keeps per-port overrides", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Ported Rack", 42);
+      store.addDeviceTypeRaw({
+        ...createTestDeviceType({ slug: "switch-with-ports", u_height: 1 }),
+        interfaces: [
+          createTestInterfaceTemplate({ name: "eth0" }),
+          createTestInterfaceTemplate({ name: "eth1" }),
+        ],
+      });
+      store.placeDevice(rack!.id, "switch-with-ports", 5);
+
+      const source = store.layout.racks.find((r) => r.id === rack!.id)!;
+      const sourcePorts = source.devices[0].ports!;
+      sourcePorts[0].label = "uplink";
+      sourcePorts[0].direction = "output";
+      sourcePorts[0].signal_type = "digital-audio-dante";
+      const sourcePortIds = new Set(sourcePorts.map((p) => p.id));
+
+      const result = store.duplicateRack(rack!.id);
+      const copy = store.layout.racks.find((r) => r.id === result.rack!.id)!;
+      const copyPorts = copy.devices[0].ports!;
+
+      expect(copyPorts.length).toBe(sourcePorts.length);
+      for (const port of copyPorts) {
+        expect(sourcePortIds.has(port.id)).toBe(false);
+      }
+      expect(new Set(copyPorts.map((p) => p.id)).size).toBe(copyPorts.length);
+      expect(copyPorts.map(({ id: _id, ...rest }) => rest)).toEqual(
+        sourcePorts.map(({ id: _id, ...rest }) => rest),
+      );
+
+      const copyPortIds = copyPorts.map((p) => p.id);
+      store.undo();
+      store.redo();
+      const redone = store.layout.racks.find((r) => r.id === result.rack!.id)!;
+      expect(redone.devices[0].ports!.map((p) => p.id)).toEqual(copyPortIds);
     });
   });
 

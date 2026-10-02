@@ -665,7 +665,8 @@ export function duplicateRack(
     const newContainerId = d.container_id
       ? idMap.get(d.container_id)
       : undefined;
-    return { ...d, id: newId, container_id: newContainerId };
+    const ports = d.ports?.map((p) => ({ ...p, id: generateId() }));
+    return { ...d, id: newId, container_id: newContainerId, ports };
   });
   const duplicatedRack = cloned;
 
