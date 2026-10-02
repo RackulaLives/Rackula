@@ -42,6 +42,7 @@ import { generateId } from "./device";
 import { createDefaultRack } from "./serialization";
 import { toHumanUnits, toInternalUnits } from "./position";
 import { clampContainerChildPositions } from "./collision";
+import { organizeRackRow } from "./rack-row";
 import { importDebug } from "$lib/utils/debug";
 import {
   describeValidationIssues,
@@ -209,11 +210,12 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
     throw new Error("Layout must have at least one rack");
   }
 
-  // Racks are written in Rack.position order (stable on ties) and decode
-  // assigns position from array index, so order survives without a new field.
-  const orderedRacks = [...layout.racks].sort(
-    (a, b) => a.position - b.position,
-  );
+  // Racks are written in canvas order and decode assigns position from array
+  // index, so the recipient sees the sender's order without a new field.
+  const orderedRacks = organizeRackRow(
+    layout.racks,
+    layout.rack_groups ?? [],
+  ).flatMap((item) => (item.kind === "rack" ? [item.rack] : item.racks));
 
   // Build rack ID map: real UUID -> short sequential ID
   const rackIdMap = new Map<string, string>();

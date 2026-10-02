@@ -26,6 +26,7 @@ import {
   createTestConnection,
 } from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
+import { organizeRackRow } from "$lib/utils/rack-row";
 import {
   unreadableImportMessage,
   INVALID_LAYOUT_FORMAT_MESSAGE,
@@ -1106,6 +1107,15 @@ describe("share link rack order (#3378)", () => {
       .map((rack) => rack.name);
   }
 
+  function canvasOrder(layout: Layout): string[] {
+    return organizeRackRow(layout.racks, layout.rack_groups ?? []).flatMap(
+      (item) =>
+        item.kind === "rack"
+          ? [item.rack.name]
+          : item.racks.map((rack) => rack.name),
+    );
+  }
+
   it("keeps rack order when array order differs from position", () => {
     const layout = createTestLayout({
       racks: [
@@ -1151,6 +1161,21 @@ describe("share link rack order (#3378)", () => {
     expect(decoded.racks.find((rack) => rack.id === memberId)?.name).toBe(
       "Rack B",
     );
+  });
+
+  it("decodes tied racks with a group in the order the sender's canvas shows", () => {
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({ id: "r-s", name: "Standalone", position: 0 }),
+        createTestRack({ id: "r-g1", name: "Bay 1", position: 0 }),
+        createTestRack({ id: "r-g2", name: "Bay 2", position: 0 }),
+      ],
+      rack_groups: [{ id: "g", name: "Bay", rack_ids: ["r-g1", "r-g2"] }],
+    });
+
+    const decoded = requireDecoded(requireEncoded(layout));
+
+    expect(canvasOrder(decoded)).toEqual(canvasOrder(layout));
   });
 
   it("decodes a link from the pre-#3378 encoder in its array order", () => {
