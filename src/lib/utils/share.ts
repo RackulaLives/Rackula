@@ -41,6 +41,7 @@ import {
 import { generateId } from "./device";
 import { createDefaultRack } from "./serialization";
 import { toHumanUnits, toInternalUnits } from "./position";
+import { clampContainerChildPositions } from "./collision";
 import { importDebug } from "$lib/utils/debug";
 import {
   describeValidationIssues,
@@ -317,7 +318,10 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
  */
 function fromMinimalLayoutV1(minimal: MinimalLayout): Layout {
   const device_types = convertDeviceTypes(minimal.dt);
-  const devices = convertMinimalDevices(minimal.r.d);
+  const { devices } = clampContainerChildPositions(
+    convertMinimalDevices(minimal.r.d),
+    device_types,
+  );
 
   const rack = createDefaultRack(
     minimal.r.n,
@@ -366,7 +370,10 @@ function fromMinimalLayoutV2(minimal: MinimalLayoutV2): Layout {
       true,
       rackId,
     );
-    rack.devices = convertMinimalDevices(minRack.d);
+    rack.devices = clampContainerChildPositions(
+      convertMinimalDevices(minRack.d),
+      device_types,
+    ).devices;
     return rack;
   });
 
