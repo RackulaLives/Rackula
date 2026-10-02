@@ -9,7 +9,6 @@ import {
   REAR_TAG_WIDTH,
   REAR_TAG_GAP,
   REAR_TAG_INSET,
-  REAR_TAG_FONT_SIZE,
   DEVICE_LABEL_MAX_FONT,
   DEVICE_LABEL_MIN_FONT,
   DEVICE_LABEL_IMAGE_MAX_FONT,
@@ -625,11 +624,7 @@ describe("Text Sizing Utility", () => {
 
     /** Left edge of the floating REAR tag. */
     function tagLeft(deviceWidth: number) {
-      return (
-        deviceWidth -
-        REAR_TAG_INSET -
-        estimateTextWidth("REAR", REAR_TAG_FONT_SIZE)
-      );
+      return deviceWidth - REAR_TAG_INSET - REAR_TAG_WIDTH;
     }
 
     it("omits the floating REAR tag on a narrow rack only when the label reaches it", () => {

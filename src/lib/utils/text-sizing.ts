@@ -39,9 +39,6 @@ export const REAR_TAG_WIDTH = 24;
 /** Space between the label and an in-flow REAR tag. */
 export const REAR_TAG_GAP = 4;
 
-/** Font size of the REAR tag (RackDevice's .rear-badge). */
-export const REAR_TAG_FONT_SIZE = 8;
-
 /** Inset of the floating REAR tag from the device's right edge. */
 export const REAR_TAG_INSET = 4;
 
@@ -347,10 +344,7 @@ export function computeDeviceLabelLayout(
     });
     const textRight =
       deviceWidth / 2 + estimateTextWidth(fitted.text, fitted.fontSize) / 2;
-    const tagLeft =
-      deviceWidth -
-      REAR_TAG_INSET -
-      estimateTextWidth("REAR", REAR_TAG_FONT_SIZE);
+    const tagLeft = deviceWidth - REAR_TAG_INSET - REAR_TAG_WIDTH;
     return {
       x: deviceWidth / 2,
       anchor: "middle",
