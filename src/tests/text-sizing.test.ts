@@ -609,12 +609,26 @@ describe("Text Sizing Utility", () => {
       }
     });
 
-    it("keeps the icon and the floating REAR tag on a narrow rack without ports", () => {
+    it("omits the floating REAR tag on a narrow rack without ports", () => {
       const { layout } = layoutFor(NARROW, 0, true);
+      const front = layoutFor(NARROW, 0).layout;
+      expect(layout.rearTag).toBeUndefined();
+      // The centred label reaches under the top-right tag on a 10-inch rack.
+      expect(layout.floatRearTag).toBe(false);
+      // The label keeps its centred position, width and icon.
+      expect(layout.x).toBe(front.x);
+      expect(layout.availableWidth).toBe(front.availableWidth);
       expect(layout.showIcon).toBe(true);
       expect(layout.anchor).toBe("middle");
-      expect(layout.rearTag).toBeUndefined();
+    });
+
+    it("keeps the floating REAR tag on a 19-inch rack without ports", () => {
+      const { layout } = layoutFor(WIDE, 0, true);
       expect(layout.floatRearTag).toBe(true);
+      expect(layout.rearTag).toBeUndefined();
+      expect(layout.availableWidth).toBe(
+        layoutFor(WIDE, 0).layout.availableWidth,
+      );
     });
 
     it("counts only the ports on the face in view", () => {

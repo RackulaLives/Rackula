@@ -64,7 +64,9 @@ export interface DeviceLabelLayout {
   rearTag?: { x: number; y: number };
   /**
    * The REAR tag keeps its floating top-right position: true only when no
-   * ports are visible. With ports it is in the flow (rearTag) or omitted,
+   * ports are visible and the label zone is at least LABEL_MIN_WIDTH. On a
+   * narrower device (e.g. 10-inch racks) the centred label reaches under the
+   * tag, so it is omitted. With ports it is in the flow (rearTag) or omitted,
    * never floated over the port zone.
    */
   floatRearTag: boolean;
@@ -311,7 +313,8 @@ export function fitTextToWidth(
  * Lays out a device's name label against its zones (#3450).
  *
  * With no visible ports the label stays centred in the device, as before,
- * and the REAR tag floats at the top right.
+ * and the REAR tag floats at the top right, unless the label zone is
+ * narrower than LABEL_MIN_WIDTH: there the tag is omitted, as below.
  *
  * With ports it starts at the label zone's left edge and stops short of the
  * port zone. On the back of a full-depth device the REAR tag then takes the
@@ -334,7 +337,7 @@ export function computeDeviceLabelLayout(
       anchor: "middle",
       availableWidth: zones.labelWidth,
       showIcon: true,
-      floatRearTag: true,
+      floatRearTag: zones.labelWidth >= LABEL_MIN_WIDTH,
     };
   }
 
