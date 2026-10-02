@@ -30,6 +30,7 @@ import {
   exportAsJPEG,
   exportAsPDF,
   exportToCSV,
+  exportConnectionsToCSV,
   downloadBlob,
   generateExportFilename,
   inlineImageHrefs,
@@ -284,6 +285,37 @@ export async function handleExportSubmit(
       // left the exported filename silently stuck on the old name (#3007/R6c).
       const filenameSource = racksToExport[0]?.name ?? layoutStore.layout.name;
       await handler(svg, filenameSource, exportViewOrDefault);
+    } else if (
+      options.format === "csv" &&
+      options.csvContent === "patch-list"
+    ) {
+      // Connections are layout-level, so the patch list covers every rack
+      // regardless of the rack selection (#1940).
+      const { csv, skipped } = exportConnectionsToCSV(
+        layoutStore.racks,
+        layoutStore.layout.connections ?? [],
+        layoutStore.device_types,
+      );
+      // The UTF-8 BOM makes Excel read the direction arrows correctly.
+      const blob = new Blob(["\uFEFF", csv], {
+        type: "text/csv;charset=utf-8",
+      });
+      downloadBlob(
+        blob,
+        generateExportFilename(
+          `${layoutStore.layout.name} patch list`,
+          null,
+          "csv",
+        ),
+      );
+      if (skipped > 0) {
+        toastStore.showToast(
+          `Patch list exported. ${skipped} connection(s) with a missing port were left out`,
+          "warning",
+        );
+      } else {
+        toastStore.showToast("Patch list exported successfully", "success");
+      }
     } else if (options.format === "csv") {
       // racksToExport is guaranteed non-empty by the early return above, so
       // racksToExport[0] always exists here (#3007, CodeRabbit).
