@@ -31,8 +31,9 @@ import type {
   PortDirection,
   Rack,
   RackView,
+  SignalType,
 } from "$lib/types";
-import { inferDirection } from "$lib/utils/port-utils";
+import { inferDirection, inferSignalType } from "$lib/utils/port-utils";
 import {
   getPortAnchors,
   getPortChipPosition,
@@ -474,6 +475,37 @@ export function resolveConnectionPortDirection(
   if (!type) return undefined;
 
   return inferDirection(type, iface?.mgmt_only);
+}
+
+/** A connection endpoint's effective signal, and whether it was set or inferred. */
+export interface ResolvedPortSignal {
+  signal: SignalType;
+  /** True when set on the PlacedPort or InterfaceTemplate, false when inferred. */
+  explicit: boolean;
+}
+
+/**
+ * Effective signal for a connection endpoint (#1936): an explicit
+ * PlacedPort.signal_type override wins, then the InterfaceTemplate value,
+ * then inferSignalType() from the type and the direction
+ * resolveConnectionPortDirection resolves, so an inferred signal agrees with
+ * the arrow drawn for the connection.
+ */
+export function resolveConnectionPortSignal(
+  port: PlacedPort | undefined,
+  iface: InterfaceTemplate | undefined,
+): ResolvedPortSignal | undefined {
+  const explicit = port?.signal_type ?? iface?.signal_type;
+  if (explicit) return { signal: explicit, explicit: true };
+
+  const type = iface?.type ?? port?.type;
+  if (!type) return undefined;
+
+  const inferred = inferSignalType(
+    type,
+    resolveConnectionPortDirection(port, iface),
+  );
+  return inferred ? { signal: inferred, explicit: false } : undefined;
 }
 
 export interface DeviceOffsetParams {

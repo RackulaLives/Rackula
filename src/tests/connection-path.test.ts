@@ -44,6 +44,7 @@ import {
   indexConnectionsByRack,
   resolveArrowDirection,
   resolveConnectionPortDirection,
+  resolveConnectionPortSignal,
   trimCubicBezier,
   type ResolvedPortAnchor,
 } from "$lib/utils/connection-path";
@@ -483,6 +484,55 @@ describe("resolveConnectionPortDirection", () => {
     expect(
       resolveConnectionPortDirection(undefined, undefined),
     ).toBeUndefined();
+  });
+});
+
+describe("resolveConnectionPortSignal", () => {
+  it("prefers an explicit PlacedPort.signal_type override, marked explicit", () => {
+    const port = createTestPlacedPort({
+      type: "xlr-3",
+      signal_type: "analog-audio-mic",
+    });
+    const iface = createTestInterfaceTemplate({
+      type: "xlr-3",
+      signal_type: "digital-audio-aes3",
+    });
+    expect(resolveConnectionPortSignal(port, iface)).toEqual({
+      signal: "analog-audio-mic",
+      explicit: true,
+    });
+  });
+
+  it("falls back to the InterfaceTemplate signal_type, marked explicit", () => {
+    const port = createTestPlacedPort({ type: "xlr-3" });
+    const iface = createTestInterfaceTemplate({
+      type: "xlr-3",
+      signal_type: "digital-audio-aes3",
+    });
+    expect(resolveConnectionPortSignal(port, iface)).toEqual({
+      signal: "digital-audio-aes3",
+      explicit: true,
+    });
+  });
+
+  it("infers from type and the resolved direction when neither is explicit, marked inferred", () => {
+    // The PlacedPort direction override (input) wins over the template's
+    // output, so XLR infers mic level, not line level.
+    const port = createTestPlacedPort({ type: "xlr-3", direction: "input" });
+    const iface = createTestInterfaceTemplate({
+      type: "xlr-3",
+      direction: "output",
+    });
+    expect(resolveConnectionPortSignal(port, iface)).toEqual({
+      signal: "analog-audio-mic",
+      explicit: false,
+    });
+  });
+
+  it("returns undefined when no signal is set or inferable", () => {
+    const port = createTestPlacedPort({ type: "1000base-t" });
+    const iface = createTestInterfaceTemplate({ type: "1000base-t" });
+    expect(resolveConnectionPortSignal(port, iface)).toBeUndefined();
   });
 });
 
