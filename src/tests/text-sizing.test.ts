@@ -254,6 +254,22 @@ describe("Text Sizing Utility", () => {
       const result = truncateWithEllipsis("", 100, 13);
       expect(result).toBe("");
     });
+
+    it("never cuts inside a flag or ZWJ emoji", () => {
+      const segmenter = new Intl.Segmenter(undefined, {
+        granularity: "grapheme",
+      });
+      for (const text of ["Rack 🇨🇦 Edge", "Lab 👨‍👩‍👧‍👦 Family Switch"]) {
+        const boundaries = new Set(
+          Array.from(segmenter.segment(text), (s) => s.index),
+        );
+        for (let width = 10; width <= 200; width++) {
+          const kept = truncateWithEllipsis(text, width, 13).replace(/…$/, "");
+          expect(text.startsWith(kept)).toBe(true);
+          expect(kept === text || boundaries.has(kept.length)).toBe(true);
+        }
+      }
+    });
   });
 
   describe("fitTextToWidth", () => {

@@ -128,17 +128,21 @@ const CHAR_WIDTHS = new Map(
   ),
 );
 
-const COMBINING_MARK = /\p{M}/u;
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
-/** Accented letters take their base letter's width; combining marks add none. */
-function charWidth(char: string): number {
-  let width = 0;
-  for (const part of char.normalize("NFD")) {
-    if (!COMBINING_MARK.test(part)) {
-      width += CHAR_WIDTHS.get(part) ?? DEFAULT_CHAR_WIDTH;
-    }
-  }
-  return width;
+/** Splits text into user-perceived characters, so flags and emoji stay whole. */
+export function graphemes(text: string): string[] {
+  return Array.from(GRAPHEMES.segment(text), (s) => s.segment);
+}
+
+/**
+ * Width of one grapheme cluster, from its base character: accented letters
+ * take their base letter's width, and combining marks, ZWJ sequences and
+ * flags count once.
+ */
+function clusterWidth(cluster: string): number {
+  const base = cluster.normalize("NFD").codePointAt(0) ?? 0;
+  return CHAR_WIDTHS.get(String.fromCodePoint(base)) ?? DEFAULT_CHAR_WIDTH;
 }
 
 /**
@@ -149,7 +153,7 @@ function charWidth(char: string): number {
  */
 export function estimateTextWidth(text: string, fontSize: number): number {
   let width = 0;
-  for (const char of text) width += charWidth(char);
+  for (const cluster of graphemes(text)) width += clusterWidth(cluster);
   return width * fontSize;
 }
 
@@ -222,10 +226,10 @@ export function truncateWithEllipsis(
 
   let kept = "";
   let keptWidth = 0;
-  for (const char of text) {
-    keptWidth += charWidth(char) * fontSize;
+  for (const cluster of graphemes(text)) {
+    keptWidth += clusterWidth(cluster) * fontSize;
     if (keptWidth > availableForText) break;
-    kept += char;
+    kept += cluster;
   }
 
   return kept + "…";
