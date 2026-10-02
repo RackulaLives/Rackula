@@ -729,6 +729,43 @@ describe("buildRenderedConnections", () => {
     expect(rendered[1].geometry.path).toBe(laneZero.path);
   });
 
+  it("numbers lanes separately in each gutter", () => {
+    const portAnchors = new Map<string, ResolvedPortAnchor>([
+      ["right-a", makeResolvedAnchor("right-a", 190, 50)],
+      ["right-b", makeResolvedAnchor("right-b", 190, 300)],
+      ["left-a", makeResolvedAnchor("left-a", 20, 50)],
+      ["left-b", makeResolvedAnchor("left-b", 20, 300)],
+    ]);
+    const connections = [
+      createTestConnection({
+        id: "r",
+        a_port_id: "right-a",
+        b_port_id: "right-b",
+      }),
+      createTestConnection({
+        id: "l",
+        a_port_id: "left-a",
+        b_port_id: "left-b",
+      }),
+    ];
+
+    const rendered = buildRenderedConnections(
+      connections,
+      portAnchors,
+      rackBounds,
+    );
+
+    const leftLaneZero = computeConnectionGeometry(
+      { x: 20, y: 50 },
+      { x: 20, y: 300 },
+      rackBounds,
+      0,
+      null,
+    );
+    expect(rendered[1].geometry.side).toBe("left");
+    expect(rendered[1].geometry.path).toBe(leftLaneZero.path);
+  });
+
   it("only advances the channel lane for connections that actually render", () => {
     const portAnchors = new Map<string, ResolvedPortAnchor>([
       ["port-a", makeResolvedAnchor("port-a", 190, 50)],

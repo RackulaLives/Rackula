@@ -635,8 +635,9 @@ export interface RenderedConnection {
  * Resolve every connection to its renderable geometry, skipping any
  * connection where either endpoint has no anchor.
  *
- * Lanes: a cable runs through the gutter between its two ports' heights, so
- * only cables spanning the same heights can draw on top of each other. Each
+ * Lanes: a cable runs through its gutter between its two ports' heights, so
+ * only cables in the same gutter spanning the same heights can draw on top
+ * of each other. Each
  * such cable takes the next lane out, in render order; a skipped (unanchored)
  * connection takes no lane. Cables with a span of their own stay on lane 0.
  *
@@ -665,7 +666,8 @@ export function buildRenderedConnections(
     const b = portAnchors.get(connection.b_port_id);
     if (!a || !b) continue;
 
-    const span = `${Math.min(a.anchor.y, b.anchor.y)},${Math.max(a.anchor.y, b.anchor.y)}`;
+    const side = assignChannelSide(a.anchor, b.anchor, rackBounds);
+    const span = `${side},${Math.min(a.anchor.y, b.anchor.y)},${Math.max(a.anchor.y, b.anchor.y)}`;
     const lane = lanesBySpan.get(span) ?? 0;
     lanesBySpan.set(span, lane + 1);
 
