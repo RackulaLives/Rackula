@@ -39,6 +39,12 @@ export const REAR_TAG_WIDTH = 24;
 /** Space between the label and an in-flow REAR tag. */
 export const REAR_TAG_GAP = 4;
 
+/** Font size of the REAR tag (RackDevice's .rear-badge). */
+export const REAR_TAG_FONT_SIZE = 8;
+
+/** Inset of the floating REAR tag from the device's right edge. */
+export const REAR_TAG_INSET = 4;
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -64,10 +70,10 @@ export interface DeviceLabelLayout {
   rearTag?: { x: number; y: number };
   /**
    * The REAR tag keeps its floating top-right position: true only when no
-   * ports are visible and the label zone is at least LABEL_MIN_WIDTH. On a
-   * narrower device (e.g. 10-inch racks) the centred label reaches under the
-   * tag, so it is omitted. With ports it is in the flow (rearTag) or omitted,
-   * never floated over the port zone.
+   * ports are visible and the centred label text ends clear of the tag. When
+   * the text would run under it (e.g. most names on 10-inch racks) the tag is
+   * omitted. With ports it is in the flow (rearTag) or omitted, never floated
+   * over the port zone.
    */
   floatRearTag: boolean;
 }
@@ -79,6 +85,8 @@ export interface DeviceLabelLayoutOptions {
   deviceWidth: number;
   /** The back of a full-depth device is in view, so the REAR tag shows. */
   isRearTreatment: boolean;
+  /** The name drawn on the device, or empty when name labels are hidden. */
+  label: string;
 }
 
 export interface FontSizeOptions {
@@ -313,8 +321,8 @@ export function fitTextToWidth(
  * Lays out a device's name label against its zones (#3450).
  *
  * With no visible ports the label stays centred in the device, as before,
- * and the REAR tag floats at the top right, unless the label zone is
- * narrower than LABEL_MIN_WIDTH: there the tag is omitted, as below.
+ * and the REAR tag floats at the top right, unless the fitted label text
+ * would run under it: there the tag is omitted, as below.
  *
  * With ports it starts at the label zone's left edge and stops short of the
  * port zone. On the back of a full-depth device the REAR tag then takes the
@@ -329,15 +337,26 @@ export function fitTextToWidth(
 export function computeDeviceLabelLayout(
   options: DeviceLabelLayoutOptions,
 ): DeviceLabelLayout {
-  const { zones, deviceWidth, isRearTreatment } = options;
+  const { zones, deviceWidth, isRearTreatment, label } = options;
 
   if (zones.mode === "none") {
+    const fitted = fitTextToWidth(label, {
+      maxFontSize: DEVICE_LABEL_MAX_FONT,
+      minFontSize: DEVICE_LABEL_MIN_FONT,
+      availableWidth: zones.labelWidth,
+    });
+    const textRight =
+      deviceWidth / 2 + estimateTextWidth(fitted.text, fitted.fontSize) / 2;
+    const tagLeft =
+      deviceWidth -
+      REAR_TAG_INSET -
+      estimateTextWidth("REAR", REAR_TAG_FONT_SIZE);
     return {
       x: deviceWidth / 2,
       anchor: "middle",
       availableWidth: zones.labelWidth,
       showIcon: true,
-      floatRearTag: zones.labelWidth >= LABEL_MIN_WIDTH,
+      floatRearTag: textRight + REAR_TAG_GAP <= tagLeft,
     };
   }
 
