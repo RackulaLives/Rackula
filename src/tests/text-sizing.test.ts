@@ -7,6 +7,8 @@ import {
   wrapText,
   computeDeviceLabelLayout,
   REAR_TAG_WIDTH,
+  REAR_TAG_GAP,
+  REAR_TAG_INSET,
   DEVICE_LABEL_MAX_FONT,
   DEVICE_LABEL_MIN_FONT,
   DEVICE_LABEL_IMAGE_MAX_FONT,
@@ -471,6 +473,7 @@ describe("Text Sizing Utility", () => {
       deviceWidth: number,
       visiblePortCount: number,
       isRearTreatment = false,
+      label = "Server",
     ) {
       const zones = computeDeviceZones({
         deviceWidth,
@@ -483,6 +486,7 @@ describe("Text Sizing Utility", () => {
           zones,
           deviceWidth,
           isRearTreatment,
+          label,
         }),
       };
     }
@@ -609,12 +613,72 @@ describe("Text Sizing Utility", () => {
       }
     });
 
-    it("keeps the icon and the floating REAR tag on a narrow rack without ports", () => {
-      const { layout } = layoutFor(NARROW, 0, true);
-      expect(layout.showIcon).toBe(true);
-      expect(layout.anchor).toBe("middle");
-      expect(layout.rearTag).toBeUndefined();
+    /** Right edge of the centred label text, from its fitted width. */
+    function textRight(deviceWidth: number, label: string) {
+      const { layout } = layoutFor(deviceWidth, 0, true, label);
+      const fitted = fit(label, layout.availableWidth);
+      return (
+        deviceWidth / 2 + estimateTextWidth(fitted.text, fitted.fontSize) / 2
+      );
+    }
+
+    /** Left edge of the floating REAR tag. */
+    function tagLeft(deviceWidth: number) {
+      return deviceWidth - REAR_TAG_INSET - REAR_TAG_WIDTH;
+    }
+
+    it("omits the floating REAR tag on a narrow rack only when the label reaches it", () => {
+      for (const label of ["1", "Server", "Switch"]) {
+        const { layout } = layoutFor(NARROW, 0, true, label);
+        const front = layoutFor(NARROW, 0, false, label).layout;
+        const collides =
+          textRight(NARROW, label) + REAR_TAG_GAP > tagLeft(NARROW);
+        expect(layout.floatRearTag).toBe(!collides);
+        expect(layout.rearTag).toBeUndefined();
+        // The label keeps its centred position, width and icon either way.
+        expect(layout.x).toBe(front.x);
+        expect(layout.availableWidth).toBe(front.availableWidth);
+        expect(layout.showIcon).toBe(true);
+        expect(layout.anchor).toBe("middle");
+      }
+      expect(layoutFor(NARROW, 0, true, "1").layout.floatRearTag).toBe(true);
+      expect(layoutFor(NARROW, 0, true, "Server").layout.floatRearTag).toBe(
+        false,
+      );
+    });
+
+    it("omits the floating REAR tag when a label fills a 48px label zone", () => {
+      const deviceWidth = 96;
+      const label = "Network Video Recorder";
+      const { zones, layout } = layoutFor(deviceWidth, 0, true, label);
+      expect(zones.labelWidth).toBe(LABEL_MIN_WIDTH);
+      expect(textRight(deviceWidth, label)).toBeGreaterThan(
+        tagLeft(deviceWidth),
+      );
+      expect(layout.floatRearTag).toBe(false);
+    });
+
+    it("keeps the floating REAR tag and the label width on a 19-inch rack", () => {
+      const { layout } = layoutFor(WIDE, 0, true, "Dell R740");
       expect(layout.floatRearTag).toBe(true);
+      expect(layout.rearTag).toBeUndefined();
+      expect(layout.availableWidth).toBe(
+        layoutFor(WIDE, 0).layout.availableWidth,
+      );
+    });
+
+    it("omits the floating REAR tag when a long label reaches it on a 19-inch rack", () => {
+      const label = "Core Distribution Patch Panel Row 12 Cabinet 4 Upper";
+      const { layout } = layoutFor(WIDE, 0, true, label);
+      expect(textRight(WIDE, label)).toBeGreaterThan(tagLeft(WIDE));
+      expect(layout.floatRearTag).toBe(false);
+      expect(layout.availableWidth).toBe(
+        layoutFor(WIDE, 0).layout.availableWidth,
+      );
+    });
+
+    it("floats the REAR tag when name labels are hidden", () => {
+      expect(layoutFor(NARROW, 0, true, "").layout.floatRearTag).toBe(true);
     });
 
     it("counts only the ports on the face in view", () => {
