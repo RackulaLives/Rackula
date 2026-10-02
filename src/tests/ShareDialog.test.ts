@@ -90,8 +90,8 @@ describe("ShareDialog link limits (#3378)", () => {
     ).toBeInTheDocument();
   });
 
-  it("names the ports and connections the link leaves out", () => {
-    const layout = createTestLayout({
+  function createLossyLayout(ports: number, connections: number) {
+    return createTestLayout({
       racks: [
         createTestRack({
           devices: [createTestDevice({ device_type: "switch", position: 6 })],
@@ -100,17 +100,70 @@ describe("ShareDialog link limits (#3378)", () => {
       device_types: [
         {
           ...createTestDeviceType({ slug: "switch" }),
-          interfaces: [createTestInterfaceTemplate()],
+          interfaces: Array.from({ length: ports }, (_, i) =>
+            createTestInterfaceTemplate({ name: `eth${i}` }),
+          ),
         },
       ],
-      connections: [createTestConnection(), createTestConnection()],
+      connections: Array.from({ length: connections }, () =>
+        createTestConnection(),
+      ),
     });
+  }
+
+  it("names the ports and connections the link leaves out", () => {
     const { getByText } = render(ShareDialog, {
-      props: { open: true, layout, onclose: () => {} },
+      props: {
+        open: true,
+        layout: createLossyLayout(1, 2),
+        onclose: () => {},
+      },
     });
 
     expect(
-      getByText("This link does not include 1 port or 2 connections."),
+      getByText("This link leaves out 1 port and 2 connections."),
     ).toBeInTheDocument();
+  });
+
+  it("names only what this layout loses", () => {
+    const { getByText } = render(ShareDialog, {
+      props: {
+        open: true,
+        layout: createLossyLayout(0, 3),
+        onclose: () => {},
+      },
+    });
+
+    expect(
+      getByText("This link leaves out 3 connections."),
+    ).toBeInTheDocument();
+  });
+
+  it("does not describe a link that was not produced", () => {
+    shareMocks.generateShareUrl.mockReturnValue(null);
+    const { queryByText } = render(ShareDialog, {
+      props: {
+        open: true,
+        layout: createLossyLayout(1, 2),
+        onclose: () => {},
+      },
+    });
+
+    expect(queryByText(/This link leaves out/)).not.toBeInTheDocument();
+  });
+
+  it("does not describe a link too long to offer", () => {
+    shareMocks.generateShareUrl.mockReturnValue(
+      `https://example.test/?l=${"a".repeat(MAX_SHARE_URL_LENGTH)}`,
+    );
+    const { queryByText } = render(ShareDialog, {
+      props: {
+        open: true,
+        layout: createLossyLayout(1, 2),
+        onclose: () => {},
+      },
+    });
+
+    expect(queryByText(/This link leaves out/)).not.toBeInTheDocument();
   });
 });

@@ -56,7 +56,11 @@
       ? "Too large to share as a link. Download the layout file, or open it from the layout library on this server."
       : "Too large to share as a link. Download the layout file instead.";
 
-  const omissions = $derived(open ? summarizeShareOmissions(layout) : null);
+  // Only for a link that is actually offered: on an encode failure or an
+  // over-long URL there is no link to describe.
+  const omissions = $derived(
+    shareUrl && !isTooLarge ? summarizeShareOmissions(layout) : null,
+  );
   const omittedItems = $derived(
     omissions
       ? [
@@ -223,13 +227,13 @@
     <div class="share-info" data-testid="share-omissions">
       {#if omittedItems.length > 0}
         <p class="warning">
-          This link does not include {omittedItems.join(" or ")}.
+          This link leaves out {omittedItems.join(" and ")}.
         </p>
       {/if}
       <p>
-        <strong>Note:</strong> A link carries racks and device placements. It leaves
-        out ports, connections, images, notes, custom colours, and details such as
-        power, weight, depth and rack numbering. Send the layout file to keep everything.
+        Links carry racks and device placements only. Ports, connections,
+        images, notes and custom colours are left out. Send the layout file to
+        keep everything.
       </p>
     </div>
 
