@@ -76,9 +76,6 @@ export interface CubicControlPoints {
 /** Horizontal distance between adjacent lanes of one gutter, in px. */
 export const CHANNEL_LANE_SPACING = 6;
 
-/** Distinct lanes per gutter; later connections reuse them in turn. */
-export const CHANNEL_LANE_COUNT = 4;
-
 /**
  * Route a connection through the gutter on the rail nearer its two ports.
  * Ports sit in a right-aligned zone (#3450), so a cable between them routes
@@ -95,19 +92,16 @@ export function assignChannelSide(
 }
 
 /**
- * Gutter offset for a connection's lane. Index is the position of a
- * connection within the set actually being rendered (see
- * buildRenderedConnections), not its position in the raw connections array,
- * so a skipped (unanchored) connection does not "use up" a lane. Consecutive
- * connections take successive lanes, so parallel cables between the same
- * devices fan out instead of drawing on top of each other; lanes repeat after
- * CHANNEL_LANE_COUNT so the gutter stays a fixed width.
+ * Gutter offset for a connection's lane. Lane 0 sits at the base offset and
+ * each further lane one CHANNEL_LANE_SPACING further out, so parallel cables
+ * fan out instead of drawing on top of each other (see
+ * buildRenderedConnections for how lanes are assigned).
  */
 export function channelGutterOffset(
-  index: number,
+  lane: number,
   gutterOffset: number = DEFAULT_GUTTER_OFFSET,
 ): number {
-  return gutterOffset + (index % CHANNEL_LANE_COUNT) * CHANNEL_LANE_SPACING;
+  return gutterOffset + lane * CHANNEL_LANE_SPACING;
 }
 
 /**
@@ -400,7 +394,7 @@ export function computeConnectionGeometry(
   source: Point,
   target: Point,
   rackBounds: RackBounds,
-  index: number,
+  lane: number,
   direction: ArrowDirection,
   options: ConnectionGeometryOptions = {},
 ): ConnectionGeometry {
@@ -410,7 +404,7 @@ export function computeConnectionGeometry(
     target,
     rackBounds,
     side,
-    channelGutterOffset(index, options.gutterOffset),
+    channelGutterOffset(lane, options.gutterOffset),
   );
   const path = buildCubicBezierPath(source, control, target);
   const trimmed = trimCubicBezier(
@@ -579,7 +573,7 @@ export function buildPortAnchorMap(
  * connection whose two ports are both anchored on its own devices, so its
  * rack's bucket always contains every connection it can draw. Buckets keep
  * layout order, which keeps buildRenderedConnections' per-face channel
- * index, and so the routing, identical to a scan of the full list.
+ * lanes, and so the routing, identical to a scan of the full list.
  *
  * Pass the previous index to keep an unchanged bucket's array identity: a
  * rack whose bucket holds the same connection objects in the same order gets
@@ -641,6 +635,11 @@ export interface RenderedConnection {
  * Resolve every connection to its renderable geometry, skipping any
  * connection where either endpoint has no anchor.
  *
+ * Lanes: a cable runs through the gutter between its two ports' heights, so
+ * only cables spanning the same heights can draw on top of each other. Each
+ * such cable takes the next lane out, in render order; a skipped (unanchored)
+ * connection takes no lane. Cables with a span of their own stay on lane 0.
+ *
  * Grouped-mode fallback decision (#1931 AC, #3089): a port with no anchor -
  * because its device is over the high-density threshold, the port is on the
  * other rack face, or the layout predates PlacedPort identity - is skipped
@@ -659,25 +658,28 @@ export function buildRenderedConnections(
   options: ConnectionGeometryOptions = {},
 ): RenderedConnection[] {
   const results: RenderedConnection[] = [];
-  let index = 0;
+  const lanesBySpan = new Map<string, number>();
 
   for (const connection of connections) {
     const a = portAnchors.get(connection.a_port_id);
     const b = portAnchors.get(connection.b_port_id);
     if (!a || !b) continue;
 
+    const span = `${Math.min(a.anchor.y, b.anchor.y)},${Math.max(a.anchor.y, b.anchor.y)}`;
+    const lane = lanesBySpan.get(span) ?? 0;
+    lanesBySpan.set(span, lane + 1);
+
     const direction = resolveArrowDirection(a.direction, b.direction);
     const geometry = computeConnectionGeometry(
       a.anchor,
       b.anchor,
       rackBounds,
-      index,
+      lane,
       direction,
       options,
     );
 
     results.push({ connection, geometry });
-    index++;
   }
 
   return results;

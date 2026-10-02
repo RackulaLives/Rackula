@@ -25,7 +25,6 @@ import {
   createTestRack,
 } from "./factories";
 import {
-  CHANNEL_LANE_COUNT,
   DEFAULT_GUTTER_OFFSET,
   HIT_PATH_TRIM,
   arrowPointsAttr,
@@ -86,20 +85,11 @@ describe("assignChannelSide", () => {
 });
 
 describe("channelGutterOffset", () => {
-  it("gives consecutive connections distinct lanes so parallel cables separate", () => {
-    const offsets = Array.from({ length: CHANNEL_LANE_COUNT }, (_, i) =>
-      channelGutterOffset(i),
-    );
-    expect(new Set(offsets).size).toBe(CHANNEL_LANE_COUNT);
-    expect(offsets[0]).toBe(DEFAULT_GUTTER_OFFSET);
-  });
-
-  it("reuses lanes past CHANNEL_LANE_COUNT so the gutter stays bounded", () => {
-    expect(channelGutterOffset(CHANNEL_LANE_COUNT)).toBe(
-      channelGutterOffset(0),
-    );
-    expect(channelGutterOffset(CHANNEL_LANE_COUNT + 1, 10)).toBe(
-      channelGutterOffset(1, 10),
+  it("puts each further lane further out from the rack", () => {
+    expect(channelGutterOffset(0)).toBe(DEFAULT_GUTTER_OFFSET);
+    expect(channelGutterOffset(1)).toBeGreaterThan(channelGutterOffset(0));
+    expect(channelGutterOffset(5, 10)).toBeGreaterThan(
+      channelGutterOffset(4, 10),
     );
   });
 });
@@ -342,7 +332,7 @@ describe("computeConnectionGeometry", () => {
   const source = { x: 10, y: 50 };
   const target = { x: 190, y: 300 };
 
-  it("routes through the right gutter at index 0 and produces no arrow with no direction", () => {
+  it("routes through the right gutter on lane 0 and produces no arrow with no direction", () => {
     const geometry = computeConnectionGeometry(
       source,
       target,
@@ -355,7 +345,7 @@ describe("computeConnectionGeometry", () => {
     expect(geometry.path.startsWith("M 10,50 C 230,50 230,300")).toBe(true);
   });
 
-  it("routes right-zone ports through the right gutter at every index, one lane further out per index (#3463)", () => {
+  it("routes right-zone ports through the right gutter on every lane, each lane further out (#3463)", () => {
     const rightSource = { x: 180, y: 50 };
     const rightTarget = { x: 190, y: 300 };
     const first = computeConnectionGeometry(
@@ -681,7 +671,8 @@ describe("buildRenderedConnections", () => {
     // Two collapsed chips: every port on a device shares one anchor, so only
     // the lane can tell these cables apart.
     const portAnchors = new Map<string, ResolvedPortAnchor>();
-    const connections = Array.from({ length: CHANNEL_LANE_COUNT }, (_, i) => {
+    const parallelCount = 6;
+    const connections = Array.from({ length: parallelCount }, (_, i) => {
       portAnchors.set(`a${i}`, makeResolvedAnchor(`a${i}`, 200, 50));
       portAnchors.set(`b${i}`, makeResolvedAnchor(`b${i}`, 200, 300));
       return createTestConnection({
@@ -699,7 +690,43 @@ describe("buildRenderedConnections", () => {
 
     expect(rendered.every((r) => r.geometry.side === "right")).toBe(true);
     const peaks = rendered.map((r) => r.geometry.midpoint.x);
-    expect(new Set(peaks).size).toBe(CHANNEL_LANE_COUNT);
+    expect(new Set(peaks).size).toBe(parallelCount);
+  });
+
+  it("keeps a cable with a span of its own on the innermost lane", () => {
+    const portAnchors = new Map<string, ResolvedPortAnchor>([
+      ["port-a", makeResolvedAnchor("port-a", 190, 50)],
+      ["port-b", makeResolvedAnchor("port-b", 190, 300)],
+      ["port-c", makeResolvedAnchor("port-c", 190, 100)],
+      ["port-d", makeResolvedAnchor("port-d", 190, 400)],
+    ]);
+    const connections = [
+      createTestConnection({
+        id: "c1",
+        a_port_id: "port-a",
+        b_port_id: "port-b",
+      }),
+      createTestConnection({
+        id: "c2",
+        a_port_id: "port-c",
+        b_port_id: "port-d",
+      }),
+    ];
+
+    const rendered = buildRenderedConnections(
+      connections,
+      portAnchors,
+      rackBounds,
+    );
+
+    const laneZero = computeConnectionGeometry(
+      { x: 190, y: 100 },
+      { x: 190, y: 400 },
+      rackBounds,
+      0,
+      null,
+    );
+    expect(rendered[1].geometry.path).toBe(laneZero.path);
   });
 
   it("only advances the channel lane for connections that actually render", () => {
