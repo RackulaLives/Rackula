@@ -211,3 +211,63 @@ describe("patch bay normalling on save", () => {
     ]);
   });
 });
+
+describe("patch bay normalling salvage on load", () => {
+  async function loadFixture(edit: (yaml: string) => string) {
+    const fixture = (
+      await import("./fixtures/upgrade-corpus/v26.9.2-patch-bay-normals.rackula.yaml?raw")
+    ).default as string;
+    const loaded = await parseLayoutYaml(edit(fixture));
+    return {
+      pairs: loaded.device_types.find((dt) => dt.slug === "trs-patch-bay-1u")!
+        .patch_bay_normals,
+      overrides: loaded.racks[0]!.devices[0]!.patch_bay_normal_overrides,
+    };
+  }
+
+  it("drops a pair naming a missing interface, and its override, and still loads", async () => {
+    const { pairs, overrides } = await loadFixture((yaml) =>
+      yaml.replace("bottom: 2 Bottom", "bottom: 2 Gone"),
+    );
+
+    expect(pairs).toEqual([
+      { top: "1 Top", bottom: "1 Bottom", mode: "half-normal" },
+    ]);
+    expect(overrides).toBeUndefined();
+  });
+
+  it("drops a pair naming an interface shared by several ports", async () => {
+    const { pairs, overrides } = await loadFixture((yaml) =>
+      yaml.replace(
+        "      - name: 2 Top\n",
+        "      - name: 1 Top\n        type: trs-1-4\n      - name: 2 Top\n",
+      ),
+    );
+
+    expect(pairs).toEqual([
+      { top: "2 Top", bottom: "2 Bottom", mode: "full-normal" },
+    ]);
+    expect(overrides).toEqual({ "2 Top": "non-normal" });
+  });
+
+  it("drops a pair reusing a jack already in an earlier pair", async () => {
+    const { pairs } = await loadFixture((yaml) =>
+      yaml.replace("top: 2 Top", "top: 1 Bottom"),
+    );
+
+    expect(pairs).toEqual([
+      { top: "1 Top", bottom: "1 Bottom", mode: "half-normal" },
+    ]);
+  });
+
+  it("drops an override key that matches no pair", async () => {
+    const { overrides } = await loadFixture((yaml) =>
+      yaml.replace(
+        "          2 Top: non-normal",
+        "          2 Top: non-normal\n          9 Top: full-normal",
+      ),
+    );
+
+    expect(overrides).toEqual({ "2 Top": "non-normal" });
+  });
+});

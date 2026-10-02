@@ -485,7 +485,7 @@ export const ConnectionSchema = z
  * Device Type schema - library template definition
  * Schema v1.0.0: Flat structure with NetBox-compatible fields
  */
-export const DeviceTypeSchema = z
+const DeviceTypeSchemaBase = z
   .object({
     // --- Core Identity ---
     slug: SlugSchema,
@@ -596,46 +596,82 @@ export const DeviceTypeSchema = z
         });
       }
     }
+  });
 
-    // Each normalled pair joins two interfaces of this device type, and a jack
-    // belongs to at most one pair. Pairs reference interfaces by name, so a
-    // name shared by several interfaces (legal elsewhere) is ambiguous here.
-    if (data.patch_bay_normals) {
-      const names = (data.interfaces ?? []).map(
-        (iface: { name: string }) => iface.name,
-      );
-      const portNames = new Set(names);
-      const sharedNames = new Set(
-        names.filter((name, index) => names.indexOf(name) !== index),
-      );
-      const usedPorts = new Set<string>();
-      data.patch_bay_normals.forEach((pair, index) => {
-        for (const side of ["top", "bottom"] as const) {
-          const name = pair[side];
-          if (!portNames.has(name)) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              path: ["patch_bay_normals", index, side],
-              message: `Normalled pair references unknown interface "${name}"`,
-            });
-          } else if (sharedNames.has(name)) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              path: ["patch_bay_normals", index, side],
-              message: `Normalled pair references "${name}", which names more than one interface`,
-            });
-          } else if (usedPorts.has(name)) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              path: ["patch_bay_normals", index, side],
-              message: `Interface "${name}" is already in another normalled pair`,
-            });
-          }
-          usedPorts.add(name);
-        }
-      });
+/**
+ * Problems with a device type's normalled pairs (#1945). Each pair joins two
+ * interfaces of the device type, and a jack belongs to at most one pair.
+ * Pairs reference interfaces by name, so a name shared by several interfaces
+ * (legal elsewhere) is ambiguous here. DeviceTypeSchema and LayoutSchema
+ * reject on these; the load path drops the offending pairs first
+ * (adaptLegacyLayout), so one bad pair cannot make a layout unloadable.
+ */
+export function findPatchBayNormalIssues(
+  interfaces: readonly { name: string }[] | undefined,
+  pairs: readonly { top: string; bottom: string }[],
+): { index: number; side: "top" | "bottom"; message: string }[] {
+  const names = (interfaces ?? []).map((iface) => iface?.name);
+  const portNames = new Set(names);
+  const sharedNames = new Set(
+    names.filter((name, index) => names.indexOf(name) !== index),
+  );
+  const usedPorts = new Set<string>();
+  const issues: { index: number; side: "top" | "bottom"; message: string }[] =
+    [];
+  pairs.forEach((pair, index) => {
+    for (const side of ["top", "bottom"] as const) {
+      const name = pair?.[side];
+      if (typeof name !== "string" || !portNames.has(name)) {
+        issues.push({
+          index,
+          side,
+          message: `Normalled pair references unknown interface "${name}"`,
+        });
+      } else if (sharedNames.has(name)) {
+        issues.push({
+          index,
+          side,
+          message: `Normalled pair references "${name}", which names more than one interface`,
+        });
+      } else if (usedPorts.has(name)) {
+        issues.push({
+          index,
+          side,
+          message: `Interface "${name}" is already in another normalled pair`,
+        });
+      }
+      usedPorts.add(name);
     }
   });
+  return issues;
+}
+
+function addPatchBayNormalIssues(
+  deviceType: z.infer<typeof DeviceTypeSchemaBase>,
+  ctx: z.RefinementCtx,
+  path: (string | number)[] = [],
+): void {
+  if (!deviceType.patch_bay_normals) return;
+  for (const issue of findPatchBayNormalIssues(
+    deviceType.interfaces,
+    deviceType.patch_bay_normals,
+  )) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [...path, "patch_bay_normals", issue.index, issue.side],
+      message: issue.message,
+    });
+  }
+}
+
+/**
+ * Device type schema with normalled pair integrity. Layout loading parses
+ * device types with DeviceTypeSchemaBase and checks pairs in LayoutSchema,
+ * after adaptLegacyLayout has salvaged them.
+ */
+export const DeviceTypeSchema = DeviceTypeSchemaBase.superRefine((data, ctx) =>
+  addPatchBayNormalIssues(data, ctx),
+);
 
 /**
  * Placed device schema - instance in rack
@@ -881,7 +917,7 @@ const LayoutSchemaInput = z
     // Legacy format: single rack (optional, converted by transform)
     rack: RackSchemaInput.optional(),
     rack_groups: z.array(RackGroupSchema).optional(),
-    device_types: z.array(DeviceTypeSchema),
+    device_types: z.array(DeviceTypeSchemaBase),
     settings: LayoutSettingsSchema,
     connections: z.array(ConnectionSchema).optional(),
   })
@@ -1016,6 +1052,10 @@ export const LayoutSchema = LayoutSchemaBase.superRefine((data, ctx) => {
       path: ["device_types"],
     });
   }
+
+  data.device_types.forEach((deviceType, index) =>
+    addPatchBayNormalIssues(deviceType, ctx, ["device_types", index]),
+  );
 
   // Build rack lookup for group validations
   const rackById = new Map(data.racks.map((r) => [r.id, r]));
