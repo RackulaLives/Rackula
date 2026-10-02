@@ -174,6 +174,7 @@ In server-side persistence mode, no base64 image data appears in the stored layo
 | `power_outlets` | `PowerOutlet[]` | No | Power output outlets (for PDUs) |
 | `device_bays` | `DeviceBay[]` | No | Device bays (for blade chassis) |
 | `inventory_items` | `InventoryItem[]` | No | Internal components |
+| `patch_bay_normals` | `PatchBayNormal[]` | No | Normalled jack pairs, for patch bays |
 
 #### Subdevice Support
 
@@ -258,6 +259,7 @@ Instance of a device type placed in a rack.
 | `name` | `string` | No | Custom display name (max 100 chars) |
 | `parent_device` | `string` | No | Parent placement ID (for child devices) |
 | `device_bay` | `string` | No | Bay name in parent device |
+| `patch_bay_normal_overrides` | `Record<string, PatchBayNormalMode>` | No | Normalling mode per pair, keyed by the pair's `top` interface name. An entry for a pair the device type does not define is ignored |
 | `notes` | `string` | No | Notes for this placement (max 1000 chars) |
 | `custom_fields` | `Record<string, unknown>` | No | User-defined custom fields |
 
@@ -439,6 +441,24 @@ Network interface definition.
 | `name` | `string` | Yes | Interface name (e.g., `eth0`, `Gi1/0/1`) |
 | `type` | `string` | Yes | Interface type (e.g., `1000base-t`) |
 | `mgmt_only` | `boolean` | No | Management interface only |
+
+### PatchBayNormal
+
+A normalled jack pair on a patch bay. Normalling is a property of the device type, not a connection.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `top` | `string` | Yes | Name of the top jack's interface |
+| `bottom` | `string` | Yes | Name of the bottom jack's interface |
+| `mode` | `PatchBayNormalMode` | Yes | `full-normal`, `half-normal`, or `non-normal` |
+
+Each name must match exactly one interface on the same device type, and an interface can be in at most one pair.
+
+| Mode | Behaviour |
+| --- | --- |
+| `full-normal` | The top and bottom jacks are connected until either is patched |
+| `half-normal` | Patching the top jack taps the signal without breaking it; patching the bottom jack breaks it |
+| `non-normal` | No connection between the jacks |
 
 ### PowerPort
 

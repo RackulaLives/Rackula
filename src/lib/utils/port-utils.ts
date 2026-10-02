@@ -7,6 +7,8 @@ import type {
   DeviceType,
   InterfaceType,
   KnownInterfaceType,
+  PatchBayNormal,
+  PlacedDevice,
   PlacedPort,
   PortDirection,
   SignalType,
@@ -289,4 +291,46 @@ export function instantiatePorts(deviceType: DeviceType): PlacedPort[] {
     template_index: index,
     type: iface.type,
   }));
+}
+
+/** A normalled pair with its effective mode and where that mode came from. */
+export interface ResolvedPatchBayNormal extends PatchBayNormal {
+  source: "template" | "override";
+}
+
+/**
+ * Effective normalling for a placed patch bay (#1945): each pair the device
+ * type defines, with the placed device's override (keyed by the pair's top
+ * port name) applied. Overrides for pairs the device type does not define are
+ * ignored.
+ */
+export function resolvePatchBayNormals(
+  device: PlacedDevice,
+  deviceType: DeviceType,
+): ResolvedPatchBayNormal[] {
+  const overrides = device.patch_bay_normal_overrides ?? {};
+  return (deviceType.patch_bay_normals ?? []).map((pair) => {
+    const override = Object.hasOwn(overrides, pair.top)
+      ? overrides[pair.top]
+      : undefined;
+    return override
+      ? { ...pair, mode: override, source: "override" }
+      : { ...pair, source: "template" };
+  });
+}
+
+/**
+ * PlacedPort ids for both jacks of a normalled pair, matched by
+ * template_name. Undefined when either jack has no placed port (a device
+ * placed before its ports were instantiated, or a template added later).
+ */
+export function resolvePatchBayNormalPortIds(
+  device: PlacedDevice,
+  pair: PatchBayNormal,
+): { top: string; bottom: string } | undefined {
+  const ports = device.ports ?? [];
+  const top = ports.find((port) => port.template_name === pair.top);
+  const bottom = ports.find((port) => port.template_name === pair.bottom);
+  if (!top || !bottom) return undefined;
+  return { top: top.id, bottom: bottom.id };
 }

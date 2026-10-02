@@ -34,9 +34,11 @@ import type {
   DeviceFace,
   Rack,
   Connection,
+  PatchBayNormal,
   PlacedPort,
 } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
+import { findPatchBayNormalIssues } from "$lib/schemas";
 import { generateId } from "$lib/utils/device";
 import { isNarrowDevice, orientDeviceType } from "$lib/utils/device-width";
 import { findStarterDevice } from "$lib/data/starterLibrary";
@@ -647,6 +649,82 @@ function migrateLegacyCables(cables: unknown, racks: Rack[]): Connection[] {
 }
 
 /**
+ * Drop normalled pairs that LayoutSchema would reject (#1945): a side that
+ * does not resolve to exactly one interface, or a jack already in a kept
+ * pair. Then drop placed-device patch_bay_normal_overrides keys that match no
+ * remaining pair's top, removing the field once it is empty. A hand-edited
+ * file or an editor bug would otherwise make the whole layout unloadable;
+ * same salvage-not-fail contract as dropDanglingConnections below. Devices
+ * whose type is not in the layout keep their overrides untouched.
+ */
+function salvagePatchBayNormals(
+  deviceTypes: DeviceType[],
+  racks: Rack[],
+): { deviceTypes: DeviceType[]; racks: Rack[]; changed: boolean } {
+  let changed = false;
+  const pairTopsBySlug = new Map<string, Set<string>>();
+  const salvagedTypes = deviceTypes.map((dt) => {
+    if (!dt) return dt;
+    if (!Array.isArray(dt.patch_bay_normals)) {
+      pairTopsBySlug.set(dt.slug, new Set());
+      return dt;
+    }
+    const interfaces = Array.isArray(dt.interfaces) ? dt.interfaces : [];
+    const kept: PatchBayNormal[] = [];
+    for (const pair of dt.patch_bay_normals) {
+      if (findPatchBayNormalIssues(interfaces, [...kept, pair]).length > 0) {
+        layoutDebug.state(
+          "dropped normalled pair %o on %s: interface reference not found or ambiguous",
+          pair,
+          dt.slug,
+        );
+        continue;
+      }
+      kept.push(pair);
+    }
+    pairTopsBySlug.set(dt.slug, new Set(kept.map((pair) => pair.top)));
+    if (kept.length === dt.patch_bay_normals.length) return dt;
+    changed = true;
+    return { ...dt, patch_bay_normals: kept };
+  });
+
+  const salvagedRacks = racks.map((rack) => {
+    if (!rack || !Array.isArray(rack.devices)) return rack;
+    let rackChanged = false;
+    const devices = rack.devices.map((device) => {
+      const overrides = device?.patch_bay_normal_overrides;
+      if (!overrides || typeof overrides !== "object") return device;
+      const tops = pairTopsBySlug.get(device.device_type);
+      if (!tops) return device;
+      const entries = Object.entries(overrides);
+      const keptEntries = entries.filter(([top]) => tops.has(top));
+      if (keptEntries.length === entries.length) return device;
+      layoutDebug.state(
+        "dropped %d normalling override(s) on %s: no matching pair",
+        entries.length - keptEntries.length,
+        device.id,
+      );
+      rackChanged = true;
+      const { patch_bay_normal_overrides: _dropped, ...rest } = device;
+      void _dropped;
+      return keptEntries.length > 0
+        ? {
+            ...rest,
+            patch_bay_normal_overrides: Object.fromEntries(keptEntries),
+          }
+        : rest;
+    });
+    if (!rackChanged) return rack;
+    changed = true;
+    return { ...rack, devices };
+  });
+
+  return changed
+    ? { deviceTypes: salvagedTypes, racks: salvagedRacks, changed }
+    : { deviceTypes, racks, changed };
+}
+
+/**
  * Drop connections whose a_port_id or b_port_id does not resolve to a
  * PlacedPort anywhere in the given racks (#3090). A device (or carrier)
  * removed without cascading to its connections, or a hand-edited file, can
@@ -762,7 +840,7 @@ export function adaptLegacyLayout(layout: Layout): Layout {
   const missingGenerated = generatedCarrierTypes.filter(
     (type) => !hydrated.some((dt) => dt.slug === type.slug),
   );
-  const deviceTypes =
+  const typesWithGenerated =
     missingGenerated.length > 0 ? [...hydrated, ...missingGenerated] : hydrated;
 
   // Child position bound (#3456): runs against the final types, so a carrier
@@ -865,7 +943,7 @@ export function adaptLegacyLayout(layout: Layout): Layout {
 
   return {
     ...layoutWithoutCables,
-    racks,
+    racks: racksWithNormals,
     device_types: deviceTypes,
     ...(connectionsFieldChanged ? { connections } : {}),
   };
