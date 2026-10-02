@@ -41,6 +41,10 @@ export function getBlockedSlots(
   const blocked: BlockedSlot[] = [];
 
   for (const placedDevice of rack.devices) {
+    // A carrier child's position is container-relative, not a rail U; its
+    // carrier's own footprint already covers the rail range.
+    if (placedDevice.container_id) continue;
+
     // Find the device type to get height and depth.
     const deviceType = deviceLibrary.find(
       (d) => d.slug === placedDevice.device_type,

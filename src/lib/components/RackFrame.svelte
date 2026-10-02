@@ -11,7 +11,7 @@
   import type { BlockedSlot } from "$lib/utils/blocked-slots";
   import type { FormFactor, RackView } from "$lib/types";
   import { frameChromeFor } from "$lib/utils/rack-frame-chrome";
-  import { fitTextToWidth } from "$lib/utils/text-sizing";
+  import { fitTextToWidth, graphemes } from "$lib/utils/text-sizing";
 
   /** Blocked-slot caption font size range, and its inset from the rails */
   const BLOCKED_CAPTION_MAX_FONT = 10;
@@ -113,11 +113,12 @@
       const suffix = ` (${otherFace})`;
       fitted = fit(`${slot.deviceName}${suffix}`);
       if (!fitted.text.endsWith(suffix)) {
-        const keep = Math.max(1, fitted.text.length - suffix.length - 1);
-        fitted = {
-          ...fitted,
-          text: `${slot.deviceName.slice(0, keep)}…${suffix}`,
-        };
+        const keep = Math.max(
+          1,
+          graphemes(fitted.text).length - suffix.length - 1,
+        );
+        const name = graphemes(slot.deviceName).slice(0, keep).join("");
+        fitted = { ...fitted, text: `${name}…${suffix}` };
       }
     }
     return { full, fitted };

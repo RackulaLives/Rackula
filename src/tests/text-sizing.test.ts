@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateFontSize,
+  estimateTextWidth,
   truncateWithEllipsis,
   fitTextToWidth,
   wrapText,
   computeDeviceLabelLayout,
   REAR_TAG_WIDTH,
+  REAR_TAG_GAP,
+  REAR_TAG_INSET,
   DEVICE_LABEL_MAX_FONT,
   DEVICE_LABEL_MIN_FONT,
   DEVICE_LABEL_IMAGE_MAX_FONT,
@@ -19,6 +22,150 @@ import {
   PORT_ZONE_GAP,
 } from "$lib/utils/port-geometry";
 import { createTestInterfaceTemplate } from "./factories";
+
+/**
+ * Reference advance widths of Inter Medium (static/fonts/Inter-Medium.woff2),
+ * the canvas device-label font at weight 500, in units of a 2048-unit em.
+ * Read from the font's hmtx table with fontTools. Kerning is left out: in
+ * Inter it narrows typical names slightly and widens only rare pairs such as
+ * WW, by under 3%.
+ */
+const INTER_MEDIUM_ADVANCE: Record<string, number> = {
+  " ": 546,
+  "!": 623,
+  '"': 1012,
+  "#": 1308,
+  $: 1323,
+  "%": 2034,
+  "&": 1338,
+  "'": 641,
+  "(": 755,
+  ")": 755,
+  "*": 1066,
+  "+": 1367,
+  ",": 621,
+  "-": 947,
+  ".": 621,
+  "/": 757,
+  "0": 1322,
+  "1": 850,
+  "2": 1262,
+  "3": 1284,
+  "4": 1344,
+  "5": 1266,
+  "6": 1290,
+  "7": 1170,
+  "8": 1289,
+  "9": 1290,
+  ":": 621,
+  ";": 646,
+  "<": 1367,
+  "=": 1367,
+  ">": 1367,
+  "?": 1080,
+  "@": 2012,
+  A: 1452,
+  B: 1345,
+  C: 1502,
+  D: 1478,
+  E: 1235,
+  F: 1207,
+  G: 1531,
+  H: 1525,
+  I: 558,
+  J: 1178,
+  K: 1408,
+  L: 1158,
+  M: 1869,
+  N: 1549,
+  O: 1570,
+  P: 1314,
+  Q: 1574,
+  R: 1327,
+  S: 1323,
+  T: 1337,
+  U: 1516,
+  V: 1452,
+  W: 2054,
+  X: 1435,
+  Y: 1426,
+  Z: 1312,
+  "[": 755,
+  "\\": 757,
+  "]": 755,
+  "^": 976,
+  _: 948,
+  "`": 690,
+  a: 1163,
+  b: 1266,
+  c: 1182,
+  d: 1266,
+  e: 1203,
+  f: 777,
+  g: 1269,
+  h: 1232,
+  i: 516,
+  j: 516,
+  k: 1145,
+  l: 516,
+  m: 1819,
+  n: 1232,
+  o: 1237,
+  p: 1266,
+  q: 1266,
+  r: 792,
+  s: 1103,
+  t: 697,
+  u: 1232,
+  v: 1177,
+  w: 1698,
+  x: 1141,
+  y: 1178,
+  z: 1145,
+  "{": 902,
+  "|": 708,
+  "}": 902,
+  "~": 1367,
+  "…": 1864,
+};
+
+/** Rendered width of ASCII text in Inter Medium, in pixels. */
+function referenceWidth(text: string, fontSize: number): number {
+  let units = 0;
+  for (const char of text) units += INTER_MEDIUM_ADVANCE[char];
+  return (units / 2048) * fontSize;
+}
+
+/** Mixed-case device names with digits and punctuation. */
+const TYPICAL_NAMES = [
+  "Patch Panel (24-Port)",
+  "Dell PowerEdge R740xd",
+  "UniFi Dream Machine Pro",
+  "Synology DS920+",
+  "Cisco Catalyst 9300-48P",
+  "Raspberry Pi 4 Model B",
+  "Brush panel, 1U",
+  "Storage array: tier-2 [backup]",
+  "pfSense firewall",
+  "HPE ProLiant DL380 Gen10",
+  "Core Distribution Patch Panel Row 12 Cabinet 4 Upper",
+];
+
+/** All-caps names and runs of the widest glyphs. */
+const WIDE_NAMES = [
+  "WWWWWWWWWW",
+  "MMMMMMMM",
+  "mmmmwwww",
+  "ALL CAPS DEVICE NAME",
+  "WAN MODEM",
+  "QNAP TS-H1290FX",
+  "OOOOQQQQ",
+  "Mm Ww Mm Ww",
+  "@@@%%%",
+];
+
+/** Largest allowed over-estimate for typical names, as a ratio. */
+const TYPICAL_MARGIN = 1.08;
 
 describe("Text Sizing Utility", () => {
   describe("calculateFontSize", () => {
@@ -109,6 +256,22 @@ describe("Text Sizing Utility", () => {
       const result = truncateWithEllipsis("", 100, 13);
       expect(result).toBe("");
     });
+
+    it("never cuts inside a flag or ZWJ emoji", () => {
+      const segmenter = new Intl.Segmenter(undefined, {
+        granularity: "grapheme",
+      });
+      for (const text of ["Rack 🇨🇦 Edge", "Lab 👨‍👩‍👧‍👦 Family Switch"]) {
+        const boundaries = new Set(
+          Array.from(segmenter.segment(text), (s) => s.index),
+        );
+        for (let width = 10; width <= 200; width++) {
+          const kept = truncateWithEllipsis(text, width, 13).replace(/…$/, "");
+          expect(text.startsWith(kept)).toBe(true);
+          expect(kept === text || boundaries.has(kept.length)).toBe(true);
+        }
+      }
+    });
   });
 
   describe("fitTextToWidth", () => {
@@ -164,31 +327,79 @@ describe("Text Sizing Utility", () => {
       expect(result.fontSize).toBe(9);
     });
 
-    it("uses fixed character width regardless of actual glyph width", () => {
-      // Implementation uses a fixed CHAR_WIDTH_RATIO (0.58) for all characters.
-      // This means "WWWWWWWWWW" and "iiiiiiiiii" (both 10 chars) produce
-      // identical results despite real rendering differences.
-      const wideChars = fitTextToWidth("WWWWWWWWWW", {
-        ...defaultOptions,
-        availableWidth: 100,
-      });
-      const narrowChars = fitTextToWidth("iiiiiiiiii", {
-        ...defaultOptions,
-        availableWidth: 100,
-      });
-      // Same character count = same result (known limitation)
-      expect(wideChars.fontSize).toBe(narrowChars.fontSize);
-      expect(wideChars.text.length).toBe(narrowChars.text.length);
+    it("gives narrow glyphs more room than wide ones of the same count", () => {
+      const options = { ...defaultOptions, availableWidth: 100 };
+      const wide = fitTextToWidth("WWWWWWWWWW", options);
+      const narrow = fitTextToWidth("iiiiiiiiii", options);
+      expect(narrow.fontSize).toBeGreaterThan(wide.fontSize);
     });
 
-    it("scales based on character count not actual glyph widths", () => {
-      // With constrained width, longer strings scale down regardless of character type
-      const constrainedOptions = { ...defaultOptions, availableWidth: 80 };
-      const shortText = fitTextToWidth("WWWWW", constrainedOptions); // 5 chars
-      const longText = fitTextToWidth("iiiiiiiiiiiiiiii", constrainedOptions); // 16 chars
-      // Shorter string gets larger font despite using "wide" characters
-      // because algorithm only considers character count, not glyph widths
-      expect(shortText.fontSize).toBeGreaterThan(longText.fontSize);
+    it("never lets the fitted text overflow the available width", () => {
+      const names = [...TYPICAL_NAMES, ...WIDE_NAMES];
+      for (const name of names) {
+        for (let availableWidth = 40; availableWidth <= 200; availableWidth++) {
+          const fitted = fitTextToWidth(name, {
+            ...defaultOptions,
+            availableWidth,
+          });
+          expect(
+            referenceWidth(fitted.text, fitted.fontSize),
+          ).toBeLessThanOrEqual(availableWidth);
+        }
+      }
+    });
+
+    it("truncates only as far as the available width needs", () => {
+      const name = "Core Distribution Patch Panel Row 12 Cabinet 4 Upper";
+      const availableWidth = 120;
+      const fitted = fitTextToWidth(name, {
+        ...defaultOptions,
+        availableWidth,
+      });
+      expect(fitted.text.endsWith("…")).toBe(true);
+      // One more character would not have fitted by much: no wide unused gap.
+      expect(referenceWidth(fitted.text, fitted.fontSize)).toBeGreaterThan(
+        availableWidth * 0.85,
+      );
+    });
+  });
+
+  describe("estimateTextWidth", () => {
+    it("never under-estimates a printable ASCII character", () => {
+      for (const char of Object.keys(INTER_MEDIUM_ADVANCE)) {
+        expect(estimateTextWidth(char, 13)).toBeGreaterThanOrEqual(
+          referenceWidth(char, 13),
+        );
+      }
+    });
+
+    it("never under-estimates wide-glyph and all-caps names", () => {
+      for (const name of WIDE_NAMES) {
+        expect(estimateTextWidth(name, 13)).toBeGreaterThanOrEqual(
+          referenceWidth(name, 13),
+        );
+      }
+    });
+
+    it("stays within the margin of the rendered width for typical names", () => {
+      for (const name of TYPICAL_NAMES) {
+        const ratio = estimateTextWidth(name, 13) / referenceWidth(name, 13);
+        expect(ratio).toBeGreaterThanOrEqual(1);
+        expect(ratio).toBeLessThanOrEqual(TYPICAL_MARGIN);
+      }
+    });
+
+    it("treats characters outside the table as wide", () => {
+      expect(estimateTextWidth("机", 10)).toBeGreaterThanOrEqual(
+        estimateTextWidth("W", 10),
+      );
+    });
+
+    it("sizes accented letters like their base letters", () => {
+      const plain = estimateTextWidth("Cafe Buro", 10);
+      expect(estimateTextWidth("Café Büro", 10)).toBeCloseTo(plain);
+      // Decomposed form: the combining marks add no advance.
+      expect(estimateTextWidth("Café Büro", 10)).toBeCloseTo(plain);
     });
   });
 
@@ -262,6 +473,7 @@ describe("Text Sizing Utility", () => {
       deviceWidth: number,
       visiblePortCount: number,
       isRearTreatment = false,
+      label = "Server",
     ) {
       const zones = computeDeviceZones({
         deviceWidth,
@@ -274,6 +486,7 @@ describe("Text Sizing Utility", () => {
           zones,
           deviceWidth,
           isRearTreatment,
+          label,
         }),
       };
     }
@@ -347,6 +560,13 @@ describe("Text Sizing Utility", () => {
       ).toBeGreaterThan(fitted.text.length);
     });
 
+    it("shows a 24-port patch panel's full name on a 19-inch rack", () => {
+      const name = "Patch Panel (24-Port)";
+      expect(fit(name, layoutFor(WIDE, 24).layout.availableWidth).text).toBe(
+        name,
+      );
+    });
+
     it("never returns a negative width on a narrow rack", () => {
       for (const count of [0, 4, 24, 48]) {
         for (const isRearTreatment of [false, true]) {
@@ -393,12 +613,72 @@ describe("Text Sizing Utility", () => {
       }
     });
 
-    it("keeps the icon and the floating REAR tag on a narrow rack without ports", () => {
-      const { layout } = layoutFor(NARROW, 0, true);
-      expect(layout.showIcon).toBe(true);
-      expect(layout.anchor).toBe("middle");
-      expect(layout.rearTag).toBeUndefined();
+    /** Right edge of the centred label text, from its fitted width. */
+    function textRight(deviceWidth: number, label: string) {
+      const { layout } = layoutFor(deviceWidth, 0, true, label);
+      const fitted = fit(label, layout.availableWidth);
+      return (
+        deviceWidth / 2 + estimateTextWidth(fitted.text, fitted.fontSize) / 2
+      );
+    }
+
+    /** Left edge of the floating REAR tag. */
+    function tagLeft(deviceWidth: number) {
+      return deviceWidth - REAR_TAG_INSET - REAR_TAG_WIDTH;
+    }
+
+    it("omits the floating REAR tag on a narrow rack only when the label reaches it", () => {
+      for (const label of ["1", "Server", "Switch"]) {
+        const { layout } = layoutFor(NARROW, 0, true, label);
+        const front = layoutFor(NARROW, 0, false, label).layout;
+        const collides =
+          textRight(NARROW, label) + REAR_TAG_GAP > tagLeft(NARROW);
+        expect(layout.floatRearTag).toBe(!collides);
+        expect(layout.rearTag).toBeUndefined();
+        // The label keeps its centred position, width and icon either way.
+        expect(layout.x).toBe(front.x);
+        expect(layout.availableWidth).toBe(front.availableWidth);
+        expect(layout.showIcon).toBe(true);
+        expect(layout.anchor).toBe("middle");
+      }
+      expect(layoutFor(NARROW, 0, true, "1").layout.floatRearTag).toBe(true);
+      expect(layoutFor(NARROW, 0, true, "Server").layout.floatRearTag).toBe(
+        false,
+      );
+    });
+
+    it("omits the floating REAR tag when a label fills a 48px label zone", () => {
+      const deviceWidth = 96;
+      const label = "Network Video Recorder";
+      const { zones, layout } = layoutFor(deviceWidth, 0, true, label);
+      expect(zones.labelWidth).toBe(LABEL_MIN_WIDTH);
+      expect(textRight(deviceWidth, label)).toBeGreaterThan(
+        tagLeft(deviceWidth),
+      );
+      expect(layout.floatRearTag).toBe(false);
+    });
+
+    it("keeps the floating REAR tag and the label width on a 19-inch rack", () => {
+      const { layout } = layoutFor(WIDE, 0, true, "Dell R740");
       expect(layout.floatRearTag).toBe(true);
+      expect(layout.rearTag).toBeUndefined();
+      expect(layout.availableWidth).toBe(
+        layoutFor(WIDE, 0).layout.availableWidth,
+      );
+    });
+
+    it("omits the floating REAR tag when a long label reaches it on a 19-inch rack", () => {
+      const label = "Core Distribution Patch Panel Row 12 Cabinet 4 Upper";
+      const { layout } = layoutFor(WIDE, 0, true, label);
+      expect(textRight(WIDE, label)).toBeGreaterThan(tagLeft(WIDE));
+      expect(layout.floatRearTag).toBe(false);
+      expect(layout.availableWidth).toBe(
+        layoutFor(WIDE, 0).layout.availableWidth,
+      );
+    });
+
+    it("floats the REAR tag when name labels are hidden", () => {
+      expect(layoutFor(NARROW, 0, true, "").layout.floatRearTag).toBe(true);
     });
 
     it("counts only the ports on the face in view", () => {

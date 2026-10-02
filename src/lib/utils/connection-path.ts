@@ -35,6 +35,7 @@ import type {
 import { inferDirection } from "$lib/utils/port-utils";
 import {
   getPortAnchors,
+  getPortChipPosition,
   type PortAnchor,
   type PortGeometryOffset,
 } from "$lib/utils/port-geometry";
@@ -72,16 +73,57 @@ export interface CubicControlPoints {
   c2: Point;
 }
 
+/** Horizontal distance between adjacent lanes of one gutter, in px. */
+export const CHANNEL_LANE_SPACING = 6;
+
 /**
- * Alternate connections between the right and left gutter so that, absent
- * any other signal, cabling load-balances visually across both sides of the
- * rack instead of stacking every curve on one edge. Index is the position of
- * a connection within the set actually being rendered (see
- * buildRenderedConnections), not its position in the raw connections array,
- * so a skipped (unanchored) connection does not "use up" a side.
+ * Furthest the outermost lane sits beyond the base gutter offset, in px.
+ * The tightest neighbour is the rear view, DUAL_VIEW_GAP (24) right of the
+ * front view's frame. A lane-0 cable from a right-aligned port (anchor at
+ * least 23 inside the frame) already peaks about 17 past the frame; 8 more of
+ * gutter adds 6 to the peak, so the outermost cable stays about 23 out,
+ * inside both that gap and half the 48 between racks in a canvas row.
  */
-export function assignChannelSide(index: number): ChannelSide {
-  return index % 2 === 0 ? "right" : "left";
+export const CHANNEL_MAX_SPREAD = 8;
+
+/** A connection's lane: its position among `count` cables sharing a gutter span. */
+export interface ChannelLane {
+  index: number;
+  count: number;
+}
+
+/**
+ * Route a connection through the gutter on the rail nearer its two ports.
+ * Ports sit in a right-aligned zone (#3450), so a cable between them routes
+ * right and never runs back across either device's label (#3463). A port
+ * pair whose midpoint lies left of the rack's centre routes left.
+ */
+export function assignChannelSide(
+  source: Point,
+  target: Point,
+  rackBounds: RackBounds,
+): ChannelSide {
+  const centreX = rackBounds.x + rackBounds.width / 2;
+  return (source.x + target.x) / 2 < centreX ? "left" : "right";
+}
+
+/**
+ * Gutter offset for a connection's lane. Lane 0 sits at the base offset and
+ * each further lane one CHANNEL_LANE_SPACING further out, so parallel cables
+ * fan out instead of drawing on top of each other (see
+ * buildRenderedConnections for how lanes are assigned). A group too large to
+ * fit inside CHANNEL_MAX_SPREAD at that spacing packs its lanes closer, so
+ * the outermost one sits at the cap and every cable keeps its own lane.
+ */
+export function channelGutterOffset(
+  lane: ChannelLane,
+  gutterOffset: number = DEFAULT_GUTTER_OFFSET,
+): number {
+  const spacing =
+    lane.count > 1
+      ? Math.min(CHANNEL_LANE_SPACING, CHANNEL_MAX_SPREAD / (lane.count - 1))
+      : 0;
+  return gutterOffset + lane.index * spacing;
 }
 
 /**
@@ -374,17 +416,17 @@ export function computeConnectionGeometry(
   source: Point,
   target: Point,
   rackBounds: RackBounds,
-  index: number,
+  lane: ChannelLane,
   direction: ArrowDirection,
   options: ConnectionGeometryOptions = {},
 ): ConnectionGeometry {
-  const side = assignChannelSide(index);
+  const side = assignChannelSide(source, target, rackBounds);
   const control = computeChannelControlPoints(
     source,
     target,
     rackBounds,
     side,
-    options.gutterOffset,
+    channelGutterOffset(lane, options.gutterOffset),
   );
   const path = buildCubicBezierPath(source, control, target);
   const trimmed = trimCubicBezier(
@@ -516,22 +558,26 @@ export function buildPortAnchorMap(
       rackPadding: rackDims.rackPadding,
     });
 
-    const anchors = getPortAnchors({
+    const geometry = {
       interfaces: deviceType.interfaces,
       ports,
       rackView,
       deviceWidth: rackDims.interiorWidth,
       deviceHeight: deviceType.u_height * rackDims.uHeight,
       offset,
-    });
+    };
+    // A collapsed chip's ports anchor on its marker, left of the count. Cables
+    // end at the chip's right edge instead, so one leaving for the right
+    // gutter does not strike through the count (#3463).
+    const chip = getPortChipPosition(geometry);
 
-    for (const anchor of anchors) {
+    for (const anchor of getPortAnchors(geometry)) {
       const port = ports.find((p) => p.id === anchor.portId);
       const iface = port
         ? deviceType.interfaces[port.template_index]
         : undefined;
       map.set(anchor.portId, {
-        anchor,
+        anchor: chip ? { ...anchor, x: chip.x + chip.width } : anchor,
         direction: resolveConnectionPortDirection(port, iface),
       });
     }
@@ -549,7 +595,7 @@ export function buildPortAnchorMap(
  * connection whose two ports are both anchored on its own devices, so its
  * rack's bucket always contains every connection it can draw. Buckets keep
  * layout order, which keeps buildRenderedConnections' per-face channel
- * index, and so the routing, identical to a scan of the full list.
+ * lanes, and so the routing, identical to a scan of the full list.
  *
  * Pass the previous index to keep an unchanged bucket's array identity: a
  * rack whose bucket holds the same connection objects in the same order gets
@@ -611,6 +657,12 @@ export interface RenderedConnection {
  * Resolve every connection to its renderable geometry, skipping any
  * connection where either endpoint has no anchor.
  *
+ * Lanes: a cable runs through its gutter between its two ports' heights, so
+ * only cables in the same gutter spanning the same heights can draw on top
+ * of each other. Each such cable takes the next lane out, in render order; a
+ * skipped (unanchored) connection takes no lane. Cables with a span of their
+ * own stay on lane 0.
+ *
  * Grouped-mode fallback decision (#1931 AC, #3089): a port with no anchor -
  * because its device is over the high-density threshold, the port is on the
  * other rack face, or the layout predates PlacedPort identity - is skipped
@@ -628,26 +680,43 @@ export function buildRenderedConnections(
   rackBounds: RackBounds,
   options: ConnectionGeometryOptions = {},
 ): RenderedConnection[] {
-  const results: RenderedConnection[] = [];
-  let index = 0;
+  const resolved: Array<{
+    connection: Connection;
+    a: ResolvedPortAnchor;
+    b: ResolvedPortAnchor;
+    span: string;
+  }> = [];
+  const countsBySpan = new Map<string, number>();
 
   for (const connection of connections) {
     const a = portAnchors.get(connection.a_port_id);
     const b = portAnchors.get(connection.b_port_id);
     if (!a || !b) continue;
 
+    const side = assignChannelSide(a.anchor, b.anchor, rackBounds);
+    const span = `${side},${Math.min(a.anchor.y, b.anchor.y)},${Math.max(a.anchor.y, b.anchor.y)}`;
+    countsBySpan.set(span, (countsBySpan.get(span) ?? 0) + 1);
+    resolved.push({ connection, a, b, span });
+  }
+
+  const nextLaneBySpan = new Map<string, number>();
+  const results: RenderedConnection[] = [];
+
+  for (const { connection, a, b, span } of resolved) {
+    const index = nextLaneBySpan.get(span) ?? 0;
+    nextLaneBySpan.set(span, index + 1);
+
     const direction = resolveArrowDirection(a.direction, b.direction);
     const geometry = computeConnectionGeometry(
       a.anchor,
       b.anchor,
       rackBounds,
-      index,
+      { index, count: countsBySpan.get(span) ?? 1 },
       direction,
       options,
     );
 
     results.push({ connection, geometry });
-    index++;
   }
 
   return results;
