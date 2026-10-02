@@ -5,7 +5,7 @@
  * to fit within available width in SVG device labels.
  *
  * Uses character-width estimation since SVG text measurement requires DOM access.
- * The estimation is calibrated for system-ui/sans-serif fonts used in device labels.
+ * The estimation is calibrated for Inter Medium, the canvas device-label font.
  */
 
 import { LABEL_MIN_WIDTH, PORT_ZONE_GAP } from "$lib/utils/port-geometry";
@@ -91,11 +91,59 @@ export interface FitTextResult {
 }
 
 /**
- * Average character width as a ratio of font size.
- * Calibrated for system-ui/sans-serif fonts.
- * Most characters are roughly 0.55-0.6x the font size in width.
+ * Character widths as a ratio of font size, by class. Each value is the
+ * widest advance in its class in Inter Medium (the canvas label font, weight
+ * 500), rounded up, so the estimate does not fall short of the rendered
+ * width.
  */
-const CHAR_WIDTH_RATIO = 0.58;
+const CHAR_WIDTH_CLASSES: ReadonlyArray<readonly [string, number]> = [
+  // Thin letters and space
+  ["ijlI ", 0.28],
+  // Narrow punctuation
+  [".,:;!|'`", 0.35],
+  // Narrow letters, brackets and slashes
+  ["frt()[]/\\", 0.39],
+  // Dashes, quotes and the digit 1
+  ['-_"1^{}', 0.5],
+  // Lowercase
+  ["acehknosuvxyz?*", 0.61],
+  ["bdgpq", 0.62],
+  // Digits and narrow capitals
+  ["023456789EFJL$", 0.66],
+  // Capitals and symbols
+  ["BKPRSTZ+#&<=>~", 0.69],
+  // Wide capitals
+  ["ACDGHNOQUVXY", 0.77],
+  // Widest glyphs. W carries headroom for Inter's positive W-W kerning.
+  ["mwM…", 0.92],
+  ["W@%", 1.03],
+];
+
+/** Width of characters outside every class, such as accented or CJK text. */
+const DEFAULT_CHAR_WIDTH = 1.03;
+
+const CHAR_WIDTHS = new Map(
+  CHAR_WIDTH_CLASSES.flatMap(([chars, width]) =>
+    [...chars].map((char) => [char, width] as const),
+  ),
+);
+
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/** Splits text into user-perceived characters, so flags and emoji stay whole. */
+export function graphemes(text: string): string[] {
+  return Array.from(GRAPHEMES.segment(text), (s) => s.segment);
+}
+
+/**
+ * Width of one grapheme cluster, from its base character: accented letters
+ * take their base letter's width, and combining marks, ZWJ sequences and
+ * flags count once.
+ */
+function clusterWidth(cluster: string): number {
+  const base = cluster.normalize("NFD").codePointAt(0) ?? 0;
+  return CHAR_WIDTHS.get(String.fromCodePoint(base)) ?? DEFAULT_CHAR_WIDTH;
+}
 
 /**
  * Estimates the width of text at a given font size.
@@ -103,9 +151,10 @@ const CHAR_WIDTH_RATIO = 0.58;
  * @param fontSize - The font size in pixels
  * @returns Estimated width in pixels
  */
-function estimateTextWidth(text: string, fontSize: number): number {
-  if (!text) return 0;
-  return text.length * fontSize * CHAR_WIDTH_RATIO;
+export function estimateTextWidth(text: string, fontSize: number): number {
+  let width = 0;
+  for (const cluster of graphemes(text)) width += clusterWidth(cluster);
+  return width * fontSize;
 }
 
 /**
@@ -135,15 +184,13 @@ export function calculateFontSize(
     return maxFontSize;
   }
 
-  // Calculate the font size needed to fit
-  // width = length * fontSize * ratio
-  // fontSize = width / (length * ratio)
-  const idealFontSize = availableWidth / (text.length * CHAR_WIDTH_RATIO);
+  // Width scales linearly with font size. Round down so the text still fits.
+  const idealFontSize = availableWidth / estimateTextWidth(text, 1);
 
   // Clamp between min and max
   return Math.max(
     minFontSize,
-    Math.min(maxFontSize, Math.round(idealFontSize)),
+    Math.min(maxFontSize, Math.floor(idealFontSize)),
   );
 }
 
@@ -177,14 +224,15 @@ export function truncateWithEllipsis(
     return "…";
   }
 
-  const charWidth = fontSize * CHAR_WIDTH_RATIO;
-  const maxChars = Math.floor(availableForText / charWidth);
-
-  if (maxChars <= 0) {
-    return "…";
+  let kept = "";
+  let keptWidth = 0;
+  for (const cluster of graphemes(text)) {
+    keptWidth += clusterWidth(cluster) * fontSize;
+    if (keptWidth > availableForText) break;
+    kept += cluster;
   }
 
-  return text.substring(0, maxChars) + "…";
+  return kept + "…";
 }
 
 /**
