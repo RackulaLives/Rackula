@@ -16,6 +16,8 @@ import {
   createTestRack,
   createTestDeviceType,
   createTestDevice,
+  createTestContainerType,
+  createTestContainerChild,
 } from "./factories";
 
 describe("getBlockedSlots", () => {
@@ -272,6 +274,46 @@ describe("getBlockedSlots", () => {
       const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
 
       expect(blockedSlots.length).toBe(0);
+    });
+  });
+
+  describe("carrier children", () => {
+    it("keeps hatching within the carrier's rail range for a half-depth child", () => {
+      const carrier = createTestDevice({
+        id: "carrier-1",
+        device_type: "half-depth-carrier",
+        position: 10,
+        face: "front",
+      });
+      // Child position is container-relative (0-indexed), not a rail U.
+      const child = createTestContainerChild({
+        container_id: "carrier-1",
+        slot_id: "slot-left",
+        device_type: "half-depth-module",
+        position: 0,
+        face: "front",
+      });
+      const rack = createTestRack({ height: 42, devices: [carrier, child] });
+
+      const deviceLibrary = [
+        createTestContainerType({
+          slug: "half-depth-carrier",
+          u_height: 2,
+          is_full_depth: false,
+        }),
+        createTestDeviceType({
+          slug: "half-depth-module",
+          u_height: 1,
+          is_full_depth: false,
+        }),
+      ];
+
+      const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
+
+      // Only the carrier blocks, across its own rail range.
+      expect(blockedSlots).toEqual([
+        { bottom: 10, top: 11, deviceName: "Test Container" },
+      ]);
     });
   });
 });
