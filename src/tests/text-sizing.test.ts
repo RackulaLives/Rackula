@@ -376,6 +376,13 @@ describe("Text Sizing Utility", () => {
         estimateTextWidth("W", 10),
       );
     });
+
+    it("sizes accented letters like their base letters", () => {
+      const plain = estimateTextWidth("Cafe Buro", 10);
+      expect(estimateTextWidth("Café Büro", 10)).toBeCloseTo(plain);
+      // Decomposed form: the combining marks add no advance.
+      expect(estimateTextWidth("Café Büro", 10)).toBeCloseTo(plain);
+    });
   });
 
   describe("Shared Constants", () => {

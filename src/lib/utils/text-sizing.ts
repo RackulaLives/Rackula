@@ -128,8 +128,17 @@ const CHAR_WIDTHS = new Map(
   ),
 );
 
+const COMBINING_MARK = /\p{M}/u;
+
+/** Accented letters take their base letter's width; combining marks add none. */
 function charWidth(char: string): number {
-  return CHAR_WIDTHS.get(char) ?? DEFAULT_CHAR_WIDTH;
+  let width = 0;
+  for (const part of char.normalize("NFD")) {
+    if (!COMBINING_MARK.test(part)) {
+      width += CHAR_WIDTHS.get(part) ?? DEFAULT_CHAR_WIDTH;
+    }
+  }
+  return width;
 }
 
 /**
