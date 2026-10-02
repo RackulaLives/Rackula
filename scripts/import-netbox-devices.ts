@@ -45,7 +45,8 @@ import { spawnSync } from "child_process";
 import { createInterface, type Interface } from "readline/promises";
 import yaml from "js-yaml";
 import { brandPackArrayName } from "../src/lib/utils/brand-pack-identifier";
-import { uHeightForMm } from "../src/lib/utils/device-width";
+import { getRackOpeningMm, uHeightForMm } from "../src/lib/utils/device-width";
+import { MAX_DEVICE_HEIGHT, MM_PER_U } from "../src/lib/types/constants";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -483,6 +484,22 @@ function isPositiveNumber(value: number): boolean {
   return Number.isFinite(value) && value > 0;
 }
 
+/**
+ * Why a measured size cannot be imported, with the limits Add Device applies:
+ * no wider than a 19" rack opening and no taller than MAX_DEVICE_HEIGHT.
+ * undefined when it can.
+ */
+function sizeError(size: ZeroUSize): string | undefined {
+  const openingMm = getRackOpeningMm(19);
+  if (size.widthMm > openingMm) {
+    return `${size.widthMm} mm is wider than a 19" rack opening (${openingMm} mm)`;
+  }
+  if (uHeightForMm(size.heightMm) > MAX_DEVICE_HEIGHT) {
+    return `${size.heightMm} mm is taller than Rackula allows (${(MAX_DEVICE_HEIGHT * MM_PER_U).toFixed(1)} mm)`;
+  }
+  return undefined;
+}
+
 /** Ask for a length in mm until it is valid; undefined when left blank. */
 async function askMm(
   rl: Interface,
@@ -525,6 +542,11 @@ async function zeroUSize(
     if (widthMm === undefined) return undefined;
     const heightMm = await askMm(rl, "Height");
     if (heightMm === undefined) return undefined;
+    const error = sizeError({ widthMm, heightMm });
+    if (error) {
+      console.log(`  Not imported: ${error}`);
+      return undefined;
+    }
     return { widthMm, heightMm };
   } finally {
     rl.close();
@@ -697,6 +719,14 @@ async function main(): Promise<void> {
       console.error(
         "Error: give both --width-mm and --height-mm as positive numbers of millimetres",
       );
+      process.exit(1);
+    }
+    const error = sizeError({
+      widthMm: options.widthMm!,
+      heightMm: options.heightMm!,
+    });
+    if (error) {
+      console.error(`Error: ${error}`);
       process.exit(1);
     }
   }

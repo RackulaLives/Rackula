@@ -54,6 +54,7 @@ npx tsx scripts/import-netbox-devices.ts --vendor Synology --slug DS920+ --width
 - `--width-mm` and `--height-mm` apply only to a 0U device. They are ignored for a device NetBox already gives a height.
 - Without them, `--slug` in a terminal shows the spec sheet link from the file's `comments` and asks for the size.
 - `--all` skips 0U devices and lists them at the end, each with its spec sheet link and the command to import it.
+- The size uses the limits of Add Device: no wider than a 19" rack opening (450 mm) and no taller than 1866.9 mm. A size past them is refused.
 
 The device is written as a measured device, the same as one made with Add Device: `width_mm` and `height_mm` hold the size, `u_height` is derived from the height, and it mounts in a carrier cut to its size (see [SPEC.md](../reference/SPEC.md#mounting-model)).
 
