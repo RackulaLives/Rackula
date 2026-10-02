@@ -52,7 +52,9 @@ test.describe("Stacked group rows", () => {
 
   test("fit-all frames every row, including group chrome", async ({ page }) => {
     const canvas = page.locator(locators.canvas.root);
-    await canvas.click({ position: { x: 5, y: 5 } });
+    // Focus rather than click: the left panel's edge grip overlays the
+    // canvas's left edge and would take a click there.
+    await canvas.focus();
     await page.keyboard.press("f");
 
     const viewport = await box(canvas);
