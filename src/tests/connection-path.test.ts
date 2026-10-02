@@ -25,6 +25,8 @@ import {
   createTestRack,
 } from "./factories";
 import {
+  CHANNEL_LANE_SPACING,
+  CHANNEL_MAX_SPREAD,
   DEFAULT_GUTTER_OFFSET,
   HIT_PATH_TRIM,
   arrowPointsAttr,
@@ -86,11 +88,33 @@ describe("assignChannelSide", () => {
 
 describe("channelGutterOffset", () => {
   it("puts each further lane further out from the rack", () => {
-    expect(channelGutterOffset(0)).toBe(DEFAULT_GUTTER_OFFSET);
-    expect(channelGutterOffset(1)).toBeGreaterThan(channelGutterOffset(0));
-    expect(channelGutterOffset(5, 10)).toBeGreaterThan(
-      channelGutterOffset(4, 10),
+    expect(channelGutterOffset({ index: 0, count: 1 })).toBe(
+      DEFAULT_GUTTER_OFFSET,
     );
+    expect(channelGutterOffset({ index: 1, count: 2 })).toBeGreaterThan(
+      channelGutterOffset({ index: 0, count: 2 }),
+    );
+  });
+
+  it("keeps 24 parallel cables on one span inside the spread cap, each on its own offset", () => {
+    const count = 24;
+    const offsets = Array.from({ length: count }, (_, index) =>
+      channelGutterOffset({ index, count }),
+    );
+    for (const offset of offsets) {
+      expect(offset).toBeGreaterThanOrEqual(DEFAULT_GUTTER_OFFSET);
+      expect(offset).toBeLessThanOrEqual(
+        DEFAULT_GUTTER_OFFSET + CHANNEL_MAX_SPREAD,
+      );
+    }
+    expect(new Set(offsets).size).toBe(count);
+  });
+
+  it("keeps full lane spacing while a group fits inside the cap", () => {
+    expect(
+      channelGutterOffset({ index: 1, count: 2 }) -
+        channelGutterOffset({ index: 0, count: 2 }),
+    ).toBe(CHANNEL_LANE_SPACING);
   });
 });
 
@@ -337,7 +361,7 @@ describe("computeConnectionGeometry", () => {
       source,
       target,
       rackBounds,
-      0,
+      { index: 0, count: 1 },
       null,
     );
     expect(geometry.side).toBe("right");
@@ -352,14 +376,14 @@ describe("computeConnectionGeometry", () => {
       rightSource,
       rightTarget,
       rackBounds,
-      0,
+      { index: 0, count: 1 },
       null,
     );
     const second = computeConnectionGeometry(
       rightSource,
       rightTarget,
       rackBounds,
-      1,
+      { index: 1, count: 2 },
       "a-to-b",
     );
     expect(first.side).toBe("right");
@@ -373,7 +397,7 @@ describe("computeConnectionGeometry", () => {
       source,
       target,
       rackBounds,
-      0,
+      { index: 0, count: 1 },
       null,
     );
     const control = computeChannelControlPoints(
@@ -392,7 +416,7 @@ describe("computeConnectionGeometry", () => {
       source,
       target,
       rackBounds,
-      0,
+      { index: 0, count: 1 },
       null,
     );
     const control = computeChannelControlPoints(
@@ -723,7 +747,7 @@ describe("buildRenderedConnections", () => {
       { x: 190, y: 100 },
       { x: 190, y: 400 },
       rackBounds,
-      0,
+      { index: 0, count: 1 },
       null,
     );
     expect(rendered[1].geometry.path).toBe(laneZero.path);
@@ -759,7 +783,7 @@ describe("buildRenderedConnections", () => {
       { x: 20, y: 50 },
       { x: 20, y: 300 },
       rackBounds,
-      0,
+      { index: 0, count: 1 },
       null,
     );
     expect(rendered[1].geometry.side).toBe("left");
@@ -804,7 +828,7 @@ describe("buildRenderedConnections", () => {
       { x: 190, y: 50 },
       { x: 190, y: 300 },
       rackBounds,
-      1,
+      { index: 1, count: 2 },
       null,
     );
     expect(rendered[1].geometry.path).toBe(laneOne.path);
