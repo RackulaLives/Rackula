@@ -15,12 +15,15 @@ import {
   base64UrlEncode,
   MAX_ENCODED_LENGTH,
   MAX_DECOMPRESSED_BYTES,
+  summarizeShareOmissions,
 } from "$lib/utils/share";
 import {
   createTestLayout,
   createTestRack,
   createTestDeviceType,
   createTestDevice,
+  createTestInterfaceTemplate,
+  createTestConnection,
 } from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
 import {
@@ -1086,5 +1089,118 @@ describe("multi-rack share", () => {
     const decoded = requireDecoded(encoded);
 
     expect(decoded.rack_groups).toBeUndefined();
+  });
+});
+
+describe("share link rack order (#3378)", () => {
+  /**
+   * Captured from the encoder before #3378. Racks were written in array
+   * order (Rack C, Rack A, Rack B) and carry no position.
+   */
+  const PRE_3378_LINK =
+    "N4IgbiBcIIwHQAYQBoQDMKQEyoHZRADEBLADwBcBXAJwFMURqBnKAbVGIKTwICUBDAMYBrAAQBhBgAsoMHCADusgJyoAJm1DkCTahFQAHKADZUaAmmoB7XNoC+AXTvIOBGA3zQBI0QEFpUAAs8kqQMKogGpCsTi4gnNBYHnxCYgBCAdiBqKHh6mxODura0aAs0Lr6IDJhqAC2BAAqtEzkogAitGDEgvSoggQAxADMw8bGysoMpDogjnZAA";
+
+  function orderedNames(layout: Layout): string[] {
+    return [...layout.racks]
+      .sort((a, b) => a.position - b.position)
+      .map((rack) => rack.name);
+  }
+
+  it("keeps rack order when array order differs from position", () => {
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({ id: "r-c", name: "Rack C", position: 2 }),
+        createTestRack({ id: "r-a", name: "Rack A", position: 0 }),
+        createTestRack({ id: "r-b", name: "Rack B", position: 1 }),
+      ],
+    });
+
+    const decoded = requireDecoded(requireEncoded(layout));
+
+    expect(orderedNames(decoded)).toEqual(["Rack A", "Rack B", "Rack C"]);
+    expect(new Set(decoded.racks.map((rack) => rack.position)).size).toBe(
+      decoded.racks.length,
+    );
+  });
+
+  it("keeps array order for racks that share a position", () => {
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({ id: "r-1", name: "First", position: 0 }),
+        createTestRack({ id: "r-2", name: "Second", position: 0 }),
+      ],
+    });
+
+    const decoded = requireDecoded(requireEncoded(layout));
+
+    expect(orderedNames(decoded)).toEqual(["First", "Second"]);
+  });
+
+  it("keeps rack groups pointing at the right racks after reordering", () => {
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({ id: "r-b", name: "Rack B", position: 1 }),
+        createTestRack({ id: "r-a", name: "Rack A", position: 0 }),
+      ],
+      rack_groups: [{ id: "g", name: "Bay", rack_ids: ["r-b"] }],
+    });
+
+    const decoded = requireDecoded(requireEncoded(layout));
+    const memberId = decoded.rack_groups?.[0]?.rack_ids[0];
+
+    expect(decoded.racks.find((rack) => rack.id === memberId)?.name).toBe(
+      "Rack B",
+    );
+  });
+
+  it("decodes a link from the pre-#3378 encoder in its array order", () => {
+    const decoded = requireDecoded(PRE_3378_LINK);
+
+    expect(decoded.name).toBe("Fixture");
+    expect(orderedNames(decoded)).toEqual(["Rack C", "Rack A", "Rack B"]);
+    expect(decoded.racks.map((rack) => rack.height)).toEqual([12, 42, 24]);
+    expect(decoded.racks[0]!.devices).toEqual([
+      expect.objectContaining({
+        device_type: "srv",
+        position: toInternalUnits(6),
+        face: "front",
+      }),
+    ]);
+  });
+});
+
+describe("summarizeShareOmissions", () => {
+  it("counts ports of placed devices and connections", () => {
+    const switchType = {
+      ...createTestDeviceType({ slug: "switch", category: "network" }),
+      interfaces: [
+        createTestInterfaceTemplate({ name: "eth0" }),
+        createTestInterfaceTemplate({ name: "eth1" }),
+      ],
+    };
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({ device_type: "switch", position: 6 }),
+            createTestDevice({ device_type: "switch", position: 12 }),
+          ],
+        }),
+      ],
+      device_types: [switchType, createTestDeviceType({ slug: "unused" })],
+      connections: [createTestConnection()],
+    });
+
+    expect(summarizeShareOmissions(layout)).toEqual({
+      ports: 4,
+      connections: 1,
+    });
+  });
+
+  it("reports nothing lost for a layout without ports or connections", () => {
+    expect(summarizeShareOmissions(createLayoutWithDevices())).toEqual({
+      ports: 0,
+      connections: 0,
+    });
   });
 });

@@ -209,9 +209,15 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
     throw new Error("Layout must have at least one rack");
   }
 
+  // Racks are written in Rack.position order (stable on ties) and decode
+  // assigns position from array index, so order survives without a new field.
+  const orderedRacks = [...layout.racks].sort(
+    (a, b) => a.position - b.position,
+  );
+
   // Build rack ID map: real UUID -> short sequential ID
   const rackIdMap = new Map<string, string>();
-  layout.racks.forEach((rack, index) => {
+  orderedRacks.forEach((rack, index) => {
     rackIdMap.set(rack.id, String(index));
   });
 
@@ -274,7 +280,7 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
     }));
 
   // Convert all racks to MinimalRackV2
-  const rs: MinimalRackV2[] = layout.racks.map((rack) => ({
+  const rs: MinimalRackV2[] = orderedRacks.map((rack) => ({
     i: rackIdMap.get(rack.id)!,
     n: rack.name,
     h: rack.height,
@@ -356,7 +362,7 @@ function fromMinimalLayoutV2(minimal: MinimalLayoutV2): Layout {
   // Build reverse map: shortId -> generated UUID
   const shortIdToUuid = new Map<string, string>();
 
-  const racks = minimal.rs.map((minRack) => {
+  const racks = minimal.rs.map((minRack, index) => {
     const rackId = generateId();
     shortIdToUuid.set(minRack.i, rackId);
 
@@ -374,6 +380,8 @@ function fromMinimalLayoutV2(minimal: MinimalLayoutV2): Layout {
       convertMinimalDevices(minRack.d),
       device_types,
     ).devices;
+    // Array order is rack order (#3378); older links decode in their array order.
+    rack.position = index;
     return rack;
   });
 
@@ -636,6 +644,34 @@ export function generateShareUrl(layout: Layout): string | null {
       ? window.location.origin + window.location.pathname
       : "https://app.racku.la/";
   return `${baseUrl}?l=${encoded}`;
+}
+
+/**
+ * Longest share URL offered as a link, in characters. A longer URL may not
+ * open at all: nginx rejects a request line over its default 8 KB header
+ * buffer, and Cloudflare caps URLs at 16 KB (#3378).
+ */
+export const MAX_SHARE_URL_LENGTH = 8000;
+
+export interface ShareOmissions {
+  /** Ports on placed devices, which a link does not carry */
+  ports: number;
+  /** Connections, which a link does not carry */
+  connections: number;
+}
+
+/** What this layout loses in a share link, for the Share dialog (#3378). */
+export function summarizeShareOmissions(layout: Layout): ShareOmissions {
+  const portsBySlug = new Map(
+    layout.device_types.map((t) => [t.slug, t.interfaces?.length ?? 0]),
+  );
+  let ports = 0;
+  for (const rack of layout.racks) {
+    for (const device of rack.devices) {
+      ports += portsBySlug.get(device.device_type) ?? 0;
+    }
+  }
+  return { ports, connections: layout.connections?.length ?? 0 };
 }
 
 /**
