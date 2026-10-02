@@ -53,6 +53,7 @@ import { getStorageMode } from "./availability.svelte";
 import { markPreCarrierMigrationPending } from "./pre-carrier-migration-pending";
 import { layoutDebug } from "$lib/utils/debug";
 import { fitsInRow } from "$lib/utils/slot-layout";
+import { clampContainerChildPositions } from "$lib/utils/collision";
 
 /**
  * A placed device as it may appear in raw legacy input. The carrier-first model
@@ -815,7 +816,7 @@ export function adaptLegacyLayout(layout: Layout): Layout {
   // Generated carriers are cut per file, so they cannot come from the starter
   // library the way the shipped slugs do; they are merged in below.
   const generatedCarrierTypes: DeviceType[] = [];
-  const racks = layout.racks.map((rack) => {
+  const carrierRacks = layout.racks.map((rack) => {
     if (!rack || !Array.isArray(rack.devices)) return rack;
     const { devices, carrierSlugs, generatedTypes, changed } = adaptRackDevices(
       rack.devices,
@@ -842,13 +843,20 @@ export function adaptLegacyLayout(layout: Layout): Layout {
   const typesWithGenerated =
     missingGenerated.length > 0 ? [...hydrated, ...missingGenerated] : hydrated;
 
-  // Normalled pair salvage (#1945): kept out of carrierMigrationChanged for
-  // the same reason as the connection salvage below.
-  const {
-    deviceTypes,
-    racks: racksWithNormals,
-    changed: normalsChanged,
-  } = salvagePatchBayNormals(typesWithGenerated, racks);
+  // Child position bound (#3456): runs against the final types, so a carrier
+  // hydrated or generated above is resolved. Like the connection salvage, it
+  // is not a carrier rewrite and never triggers the pre-carrier-first backup.
+  let childPositionsChanged = false;
+  const racks = carrierRacks.map((rack) => {
+    if (!rack || !Array.isArray(rack.devices)) return rack;
+    const { devices, changed } = clampContainerChildPositions(
+      rack.devices,
+      deviceTypes,
+    );
+    if (!changed) return rack;
+    childPositionsChanged = true;
+    return { ...rack, devices };
+  });
 
   // Legacy cables -> connections migration (#3091): converts fragile
   // device-id + interface-name Cable references into stable PlacedPort.id
@@ -904,8 +912,8 @@ export function adaptLegacyLayout(layout: Layout): Layout {
   if (
     !carrierMigrationChanged &&
     !connectionsFieldChanged &&
-    !normalsChanged &&
-    !cablesFieldPresent
+    !cablesFieldPresent &&
+    !childPositionsChanged
   ) {
     return layout;
   }

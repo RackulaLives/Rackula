@@ -18,6 +18,7 @@ import type {
 } from "$lib/types";
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 import { findDeviceType } from "$lib/utils/device-lookup";
+import { layoutDebug } from "$lib/utils/debug";
 import { effectiveFace } from "./effective-face";
 import {
   fitsSlotWidth,
@@ -642,6 +643,55 @@ export function findNextFreeChildPosition(
   }
 
   return null;
+}
+
+/**
+ * Bring every container child back inside its container (#3456).
+ *
+ * The app only ever writes a child at position 0, but a hand-edited file or a
+ * crafted share link can carry any position. A child whose position plus its
+ * height (as it stands, turned or flat) runs past the container's u_height,
+ * the bound canPlaceInContainer enforces, is moved to position 0. A child
+ * whose container or type cannot be resolved is left as it is. Input is
+ * untrusted, so malformed entries pass through unchanged.
+ *
+ * @param devices - One rack's placed devices
+ * @param deviceTypes - The layout's device types
+ * @returns The devices (the same array when nothing moved) and whether any moved
+ */
+export function clampContainerChildPositions(
+  devices: PlacedDevice[],
+  deviceTypes: DeviceType[],
+): { devices: PlacedDevice[]; changed: boolean } {
+  const typeBySlug = new Map<string, DeviceType>();
+  for (const dt of deviceTypes) {
+    if (dt && typeof dt.slug === "string") typeBySlug.set(dt.slug, dt);
+  }
+  const deviceById = new Map<string, PlacedDevice>();
+  for (const d of devices) {
+    if (d && typeof d === "object") deviceById.set(d.id, d);
+  }
+
+  let changed = false;
+  const result = devices.map((d) => {
+    if (!d || typeof d !== "object" || !d.container_id) return d;
+    const container = deviceById.get(d.container_id);
+    const containerType = container && typeBySlug.get(container.device_type);
+    const found = typeBySlug.get(d.device_type);
+    if (!containerType || !found) return d;
+    const childType = orientDeviceType(found, d.rotation);
+    if (d.position + childType.u_height <= containerType.u_height) return d;
+    layoutDebug.state(
+      "moved %s in slot %s to position 0: position %d is outside its container",
+      d.name ?? d.id,
+      d.slot_id,
+      d.position,
+    );
+    changed = true;
+    return { ...d, position: 0 };
+  });
+
+  return changed ? { devices: result, changed } : { devices, changed };
 }
 
 /**

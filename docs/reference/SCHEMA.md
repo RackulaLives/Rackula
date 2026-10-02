@@ -643,6 +643,16 @@ Slugs must be lowercase alphanumeric with hyphens:
 - Must be an integer
 - Must fit within rack height (position + u_height - 1 <= rack.height)
 
+#### Container child position
+
+A device with `container_id` set sits in a container cell. Its `position` is in whole U from the container's bottom (0-indexed), not a rail position. The app always writes `0`.
+
+- Minimum: `0`
+- Bound: position + u_height <= the container's `u_height`, using the child's height as it stands (turned or flat).
+- Out of bounds is normalised, not rejected: on file load and share-link decode, a child past its container's top moves to position `0` and the layout loads. A child whose container or device type cannot be resolved is left as is.
+
+The rule normalises because every release since containers arrived (v0.10.0) has accepted any non-negative child position on load, so a file that loaded before must still load.
+
 ### Unknown Fields
 
 The schema uses lenient parsing (`.passthrough()` in Zod), so unknown fields survive validation into memory on read and are not validated (any value accepted).

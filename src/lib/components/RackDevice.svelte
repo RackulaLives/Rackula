@@ -42,6 +42,7 @@
   import { DEVICE_IMAGE_OVERFLOW, RAIL_WIDTH } from "$lib/constants/layout";
   import {
     computeDeviceLabelLayout,
+    REAR_TAG_INSET,
     fitTextToWidth,
     DEVICE_LABEL_MAX_FONT,
     DEVICE_LABEL_MIN_FONT,
@@ -426,6 +427,7 @@
       }),
       deviceWidth,
       isRearTreatment,
+      label: showNameLabels ? displayName : "",
     }),
   );
 
@@ -1068,7 +1070,7 @@
     {:else if floatRearTag}
       <text
         class="rear-badge"
-        x={deviceWidth - 4}
+        x={deviceWidth - REAR_TAG_INSET}
         y="10"
         text-anchor="end"
         aria-hidden="true"
