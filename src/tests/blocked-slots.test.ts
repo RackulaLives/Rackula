@@ -310,11 +310,10 @@ describe("getBlockedSlots", () => {
 
       const blockedSlots = getBlockedSlots(rack, "rear", deviceLibrary);
 
-      expect(blockedSlots.length).toBeGreaterThan(0);
-      for (const range of blockedSlots) {
-        expect(range.bottom).toBeGreaterThanOrEqual(10);
-        expect(range.top).toBeLessThanOrEqual(11);
-      }
+      // Only the carrier blocks, across its own rail range.
+      expect(blockedSlots).toEqual([
+        { bottom: 10, top: 11, deviceName: "Test Container" },
+      ]);
     });
   });
 });
