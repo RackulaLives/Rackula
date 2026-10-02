@@ -35,6 +35,7 @@ import type {
 import { inferDirection } from "$lib/utils/port-utils";
 import {
   getPortAnchors,
+  getPortChipPosition,
   type PortAnchor,
   type PortGeometryOffset,
 } from "$lib/utils/port-geometry";
@@ -72,16 +73,41 @@ export interface CubicControlPoints {
   c2: Point;
 }
 
+/** Horizontal distance between adjacent lanes of one gutter, in px. */
+export const CHANNEL_LANE_SPACING = 6;
+
+/** Distinct lanes per gutter; later connections reuse them in turn. */
+export const CHANNEL_LANE_COUNT = 4;
+
 /**
- * Alternate connections between the right and left gutter so that, absent
- * any other signal, cabling load-balances visually across both sides of the
- * rack instead of stacking every curve on one edge. Index is the position of
- * a connection within the set actually being rendered (see
- * buildRenderedConnections), not its position in the raw connections array,
- * so a skipped (unanchored) connection does not "use up" a side.
+ * Route a connection through the gutter on the rail nearer its two ports.
+ * Ports sit in a right-aligned zone (#3450), so a cable between them routes
+ * right and never runs back across either device's label (#3463). A port
+ * pair whose midpoint lies left of the rack's centre routes left.
  */
-export function assignChannelSide(index: number): ChannelSide {
-  return index % 2 === 0 ? "right" : "left";
+export function assignChannelSide(
+  source: Point,
+  target: Point,
+  rackBounds: RackBounds,
+): ChannelSide {
+  const centreX = rackBounds.x + rackBounds.width / 2;
+  return (source.x + target.x) / 2 < centreX ? "left" : "right";
+}
+
+/**
+ * Gutter offset for a connection's lane. Index is the position of a
+ * connection within the set actually being rendered (see
+ * buildRenderedConnections), not its position in the raw connections array,
+ * so a skipped (unanchored) connection does not "use up" a lane. Consecutive
+ * connections take successive lanes, so parallel cables between the same
+ * devices fan out instead of drawing on top of each other; lanes repeat after
+ * CHANNEL_LANE_COUNT so the gutter stays a fixed width.
+ */
+export function channelGutterOffset(
+  index: number,
+  gutterOffset: number = DEFAULT_GUTTER_OFFSET,
+): number {
+  return gutterOffset + (index % CHANNEL_LANE_COUNT) * CHANNEL_LANE_SPACING;
 }
 
 /**
@@ -378,13 +404,13 @@ export function computeConnectionGeometry(
   direction: ArrowDirection,
   options: ConnectionGeometryOptions = {},
 ): ConnectionGeometry {
-  const side = assignChannelSide(index);
+  const side = assignChannelSide(source, target, rackBounds);
   const control = computeChannelControlPoints(
     source,
     target,
     rackBounds,
     side,
-    options.gutterOffset,
+    channelGutterOffset(index, options.gutterOffset),
   );
   const path = buildCubicBezierPath(source, control, target);
   const trimmed = trimCubicBezier(
@@ -516,22 +542,26 @@ export function buildPortAnchorMap(
       rackPadding: rackDims.rackPadding,
     });
 
-    const anchors = getPortAnchors({
+    const geometry = {
       interfaces: deviceType.interfaces,
       ports,
       rackView,
       deviceWidth: rackDims.interiorWidth,
       deviceHeight: deviceType.u_height * rackDims.uHeight,
       offset,
-    });
+    };
+    // A collapsed chip's ports anchor on its marker, left of the count. Cables
+    // end at the chip's right edge instead, so one leaving for the right
+    // gutter does not strike through the count (#3463).
+    const chip = getPortChipPosition(geometry);
 
-    for (const anchor of anchors) {
+    for (const anchor of getPortAnchors(geometry)) {
       const port = ports.find((p) => p.id === anchor.portId);
       const iface = port
         ? deviceType.interfaces[port.template_index]
         : undefined;
       map.set(anchor.portId, {
-        anchor,
+        anchor: chip ? { ...anchor, x: chip.x + chip.width } : anchor,
         direction: resolveConnectionPortDirection(port, iface),
       });
     }

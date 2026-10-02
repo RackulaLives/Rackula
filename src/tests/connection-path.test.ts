@@ -25,6 +25,7 @@ import {
   createTestRack,
 } from "./factories";
 import {
+  CHANNEL_LANE_COUNT,
   DEFAULT_GUTTER_OFFSET,
   HIT_PATH_TRIM,
   arrowPointsAttr,
@@ -32,6 +33,7 @@ import {
   buildCubicBezierPath,
   buildPortAnchorMap,
   buildRenderedConnections,
+  channelGutterOffset,
   computeArrowTriangle,
   computeChannelControlPoints,
   computeConnectionGeometry,
@@ -44,7 +46,10 @@ import {
   trimCubicBezier,
   type ResolvedPortAnchor,
 } from "$lib/utils/connection-path";
-import { HIGH_DENSITY_THRESHOLD } from "$lib/utils/port-geometry";
+import {
+  HIGH_DENSITY_THRESHOLD,
+  getPortChipPosition,
+} from "$lib/utils/port-geometry";
 
 function makeResolvedAnchor(
   portId: string,
@@ -56,11 +61,46 @@ function makeResolvedAnchor(
 }
 
 describe("assignChannelSide", () => {
-  it("alternates right/left starting with right at index 0", () => {
-    expect(assignChannelSide(0)).toBe("right");
-    expect(assignChannelSide(1)).toBe("left");
-    expect(assignChannelSide(2)).toBe("right");
-    expect(assignChannelSide(3)).toBe("left");
+  const rackBounds = { x: 0, y: 0, width: 220, height: 900 };
+
+  it("routes right when both ports sit in the right-hand port zone (#3463)", () => {
+    expect(
+      assignChannelSide({ x: 180, y: 50 }, { x: 200, y: 300 }, rackBounds),
+    ).toBe("right");
+  });
+
+  it("routes left when both ports sit in the left half of the rack", () => {
+    expect(
+      assignChannelSide({ x: 20, y: 50 }, { x: 40, y: 300 }, rackBounds),
+    ).toBe("left");
+  });
+
+  it("routes toward the rail nearer the two ports when they straddle the centre", () => {
+    expect(
+      assignChannelSide({ x: 30, y: 50 }, { x: 200, y: 300 }, rackBounds),
+    ).toBe("right");
+    expect(
+      assignChannelSide({ x: 20, y: 50 }, { x: 130, y: 300 }, rackBounds),
+    ).toBe("left");
+  });
+});
+
+describe("channelGutterOffset", () => {
+  it("gives consecutive connections distinct lanes so parallel cables separate", () => {
+    const offsets = Array.from({ length: CHANNEL_LANE_COUNT }, (_, i) =>
+      channelGutterOffset(i),
+    );
+    expect(new Set(offsets).size).toBe(CHANNEL_LANE_COUNT);
+    expect(offsets[0]).toBe(DEFAULT_GUTTER_OFFSET);
+  });
+
+  it("reuses lanes past CHANNEL_LANE_COUNT so the gutter stays bounded", () => {
+    expect(channelGutterOffset(CHANNEL_LANE_COUNT)).toBe(
+      channelGutterOffset(0),
+    );
+    expect(channelGutterOffset(CHANNEL_LANE_COUNT + 1, 10)).toBe(
+      channelGutterOffset(1, 10),
+    );
   });
 });
 
@@ -315,16 +355,27 @@ describe("computeConnectionGeometry", () => {
     expect(geometry.path.startsWith("M 10,50 C 230,50 230,300")).toBe(true);
   });
 
-  it("routes through the left gutter at index 1 and produces an arrow when direction is set", () => {
-    const geometry = computeConnectionGeometry(
-      source,
-      target,
+  it("routes right-zone ports through the right gutter at every index, one lane further out per index (#3463)", () => {
+    const rightSource = { x: 180, y: 50 };
+    const rightTarget = { x: 190, y: 300 };
+    const first = computeConnectionGeometry(
+      rightSource,
+      rightTarget,
+      rackBounds,
+      0,
+      null,
+    );
+    const second = computeConnectionGeometry(
+      rightSource,
+      rightTarget,
       rackBounds,
       1,
       "a-to-b",
     );
-    expect(geometry.side).toBe("left");
-    expect(geometry.arrow).not.toBeNull();
+    expect(first.side).toBe("right");
+    expect(second.side).toBe("right");
+    expect(second.midpoint.x).toBeGreaterThan(first.midpoint.x);
+    expect(second.arrow).not.toBeNull();
   });
 
   it("computes the midpoint from the same control points used in the path", () => {
@@ -530,6 +581,44 @@ describe("buildPortAnchorMap", () => {
     expect(new Set(points).size).toBe(1);
   });
 
+  it("ends a collapsed chip's cables at the chip's right edge, clear of the count (#3463)", () => {
+    const interfaces = Array.from({ length: 4 }, (_, i) =>
+      createTestInterfaceTemplate({ name: `eth${i}` }),
+    );
+    const ports = interfaces.map((_, i) =>
+      createTestPlacedPort({ id: `port-${i}`, template_index: i }),
+    );
+    const deviceType = {
+      ...createTestDeviceType({ slug: "mini-switch", u_height: 1 }),
+      interfaces,
+    };
+    const device = createTestDevice({ device_type: "mini-switch", ports });
+    const bySlug = new Map([[deviceType.slug, deviceType]]);
+    const narrowDims = { ...rackDims, rackWidth: 116, interiorWidth: 82 };
+    const chip = getPortChipPosition({
+      interfaces,
+      ports,
+      rackView: "front",
+      deviceWidth: narrowDims.interiorWidth,
+      deviceHeight: narrowDims.uHeight,
+      offset: computeDeviceOffset({
+        position: device.position,
+        deviceUHeight: 1,
+        rackHeight: narrowDims.rackHeight,
+        uHeight: narrowDims.uHeight,
+        railWidth: narrowDims.railWidth,
+        rackPadding: narrowDims.rackPadding,
+      }),
+    });
+    expect(chip).toBeDefined();
+
+    const anchors = buildPortAnchorMap([device], bySlug, "front", narrowDims);
+
+    for (const { anchor } of anchors.values()) {
+      expect(anchor).toMatchObject({ x: chip!.x + chip!.width, y: chip!.cy });
+    }
+  });
+
   it("skips a device whose type is missing from the library without throwing", () => {
     const device = createTestDevice({ device_type: "unknown-slug" });
     expect(() =>
@@ -588,12 +677,37 @@ describe("buildRenderedConnections", () => {
     expect(rendered).toEqual([]);
   });
 
-  it("only advances the channel-side index for connections that actually render", () => {
+  it("separates many cables between the same pair of devices by lane, all on the right (#3463)", () => {
+    // Two collapsed chips: every port on a device shares one anchor, so only
+    // the lane can tell these cables apart.
+    const portAnchors = new Map<string, ResolvedPortAnchor>();
+    const connections = Array.from({ length: CHANNEL_LANE_COUNT }, (_, i) => {
+      portAnchors.set(`a${i}`, makeResolvedAnchor(`a${i}`, 200, 50));
+      portAnchors.set(`b${i}`, makeResolvedAnchor(`b${i}`, 200, 300));
+      return createTestConnection({
+        id: `conn-${i}`,
+        a_port_id: `a${i}`,
+        b_port_id: `b${i}`,
+      });
+    });
+
+    const rendered = buildRenderedConnections(
+      connections,
+      portAnchors,
+      rackBounds,
+    );
+
+    expect(rendered.every((r) => r.geometry.side === "right")).toBe(true);
+    const peaks = rendered.map((r) => r.geometry.midpoint.x);
+    expect(new Set(peaks).size).toBe(CHANNEL_LANE_COUNT);
+  });
+
+  it("only advances the channel lane for connections that actually render", () => {
     const portAnchors = new Map<string, ResolvedPortAnchor>([
-      ["port-a", makeResolvedAnchor("port-a", 10, 50)],
+      ["port-a", makeResolvedAnchor("port-a", 190, 50)],
       ["port-b", makeResolvedAnchor("port-b", 190, 300)],
-      ["port-c", makeResolvedAnchor("port-c", 10, 100)],
-      ["port-d", makeResolvedAnchor("port-d", 190, 400)],
+      ["port-c", makeResolvedAnchor("port-c", 190, 50)],
+      ["port-d", makeResolvedAnchor("port-d", 190, 300)],
     ]);
     const connections = [
       createTestConnection({
@@ -622,8 +736,14 @@ describe("buildRenderedConnections", () => {
     );
 
     expect(rendered.map((r) => r.connection.id)).toEqual(["conn-1", "conn-3"]);
-    expect(rendered[0].geometry.side).toBe("right");
-    expect(rendered[1].geometry.side).toBe("left");
+    const laneOne = computeConnectionGeometry(
+      { x: 190, y: 50 },
+      { x: 190, y: 300 },
+      rackBounds,
+      1,
+      null,
+    );
+    expect(rendered[1].geometry.path).toBe(laneOne.path);
   });
 });
 
