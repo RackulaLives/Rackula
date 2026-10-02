@@ -77,6 +77,7 @@ interface NetBoxDevice {
   // Not NetBox fields: the measured front of a 0U device, from the user.
   width_mm?: number;
   height_mm?: number;
+  rack_widths?: number[];
 }
 
 interface ImportOptions {
@@ -306,6 +307,9 @@ function deviceToTypeScript(device: NetBoxDevice): string {
   }
   if (device.height_mm !== undefined) {
     lines.push(`\t\theight_mm: ${device.height_mm},`);
+  }
+  if (device.rack_widths) {
+    lines.push(`\t\track_widths: [${device.rack_widths.join(", ")}],`);
   }
   lines.push(
     `\t\tis_full_depth: ${device.is_full_depth ?? true},`,
@@ -615,7 +619,12 @@ async function importDevice(
     device.width_mm = size.widthMm;
     device.height_mm = size.heightMm;
     device.u_height = uHeightForMm(size.heightMm);
-    console.log(`  Size: ${size.widthMm} x ${size.heightMm} mm`);
+    // Like Add Device's "Both": a device that fits a 10" opening is listed
+    // for 10" racks too, not only the 19" default.
+    if (size.widthMm <= getRackOpeningMm(10)) device.rack_widths = [10, 19];
+    console.log(
+      `  Size: ${size.widthMm} x ${size.heightMm} mm, racks: ${device.rack_widths ? '10" and 19"' : '19"'}`,
+    );
   } else if (options.widthMm !== undefined) {
     console.log(
       `  ⏭️  --width-mm and --height-mm ignored: NetBox already gives it ${device.u_height}U`,
