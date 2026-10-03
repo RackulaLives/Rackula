@@ -27,6 +27,7 @@ import {
   RACK_PADDING_HIDDEN,
 } from "$lib/constants/layout";
 import { toHumanUnits } from "$lib/utils/position";
+import { drawnUHeight } from "$lib/utils/device-width";
 import { getChildYInSlot, getSlotRects } from "$lib/utils/slot-geometry";
 
 // Aliases for export context (export uses hidden padding since view labels show rack name)
@@ -891,11 +892,12 @@ export function generateExportSVG(
         );
         const cell = cells.get(child.slot_id);
         if (!childType || !cell) continue;
+        const childUHeight = drawnUHeight(childType);
         const childY = getChildYInSlot(
           cell,
           containerHeight,
           child.position,
-          childType.u_height,
+          childUHeight,
           U_HEIGHT,
         );
         drawDevice(
@@ -904,7 +906,7 @@ export function generateExportSVG(
           RAIL_WIDTH + cell.x + 2,
           deviceY + childY,
           cell.width - 4,
-          childType.u_height * U_HEIGHT - 2,
+          childUHeight * U_HEIGHT - 2,
         );
       }
     }

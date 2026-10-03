@@ -14,6 +14,7 @@ import {
   RAIL_WIDTH,
   U_HEIGHT_PX,
 } from "$lib/constants/layout";
+import { MM_PER_U } from "$lib/types/constants";
 import {
   createTestRack,
   createTestDeviceType,
@@ -158,5 +159,31 @@ describe("image export: carrier children (#3362)", () => {
     for (const child of rearChildren) {
       expect(contains(rearCarrier!, child)).toBe(true);
     }
+  });
+
+  it("draws a measured child at its measured height, on the cell floor", () => {
+    // A switch 27 mm tall takes 1U, but is drawn 27 mm tall.
+    const switchType = createTestDeviceType({
+      slug: "measured-child",
+      u_height: 1,
+      width_mm: 158,
+      height_mm: 27,
+      colour: "#444444",
+      is_full_depth: false,
+    });
+    const rack = carrierRack();
+    rack.devices[1] = { ...rack.devices[1]!, device_type: "measured-child" };
+    const svg = generateExportSVG(
+      [rack],
+      [...library, switchType],
+      baseOptions,
+    );
+
+    const [measured] = boxesWithFill(svg, switchType.colour!);
+    const [fullHeight] = boxesWithFill(svg, rightType.colour!);
+    expect(measured!.height).toBeCloseTo((27 / MM_PER_U) * U_HEIGHT_PX - 2);
+    expect(measured!.y + measured!.height).toBeCloseTo(
+      fullHeight!.y + fullHeight!.height,
+    );
   });
 });

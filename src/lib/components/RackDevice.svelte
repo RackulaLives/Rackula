@@ -12,7 +12,11 @@
     RackView,
   } from "$lib/types";
   import { getChildYInSlot } from "$lib/utils/slot-geometry";
-  import { getRotation, orientDeviceType } from "$lib/utils/device-width";
+  import {
+    drawnUHeight,
+    getRotation,
+    orientDeviceType,
+  } from "$lib/utils/device-width";
   import { SvelteMap } from "svelte/reactivity";
   import { slotLayout, type SlotBand } from "$lib/utils/slot-layout";
   import PortIndicators from "./PortIndicators.svelte";
@@ -1114,14 +1118,15 @@
           ? slotGeometry.get(child.slot_id)
           : undefined}
         {#if childType && slotGeo}
-          {@const childHeight = childType.u_height * uHeight}
+          {@const childUHeight = drawnUHeight(childType)}
+          {@const childHeight = childUHeight * uHeight}
           {@const childY = getChildYInSlot(
             slotGeo,
             deviceHeight,
             // Container-relative whole U (0-indexed), not internal units:
             // migrateDevicePositions skips container children.
             child.position,
-            childType.u_height,
+            childUHeight,
             uHeight,
           )}
           {@const childWidth = slotGeo.width}
