@@ -15,14 +15,18 @@ import {
   base64UrlEncode,
   MAX_ENCODED_LENGTH,
   MAX_DECOMPRESSED_BYTES,
+  summarizeShareOmissions,
 } from "$lib/utils/share";
 import {
   createTestLayout,
   createTestRack,
   createTestDeviceType,
   createTestDevice,
+  createTestInterfaceTemplate,
+  createTestConnection,
 } from "./factories";
 import { toInternalUnits } from "$lib/utils/position";
+import { organizeRackRow } from "$lib/utils/rack-row";
 import {
   unreadableImportMessage,
   INVALID_LAYOUT_FORMAT_MESSAGE,
@@ -148,6 +152,39 @@ describe("toMinimalLayout", () => {
     const minimal = toMinimalLayout(layout);
 
     expect(minimal.rs[0].w).toBe(19);
+  });
+
+  it("round-trips an exact 21 or 23 inch width through wx", () => {
+    for (const width of [21, 23] as const) {
+      const layout = createTestLayout({
+        racks: [
+          createTestRack({
+            width: width as unknown as 10 | 19,
+            devices: [],
+          }),
+        ],
+      });
+      const decoded = requireDecoded(requireEncoded(layout));
+
+      expect(decoded.racks[0]?.width, String(width)).toBe(width);
+    }
+  });
+
+  it("ignores wx when the fallback width is not 19", () => {
+    // The encoder always writes w: 19 alongside wx, so this pairing is not ours.
+    // An older reader knows nothing of wx and uses w, and honouring wx here
+    // would render a different rack for the same link depending on the reader.
+    const layout = createTestLayout({
+      racks: [createTestRack({ width: 23 as unknown as 10 | 19, devices: [] })],
+    });
+    const minimal = toMinimalLayout(layout);
+    minimal.rs[0]!.w = 10;
+
+    const decoded = decodeLayout(
+      base64UrlEncode(pako.deflate(JSON.stringify(minimal))),
+    ).layout;
+
+    expect(decoded?.racks[0]?.width).toBe(10);
   });
 
   it("only includes device types that are placed", () => {
@@ -1053,5 +1090,142 @@ describe("multi-rack share", () => {
     const decoded = requireDecoded(encoded);
 
     expect(decoded.rack_groups).toBeUndefined();
+  });
+});
+
+describe("share link rack order (#3378)", () => {
+  /**
+   * Captured from the encoder before #3378. Racks were written in array
+   * order (Rack C, Rack A, Rack B) and carry no position.
+   */
+  const PRE_3378_LINK =
+    "N4IgbiBcIIwHQAYQBoQDMKQEyoHZRADEBLADwBcBXAJwFMURqBnKAbVGIKTwICUBDAMYBrAAQBhBgAsoMHCADusgJyoAJm1DkCTahFQAHKADZUaAmmoB7XNoC+AXTvIOBGA3zQBI0QEFpUAAs8kqQMKogGpCsTi4gnNBYHnxCYgBCAdiBqKHh6mxODura0aAs0Lr6IDJhqAC2BAAqtEzkogAitGDEgvSoggQAxADMw8bGysoMpDogjnZAA";
+
+  function orderedNames(layout: Layout): string[] {
+    return [...layout.racks]
+      .sort((a, b) => a.position - b.position)
+      .map((rack) => rack.name);
+  }
+
+  function canvasOrder(layout: Layout): string[] {
+    return organizeRackRow(layout.racks, layout.rack_groups ?? []).flatMap(
+      (item) =>
+        item.kind === "rack"
+          ? [item.rack.name]
+          : item.racks.map((rack) => rack.name),
+    );
+  }
+
+  it("keeps rack order when array order differs from position", () => {
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({ id: "r-c", name: "Rack C", position: 2 }),
+        createTestRack({ id: "r-a", name: "Rack A", position: 0 }),
+        createTestRack({ id: "r-b", name: "Rack B", position: 1 }),
+      ],
+    });
+
+    const decoded = requireDecoded(requireEncoded(layout));
+
+    expect(orderedNames(decoded)).toEqual(["Rack A", "Rack B", "Rack C"]);
+    expect(new Set(decoded.racks.map((rack) => rack.position)).size).toBe(
+      decoded.racks.length,
+    );
+  });
+
+  it("keeps array order for racks that share a position", () => {
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({ id: "r-1", name: "First", position: 0 }),
+        createTestRack({ id: "r-2", name: "Second", position: 0 }),
+      ],
+    });
+
+    const decoded = requireDecoded(requireEncoded(layout));
+
+    expect(orderedNames(decoded)).toEqual(["First", "Second"]);
+  });
+
+  it("keeps rack groups pointing at the right racks after reordering", () => {
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({ id: "r-b", name: "Rack B", position: 1 }),
+        createTestRack({ id: "r-a", name: "Rack A", position: 0 }),
+      ],
+      rack_groups: [{ id: "g", name: "Bay", rack_ids: ["r-b"] }],
+    });
+
+    const decoded = requireDecoded(requireEncoded(layout));
+    const memberId = decoded.rack_groups?.[0]?.rack_ids[0];
+
+    expect(decoded.racks.find((rack) => rack.id === memberId)?.name).toBe(
+      "Rack B",
+    );
+  });
+
+  it("decodes tied racks with a group in the order the sender's canvas shows", () => {
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({ id: "r-s", name: "Standalone", position: 0 }),
+        createTestRack({ id: "r-g1", name: "Bay 1", position: 0 }),
+        createTestRack({ id: "r-g2", name: "Bay 2", position: 0 }),
+      ],
+      rack_groups: [{ id: "g", name: "Bay", rack_ids: ["r-g1", "r-g2"] }],
+    });
+
+    const decoded = requireDecoded(requireEncoded(layout));
+
+    expect(canvasOrder(decoded)).toEqual(canvasOrder(layout));
+  });
+
+  it("decodes a link from the pre-#3378 encoder in its array order", () => {
+    const decoded = requireDecoded(PRE_3378_LINK);
+
+    expect(decoded.name).toBe("Fixture");
+    expect(orderedNames(decoded)).toEqual(["Rack C", "Rack A", "Rack B"]);
+    expect(decoded.racks.map((rack) => rack.height)).toEqual([12, 42, 24]);
+    expect(decoded.racks[0]!.devices).toEqual([
+      expect.objectContaining({
+        device_type: "srv",
+        position: toInternalUnits(6),
+        face: "front",
+      }),
+    ]);
+  });
+});
+
+describe("summarizeShareOmissions", () => {
+  it("counts ports of placed devices and connections", () => {
+    const switchType = {
+      ...createTestDeviceType({ slug: "switch", category: "network" }),
+      interfaces: [
+        createTestInterfaceTemplate({ name: "eth0" }),
+        createTestInterfaceTemplate({ name: "eth1" }),
+      ],
+    };
+    const layout = createTestLayout({
+      racks: [
+        createTestRack({
+          devices: [
+            createTestDevice({ device_type: "switch", position: 6 }),
+            createTestDevice({ device_type: "switch", position: 12 }),
+          ],
+        }),
+      ],
+      device_types: [switchType, createTestDeviceType({ slug: "unused" })],
+      connections: [createTestConnection()],
+    });
+
+    expect(summarizeShareOmissions(layout)).toEqual({
+      ports: 4,
+      connections: 1,
+    });
+  });
+
+  it("reports nothing lost for a layout without ports or connections", () => {
+    expect(summarizeShareOmissions(createLayoutWithDevices())).toEqual({
+      ports: 0,
+      connections: 0,
+    });
   });
 });

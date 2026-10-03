@@ -37,7 +37,7 @@ function currentVersionBody(): Record<string, unknown> {
 describe("parseLayoutObject: forward-compat version gate (#2664)", () => {
   it("refuses a future-major body and returns null (does not throw)", () => {
     const body = currentVersionBody();
-    (body.metadata as Record<string, unknown>).schema_version = "2.0";
+    (body.metadata as Record<string, unknown>).schema_version = "3.0";
 
     // The autosave/workspace door must surface a future major as null, the same
     // refusal the YAML file door produces, without an uncaught throw.

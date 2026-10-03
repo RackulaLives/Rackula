@@ -24,6 +24,8 @@ import {
   addDeviceTypeRaw,
   removeDeviceTypeRaw,
   updateDeviceTypeRaw,
+  retypeDeviceRaw,
+  reslotDeviceRaw,
   placeDeviceRaw,
   removeDeviceAtIndexRaw,
   moveDeviceRaw,
@@ -31,6 +33,7 @@ import {
   updateDeviceNameRaw,
   updateDevicePlacementImageRaw,
   updateDeviceColourRaw,
+  updateDeviceRotationRaw,
   updateDeviceContainerLinkageRaw,
   updateDeviceNotesRaw,
   updateDeviceIpRaw,
@@ -97,6 +100,9 @@ export function getCommandStoreAdapter(
     removeDeviceTypeRaw: (slug) => removeDeviceTypeRaw(ctx, slug),
     updateDeviceTypeRaw: (slug, updates) =>
       updateDeviceTypeRaw(ctx, slug, updates),
+    retypeDeviceRaw: (deviceId, slug) => retypeDeviceRaw(ctx, deviceId, slug),
+    reslotDeviceRaw: (deviceId, slotId) =>
+      reslotDeviceRaw(ctx, deviceId, slotId),
     placeDeviceRaw: (device) => placeDeviceRaw(ctx, device),
     removeDeviceAtIndexRaw: (index) => removeDeviceAtIndexRaw(ctx, index),
     getPlacedDevicesForType: (slug) => getPlacedDevicesForType(ctx, slug),
@@ -128,6 +134,14 @@ export function getCommandStoreAdapter(
         return;
       }
       updateDeviceColourRaw(ctx, rackId, index, colour);
+    },
+    updateDeviceRotationRaw: (index, rotation) => {
+      const rackId = resolveAdapterRackId(ctx, "updateDeviceRotationRaw");
+      if (!rackId) {
+        layoutDebug.device("updateDeviceRotationRaw: No rack available");
+        return;
+      }
+      updateDeviceRotationRaw(ctx, rackId, index, rotation);
     },
     updateDeviceContainerLinkageRaw: (index, containerId, slotId) =>
       updateDeviceContainerLinkageRaw(ctx, index, containerId, slotId),

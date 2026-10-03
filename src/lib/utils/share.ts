@@ -18,7 +18,13 @@
 
 import * as pako from "pako";
 import LZString from "lz-string";
-import type { Layout, DeviceType, PlacedDevice, RackGroup } from "$lib/types";
+import type {
+  Layout,
+  DeviceType,
+  PlacedDevice,
+  RackGroup,
+  RackWidth,
+} from "$lib/types";
 import {
   MinimalLayoutSchema,
   MinimalLayoutV2Schema,
@@ -35,6 +41,8 @@ import {
 import { generateId } from "./device";
 import { createDefaultRack } from "./serialization";
 import { toHumanUnits, toInternalUnits } from "./position";
+import { clampContainerChildPositions } from "./collision";
+import { organizeRackRow } from "./rack-row";
 import { importDebug } from "$lib/utils/debug";
 import {
   describeValidationIssues,
@@ -49,10 +57,23 @@ import {
 
 /**
  * Normalize rack width to valid share format values (10 or 19)
- * Maps non-standard widths (21, 23) to 19
+ * Maps non-standard widths (21, 23) to 19; the exact width travels in `wx`
  */
 function normalizeRackWidth(width: number): 10 | 19 {
   return width === 10 ? 10 : 19;
+}
+
+/**
+ * The rack width a share link decodes to.
+ *
+ * `wx` carries the exact width when it is 21 or 23, and the encoder always
+ * writes the 19 inch fallback in `w` alongside it. A link that pairs `wx` with
+ * any other `w` was not written by this app, so `wx` is ignored and the
+ * fallback wins. An older reader knows nothing of `wx` and uses `w`, so both
+ * readers then agree on one width rather than rendering different racks.
+ */
+function decodeRackWidth(w: number, wx: 21 | 23 | undefined): RackWidth {
+  return wx !== undefined && w === 19 ? wx : normalizeRackWidth(w);
 }
 
 /**
@@ -90,6 +111,7 @@ function convertDevices(devices: PlacedDevice[]): MinimalDevice[] {
       ...(isChild ? { ci: parentIndex } : {}),
       ...(isChild ? { si: d.slot_id } : {}),
       ...(d.auto_created ? { a: 1 as const } : {}),
+      ...(d.rotation ? { r: d.rotation } : {}),
     };
   });
 }
@@ -117,7 +139,11 @@ function convertDeviceTypes(dt: MinimalDeviceType[]): DeviceType[] {
           })),
         }
       : {}),
+    ...(item.sg ? { slot_gaps: item.sg } : {}),
+    ...(item.ac ? { auto_created: true } : {}),
     ...(item.sw !== undefined ? { slot_width: item.sw } : {}),
+    ...(item.wm !== undefined ? { width_mm: item.wm } : {}),
+    ...(item.hm !== undefined ? { height_mm: item.hm } : {}),
     ...(item.sr ? { subdevice_role: item.sr } : {}),
   }));
 }
@@ -144,6 +170,7 @@ function convertMinimalDevices(devices: MinimalDevice[]): PlacedDevice[] {
     };
     if (d.n) base.name = d.n;
     if (d.a) base.auto_created = true;
+    if (d.r) base.rotation = d.r;
 
     // Trust a parent reference only when it points at a real, in-range
     // container device that is not itself a child. This preserves any container
@@ -183,9 +210,16 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
     throw new Error("Layout must have at least one rack");
   }
 
+  // Racks are written in canvas order and decode assigns position from array
+  // index, so the recipient sees the sender's order without a new field.
+  const orderedRacks = organizeRackRow(
+    layout.racks,
+    layout.rack_groups ?? [],
+  ).flatMap((item) => (item.kind === "rack" ? [item.rack] : item.racks));
+
   // Build rack ID map: real UUID -> short sequential ID
   const rackIdMap = new Map<string, string>();
-  layout.racks.forEach((rack, index) => {
+  orderedRacks.forEach((rack, index) => {
     rackIdMap.set(rack.id, String(index));
   });
 
@@ -231,18 +265,29 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
             })),
           }
         : {}),
+      // A generated split travels with its cells; an all-zero list is the
+      // shipped look, so it is left out rather than padding every link.
+      ...(deviceType.slot_gaps && deviceType.slot_gaps.some((mm) => mm > 0)
+        ? { sg: deviceType.slot_gaps }
+        : {}),
+      ...(deviceType.auto_created ? { ac: true } : {}),
       ...(deviceType.slot_width !== undefined
         ? { sw: deviceType.slot_width }
+        : {}),
+      ...(deviceType.width_mm !== undefined ? { wm: deviceType.width_mm } : {}),
+      ...(deviceType.height_mm !== undefined
+        ? { hm: deviceType.height_mm }
         : {}),
       ...(deviceType.subdevice_role ? { sr: deviceType.subdevice_role } : {}),
     }));
 
   // Convert all racks to MinimalRackV2
-  const rs: MinimalRackV2[] = layout.racks.map((rack) => ({
+  const rs: MinimalRackV2[] = orderedRacks.map((rack) => ({
     i: rackIdMap.get(rack.id)!,
     n: rack.name,
     h: rack.height,
     w: normalizeRackWidth(rack.width),
+    ...(rack.width === 21 || rack.width === 23 ? { wx: rack.width } : {}),
     d: convertDevices(rack.devices),
   }));
 
@@ -281,12 +326,15 @@ export function toMinimalLayout(layout: Layout): MinimalLayoutV2 {
  */
 function fromMinimalLayoutV1(minimal: MinimalLayout): Layout {
   const device_types = convertDeviceTypes(minimal.dt);
-  const devices = convertMinimalDevices(minimal.r.d);
+  const { devices } = clampContainerChildPositions(
+    convertMinimalDevices(minimal.r.d),
+    device_types,
+  );
 
   const rack = createDefaultRack(
     minimal.r.n,
     minimal.r.h,
-    normalizeRackWidth(minimal.r.w),
+    decodeRackWidth(minimal.r.w, minimal.r.wx),
     "4-post-cabinet",
     false,
     1,
@@ -316,21 +364,26 @@ function fromMinimalLayoutV2(minimal: MinimalLayoutV2): Layout {
   // Build reverse map: shortId -> generated UUID
   const shortIdToUuid = new Map<string, string>();
 
-  const racks = minimal.rs.map((minRack) => {
+  const racks = minimal.rs.map((minRack, index) => {
     const rackId = generateId();
     shortIdToUuid.set(minRack.i, rackId);
 
     const rack = createDefaultRack(
       minRack.n,
       minRack.h,
-      normalizeRackWidth(minRack.w),
+      decodeRackWidth(minRack.w, minRack.wx),
       "4-post-cabinet",
       false,
       1,
       true,
       rackId,
     );
-    rack.devices = convertMinimalDevices(minRack.d);
+    rack.devices = clampContainerChildPositions(
+      convertMinimalDevices(minRack.d),
+      device_types,
+    ).devices;
+    // Array order is rack order (#3378); older links decode in their array order.
+    rack.position = index;
     return rack;
   });
 
@@ -593,6 +646,34 @@ export function generateShareUrl(layout: Layout): string | null {
       ? window.location.origin + window.location.pathname
       : "https://app.racku.la/";
   return `${baseUrl}?l=${encoded}`;
+}
+
+/**
+ * Longest share URL offered as a link, in characters. A longer URL may not
+ * open at all: nginx rejects a request line over its default 8 KB header
+ * buffer, and Cloudflare caps URLs at 16 KB (#3378).
+ */
+export const MAX_SHARE_URL_LENGTH = 8000;
+
+export interface ShareOmissions {
+  /** Ports on placed devices, which a link does not carry */
+  ports: number;
+  /** Connections, which a link does not carry */
+  connections: number;
+}
+
+/** What this layout loses in a share link, for the Share dialog (#3378). */
+export function summarizeShareOmissions(layout: Layout): ShareOmissions {
+  const portsBySlug = new Map(
+    layout.device_types.map((t) => [t.slug, t.interfaces?.length ?? 0]),
+  );
+  let ports = 0;
+  for (const rack of layout.racks) {
+    for (const device of rack.devices) {
+      ports += portsBySlug.get(device.device_type) ?? 0;
+    }
+  }
+  return { ports, connections: layout.connections?.length ?? 0 };
 }
 
 /**

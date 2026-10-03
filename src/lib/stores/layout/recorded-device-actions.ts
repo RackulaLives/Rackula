@@ -8,22 +8,50 @@
  * correct rack.
  */
 
-import type { DeviceFace, DeviceType, PlacedDevice, Rack } from "$lib/types";
+import type {
+  DeviceFace,
+  DeviceRotation,
+  DeviceType,
+  PlacedDevice,
+  Rack,
+} from "$lib/types";
 import { UNITS_PER_U, DEFAULT_DEVICE_FACE } from "$lib/types/constants";
 import { toInternalUnits, toHumanUnits } from "$lib/utils/position";
-import { canPlaceDevice, requiresCarrier } from "$lib/utils/collision";
+import {
+  canPlaceDevice,
+  canPlaceInContainer,
+  reshapeCarrier,
+} from "$lib/utils/collision";
+import {
+  canRotate,
+  getRotation,
+  orientDeviceType,
+  requiresCarrier,
+} from "$lib/utils/device-width";
+import {
+  buildCustomCarrierType,
+  carrierUHeight,
+  cellsOf,
+  isGeneratedCarrier,
+  isOrphanedAfterRetype,
+} from "$lib/utils/custom-carrier";
+import { gapsFor } from "$lib/utils/slot-layout";
 import { effectiveFace } from "$lib/utils/effective-face";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import {
   findAutoCarriersEmptiedBy,
   findConnectionsForDevices,
+  retypeCarrierCommands,
 } from "./recorded-device-type-actions";
+import { getToastStore } from "$lib/stores/toast.svelte";
 import { debug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { instantiatePorts } from "$lib/utils/port-utils";
 import {
   createAddDeviceTypeCommand,
+  createDeleteDeviceTypeCommand,
+  createReslotDeviceCommand,
   createPlaceDeviceCommand,
   createMoveDeviceCommand,
   createRemoveDeviceCommand,
@@ -32,6 +60,7 @@ import {
   createUpdateDeviceNameCommand,
   createUpdateDevicePlacementImageCommand,
   createUpdateDeviceColourCommand,
+  createUpdateDeviceRotationCommand,
   createDetachContainerCommand,
   createUpdateDeviceNotesCommand,
   createUpdateDeviceIpCommand,
@@ -411,6 +440,127 @@ export function findEmptiedAutoCarrier(
 }
 
 /**
+ * The split a generated carrier keeps once the child in `slotId` leaves.
+ *
+ * The cell goes, and the gap to its left goes with it so the cells to its
+ * right do not slide left by an amount nobody chose. The first cell has no
+ * left gap, so it takes the one on its right instead.
+ *
+ * @param carrierType - The generated carrier's type
+ * @param slotId - The cell being vacated
+ * @returns The shrunk type, or null when there is nothing to shrink: that was
+ *   the only cell, or the carrier never had one with that id
+ */
+function shrinkCustomCarrier(
+  carrierType: DeviceType,
+  slotId: string,
+): DeviceType | null {
+  const slots = carrierType.slots ?? [];
+  const index = slots.findIndex((s) => s.id === slotId);
+  if (index === -1 || slots.length <= 1) return null;
+
+  const cells = cellsOf(carrierType).filter((_, i) => i !== index);
+  const gaps = [...gapsFor(carrierType)];
+  gaps.splice(index > 0 ? index - 1 : 0, 1);
+
+  // Its own height, not the height it had: losing the tallest child would
+  // otherwise leave a carrier standing several U taller than anything in it.
+  return buildCustomCarrierType(carrierUHeight(cells), cells, gaps);
+}
+
+/**
+ * Commands that shrink the generated carrier a child is leaving: retype it to
+ * the smaller split, renumber the survivors onto the new cell ids, and drop
+ * the old type when nothing references it any more.
+ *
+ * Returns an empty list for anything that is not a child of a generated
+ * carrier. When the carrier leaves with its last child, the collection of its
+ * now-unused type is the only command.
+ *
+ * @param ctx - Layout state access
+ * @param rack - The rack holding the carrier
+ * @param removed - The child leaving its cell, removed or moved elsewhere
+ * @param adapter - Command store adapter
+ * @param keptTypes - Type slugs the rest of this batch puts to use, so a split
+ *   the carrier leaves is not collected while the same batch places a carrier
+ *   on it. A move to another U synthesises a carrier of the very same split.
+ */
+export function shrinkCommandsForRemovedChild(
+  ctx: LayoutStateAccess,
+  rack: Rack,
+  removed: PlacedDevice,
+  adapter: ReturnType<typeof getCommandStoreAdapter>,
+  keptTypes: string[] = [],
+): Command[] {
+  if (!removed.container_id || !removed.slot_id) return [];
+
+  const layout = ctx.getLayout();
+  const carrier = rack.devices.find((d) => d.id === removed.container_id);
+  const carrierType = carrier
+    ? findDeviceTypeInArray(layout.device_types, carrier.device_type)
+    : undefined;
+  if (!carrier || !carrierType || !isGeneratedCarrier(carrierType)) return [];
+
+  const commands: Command[] = [];
+
+  // The carrier leaves with its last child (the emptied-auto-carrier path
+  // removes it), so there is no split left to shrink: its generated type is
+  // simply referenced by nothing afterwards. Composed after that removal, so
+  // the type is genuinely unused by the time this runs.
+  if (findEmptiedAutoCarrier(rack, removed)?.id === carrier.id) {
+    if (
+      !keptTypes.includes(carrierType.slug) &&
+      isOrphanedAfterRetype(layout.racks, carrierType.slug, carrier.id)
+    ) {
+      commands.push(
+        createDeleteDeviceTypeCommand(
+          carrierType,
+          [],
+          adapter,
+          layout.metadata?.id ?? "",
+        ),
+      );
+    }
+    return commands;
+  }
+
+  const shrunk = shrinkCustomCarrier(carrierType, removed.slot_id);
+  // Its only cell: the carrier stays behind, empty, and keeps the split it has.
+  if (!shrunk) return commands;
+
+  commands.push(
+    ...retypeCarrierCommands(
+      layout,
+      carrier,
+      carrierType,
+      shrunk,
+      adapter,
+      keptTypes,
+    ),
+  );
+
+  // Cells are numbered left to right, so removing one renumbers its
+  // right-hand neighbours. Move the survivors in the same step.
+  const slots = carrierType.slots ?? [];
+  const removedIndex = slots.findIndex((s) => s.id === removed.slot_id);
+  slots
+    .filter((_, i) => i !== removedIndex)
+    .forEach((slot, newIndex) => {
+      const child = rack.devices.find(
+        (d) => d.container_id === carrier.id && d.slot_id === slot.id,
+      );
+      const newSlotId = `col-${newIndex + 1}`;
+      if (child && child.slot_id !== newSlotId) {
+        commands.push(
+          createReslotDeviceCommand(child.id, slot.id, newSlotId, adapter),
+        );
+      }
+    });
+
+  return commands;
+}
+
+/**
  * Remove a device with undo/redo support
  * @param ctx - Layout state access
  * @param rackId - Rack ID
@@ -520,12 +670,25 @@ export function removeDeviceRecorded(
       ]
     : [];
 
+  // A child leaving a custom split takes its cell, and the cell takes the gap
+  // to its left. Composed after the removal so undo restores the device into
+  // the split it came from.
+  const shrinkCommands = shrinkCommandsForRemovedChild(
+    ctx,
+    targetRack,
+    device,
+    adapter,
+  );
+
   const command =
-    connectionCommands.length > 0 || carrierCommands.length > 0
+    connectionCommands.length > 0 ||
+    carrierCommands.length > 0 ||
+    shrinkCommands.length > 0
       ? createBatchCommand(`Remove ${deviceName}`, [
           ...connectionCommands,
           removeCommand,
           ...carrierCommands,
+          ...shrinkCommands,
         ])
       : removeCommand;
 
@@ -600,6 +763,122 @@ export function updateDeviceFaceRecorded(
   );
   history.execute(command);
   ctx.markDirty();
+}
+
+/**
+ * Turn a device onto its side, or back flat, with undo/redo support.
+ *
+ * Turning 90 degrees swaps a measured device's width and height. In a
+ * generated carrier the carrier is reshaped around it in the same undo step:
+ * its cell is recut and the carrier grows or shrinks to the whole U holding
+ * its tallest child. In any other carrier the turned device must fit its cell.
+ * A turn that does not fit is refused, and the refusal is announced.
+ *
+ * @param ctx - Layout state access
+ * @param rackId - Rack ID
+ * @param deviceIndex - Device index
+ * @returns true when the device turned
+ */
+export function rotateDeviceRecorded(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  deviceIndex: number,
+): boolean {
+  const rack = getRackById(ctx, rackId);
+  const device = rack?.devices[deviceIndex];
+  if (!rack || !device) return false;
+
+  const layout = ctx.getLayout();
+  const deviceType = findDeviceTypeInArray(
+    layout.device_types,
+    device.device_type,
+  );
+  if (!deviceType || !canRotate(deviceType)) return false;
+
+  // A measured device always sits in a carrier: that is what it turns inside.
+  const container = rack.devices.find((d) => d.id === device.container_id);
+  const containerType =
+    container &&
+    findDeviceTypeInArray(layout.device_types, container.device_type);
+  if (!container || !containerType || !device.slot_id) return false;
+
+  const adapter = getCommandStoreAdapter(ctx);
+  const deviceName = deviceType.model ?? deviceType.slug;
+  const rotation: DeviceRotation =
+    getRotation(deviceType, device.rotation) === 90 ? 0 : 90;
+  const footprint = orientDeviceType(deviceType, rotation);
+  const carrierCommands: Command[] = [];
+  let fits: boolean;
+
+  if (isGeneratedCarrier(containerType)) {
+    const reshaped = reshapeCarrier(
+      rack,
+      container,
+      containerType,
+      layout.device_types,
+      (child) => {
+        if (child.id === device.id) return footprint;
+        const type = findDeviceTypeInArray(
+          layout.device_types,
+          child.device_type,
+        );
+        return type && orientDeviceType(type, child.rotation);
+      },
+    );
+    fits = reshaped !== null;
+    if (reshaped && reshaped.slug !== containerType.slug) {
+      carrierCommands.push(
+        ...retypeCarrierCommands(
+          layout,
+          container,
+          containerType,
+          reshaped,
+          adapter,
+        ),
+      );
+    }
+  } else {
+    fits = canPlaceInContainer(
+      rack,
+      layout.device_types,
+      container,
+      containerType,
+      footprint,
+      device.slot_id,
+      device.position,
+      device.id,
+    );
+  }
+
+  if (!fits) {
+    getToastStore().showToast(
+      rotation === 90
+        ? `No room to stand ${deviceName} on its side here`
+        : `No room to lay ${deviceName} flat here`,
+      "warning",
+    );
+    return false;
+  }
+
+  ctx.setActiveRackId(rackId);
+  const rotate = createUpdateDeviceRotationCommand(
+    deviceIndex,
+    device.rotation,
+    rotation === 0 ? undefined : rotation,
+    adapter,
+    deviceName,
+  );
+  const command =
+    carrierCommands.length > 0
+      ? createBatchCommand(`Rotate ${deviceName}`, [rotate, ...carrierCommands])
+      : rotate;
+  // Pinned to this rack: the rotation resolves its device by index in whichever
+  // rack is active, while the carrier retype is global. Undone from another
+  // rack, an unpinned batch would put the carrier back and leave the device
+  // turned inside it.
+  ctx.getHistory().execute(createInRackCommand(rackId, command, adapter));
+  ctx.markDirty();
+  return true;
 }
 
 /**

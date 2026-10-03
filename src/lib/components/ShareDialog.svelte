@@ -7,7 +7,12 @@
   import Button from "./ui/Button.svelte";
   import { IconCopy, IconDownload } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
-  import { generateShareUrl } from "$lib/utils/share";
+  import {
+    generateShareUrl,
+    summarizeShareOmissions,
+    MAX_SHARE_URL_LENGTH,
+  } from "$lib/utils/share";
+  import { getStorageMode } from "$lib/storage";
   import {
     generateQRCode,
     canFitInQR,
@@ -44,6 +49,32 @@
   const shareUrl = $derived(open ? generateShareUrl(layout) : null);
   const urlLength = $derived(shareUrl?.length ?? 0);
   const isTooLong = $derived(urlLength > URL_LENGTH_WARNING);
+  // Past this the link may not open at all, so it is not offered (#3378).
+  const isTooLarge = $derived(urlLength > MAX_SHARE_URL_LENGTH);
+  const tooLargeMessage =
+    getStorageMode() === "server"
+      ? "Too large to share as a link. Download the layout file, or open it from the layout library on this server."
+      : "Too large to share as a link. Download the layout file instead.";
+
+  // Only for a link that is actually offered: on an encode failure or an
+  // over-long URL there is no link to describe.
+  const omissions = $derived(
+    shareUrl && !isTooLarge ? summarizeShareOmissions(layout) : null,
+  );
+  const omittedItems = $derived(
+    omissions
+      ? [
+          countLabel(omissions.ports, "port"),
+          countLabel(omissions.connections, "connection"),
+        ].filter((item) => item !== null)
+      : [],
+  );
+
+  function countLabel(count: number, noun: string): string | null {
+    if (count === 0) return null;
+    return `${count} ${noun}${count === 1 ? "" : "s"}`;
+  }
+
   const fitsInQR = $derived(shareUrl ? canFitInQR(shareUrl) : false);
 
   // QR code generation state
@@ -93,7 +124,7 @@
   }
 
   async function copyToClipboard() {
-    if (!shareUrl) return;
+    if (!shareUrl || isTooLarge) return;
     try {
       await navigator.clipboard.writeText(shareUrl);
       toastStore.showToast("Link copied to clipboard", "success", 3000);
@@ -133,7 +164,9 @@
           id="share-url"
           type="text"
           readonly
-          value={shareUrl ?? "Unable to encode layout"}
+          value={isTooLarge
+            ? "Layout too large for a link"
+            : (shareUrl ?? "Unable to encode layout")}
           class="url-input"
           onclick={(e) => e.currentTarget.select()}
           data-testid="share-url-input"
@@ -142,20 +175,27 @@
           type="button"
           class="icon-btn"
           onclick={copyToClipboard}
+          disabled={isTooLarge}
           aria-label="Copy link to clipboard"
           data-testid="share-copy-btn"
         >
           <IconCopy size={ICON_SIZE.sm} />
         </button>
       </div>
-      <p class="url-info">
-        {urlLength} characters
-        {#if isTooLong}
-          <span class="warning">
-            &mdash; too long for some browsers; download the file instead</span
-          >
-        {/if}
-      </p>
+      {#if isTooLarge}
+        <p class="url-info warning" data-testid="share-too-large">
+          {tooLargeMessage}
+        </p>
+      {:else}
+        <p class="url-info">
+          {urlLength} characters
+          {#if isTooLong}
+            <span class="warning">
+              (too long for some browsers, download the file instead)</span
+            >
+          {/if}
+        </p>
+      {/if}
     </div>
 
     <!-- QR Code Section -->
@@ -184,10 +224,16 @@
     </div>
 
     <!-- Info Section -->
-    <div class="share-info">
+    <div class="share-info" data-testid="share-omissions">
+      {#if omittedItems.length > 0}
+        <p class="warning">
+          This link leaves out {omittedItems.join(" and ")}.
+        </p>
+      {/if}
       <p>
-        <strong>Note:</strong> Shared layouts include rack configuration and device
-        placements. Device images are not included.
+        Links carry racks and device placements only. Ports, connections,
+        images, notes and custom colours are left out. Send the layout file to
+        keep everything.
       </p>
     </div>
 
@@ -274,7 +320,12 @@
     transition: background-color var(--duration-fast) ease;
   }
 
-  .icon-btn:hover {
+  .icon-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .icon-btn:hover:not(:disabled) {
     background: var(--colour-surface-hover);
   }
 
@@ -289,7 +340,9 @@
     margin: 0;
   }
 
-  .url-info .warning {
+  .url-info .warning,
+  .url-info.warning,
+  .share-info .warning {
     color: var(--colour-warning, #f59e0b);
   }
 
@@ -355,6 +408,10 @@
 
   .share-info p {
     margin: 0;
+  }
+
+  .share-info p + p {
+    margin-top: var(--space-2);
   }
 
   /* Action Buttons */

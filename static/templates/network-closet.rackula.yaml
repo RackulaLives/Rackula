@@ -42,12 +42,12 @@ racks:
         position: 5
         face: "front"
       - id: "dev-patch-1"
-        device_type: "48-port-patch-panel"
+        device_type: "24-port-patch-panel"
         name: "Patch Panel"
         position: 4
         face: "front"
       - id: "dev-patch-2"
-        device_type: "48-port-patch-panel"
+        device_type: "24-port-patch-panel"
         name: "Patch Panel"
         position: 3
         face: "front"
@@ -57,31 +57,185 @@ racks:
         position: 1
         face: "front"
 device_types:
-  - slug: "1u-router-firewall"
-    model: "Router/Firewall"
+  - slug: 1u-router-firewall
+    model: Router/Firewall
     u_height: 1
+    slot_width: 2
     colour: "#C0392B"
-    category: "firewall"
-  - slug: "48-port-switch"
-    model: "Switch (48-Port)"
+    category: firewall
+  - slug: 48-port-switch
+    model: Switch (48-Port)
     u_height: 1
-    colour: "#7B6BA8"
-    category: "network"
-  - slug: "48-port-patch-panel"
-    model: "Patch Panel (48-Port)"
+    slot_width: 2
+    colour: "#7968A6"
+    category: network
+    interfaces:
+      - name: "1"
+        type: 1000base-t
+      - name: "2"
+        type: 1000base-t
+      - name: "3"
+        type: 1000base-t
+      - name: "4"
+        type: 1000base-t
+      - name: "5"
+        type: 1000base-t
+      - name: "6"
+        type: 1000base-t
+      - name: "7"
+        type: 1000base-t
+      - name: "8"
+        type: 1000base-t
+      - name: "9"
+        type: 1000base-t
+      - name: "10"
+        type: 1000base-t
+      - name: "11"
+        type: 1000base-t
+      - name: "12"
+        type: 1000base-t
+      - name: "13"
+        type: 1000base-t
+      - name: "14"
+        type: 1000base-t
+      - name: "15"
+        type: 1000base-t
+      - name: "16"
+        type: 1000base-t
+      - name: "17"
+        type: 1000base-t
+      - name: "18"
+        type: 1000base-t
+      - name: "19"
+        type: 1000base-t
+      - name: "20"
+        type: 1000base-t
+      - name: "21"
+        type: 1000base-t
+      - name: "22"
+        type: 1000base-t
+      - name: "23"
+        type: 1000base-t
+      - name: "24"
+        type: 1000base-t
+      - name: "25"
+        type: 1000base-t
+      - name: "26"
+        type: 1000base-t
+      - name: "27"
+        type: 1000base-t
+      - name: "28"
+        type: 1000base-t
+      - name: "29"
+        type: 1000base-t
+      - name: "30"
+        type: 1000base-t
+      - name: "31"
+        type: 1000base-t
+      - name: "32"
+        type: 1000base-t
+      - name: "33"
+        type: 1000base-t
+      - name: "34"
+        type: 1000base-t
+      - name: "35"
+        type: 1000base-t
+      - name: "36"
+        type: 1000base-t
+      - name: "37"
+        type: 1000base-t
+      - name: "38"
+        type: 1000base-t
+      - name: "39"
+        type: 1000base-t
+      - name: "40"
+        type: 1000base-t
+      - name: "41"
+        type: 1000base-t
+      - name: "42"
+        type: 1000base-t
+      - name: "43"
+        type: 1000base-t
+      - name: "44"
+        type: 1000base-t
+      - name: "45"
+        type: 1000base-t
+      - name: "46"
+        type: 1000base-t
+      - name: "47"
+        type: 1000base-t
+      - name: "48"
+        type: 1000base-t
+  - slug: 24-port-patch-panel
+    model: Patch Panel (24-Port)
     u_height: 1
+    slot_width: 2
+    is_full_depth: false
     colour: "#6272A4"
-    category: "patch-panel"
-  - slug: "1u-cable-manager"
-    model: "Cable Manager"
+    category: patch-panel
+    interfaces:
+      - name: "1"
+        type: 1000base-t
+      - name: "2"
+        type: 1000base-t
+      - name: "3"
+        type: 1000base-t
+      - name: "4"
+        type: 1000base-t
+      - name: "5"
+        type: 1000base-t
+      - name: "6"
+        type: 1000base-t
+      - name: "7"
+        type: 1000base-t
+      - name: "8"
+        type: 1000base-t
+      - name: "9"
+        type: 1000base-t
+      - name: "10"
+        type: 1000base-t
+      - name: "11"
+        type: 1000base-t
+      - name: "12"
+        type: 1000base-t
+      - name: "13"
+        type: 1000base-t
+      - name: "14"
+        type: 1000base-t
+      - name: "15"
+        type: 1000base-t
+      - name: "16"
+        type: 1000base-t
+      - name: "17"
+        type: 1000base-t
+      - name: "18"
+        type: 1000base-t
+      - name: "19"
+        type: 1000base-t
+      - name: "20"
+        type: 1000base-t
+      - name: "21"
+        type: 1000base-t
+      - name: "22"
+        type: 1000base-t
+      - name: "23"
+        type: 1000base-t
+      - name: "24"
+        type: 1000base-t
+  - slug: 1u-cable-manager
+    model: Cable Manager
     u_height: 1
+    slot_width: 2
+    is_full_depth: false
     colour: "#6272A4"
-    category: "cable-management"
-  - slug: "1u-pdu"
-    model: "PDU"
+    category: cable-management
+  - slug: 1u-pdu
+    model: PDU
     u_height: 1
+    slot_width: 2
+    is_full_depth: false
     colour: "#A84A4A"
-    category: "power"
+    category: power
 settings:
   display_mode: "label"
   show_labels_on_images: false

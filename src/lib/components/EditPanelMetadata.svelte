@@ -22,6 +22,7 @@
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { canPlaceDevice, findCollisions } from "$lib/utils/collision";
   import { getDeviceDisplayName } from "$lib/utils/device";
+  import { formatMm } from "$lib/utils/device-width";
   import type { SelectedDeviceInfo, DeviceFace } from "$lib/types";
 
   interface Props {
@@ -191,14 +192,28 @@
       : "Full",
   );
 
-  // Read-only width fact label. slot_width 2 (or undefined) means full-width;
-  // 1 means half-width.
-  const widthLabel = $derived(
-    (authoritativeDevice.slot_width ?? selectedDeviceInfo.device.slot_width) ===
-      1
+  // Read-only height fact label: rack units, plus a measured height in mm and
+  // inches when one was entered.
+  const heightLabel = $derived.by(() => {
+    const uHeight = selectedDeviceInfo.device.u_height;
+    const heightMm =
+      authoritativeDevice.height_mm ?? selectedDeviceInfo.device.height_mm;
+    return heightMm === undefined
+      ? `${uHeight}U`
+      : `${uHeight}U, ${formatMm(heightMm)}`;
+  });
+
+  // Read-only width fact label. A measured width_mm shows in mm and inches;
+  // otherwise slot_width 1 means half-width and 2 (or undefined) full-width.
+  const widthLabel = $derived.by(() => {
+    const widthMm =
+      authoritativeDevice.width_mm ?? selectedDeviceInfo.device.width_mm;
+    if (widthMm !== undefined) return formatMm(widthMm);
+    return (authoritativeDevice.slot_width ??
+      selectedDeviceInfo.device.slot_width) === 1
       ? "Half"
-      : "Full",
-  );
+      : "Full";
+  });
 
   // Resolved colour shown by the swatch button: placement override wins over the
   // device-type default.
@@ -486,7 +501,7 @@
       </div>
       <div class="fact-row">
         <span class="fact-label">Height</span>
-        <span class="fact-value">{selectedDeviceInfo.device.u_height}U</span>
+        <span class="fact-value">{heightLabel}</span>
       </div>
       <div class="fact-row">
         <span class="fact-label">Depth</span>

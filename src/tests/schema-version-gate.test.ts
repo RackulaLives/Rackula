@@ -7,6 +7,7 @@ import {
 } from "$lib/utils/yaml";
 import { createTestLayout, createTestRack } from "./factories";
 import { generateId } from "$lib/utils/device";
+import { MEASURED_WIDTH_SCHEMA_VERSION } from "$lib/schemas/migrations";
 import type { Layout } from "$lib/types";
 
 /**
@@ -46,7 +47,7 @@ async function yamlWithSchemaVersion(
 
 describe("schema_version reject-newer-major gate (#2205)", () => {
   it("rejects a layout whose schema_version MAJOR is newer than the app", async () => {
-    const yaml = await yamlWithSchemaVersion("2.0");
+    const yaml = await yamlWithSchemaVersion("3.0");
     await expect(parseLayoutYaml(yaml)).rejects.toThrow(/newer/i);
   });
 
@@ -57,6 +58,12 @@ describe("schema_version reject-newer-major gate (#2205)", () => {
 
   it("loads a same-MAJOR newer-MINOR layout (tolerant reader)", async () => {
     const yaml = await yamlWithSchemaVersion("1.5");
+    const layout = await parseLayoutYaml(yaml);
+    expect(layout.name).toBeTruthy();
+  });
+
+  it("loads a layout stamped with the measured-width MAJOR", async () => {
+    const yaml = await yamlWithSchemaVersion(MEASURED_WIDTH_SCHEMA_VERSION);
     const layout = await parseLayoutYaml(yaml);
     expect(layout.name).toBeTruthy();
   });
@@ -85,11 +92,24 @@ describe("schema_version reject-newer-major gate (#2205)", () => {
   });
 
   it("does not write or mutate the input YAML on the reject path", async () => {
-    const yaml = await yamlWithSchemaVersion("2.0");
+    const yaml = await yamlWithSchemaVersion("3.0");
     const before = yaml;
     await expect(parseLayoutYaml(yaml)).rejects.toThrow();
     // The reject path is read-only: the input string is untouched.
     expect(yaml).toBe(before);
+  });
+
+  it("rejects a stamp that is not MAJOR.MINOR digits", async () => {
+    // A malformed stamp reads as MAJOR 0 and would otherwise slip through the
+    // newer-major check, so a typo such as "2.O" would load as legacy 1.x and
+    // be migrated as if it carried no 2.x additions.
+    const yaml = await yamlWithSchemaVersion("invalid");
+    await expect(parseLayoutYaml(yaml)).rejects.toThrow(/unreadable/i);
+  });
+
+  it("rejects a stamp with a numeric prefix but a malformed shape", async () => {
+    const yaml = await yamlWithSchemaVersion("1.9x");
+    await expect(parseLayoutYaml(yaml)).rejects.toThrow(/unreadable/i);
   });
 
   it("does not reject an older MAJOR (older majors migrate, never gate-reject)", async () => {

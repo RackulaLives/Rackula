@@ -21,11 +21,68 @@ import {
   createBatchCommand,
   createInRackCommand,
   createRemoveDeviceCommand,
+  createRetypeDeviceCommand,
   type Command,
 } from "../commands";
 import type { LayoutStateAccess } from "./types";
 import { getCommandStoreAdapter } from "./command-adapters";
 import { getPlacedDevicesWithRackForType } from "./mutators";
+import {
+  buildCustomCarrierType,
+  cellsOf,
+  isGeneratedCarrier,
+  isOrphanedAfterRetype,
+} from "$lib/utils/custom-carrier";
+import { fitsInRow, remainingMm } from "$lib/utils/slot-layout";
+import { orientDeviceType } from "$lib/utils/device-width";
+import { canPlaceInSlot, reshapeCarrier } from "$lib/utils/collision";
+import { getToastStore } from "$lib/stores/toast.svelte";
+
+/**
+ * The commands that move one placed carrier from one generated split to
+ * another: import the new split's type when the layout does not have it, retype
+ * the carrier, and collect the old split once nothing is left on it.
+ *
+ * @param layout - The layout as it stands before the batch runs
+ * @param carrier - The placed carrier being retyped
+ * @param from - The split it is leaving
+ * @param to - The split it is moving to
+ * @param adapter - Command store adapter
+ * @param keptTypes - Type slugs the rest of the batch already imports, so the
+ *   new split is not added a second time when a new carrier shares it
+ */
+export function retypeCarrierCommands(
+  layout: ReturnType<LayoutStateAccess["getLayout"]>,
+  carrier: PlacedDevice,
+  from: DeviceType,
+  to: DeviceType,
+  adapter: ReturnType<typeof getCommandStoreAdapter>,
+  keptTypes: string[] = [],
+): Command[] {
+  const commands: Command[] = [];
+  if (
+    !keptTypes.includes(to.slug) &&
+    !layout.device_types.some((dt) => dt.slug === to.slug)
+  ) {
+    commands.push(createAddDeviceTypeCommand(to, adapter));
+  }
+  commands.push(
+    createRetypeDeviceCommand(carrier.id, from.slug, to.slug, adapter),
+  );
+  // Composed after the retype, so by the time it runs nothing is placed on the
+  // old split: the empty connection list is the truth, not a shortcut.
+  if (isOrphanedAfterRetype(layout.racks, from.slug, carrier.id)) {
+    commands.push(
+      createDeleteDeviceTypeCommand(
+        from,
+        [],
+        adapter,
+        layout.metadata?.id ?? "",
+      ),
+    );
+  }
+  return commands;
+}
 
 /**
  * Add a device type with undo/redo support
@@ -58,10 +115,10 @@ export function updateDeviceTypeRecorded(
   ctx: LayoutStateAccess,
   slug: string,
   updates: Partial<DeviceType>,
-): void {
+): boolean {
   const layout = ctx.getLayout();
   const existing = findDeviceTypeInArray(layout.device_types, slug);
-  if (!existing) return;
+  if (!existing) return false;
 
   // Capture before state for the fields being updated
   const before: Partial<DeviceType> = {};
@@ -72,9 +129,176 @@ export function updateDeviceTypeRecorded(
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
+  // A device's size and the cell holding it must agree, so a size change
+  // reshapes every generated carrier holding this device, in the same undo
+  // step. Refused outright rather than left inconsistent when a carrier cannot
+  // take the new shape. A turned device's height is its width, so height
+  // counts too.
+  const sizeChanged = (["width_mm", "height_mm", "u_height"] as const).some(
+    (key) => key in updates && updates[key] !== existing[key],
+  );
+  const recompute = sizeChanged
+    ? reshapeCarriersHolding(ctx, slug, { ...existing, ...updates }, adapter)
+    : { commands: [], blocked: [], carrierCount: 0 };
+
+  if (recompute.blocked.length > 0) {
+    getToastStore().showToast(
+      `That size does not fit in ${recompute.blocked.join(", ")}`,
+      "warning",
+    );
+    return false;
+  }
+
   const command = createUpdateDeviceTypeCommand(slug, before, updates, adapter);
-  history.execute(command);
+  history.execute(
+    recompute.commands.length > 0
+      ? createBatchCommand(`Update ${slug}`, [command, ...recompute.commands])
+      : command,
+  );
   ctx.markDirty();
+
+  // The recompute can move devices in a rack the user is not looking at, so
+  // say how many carriers moved rather than change them silently.
+  if (recompute.carrierCount > 0) {
+    getToastStore().showToast(
+      `Size changed, ${recompute.carrierCount} carrier${
+        recompute.carrierCount === 1 ? "" : "s"
+      } adjusted`,
+      "info",
+    );
+  }
+
+  return true;
+}
+
+/**
+ * Reshape every generated carrier holding `slug` around the device's new size,
+ * each child counted as it stands (turned or not).
+ *
+ * @param ctx - Layout state access
+ * @param slug - The device type whose size is changing
+ * @param updated - The device type with the change applied
+ * @param adapter - Command store adapter
+ * @returns The retype commands, the carriers that cannot take the change, and
+ *   how many carriers the change touches
+ */
+function reshapeCarriersHolding(
+  ctx: LayoutStateAccess,
+  slug: string,
+  updated: DeviceType,
+  adapter: ReturnType<typeof getCommandStoreAdapter>,
+): { commands: Command[]; blocked: string[]; carrierCount: number } {
+  const layout = ctx.getLayout();
+  const blocked: string[] = [];
+  const planned: {
+    carrier: PlacedDevice;
+    from: DeviceType;
+    to: DeviceType;
+  }[] = [];
+
+  for (const rack of layout.racks) {
+    for (const carrier of rack.devices) {
+      if (carrier.container_id) continue;
+      const carrierType = findDeviceTypeInArray(
+        layout.device_types,
+        carrier.device_type,
+      );
+      if (!carrierType) continue;
+
+      const children = rack.devices.filter(
+        (d) => d.container_id === carrier.id,
+      );
+      if (!children.some((d) => d.device_type === slug)) continue;
+      const carrierName = carrier.name ?? carrierType.model ?? carrierType.slug;
+
+      // The footprint a child will have once the change lands: its type as it
+      // stands, turned, with the update applied to the one that is changing.
+      const footprintOf = (child: PlacedDevice) => {
+        const type =
+          child.device_type === slug
+            ? updated
+            : findDeviceTypeInArray(layout.device_types, child.device_type);
+        return type && orientDeviceType(type, child.rotation);
+      };
+
+      // A shipped carrier's cells are fixed, so either the new size fits the
+      // cell the device already sits in or the change is refused: the save
+      // would otherwise be a layout LayoutSchema rejects on the next load.
+      if (!isGeneratedCarrier(carrierType)) {
+        const slots = carrierType.slots ?? [];
+        const misfit = children.some((child) => {
+          if (child.device_type !== slug) return false;
+          const slot = slots.find((s) => s.id === child.slot_id);
+          const footprint = footprintOf(child);
+          return (
+            slot !== undefined &&
+            footprint !== undefined &&
+            !canPlaceInSlot(footprint, slot, rack.width)
+          );
+        });
+        if (misfit) blocked.push(carrierName);
+        continue;
+      }
+
+      const reshaped = reshapeCarrier(
+        rack,
+        carrier,
+        carrierType,
+        layout.device_types,
+        footprintOf,
+      );
+      if (!reshaped) {
+        blocked.push(carrierName);
+        continue;
+      }
+      if (reshaped.slug === carrierType.slug) continue;
+
+      planned.push({ carrier, from: carrierType, to: reshaped });
+    }
+  }
+
+  // Imports and collection read the whole plan rather than the layout as it
+  // stands: two rows cut the same way converge on one split, which must be
+  // imported once and not twice under the same slug, and the split they both
+  // leave is collected once they have both left it.
+  const commands: Command[] = [];
+  const present = new Set(layout.device_types.map((dt) => dt.slug));
+  for (const { carrier, from, to } of planned) {
+    if (!present.has(to.slug)) {
+      present.add(to.slug);
+      commands.push(createAddDeviceTypeCommand(to, adapter));
+    }
+    commands.push(
+      createRetypeDeviceCommand(carrier.id, from.slug, to.slug, adapter),
+    );
+  }
+
+  // Composed after every retype, so by the time these run nothing is left on
+  // the splits being dropped.
+  const retyped = new Set(planned.map((p) => p.carrier.id));
+  const targeted = new Set(planned.map((p) => p.to.slug));
+  const left = new Map(planned.map((p) => [p.from.slug, p.from]));
+  for (const [leftSlug, leftType] of left) {
+    const stillUsed =
+      targeted.has(leftSlug) ||
+      layout.racks.some((rack) =>
+        rack.devices.some(
+          (d) => d.device_type === leftSlug && !retyped.has(d.id),
+        ),
+      );
+    if (!stillUsed) {
+      commands.push(
+        createDeleteDeviceTypeCommand(
+          leftType,
+          [],
+          adapter,
+          layout.metadata?.id ?? "",
+        ),
+      );
+    }
+  }
+
+  return { commands, blocked, carrierCount: planned.length };
 }
 
 /**
@@ -366,4 +590,73 @@ export function deleteMultipleDeviceTypesRecorded(
   );
 
   return count;
+}
+
+/**
+ * Set the gaps on a placed generated carrier, in one undo step.
+ *
+ * A gap belongs to the carrier and to a position between two cells, so this
+ * rewrites that carrier's split. The new split fingerprints differently, which
+ * is the copy-on-write: only this carrier is retyped, and any other carrier
+ * still on the old split keeps it.
+ *
+ * Refuses when the row cannot hold its cells plus the requested gaps, naming
+ * what is free rather than silently clipping.
+ *
+ * @param ctx - Layout state access
+ * @param rackId - Rack holding the carrier
+ * @param carrierId - The placed generated carrier
+ * @param gapsMm - One value per boundary, n - 1 for n cells
+ * @returns true when the carrier carries those gaps afterwards
+ */
+export function updateDeviceTypeSlotGaps(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  carrierId: string,
+  gapsMm: number[],
+): boolean {
+  const layout = ctx.getLayout();
+  const rack = layout.racks.find((r) => r.id === rackId);
+  const carrier = rack?.devices.find((d) => d.id === carrierId);
+  const carrierType = carrier
+    ? findDeviceTypeInArray(layout.device_types, carrier.device_type)
+    : undefined;
+  if (!rack || !carrier || !carrierType || !isGeneratedCarrier(carrierType)) {
+    return false;
+  }
+
+  const slots = carrierType.slots ?? [];
+  if (gapsMm.length !== Math.max(slots.length - 1, 0)) return false;
+  if (gapsMm.some((mm) => mm < 0 || !Number.isFinite(mm))) return false;
+
+  const candidate = buildCustomCarrierType(
+    carrierType.u_height,
+    cellsOf(carrierType),
+    gapsMm,
+  );
+
+  if (!fitsInRow(candidate, rack.width, 0)) {
+    getToastStore().showToast(
+      `That gap does not fit: ${Math.round(remainingMm(carrierType, rack.width))} mm free in this carrier`,
+      "warning",
+    );
+    return false;
+  }
+
+  if (candidate.slug === carrierType.slug) return true;
+
+  ctx.setActiveRackId(rackId);
+  const adapter = getCommandStoreAdapter(ctx);
+  // The gaps the carrier just left behind are a split of its own.
+  const commands = retypeCarrierCommands(
+    layout,
+    carrier,
+    carrierType,
+    candidate,
+    adapter,
+  );
+
+  ctx.getHistory().execute(createBatchCommand("Set carrier gaps", commands));
+  ctx.markDirty();
+  return true;
 }

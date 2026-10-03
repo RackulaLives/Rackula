@@ -13,6 +13,7 @@
 import type {
   Connection,
   DeviceFace,
+  DeviceRotation,
   DeviceType,
   PlacedDevice,
   Rack,
@@ -302,6 +303,29 @@ export function updateDevicePlacementImageRaw(
     devices: rack.devices.map((d, i) =>
       i === index ? { ...d, [fieldName]: sanitizedFilename } : d,
     ),
+  }));
+}
+
+/**
+ * Update a device's turn directly (raw)
+ * @param ctx - Layout state access
+ * @param rackId - Rack ID (for multi-rack support)
+ * @param index - Device index
+ * @param rotation - Clockwise turn in degrees (undefined for none)
+ */
+export function updateDeviceRotationRaw(
+  ctx: LayoutStateAccess,
+  rackId: string,
+  index: number,
+  rotation: DeviceRotation | undefined,
+): void {
+  const target = getTargetRack(ctx, rackId);
+  if (!target) return;
+  if (index < 0 || index >= target.rack.devices.length) return;
+
+  updateRackAtIndex(ctx, target.index, (rack) => ({
+    ...rack,
+    devices: rack.devices.map((d, i) => (i === index ? { ...d, rotation } : d)),
   }));
 }
 
@@ -668,5 +692,71 @@ export function removeConnectionRaw(ctx: LayoutStateAccess, id: string): void {
   ctx.setLayout({
     ...layout,
     connections: (layout.connections ?? []).filter((c) => c.id !== id),
+  });
+}
+
+/**
+ * Point a placed device at a different device type directly (raw).
+ *
+ * Used by the copy-on-write a custom split performs: growing, shrinking or
+ * re-gapping a row produces a different generated type, and the carrier has
+ * to follow it while keeping its own id so its children stay attached.
+ * Addressed by device id rather than index because the carrier can sit in any
+ * rack and indices shift as the same batch places and removes children.
+ *
+ * @param ctx - Layout state access
+ * @param deviceId - The placed device to retype
+ * @param slug - The device type slug it should use
+ */
+export function retypeDeviceRaw(
+  ctx: LayoutStateAccess,
+  deviceId: string,
+  slug: string,
+): void {
+  const layout = ctx.getLayout();
+  ctx.setLayout({
+    ...layout,
+    racks: layout.racks.map((rack) =>
+      rack.devices.some((d) => d.id === deviceId)
+        ? {
+            ...rack,
+            devices: rack.devices.map((d) =>
+              d.id === deviceId ? { ...d, device_type: slug } : d,
+            ),
+          }
+        : rack,
+    ),
+  });
+}
+
+/**
+ * Move a placed child to a different cell of its container directly (raw).
+ *
+ * Cells are numbered left to right, so dropping one renumbers every cell after
+ * it and the survivors have to follow. Addressed by device id for the same
+ * reason retypeDeviceRaw is: indices shift while the batch runs.
+ *
+ * @param ctx - Layout state access
+ * @param deviceId - The placed child to move
+ * @param slotId - The cell id it should reference
+ */
+export function reslotDeviceRaw(
+  ctx: LayoutStateAccess,
+  deviceId: string,
+  slotId: string,
+): void {
+  const layout = ctx.getLayout();
+  ctx.setLayout({
+    ...layout,
+    racks: layout.racks.map((rack) =>
+      rack.devices.some((d) => d.id === deviceId)
+        ? {
+            ...rack,
+            devices: rack.devices.map((d) =>
+              d.id === deviceId ? { ...d, slot_id: slotId } : d,
+            ),
+          }
+        : rack,
+    ),
   });
 }

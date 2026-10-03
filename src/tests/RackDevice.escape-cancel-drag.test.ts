@@ -40,6 +40,7 @@ describe("RackDevice Escape-to-cancel drag (#2935)", () => {
         selected: false,
         uHeight: 30,
         rackWidth: 300,
+        nominalRackWidth: 19,
         ondragend,
       },
     });
@@ -98,6 +99,7 @@ describe("RackDevice Escape-to-cancel drag (#2935)", () => {
         selected: false,
         uHeight: 30,
         rackWidth: 300,
+        nominalRackWidth: 19,
         ondragend,
       },
     });

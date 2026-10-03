@@ -31,6 +31,7 @@ describe("RackDevice port indicators (#3009)", () => {
         selected: false,
         uHeight: 30,
         rackWidth: 300,
+        nominalRackWidth: 19,
       },
     });
 
@@ -48,9 +49,10 @@ describe("RackDevice port indicators with unknown interface types (#3289)", () =
     selected: false,
     uHeight: 30,
     rackWidth: 300,
+    nominalRackWidth: 19,
   };
 
-  it("groups a high-density device whose type is named after an Object prototype member", () => {
+  it("counts a high-density device whose type is named after an Object prototype member", () => {
     const portCount = HIGH_DENSITY_THRESHOLD + 1;
     const device: DeviceType = {
       ...createTestDeviceType({ slug: "odd-switch", u_height: 1 }),
@@ -62,7 +64,69 @@ describe("RackDevice port indicators with unknown interface types (#3289)", () =
 
     const { getByText } = render(RackDevice, { props: { ...props, device } });
 
-    // One badge counts every port of the shared type.
+    // One chip counts every visible port.
     expect(getByText(String(portCount))).toBeInTheDocument();
+  });
+});
+
+describe("RackDevice port count chip (#3453)", () => {
+  it("shows the count and keeps each port reachable when a 10-inch rack collapses the strip", () => {
+    const device: DeviceType = {
+      ...createTestDeviceType({ slug: "mini-switch", u_height: 1 }),
+      interfaces: [
+        { name: "eth0", type: "1000base-t" },
+        { name: "eth1", type: "1000base-t" },
+        { name: "sfp0", type: "10gbase-x-sfpp" },
+      ],
+    };
+
+    const { getByText, getByRole } = render(RackDevice, {
+      props: {
+        device,
+        position: 6,
+        rackHeight: 42,
+        rackId: "rack-1",
+        deviceIndex: 0,
+        selected: false,
+        uHeight: 22,
+        rackWidth: 116,
+        nominalRackWidth: 10,
+      },
+    });
+
+    expect(getByText(String(device.interfaces?.length))).toBeInTheDocument();
+    expect(
+      getByRole("button", { name: "eth0 (1000base-t)" }),
+    ).toBeInTheDocument();
+    expect(
+      getByRole("button", { name: "sfp0 (10gbase-x-sfpp)" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows no count when the ports fit as a strip", () => {
+    const device: DeviceType = {
+      ...createTestDeviceType({ slug: "test-switch", u_height: 1 }),
+      interfaces: [
+        { name: "eth0", type: "1000base-t" },
+        { name: "eth1", type: "1000base-t" },
+        { name: "sfp0", type: "10gbase-x-sfpp" },
+      ],
+    };
+
+    const { queryByText } = render(RackDevice, {
+      props: {
+        device,
+        position: 6,
+        rackHeight: 42,
+        rackId: "rack-1",
+        deviceIndex: 0,
+        selected: false,
+        uHeight: 30,
+        rackWidth: 300,
+        nominalRackWidth: 19,
+      },
+    });
+
+    expect(queryByText(String(device.interfaces?.length))).toBeNull();
   });
 });

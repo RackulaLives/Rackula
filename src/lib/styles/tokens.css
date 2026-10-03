@@ -260,6 +260,7 @@
 
   /* Port/Interface Indicators */
   --colour-port-1gbe: var(--emerald-500);
+  --colour-port-sfp: var(--dracula-cyan);
   --colour-port-10gbe: var(--blue-500);
   --colour-port-sfpp: var(--purple-500);
   --colour-port-sfp28: var(--amber-500);
@@ -272,6 +273,12 @@
   --colour-port-stroke: rgba(0, 0, 0, 0.3);
   --colour-port-indicator: white;
   --colour-port-hover: rgba(255, 255, 255, 0.2);
+  --colour-port-chip-bg: rgba(
+    0,
+    0,
+    0,
+    0.45
+  ); /* Count chip fill, over any device colour */
   --shadow-port-text: 0 0.5px 1px rgba(0, 0, 0, 0.5);
 
   /* Glow Effects - Dracula style neon glows */
@@ -319,11 +326,12 @@
     --dracula-foreground
   ); /* Highlighted U labels (multiples of 5) */
 
-  /* Blocked Slots (dual-view mode) - crosshatch pattern for half-depth conflicts
-     Uses visual texture (crosshatch + icon) not just color for accessibility */
-  --colour-blocked-stroke: rgba(239, 68, 68, 0.45); /* Crosshatch line stroke */
-  --colour-blocked-bg: rgba(239, 68, 68, 0.12); /* Subtle red wash background */
-  --colour-blocked-icon: rgba(239, 68, 68, 0.7); /* Directional arrow icon */
+  /* Blocked Slots (dual-view mode) - hatch for slots a half-depth device
+     occupies on the other face. A normal state, so neutral grey
+     (--neutral-400 at low alpha), not the error red. Uses visual texture
+     (hatch + caption) not just colour for accessibility */
+  --colour-blocked-stroke: rgba(161, 161, 170, 0.45); /* Hatch line stroke */
+  --colour-blocked-bg: rgba(161, 161, 170, 0.12); /* Subtle grey wash */
 
   /* Valid placement-slot highlight (counterpart to the blocked-slot tokens).
      Base hue only; callers derive alpha with color-mix so the pink lives in

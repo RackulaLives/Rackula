@@ -7,6 +7,7 @@ import Fuse from "fuse.js";
 import type { IFuseOptions } from "fuse.js";
 import type { DeviceType, DeviceCategory } from "$lib/types";
 import { DeviceCategorySchema } from "$lib/schemas";
+import { isNarrowDevice } from "$lib/utils/device-width";
 
 const DEFAULT_RACK_WIDTHS = [19];
 
@@ -385,9 +386,9 @@ export type HeightBucket = "0.5" | "1" | "2" | "3" | "4plus";
 export interface DeviceAttributeFilters {
   /** Selected height buckets. OR within the group. */
   heights: Set<HeightBucket>;
-  /** Keep half-width devices (`slot_width === 1`). */
+  /** Keep narrow devices (`slot_width === 1` or a measured `width_mm`). */
   halfWidth: boolean;
-  /** Keep full-width devices (`slot_width === 2` or unset). */
+  /** Keep full-width devices (no `width_mm`, `slot_width` 2 or unset). */
   fullWidth: boolean;
   /** Keep only devices with a front or rear image. */
   hasImage: boolean;
@@ -451,7 +452,7 @@ export function filterDevicesByAttributes(
     }
 
     if (filterByWidth) {
-      const isHalf = device.slot_width === 1;
+      const isHalf = isNarrowDevice(device);
       if (filters.halfWidth !== isHalf) {
         return false;
       }

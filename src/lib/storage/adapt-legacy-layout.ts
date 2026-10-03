@@ -38,16 +38,25 @@ import type {
 } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { generateId } from "$lib/utils/device";
+import { isNarrowDevice, orientDeviceType } from "$lib/utils/device-width";
 import { findStarterDevice } from "$lib/data/starterLibrary";
 import {
   MAX_TWO_COLUMN_CARRIER_U,
   hasTwoColumnCarrier,
   twoColumnCarrierSlug,
 } from "$lib/data/carriers";
+import {
+  buildCustomCarrierType,
+  carrierUHeight,
+  cellForDevice,
+  type CarrierCell,
+} from "$lib/utils/custom-carrier";
 import { ensurePreCarrierBackup } from "./pre-carrier-backup";
 import { getStorageMode } from "./availability.svelte";
 import { markPreCarrierMigrationPending } from "./pre-carrier-migration-pending";
 import { layoutDebug } from "$lib/utils/debug";
+import { fitsInRow } from "$lib/utils/slot-layout";
+import { clampContainerChildPositions } from "$lib/utils/collision";
 
 /**
  * A placed device as it may appear in raw legacy input. The carrier-first model
@@ -65,6 +74,9 @@ type LegacyPlacedDevice = PlacedDevice & {
 function legacySlot(d: PlacedDevice): "left" | "right" | "full" | undefined {
   return (d as LegacyPlacedDevice).slot_position;
 }
+
+/** Widest cell the shipped carriers offer: half the rack opening. */
+const HALF_CELL_FRACTION = 0.5;
 
 /** Stable synthesized-carrier slugs (defined in C1's starter library). */
 export const CARRIER_2COL_SLUG = "carrier-1u-2col";
@@ -158,11 +170,6 @@ function snapToWholeU(position: number): number {
   return wholeU * UNITS_PER_U;
 }
 
-/** True when this device type mounts at half the rack width (slot_width 1). */
-function isHalfWidth(deviceType: DeviceType | undefined): boolean {
-  return (deviceType?.slot_width ?? 2) === 1;
-}
-
 /** True when this device type needs a height grid (sub-1U height). */
 function isSubUHeight(deviceType: DeviceType | undefined): boolean {
   const h = deviceType?.u_height ?? 1;
@@ -170,8 +177,8 @@ function isSubUHeight(deviceType: DeviceType | undefined): boolean {
 }
 
 /**
- * A rack-level device must move into a carrier when it is half-width or sub-U
- * height, or it carries a legacy left/right slot_position. Full-width whole-U
+ * A rack-level device must move into a carrier when it is narrow (half-width or
+ * measured) or sub-U height, or it carries a legacy left/right slot_position. Full-width whole-U
  * gear stays on the rails.
  */
 function needsCarrier(
@@ -182,7 +189,10 @@ function needsCarrier(
   if (slot === "left" || slot === "right") {
     return true;
   }
-  return isHalfWidth(deviceType) || isSubUHeight(deviceType);
+  return (
+    (deviceType !== undefined && isNarrowDevice(deviceType)) ||
+    isSubUHeight(deviceType)
+  );
 }
 
 interface CarrierBuild {
@@ -206,15 +216,25 @@ function buildCarrier(
     face,
     auto_created: true,
   };
-  // Preserve legacy left/right intent: a device explicitly marked "left" takes
-  // the first column, "right" the second. Devices without slot_position keep
-  // their input order. A stable sort keeps unrelated ordering intact.
-  const slotRank = (d: PlacedDevice): number => {
+  // Preserve legacy left/right intent: a device marked "left" takes the first
+  // slot and one marked "right" the second, even when it is alone in the
+  // carrier. Every other device fills the remaining slots in input order.
+  const assigned: (PlacedDevice | undefined)[] = slotIds.map(() => undefined);
+  const unplaced: PlacedDevice[] = [];
+  for (const d of wrapped) {
     const slot = legacySlot(d);
-    return slot === "left" ? 0 : slot === "right" ? 2 : 1;
-  };
-  const ordered = [...wrapped].sort((a, b) => slotRank(a) - slotRank(b));
-  const children = ordered.slice(0, slotIds.length).map((d, index) => {
+    const preferred = slot === "left" ? 0 : slot === "right" ? 1 : -1;
+    if (preferred >= 0 && preferred < slotIds.length && !assigned[preferred]) {
+      assigned[preferred] = d;
+    } else {
+      unplaced.push(d);
+    }
+  }
+  for (let i = 0; i < assigned.length && unplaced.length > 0; i++) {
+    if (!assigned[i]) assigned[i] = unplaced.shift();
+  }
+  const children = assigned.flatMap((d, index) => {
+    if (!d) return [];
     // Children are located by slot alone: clear rail/legacy placement fields
     // and attach to the carrier with an explicit slot (a data transform, not
     // an interactive drop, so the slot is assigned deterministically).
@@ -227,12 +247,14 @@ function buildCarrier(
     void _legacySlot;
     void _legacyContainer;
     void _legacySlotId;
-    return {
-      ...rest,
-      container_id: carrierId,
-      slot_id: slotIds[index]!,
-      position: 0,
-    } satisfies PlacedDevice;
+    return [
+      {
+        ...rest,
+        container_id: carrierId,
+        slot_id: slotIds[index]!,
+        position: 0,
+      } satisfies PlacedDevice,
+    ];
   });
   return { carrier, children };
 }
@@ -276,8 +298,15 @@ function shapeSlots(shape: CarrierShape): readonly string[] {
 function adaptRackDevices(
   devices: PlacedDevice[],
   deviceTypeBySlug: Map<string, DeviceType>,
-): { devices: PlacedDevice[]; carrierSlugs: Set<string>; changed: boolean } {
+  rackWidth: number,
+): {
+  devices: PlacedDevice[];
+  carrierSlugs: Set<string>;
+  generatedTypes: DeviceType[];
+  changed: boolean;
+} {
   const carrierSlugs = new Set<string>();
+  const generatedTypes: DeviceType[] = [];
 
   // Drop children whose container no longer exists in this rack (#2911)
   // before any other processing, so a dangling reference can never survive
@@ -331,39 +360,182 @@ function adaptRackDevices(
     else coLocated.set(key, [d]);
   }
   const forcedPairIds = new Set<string>();
+  // A hand-written pair holding a measured device wider than a half cell fits
+  // no shipped carrier, so it gets one carrier with a cell cut to each device,
+  // as long as both cells fit the row.
+  const customPairs: { pair: PlacedDevice[]; type: DeviceType }[] = [];
   for (const group of coLocated.values()) {
     if (group.length === 2 && group.every((d) => legacySlot(d) === undefined)) {
       for (const d of group) forcedPairIds.add(d.id);
+      // Each cell is cut to the device as it stands, turned or flat.
+      const types = group.map((d) => {
+        const dt = deviceTypeBySlug.get(d.device_type);
+        return dt && orientDeviceType(dt, d.rotation);
+      });
+      if (!types.every((dt) => dt !== undefined)) continue;
+      const cells = types.map((dt) => cellForDevice(dt, rackWidth));
+      const hasWideMeasured = types.some(
+        (dt, i) =>
+          dt.width_mm !== undefined &&
+          cells[i]!.widthFraction > HALF_CELL_FRACTION,
+      );
+      if (!hasWideMeasured) continue;
+      const type = buildCustomCarrierType(
+        Math.max(...cells.map((cell) => cell.heightUnits)),
+        cells,
+        [0],
+      );
+      if (fitsInRow(type, rackWidth, 0)) {
+        customPairs.push({ pair: group, type });
+      }
     }
   }
+  const customPairIds = new Set(
+    customPairs.flatMap(({ pair }) => pair.map((d) => d.id)),
+  );
 
-  // Group candidates that need a carrier by (position, face, carrier shape) so
-  // a legacy half-width pair lands in one shared 2-column carrier, while a
-  // co-located half-height device gets its own 2x2 grid carrier. Heterogeneous
-  // co-located gear is never forced into a mismatched carrier.
+  // Sub-U candidates are grouped by (position, face) into 2x2 grid carriers.
+  // Two-column candidates are collected per face and clustered by rail span
+  // below, so half-width neighbours of different heights share one carrier
+  // rather than getting overlapping carriers of their own.
   const result: PlacedDevice[] = [];
   const groups = new Map<
     string,
     { shape: CarrierShape; items: PlacedDevice[] }
   >();
+  const addToGroup = (d: PlacedDevice, shape: CarrierShape): void => {
+    const key = `${d.position}|${d.face}|${shape}`;
+    const group = groups.get(key);
+    if (group) group.items.push(d);
+    else groups.set(key, { shape, items: [d] });
+  };
+  const columnCandidates = new Map<
+    DeviceFace,
+    { device: PlacedDevice; uHeight: number }[]
+  >();
+  const customWrapped: {
+    device: PlacedDevice;
+    cell: CarrierCell;
+  }[] = [];
   for (const d of snapped) {
-    const dt = deviceTypeBySlug.get(d.device_type);
+    if (customPairIds.has(d.id)) continue;
+    // Every decision below reads the device as it stands, turned or flat.
+    const found = deviceTypeBySlug.get(d.device_type);
+    const dt = found && orientDeviceType(found, d.rotation);
     const forced = forcedPairIds.has(d.id);
     if (!forced && !needsCarrier(d, dt)) {
       result.push(d);
       continue;
     }
-    // A forced bare pair always wraps as a 2-column carrier; otherwise the
-    // device's own dimensions choose the shape.
-    const shape = forced ? 1 : carrierShapeFor(dt);
+    // A measured device wider than a half cell has no shipped carrier that
+    // fits it. Forcing it into one wrote a file that would not load again
+    // ("too wide to fit slot col-1"), so it gets a carrier cut to its width.
+    if (!forced && dt?.width_mm !== undefined) {
+      const cell = cellForDevice(dt, rackWidth);
+      if (cell.widthFraction > HALF_CELL_FRACTION) {
+        customWrapped.push({ device: d, cell });
+        continue;
+      }
+    }
+
+    // A forced bare pair always wraps as a 2-column carrier, sized to the
+    // devices like any other; otherwise the device's dimensions choose.
+    const shape = forced && isSubUHeight(dt) ? 1 : carrierShapeFor(dt);
     if (shape === undefined) {
       result.push(d);
       continue;
     }
-    const key = `${d.position}|${d.face}|${shape}`;
-    const group = groups.get(key);
-    if (group) group.items.push(d);
-    else groups.set(key, { shape, items: [d] });
+    if (shape === "2x2") {
+      addToGroup(d, shape);
+      continue;
+    }
+    const faceCandidates = columnCandidates.get(d.face);
+    const candidate = { device: d, uHeight: shape };
+    if (faceCandidates) faceCandidates.push(candidate);
+    else columnCandidates.set(d.face, [candidate]);
+  }
+
+  // Cluster two-column candidates whose rail spans overlap on the same face.
+  // A cluster that one carrier can hold (at most one device per column, span
+  // no taller than MAX_TWO_COLUMN_CARRIER_U) gets a single carrier as tall as
+  // the cluster's span, starting at its lowest U. A shorter device sits at the
+  // bottom of its column. A cluster no carrier can represent falls back to
+  // one height-matched carrier per (position, height), as before.
+  for (const [face, candidates] of columnCandidates) {
+    const sorted = [...candidates].sort(
+      (a, b) => a.device.position - b.device.position,
+    );
+    const clusters: {
+      members: typeof sorted;
+      bottom: number;
+      top: number;
+    }[] = [];
+    for (const candidate of sorted) {
+      const bottom = candidate.device.position;
+      const top = bottom + candidate.uHeight * UNITS_PER_U;
+      const current = clusters[clusters.length - 1];
+      if (current && bottom < current.top) {
+        current.members.push(candidate);
+        current.top = Math.max(current.top, top);
+      } else {
+        clusters.push({ members: [candidate], bottom, top });
+      }
+    }
+    for (const { members, bottom, top } of clusters) {
+      const items = members.map(({ device }) => device);
+      const spanU = (top - bottom) / UNITS_PER_U;
+      const sides = items.map(legacySlot);
+      const fitsOneCarrier =
+        items.length <= COL_SLOTS.length &&
+        sides.filter((side) => side === "left").length <= 1 &&
+        sides.filter((side) => side === "right").length <= 1 &&
+        hasTwoColumnCarrier(spanU);
+      if (!fitsOneCarrier) {
+        for (const { device, uHeight } of members) addToGroup(device, uHeight);
+        continue;
+      }
+      const slug = twoColumnCarrierSlug(spanU);
+      const { carrier, children } = buildCarrier(
+        slug,
+        COL_SLOTS,
+        items,
+        bottom,
+        face,
+      );
+      carrierSlugs.add(slug);
+      result.push(carrier, ...children);
+      changed = true;
+    }
+  }
+
+  // One carrier per custom-cut device: the cell is that device's width, so
+  // it cannot be shared with a neighbour.
+  for (const { device, cell } of customWrapped) {
+    const type = buildCustomCarrierType(carrierUHeight([cell]), [cell], []);
+    const { carrier, children } = buildCarrier(
+      type.slug,
+      ["col-1"],
+      [device],
+      device.position,
+      device.face ?? "front",
+    );
+    generatedTypes.push(type);
+    result.push(carrier, ...children);
+    changed = true;
+  }
+
+  for (const { pair, type } of customPairs) {
+    const first = pair[0]!;
+    const { carrier, children } = buildCarrier(
+      type.slug,
+      ["col-1", "col-2"],
+      pair,
+      first.position,
+      first.face ?? "front",
+    );
+    generatedTypes.push(type);
+    result.push(carrier, ...children);
+    changed = true;
   }
 
   for (const { shape, items } of groups.values()) {
@@ -392,6 +564,7 @@ function adaptRackDevices(
   return {
     devices: [...result, ...passthrough],
     carrierSlugs,
+    generatedTypes,
     changed,
   };
 }
@@ -665,21 +838,50 @@ export function adaptLegacyLayout(layout: Layout): Layout {
   }
 
   let racksChanged = false;
-  const racks = layout.racks.map((rack) => {
+  // Generated carriers are cut per file, so they cannot come from the starter
+  // library the way the shipped slugs do; they are merged in below.
+  const generatedCarrierTypes: DeviceType[] = [];
+  const carrierRacks = layout.racks.map((rack) => {
     if (!rack || !Array.isArray(rack.devices)) return rack;
-    const { devices, carrierSlugs, changed } = adaptRackDevices(
+    const { devices, carrierSlugs, generatedTypes, changed } = adaptRackDevices(
       rack.devices,
       deviceTypeBySlug,
+      rack.width ?? 19,
     );
     if (changed) racksChanged = true;
     for (const slug of carrierSlugs) referencedCarrierSlugs.add(slug);
+    for (const type of generatedTypes) {
+      if (!generatedCarrierTypes.some((t) => t.slug === type.slug)) {
+        generatedCarrierTypes.push(type);
+      }
+    }
     return changed ? { ...rack, devices } : rack;
   });
 
-  const { deviceTypes, changed: typesChanged } = hydrateCarrierTypes(
+  const { deviceTypes: hydrated, changed: typesChanged } = hydrateCarrierTypes(
     layout.device_types ?? [],
     referencedCarrierSlugs,
   );
+  const missingGenerated = generatedCarrierTypes.filter(
+    (type) => !hydrated.some((dt) => dt.slug === type.slug),
+  );
+  const deviceTypes =
+    missingGenerated.length > 0 ? [...hydrated, ...missingGenerated] : hydrated;
+
+  // Child position bound (#3456): runs against the final types, so a carrier
+  // hydrated or generated above is resolved. Like the connection salvage, it
+  // is not a carrier rewrite and never triggers the pre-carrier-first backup.
+  let childPositionsChanged = false;
+  const racks = carrierRacks.map((rack) => {
+    if (!rack || !Array.isArray(rack.devices)) return rack;
+    const { devices, changed } = clampContainerChildPositions(
+      rack.devices,
+      deviceTypes,
+    );
+    if (!changed) return rack;
+    childPositionsChanged = true;
+    return { ...rack, devices };
+  });
 
   // Legacy cables -> connections migration (#3091): converts fragile
   // device-id + interface-name Cable references into stable PlacedPort.id
@@ -735,7 +937,8 @@ export function adaptLegacyLayout(layout: Layout): Layout {
   if (
     !carrierMigrationChanged &&
     !connectionsFieldChanged &&
-    !cablesFieldPresent
+    !cablesFieldPresent &&
+    !childPositionsChanged
   ) {
     return layout;
   }

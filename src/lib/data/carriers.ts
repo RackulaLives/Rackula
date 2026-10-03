@@ -2,9 +2,10 @@
  * Height-matched two-column carriers for whole-U half-width gear.
  *
  * A half-width device cannot register on the rails by itself, so it rides in a
- * full-width carrier with two half-width columns. The carrier must be exactly
- * as tall as the device: a too-small carrier is the #2854 bug, and a too-tall
- * one would misrepresent the rack space the device consumes.
+ * full-width carrier with two half-width columns. The carrier must be as tall
+ * as the tallest device in it (for a legacy pair, the rail span the pair
+ * covers): a too-small carrier is the #2854 bug, and a taller one would
+ * misrepresent the rack space the devices consume.
  *
  * This module has no imports so both the starter library (which defines the
  * carrier device types) and the collision/import layers (which synthesise them)

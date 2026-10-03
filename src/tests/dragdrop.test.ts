@@ -5,8 +5,10 @@ import {
   hideNativeDragGhost,
   detectContainerDropTarget,
   detectContainerHover,
+  NEW_CELL_SLOT_ID,
   type DragData,
 } from "$lib/utils/dragdrop";
+import { buildCustomCarrierType } from "$lib/utils/custom-carrier";
 import type { Rack, DeviceType, PlacedDevice } from "$lib/types";
 import { findStarterDevice } from "$lib/data/starterLibrary";
 import {
@@ -613,6 +615,58 @@ describe("Drag and Drop Utilities", () => {
         "rear",
       );
       expect(target).toBeNull();
+    });
+  });
+
+  describe("detectContainerDropTarget on a full generated carrier", () => {
+    const RACK_WIDTH = 220;
+    const split = buildCustomCarrierType(
+      1,
+      [{ widthFraction: 0.4, heightUnits: 1 }],
+      [],
+    );
+    const measured = createTestDeviceType({
+      slug: "mini-pc",
+      u_height: 1,
+      width_mm: 180,
+    });
+    const rack: Rack = {
+      ...createTestRack({ height: 12 }),
+      devices: [
+        pd("carrier-1", split.slug, 5, "both"),
+        {
+          ...pd("child-1", measured.slug, 0, "both"),
+          container_id: "carrier-1",
+          slot_id: "col-1",
+        },
+      ],
+    };
+
+    function targetFor(device: DeviceType) {
+      return detectContainerDropTarget(
+        rack,
+        [split, measured, device],
+        device,
+        165, // middle of U5
+        40,
+        RACK_WIDTH,
+        12,
+        U_HEIGHT,
+      );
+    }
+
+    it("offers a new cell to a device that takes a carrier cell", () => {
+      const other = createTestDeviceType({
+        slug: "nuc",
+        u_height: 1,
+        width_mm: 120,
+      });
+      expect(targetFor(other)?.slotId).toBe(NEW_CELL_SLOT_ID);
+    });
+
+    it("offers no cell to a full-width rail device", () => {
+      const server = createTestDeviceType({ slug: "server-1u", u_height: 1 });
+      expect(targetFor(server)).toBeNull();
     });
   });
 

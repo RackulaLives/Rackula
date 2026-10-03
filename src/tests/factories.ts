@@ -88,6 +88,10 @@ export interface CreateTestDeviceTypeOptions {
   face?: DeviceFace;
   rack_widths?: RackWidth[];
   slot_width?: SlotWidth;
+  /** Measured width in millimetres (#3310). */
+  width_mm?: number;
+  /** Measured height in millimetres. */
+  height_mm?: number;
 }
 
 /**
@@ -143,6 +147,8 @@ export function createTestDeviceType(
   if (options.airflow) result.airflow = options.airflow;
   if (options.rack_widths) result.rack_widths = options.rack_widths;
   if (options.slot_width !== undefined) result.slot_width = options.slot_width;
+  if (options.width_mm !== undefined) result.width_mm = options.width_mm;
+  if (options.height_mm !== undefined) result.height_mm = options.height_mm;
 
   return result;
 }

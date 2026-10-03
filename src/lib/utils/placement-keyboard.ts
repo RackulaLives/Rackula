@@ -13,7 +13,7 @@
  * to a placeable position rather than letting the user hover an occupied slot.
  */
 
-import type { Rack, DeviceType, DeviceFace } from "$lib/types";
+import type { Rack, DeviceType, DeviceFace, DeviceRotation } from "$lib/types";
 import { getDropFeedback } from "./dragdrop";
 import { requiresChassisBay } from "./collision";
 import { pendingCollisionFace } from "./effective-face";
@@ -30,10 +30,11 @@ export function validStartPositions(
   device: DeviceType,
   face: DeviceFace = "front",
 ): number[] {
-  // A device that can only live in a chassis bay (a chassis child, or a
-  // half-width device with no rail carrier) has no valid rail start position:
+  // A device that can only live in a chassis bay (a chassis child, a half-width
+  // device with no rail carrier, or measured gear wider than the rack's
+  // opening) has no valid rail start position:
   // announcing one would be dishonest and Enter would fail (#2854).
-  if (requiresChassisBay(device)) return [];
+  if (requiresChassisBay(device, rack.width)) return [];
 
   // Widen a full-depth pending device to both faces so the keyboard cursor
   // matches the store's placement (#2925); see pendingCollisionFace.
@@ -134,13 +135,17 @@ export function pickUpNoSpaceAnnouncement(
 }
 
 /**
- * Announced when a device that can only mount inside a chassis bay (a chassis
- * child, or a half-width device with no rail carrier) is armed: it has no rail
- * target in any rack, so the honest requirement is stated and placement mode
- * exits rather than leaving a stuck, futile cursor (#2854).
+ * Announced when a device that can only mount inside a bay (a chassis child, a
+ * half-width device with no rail carrier, or measured gear wider than the
+ * rack's opening) has no rail target in the rack being aimed at. Placement
+ * exits only when no rack in the layout can take it, rather than leaving a
+ * stuck, futile cursor (#2854).
  */
 export function pickUpNeedsChassisAnnouncement(device: DeviceType): string {
   const name = device.model ?? device.slug;
+  if (device.width_mm !== undefined) {
+    return `${name} must be placed in a shelf or carrier cell wide enough for it. Drop it onto a shelf.`;
+  }
   return `${name} must be placed in a chassis bay. Drop it onto a chassis.`;
 }
 
@@ -158,6 +163,11 @@ export function positionAnnouncement(
 ): string {
   const base = `U${position} of ${rackName}, available`;
   return atEdge ? `${base}, no further slots this way` : base;
+}
+
+/** Copy announced when the armed device turns before it is placed. */
+export function rotationAnnouncement(rotation: DeviceRotation): string {
+  return rotation === 90 ? "Rotated 90 degrees" : "Rotated back to 0 degrees";
 }
 
 /** Copy announced when a rack has no room for the armed device. */

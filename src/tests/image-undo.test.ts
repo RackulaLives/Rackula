@@ -54,6 +54,7 @@ function createMockDeviceStore(devices: PlacedDevice[]): DeviceCommandStore {
     updateDeviceNameRaw() {},
     updateDevicePlacementImageRaw() {},
     updateDeviceColourRaw() {},
+    updateDeviceRotationRaw() {},
     updateDeviceNotesRaw() {},
     updateDeviceIpRaw() {},
     getDeviceAtIndex(index: number) {
@@ -359,6 +360,7 @@ describe("Image Undo — Cross-Rack Move (#1478)", () => {
       updateDeviceNameRaw() {},
       updateDevicePlacementImageRaw() {},
       updateDeviceColourRaw() {},
+      updateDeviceRotationRaw() {},
       updateDeviceNotesRaw() {},
       updateDeviceIpRaw() {},
     };
@@ -462,6 +464,7 @@ describe("Image Undo — Cross-Rack Move (#1478)", () => {
       updateDeviceNameRaw() {},
       updateDevicePlacementImageRaw() {},
       updateDeviceColourRaw() {},
+      updateDeviceRotationRaw() {},
       updateDeviceNotesRaw() {},
       updateDeviceIpRaw() {},
     };

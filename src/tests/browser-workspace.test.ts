@@ -572,7 +572,7 @@ describe("browser-workspace storage", () => {
 
     it("refuses a body whose schema_version MAJOR is newer than the app", () => {
       const layout = validLayout();
-      (layout.metadata as Record<string, unknown>).schema_version = "2.0";
+      (layout.metadata as Record<string, unknown>).schema_version = "3.0";
       localStorage.setItem("Rackula:layout:a", wrapBody(layout));
       // Forward-compat gate: a future-major body is refused, not loaded, so a
       // newer Rackula's data does not silently lose fields on an older app.

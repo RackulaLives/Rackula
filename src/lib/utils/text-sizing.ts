@@ -5,8 +5,11 @@
  * to fit within available width in SVG device labels.
  *
  * Uses character-width estimation since SVG text measurement requires DOM access.
- * The estimation is calibrated for system-ui/sans-serif fonts used in device labels.
+ * The estimation is calibrated for Inter Medium, the canvas device-label font.
  */
+
+import { LABEL_MIN_WIDTH, PORT_ZONE_GAP } from "$lib/utils/port-geometry";
+import type { DeviceZones } from "$lib/utils/port-geometry";
 
 // =============================================================================
 // Shared Constants - Used by RackDevice.svelte and export.ts for consistency
@@ -27,9 +30,61 @@ export const DEVICE_LABEL_ICON_SPACE_LEFT = 28;
 /** Space reserved for grip icon on right side of device label */
 export const DEVICE_LABEL_ICON_SPACE_RIGHT = 20;
 
+/**
+ * Estimated width of the REAR tag: 4 capitals at 8px, weight 600, with
+ * 0.06em letter spacing (RackDevice's .rear-badge).
+ */
+export const REAR_TAG_WIDTH = 24;
+
+/** Space between the label and an in-flow REAR tag. */
+export const REAR_TAG_GAP = 4;
+
+/** Inset of the floating REAR tag from the device's right edge. */
+export const REAR_TAG_INSET = 4;
+
 // =============================================================================
 // Types
 // =============================================================================
+
+/** Where a device's name label sits and how wide it may be. */
+export interface DeviceLabelLayout {
+  /** Label x: the device centre when centred, else the label's left edge. */
+  x: number;
+  anchor: "middle" | "start";
+  /** Width to fit the label into. Never negative. */
+  availableWidth: number;
+  /**
+   * Whether the category icon is drawn. False when ports leave the label
+   * less than LABEL_MIN_WIDTH (e.g. 10-inch racks): the label wins and takes
+   * the icon's space.
+   */
+  showIcon: boolean;
+  /**
+   * Right edge and vertical centre of the REAR tag when it sits in the flow,
+   * between the label and the port zone. Undefined when the tag floats, is
+   * omitted for lack of room, or is not shown.
+   */
+  rearTag?: { x: number; y: number };
+  /**
+   * The REAR tag keeps its floating top-right position: true only when no
+   * ports are visible and the centred label text ends clear of the tag. When
+   * the text would run under it (e.g. most names on 10-inch racks) the tag is
+   * omitted. With ports it is in the flow (rearTag) or omitted, never floated
+   * over the port zone.
+   */
+  floatRearTag: boolean;
+}
+
+export interface DeviceLabelLayoutOptions {
+  /** Zones from computeDeviceZones() for this device and rack face. */
+  zones: DeviceZones;
+  /** Rendered device width, matching RackDevice's deviceWidth. */
+  deviceWidth: number;
+  /** The back of a full-depth device is in view, so the REAR tag shows. */
+  isRearTreatment: boolean;
+  /** The name drawn on the device, or empty when name labels are hidden. */
+  label: string;
+}
 
 export interface FontSizeOptions {
   maxFontSize: number;
@@ -43,11 +98,59 @@ export interface FitTextResult {
 }
 
 /**
- * Average character width as a ratio of font size.
- * Calibrated for system-ui/sans-serif fonts.
- * Most characters are roughly 0.55-0.6x the font size in width.
+ * Character widths as a ratio of font size, by class. Each value is the
+ * widest advance in its class in Inter Medium (the canvas label font, weight
+ * 500), rounded up, so the estimate does not fall short of the rendered
+ * width.
  */
-const CHAR_WIDTH_RATIO = 0.58;
+const CHAR_WIDTH_CLASSES: ReadonlyArray<readonly [string, number]> = [
+  // Thin letters and space
+  ["ijlI ", 0.28],
+  // Narrow punctuation
+  [".,:;!|'`", 0.35],
+  // Narrow letters, brackets and slashes
+  ["frt()[]/\\", 0.39],
+  // Dashes, quotes and the digit 1
+  ['-_"1^{}', 0.5],
+  // Lowercase
+  ["acehknosuvxyz?*", 0.61],
+  ["bdgpq", 0.62],
+  // Digits and narrow capitals
+  ["023456789EFJL$", 0.66],
+  // Capitals and symbols
+  ["BKPRSTZ+#&<=>~", 0.69],
+  // Wide capitals
+  ["ACDGHNOQUVXY", 0.77],
+  // Widest glyphs. W carries headroom for Inter's positive W-W kerning.
+  ["mwM…", 0.92],
+  ["W@%", 1.03],
+];
+
+/** Width of characters outside every class, such as accented or CJK text. */
+const DEFAULT_CHAR_WIDTH = 1.03;
+
+const CHAR_WIDTHS = new Map(
+  CHAR_WIDTH_CLASSES.flatMap(([chars, width]) =>
+    [...chars].map((char) => [char, width] as const),
+  ),
+);
+
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/** Splits text into user-perceived characters, so flags and emoji stay whole. */
+export function graphemes(text: string): string[] {
+  return Array.from(GRAPHEMES.segment(text), (s) => s.segment);
+}
+
+/**
+ * Width of one grapheme cluster, from its base character: accented letters
+ * take their base letter's width, and combining marks, ZWJ sequences and
+ * flags count once.
+ */
+function clusterWidth(cluster: string): number {
+  const base = cluster.normalize("NFD").codePointAt(0) ?? 0;
+  return CHAR_WIDTHS.get(String.fromCodePoint(base)) ?? DEFAULT_CHAR_WIDTH;
+}
 
 /**
  * Estimates the width of text at a given font size.
@@ -55,9 +158,10 @@ const CHAR_WIDTH_RATIO = 0.58;
  * @param fontSize - The font size in pixels
  * @returns Estimated width in pixels
  */
-function estimateTextWidth(text: string, fontSize: number): number {
-  if (!text) return 0;
-  return text.length * fontSize * CHAR_WIDTH_RATIO;
+export function estimateTextWidth(text: string, fontSize: number): number {
+  let width = 0;
+  for (const cluster of graphemes(text)) width += clusterWidth(cluster);
+  return width * fontSize;
 }
 
 /**
@@ -87,15 +191,13 @@ export function calculateFontSize(
     return maxFontSize;
   }
 
-  // Calculate the font size needed to fit
-  // width = length * fontSize * ratio
-  // fontSize = width / (length * ratio)
-  const idealFontSize = availableWidth / (text.length * CHAR_WIDTH_RATIO);
+  // Width scales linearly with font size. Round down so the text still fits.
+  const idealFontSize = availableWidth / estimateTextWidth(text, 1);
 
   // Clamp between min and max
   return Math.max(
     minFontSize,
-    Math.min(maxFontSize, Math.round(idealFontSize)),
+    Math.min(maxFontSize, Math.floor(idealFontSize)),
   );
 }
 
@@ -129,14 +231,15 @@ export function truncateWithEllipsis(
     return "…";
   }
 
-  const charWidth = fontSize * CHAR_WIDTH_RATIO;
-  const maxChars = Math.floor(availableForText / charWidth);
-
-  if (maxChars <= 0) {
-    return "…";
+  let kept = "";
+  let keptWidth = 0;
+  for (const cluster of graphemes(text)) {
+    keptWidth += clusterWidth(cluster) * fontSize;
+    if (keptWidth > availableForText) break;
+    kept += cluster;
   }
 
-  return text.substring(0, maxChars) + "…";
+  return kept + "…";
 }
 
 /**
@@ -209,4 +312,74 @@ export function fitTextToWidth(
   }
 
   return { text, fontSize };
+}
+
+/**
+ * Lays out a device's name label against its zones (#3450).
+ *
+ * With no visible ports the label stays centred in the device, as before,
+ * and the REAR tag floats at the top right, unless the fitted label text
+ * would run under it: there the tag is omitted, as below.
+ *
+ * With ports it starts at the label zone's left edge and stops short of the
+ * port zone. On the back of a full-depth device the REAR tag then takes the
+ * right end of the label zone, vertically centred, and the label gives up
+ * that width so it never runs under the tag.
+ *
+ * On a narrow device the label wins: when the zones leave it less than
+ * LABEL_MIN_WIDTH the icon is dropped and the label starts near the left
+ * edge, and when the REAR tag would leave it less than half of that the tag
+ * is omitted (the rear view header and the muted body already say "rear").
+ */
+export function computeDeviceLabelLayout(
+  options: DeviceLabelLayoutOptions,
+): DeviceLabelLayout {
+  const { zones, deviceWidth, isRearTreatment, label } = options;
+
+  if (zones.mode === "none") {
+    const fitted = fitTextToWidth(label, {
+      maxFontSize: DEVICE_LABEL_MAX_FONT,
+      minFontSize: DEVICE_LABEL_MIN_FONT,
+      availableWidth: zones.labelWidth,
+    });
+    const textRight =
+      deviceWidth / 2 + estimateTextWidth(fitted.text, fitted.fontSize) / 2;
+    const tagLeft = deviceWidth - REAR_TAG_INSET - REAR_TAG_WIDTH;
+    return {
+      x: deviceWidth / 2,
+      anchor: "middle",
+      availableWidth: zones.labelWidth,
+      showIcon: true,
+      floatRearTag: textRight + REAR_TAG_GAP <= tagLeft,
+    };
+  }
+
+  const showIcon = zones.labelWidth >= LABEL_MIN_WIDTH;
+  const x = showIcon ? zones.labelX : PORT_ZONE_GAP;
+  // The label zone ends PORT_ZONE_GAP short of the port zone.
+  const labelEnd = zones.portZone.x - PORT_ZONE_GAP;
+  const availableWidth = Math.max(0, labelEnd - x);
+  const widthBesideTag = availableWidth - REAR_TAG_WIDTH - REAR_TAG_GAP;
+
+  if (!isRearTreatment || widthBesideTag < LABEL_MIN_WIDTH / 2) {
+    return {
+      x,
+      anchor: "start",
+      availableWidth,
+      showIcon,
+      floatRearTag: false,
+    };
+  }
+
+  return {
+    x,
+    anchor: "start",
+    availableWidth: widthBesideTag,
+    showIcon,
+    rearTag: {
+      x: labelEnd,
+      y: zones.portZone.y + zones.portZone.height / 2,
+    },
+    floatRearTag: false,
+  };
 }
