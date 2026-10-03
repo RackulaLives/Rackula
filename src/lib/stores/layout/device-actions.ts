@@ -40,7 +40,6 @@ import {
   cellForDevice,
   cellsOf,
   isGeneratedCarrier,
-  CUSTOM_CARRIER_SLUG_PATTERN,
 } from "$lib/utils/custom-carrier";
 import { fitsInRow, gapsFor, remainingMm } from "$lib/utils/slot-layout";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
@@ -585,25 +584,18 @@ export function placeDeviceSmart(
 
   ctx.setActiveRackId(rackId);
 
-  // Prefer an existing carrier of the right kind covering this U with a free
-  // cell: a click anywhere on a tall carrier lands in it, not only on its
-  // bottom U. A generated carrier also qualifies whatever its slug: its slug
-  // encodes the split it holds now, which stopped matching the incoming
-  // device's one-cell slug the moment it grew its second cell.
+  // Prefer an existing container covering this U: a click anywhere on a tall
+  // carrier lands in it, not only on its bottom U. Any container qualifies,
+  // not only the kind this device would get: the preview is valid over any
+  // container with a free cell the device fits, so the click places there.
   const positionInternal = toInternalUnits(positionU);
   const existingCarrier = targetRack.devices.find((d) => {
     if (d.container_id) return false;
-    if (
-      d.device_type !== carrierSlug &&
-      !CUSTOM_CARRIER_SLUG_PATTERN.test(d.device_type)
-    ) {
-      return false;
-    }
-    const height =
-      findDeviceType(d.device_type, layout.device_types)?.u_height ?? 1;
+    const type = findDeviceType(d.device_type, layout.device_types);
+    if (!type?.slots?.length) return false;
     return (
       positionInternal >= d.position &&
-      positionInternal < d.position + height * UNITS_PER_U
+      positionInternal < d.position + type.u_height * UNITS_PER_U
     );
   });
 
