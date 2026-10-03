@@ -252,6 +252,23 @@ describe("handlePlacementHover — pointer-tracking placement ghost (#2992)", ()
     });
 
     expect(placementStore.cursorPosition).toBe(3);
+    expect(placementStore.cursorFeedback).toBe("blocked");
+  });
+
+  it("keeps the resolver's verdict, so a carrier with room previews valid", () => {
+    const placementStore = getPlacementStore();
+    placementStore.startPlacement(device);
+
+    (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
+      feedback: "valid",
+      targetU: 6,
+    });
+    handlePlacementHover(makeMouseEvent(50, 300), svg, makeCtx(), device, {
+      setCursor: placementStore.setCursor,
+      setTargetFace: placementStore.setTargetFace,
+    });
+
+    expect(placementStore.cursorFeedback).toBe("valid");
   });
 
   it("aligns the placement face with the hovered rack copy", () => {

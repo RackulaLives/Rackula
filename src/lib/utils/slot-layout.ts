@@ -12,6 +12,7 @@
  */
 
 import type { DeviceType } from "$lib/types";
+import { cellForDevice } from "./custom-carrier";
 import { getRackOpeningMm } from "./device-width";
 import { getSlotRects, type SlotRect } from "./slot-geometry";
 
@@ -169,4 +170,33 @@ export function fitsInRow(
     usedMm(containerType, rackWidth) + extraMm <=
     getRackOpeningMm(rackWidth) + ROW_FIT_TOLERANCE_MM
   );
+}
+
+/**
+ * Why a generated carrier cannot grow a cell for a device, or null when it
+ * can. The new cell is cut to the device as it stands and joins the row at no
+ * gap, so it needs that width left in the row and the carrier's rail height.
+ *
+ * @param carrierType - The generated carrier being grown
+ * @param deviceType - The device as it will stand (turned or flat)
+ * @param rackWidth - Nominal rack width in inches
+ */
+export function newCellRefusal(
+  carrierType: DeviceType,
+  deviceType: DeviceType,
+  rackWidth: number,
+): string | null {
+  const cell = cellForDevice(deviceType, rackWidth);
+  const cellMm = cell.widthFraction * getRackOpeningMm(rackWidth);
+  if (!fitsInRow(carrierType, rackWidth, cellMm)) {
+    return (
+      `Only ${Math.round(remainingMm(carrierType, rackWidth))} mm left in this carrier, ` +
+      `${Math.round(cellMm)} mm needed`
+    );
+  }
+  // The carrier keeps the rail height it has, so a taller device needs its own.
+  if (cell.heightUnits > carrierType.u_height) {
+    return `${deviceType.model ?? deviceType.slug} is too tall for this ${carrierType.u_height}U carrier`;
+  }
+  return null;
 }

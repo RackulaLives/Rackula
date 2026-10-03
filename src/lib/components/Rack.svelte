@@ -361,16 +361,23 @@
     return {
       position,
       height: deviceHeight,
-      feedback: getDropFeedback(
-        rack,
-        deviceLibrary,
-        deviceHeight,
-        position,
-        undefined,
-        // Widen a full-depth pending device to both faces so the keyboard
-        // preview matches the store's placement (#2925); see pendingCollisionFace.
-        pendingCollisionFace(placementStore.pendingDevice, effectiveFaceFilter),
-      ),
+      // The pointer's verdict when it set the cursor: it knows the carrier
+      // under the pointer, which a rail check does not.
+      feedback:
+        placementStore.cursorFeedback ??
+        getDropFeedback(
+          rack,
+          deviceLibrary,
+          deviceHeight,
+          position,
+          undefined,
+          // Widen a full-depth pending device to both faces so the keyboard
+          // preview matches the store's placement (#2925); see pendingCollisionFace.
+          pendingCollisionFace(
+            placementStore.pendingDevice,
+            effectiveFaceFilter,
+          ),
+        ),
     };
   });
 

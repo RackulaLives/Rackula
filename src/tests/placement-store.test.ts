@@ -207,6 +207,15 @@ describe("placement store", () => {
       expect(store.cursorPosition).toBeNull();
     });
 
+    it("drops the pointer's verdict when the keyboard moves the cursor", () => {
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.setCursor("rack-1", 5, "blocked");
+      expect(store.cursorFeedback).toBe("blocked");
+      store.setCursor("rack-1", 6);
+      expect(store.cursorFeedback).toBeNull();
+    });
+
     it("clears the cursor on startPlacement so a new pick-up starts fresh", () => {
       const store = getPlacementStore();
       store.startPlacement(mockDevice);

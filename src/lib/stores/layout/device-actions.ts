@@ -30,7 +30,6 @@ import {
   type CellDirection,
 } from "$lib/utils/collision";
 import {
-  getRackOpeningMm,
   getRotation,
   orientDeviceType,
   requiresCarrier,
@@ -42,7 +41,7 @@ import {
   isGeneratedCarrier,
   CUSTOM_CARRIER_SLUG_PATTERN,
 } from "$lib/utils/custom-carrier";
-import { fitsInRow, gapsFor, remainingMm } from "$lib/utils/slot-layout";
+import { gapsFor, newCellRefusal } from "$lib/utils/slot-layout";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { generateId } from "$lib/utils/device";
@@ -766,32 +765,19 @@ export function extendCustomCarrier(
 
   // The new cell is cut to the device as it will stand.
   const turn = getRotation(deviceType, rotation);
-  const cell = cellForDevice(orientDeviceType(deviceType, turn), rack.width);
-  const cellMm = cell.widthFraction * getRackOpeningMm(rack.width);
+  const standing = orientDeviceType(deviceType, turn);
+
+  // Named, not a bare refusal: the rack may have plenty of room.
+  const refusal = newCellRefusal(carrierType, standing, rack.width);
+  if (refusal) {
+    getToastStore().showToast(refusal, "warning");
+    return false;
+  }
 
   // Joining an existing row adds a boundary, and a new boundary starts at no
   // gap so the row keeps the shape the user already sees.
   const NEW_CELL_GAP_MM = 0;
-
-  if (!fitsInRow(carrierType, rack.width, cellMm + NEW_CELL_GAP_MM)) {
-    getToastStore().showToast(
-      `Only ${Math.round(remainingMm(carrierType, rack.width))} mm left in this carrier, ` +
-        `${Math.round(cellMm)} mm needed`,
-      "warning",
-    );
-    return false;
-  }
-
-  // The carrier keeps the rail height it has, so a taller device needs its own.
-  // Named, like the row refusal above: the rack may have plenty of room.
-  if (cell.heightUnits > carrierType.u_height) {
-    getToastStore().showToast(
-      `${deviceType.model ?? deviceType.slug} is too tall for this ${carrierType.u_height}U carrier`,
-      "warning",
-    );
-    return false;
-  }
-
+  const cell = cellForDevice(standing, rack.width);
   const cells = cellsOf(carrierType);
   const grown = buildCustomCarrierType(
     carrierType.u_height,

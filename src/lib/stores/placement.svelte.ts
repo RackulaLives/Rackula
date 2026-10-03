@@ -8,6 +8,7 @@
 import type { DeviceType, DeviceFace, DeviceRotation } from "$lib/types";
 import { canRotate, orientDeviceType } from "$lib/utils/device-width";
 import { rotationAnnouncement } from "$lib/utils/placement-keyboard";
+import type { DropFeedback } from "$lib/utils/dragdrop";
 
 // State
 let isPlacing = $state(false);
@@ -34,6 +35,13 @@ let targetRackId = $state<string | null>(null);
 let cursorPosition = $state<number | null>(null);
 
 /**
+ * The pointer's verdict on the cursor slot, from the resolver the click uses,
+ * so the ghost over a carrier agrees with the placement. Null for a keyboard
+ * cursor, which only stops on rail slots.
+ */
+let cursorFeedback = $state<DropFeedback | null>(null);
+
+/**
  * Screen-reader announcement for placement state transitions.
  * Set on pick-up, slot change, cancel, and complete so assistive technologies
  * can announce the mode and position. Cleared on the next startPlacement so
@@ -54,6 +62,7 @@ function startPlacement(device: DeviceType, face: DeviceFace = "front"): void {
   rotation = 0;
   targetRackId = null;
   cursorPosition = null;
+  cursorFeedback = null;
 }
 
 /**
@@ -67,6 +76,7 @@ function resetState(): void {
   rotation = 0;
   targetRackId = null;
   cursorPosition = null;
+  cursorFeedback = null;
 }
 
 /**
@@ -133,12 +143,18 @@ function setTargetFace(face: DeviceFace): void {
  * preview never shows on a stale rack.
  * @param rackId - Rack the cursor is in
  * @param position - Whole-U slot (1-indexed) within that rack, or null for none
+ * @param feedback - The pointer's verdict on the slot; omitted by the keyboard
  */
-function setCursor(rackId: string, position: number | null): void {
+function setCursor(
+  rackId: string,
+  position: number | null,
+  feedback: DropFeedback | null = null,
+): void {
   targetRackId = rackId;
   // Rail positions are whole-U integers (carrier-first model); reject a
   // fractional slot rather than carry it into placement.
   cursorPosition = position == null ? null : Math.round(position);
+  cursorFeedback = feedback;
 }
 
 /**
@@ -185,6 +201,9 @@ export function getPlacementStore() {
     /** Highlighted whole-U slot (1-indexed) of the keyboard cursor, or null. */
     get cursorPosition() {
       return cursorPosition;
+    },
+    get cursorFeedback() {
+      return cursorFeedback;
     },
     /**
      * Screen-reader announcement text for the most recent placement state
