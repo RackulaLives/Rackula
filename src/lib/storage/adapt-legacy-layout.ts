@@ -41,6 +41,11 @@ import { generateId } from "$lib/utils/device";
 import { isNarrowDevice, orientDeviceType } from "$lib/utils/device-width";
 import { findStarterDevice } from "$lib/data/starterLibrary";
 import {
+  MAX_TWO_COLUMN_CARRIER_U,
+  hasTwoColumnCarrier,
+  twoColumnCarrierSlug,
+} from "$lib/data/carriers";
+import {
   buildCustomCarrierType,
   carrierUHeight,
   cellForDevice,
@@ -79,16 +84,20 @@ export const CARRIER_2X2_SLUG = "carrier-1u-2x2";
 /** Height-matched 2U carrier for whole-U half-width gear taller than 1U (#2854). */
 export const CARRIER_2U_2COL_SLUG = "carrier-2u-2col";
 
-/** Slot ids on carrier-1u-2col (full-height half-width columns). */
+/** Slot ids on every carrier-Nu-2col (full-height half-width columns). */
 const COL_SLOTS = ["col-1", "col-2"] as const;
 /** Slot ids on carrier-1u-2x2 (half-width half-height cells, bottom row first). */
 const GRID_SLOTS = ["r0-c0", "r0-c1", "r1-c0", "r1-c1"] as const;
 
-/** The carrier slugs this adapter knows how to hydrate from the starter library. */
+/**
+ * The carrier slugs this adapter knows how to hydrate from the starter library:
+ * the 2x2 grid plus every height-matched two-column carrier (1U-8U).
+ */
 const KNOWN_CARRIER_SLUGS = new Set<string>([
-  CARRIER_2COL_SLUG,
   CARRIER_2X2_SLUG,
-  CARRIER_2U_2COL_SLUG,
+  ...Array.from({ length: MAX_TWO_COLUMN_CARRIER_U }, (_, i) =>
+    twoColumnCarrierSlug(i + 1),
+  ),
 ]);
 
 /**
@@ -207,15 +216,25 @@ function buildCarrier(
     face,
     auto_created: true,
   };
-  // Preserve legacy left/right intent: a device explicitly marked "left" takes
-  // the first column, "right" the second. Devices without slot_position keep
-  // their input order. A stable sort keeps unrelated ordering intact.
-  const slotRank = (d: PlacedDevice): number => {
+  // Preserve legacy left/right intent: a device marked "left" takes the first
+  // slot and one marked "right" the second, even when it is alone in the
+  // carrier. Every other device fills the remaining slots in input order.
+  const assigned: (PlacedDevice | undefined)[] = slotIds.map(() => undefined);
+  const unplaced: PlacedDevice[] = [];
+  for (const d of wrapped) {
     const slot = legacySlot(d);
-    return slot === "left" ? 0 : slot === "right" ? 2 : 1;
-  };
-  const ordered = [...wrapped].sort((a, b) => slotRank(a) - slotRank(b));
-  const children = ordered.slice(0, slotIds.length).map((d, index) => {
+    const preferred = slot === "left" ? 0 : slot === "right" ? 1 : -1;
+    if (preferred >= 0 && preferred < slotIds.length && !assigned[preferred]) {
+      assigned[preferred] = d;
+    } else {
+      unplaced.push(d);
+    }
+  }
+  for (let i = 0; i < assigned.length && unplaced.length > 0; i++) {
+    if (!assigned[i]) assigned[i] = unplaced.shift();
+  }
+  const children = assigned.flatMap((d, index) => {
+    if (!d) return [];
     // Children are located by slot alone: clear rail/legacy placement fields
     // and attach to the carrier with an explicit slot (a data transform, not
     // an interactive drop, so the slot is assigned deterministically).
@@ -228,35 +247,48 @@ function buildCarrier(
     void _legacySlot;
     void _legacyContainer;
     void _legacySlotId;
-    return {
-      ...rest,
-      container_id: carrierId,
-      slot_id: slotIds[index]!,
-      position: 0,
-    } satisfies PlacedDevice;
+    return [
+      {
+        ...rest,
+        container_id: carrierId,
+        slot_id: slotIds[index]!,
+        position: 0,
+      } satisfies PlacedDevice,
+    ];
   });
   return { carrier, children };
 }
 
-/** Carrier shape a sub-U / half-width device needs. */
-type CarrierShape = "2col" | "2u-2col" | "2x2";
+/**
+ * Carrier shape a sub-U / half-width device needs: the 2x2 grid, or the
+ * two-column carrier of the given whole-U height.
+ */
+type CarrierShape = "2x2" | number;
 
-/** Pick the carrier shape for a device: sub-U gear needs the 2x2 grid, 2U gear needs 2u-2col, others use 2col. */
-function carrierShapeFor(deviceType: DeviceType | undefined): CarrierShape {
+/**
+ * Pick the carrier shape for a device: sub-U gear needs the 2x2 grid, whole-U
+ * gear a height-matched two-column carrier. Returns undefined when no carrier
+ * matches the height (taller than MAX_TWO_COLUMN_CARRIER_U): a too-small
+ * carrier would misstate the rail footprint (#2854), so the device is left
+ * for a chassis bay, as synthesizeCarrierForDevice does.
+ */
+function carrierShapeFor(
+  deviceType: DeviceType | undefined,
+): CarrierShape | undefined {
   if (isSubUHeight(deviceType)) return "2x2";
-  return deviceType?.u_height === 2 ? "2u-2col" : "2col";
+  const height = deviceType?.u_height ?? 1;
+  return hasTwoColumnCarrier(height) ? height : undefined;
 }
 
-const SHAPE_SLUG: Record<CarrierShape, string> = {
-  "2col": CARRIER_2COL_SLUG,
-  "2u-2col": CARRIER_2U_2COL_SLUG,
-  "2x2": CARRIER_2X2_SLUG,
-};
-const SHAPE_SLOTS: Record<CarrierShape, readonly string[]> = {
-  "2col": COL_SLOTS,
-  "2u-2col": COL_SLOTS,
-  "2x2": GRID_SLOTS,
-};
+/** Carrier slug for a shape. */
+function shapeSlug(shape: CarrierShape): string {
+  return shape === "2x2" ? CARRIER_2X2_SLUG : twoColumnCarrierSlug(shape);
+}
+
+/** Slot ids of the carrier for a shape. */
+function shapeSlots(shape: CarrierShape): readonly string[] {
+  return shape === "2x2" ? GRID_SLOTS : COL_SLOTS;
+}
 
 /**
  * Adapt one rack's devices to carrier-first. Returns the new device list plus
@@ -362,14 +394,24 @@ function adaptRackDevices(
     customPairs.flatMap(({ pair }) => pair.map((d) => d.id)),
   );
 
-  // Group candidates that need a carrier by (position, face, carrier shape) so
-  // a legacy half-width pair lands in one shared 2-column carrier, while a
-  // co-located half-height device gets its own 2x2 grid carrier. Heterogeneous
-  // co-located gear is never forced into a mismatched carrier.
+  // Sub-U candidates are grouped by (position, face) into 2x2 grid carriers.
+  // Two-column candidates are collected per face and clustered by rail span
+  // below, so half-width neighbours of different heights share one carrier
+  // rather than getting overlapping carriers of their own.
   const result: PlacedDevice[] = [];
   const groups = new Map<
     string,
     { shape: CarrierShape; items: PlacedDevice[] }
+  >();
+  const addToGroup = (d: PlacedDevice, shape: CarrierShape): void => {
+    const key = `${d.position}|${d.face}|${shape}`;
+    const group = groups.get(key);
+    if (group) group.items.push(d);
+    else groups.set(key, { shape, items: [d] });
+  };
+  const columnCandidates = new Map<
+    DeviceFace,
+    { device: PlacedDevice; uHeight: number }[]
   >();
   const customWrapped: {
     device: PlacedDevice;
@@ -396,13 +438,74 @@ function adaptRackDevices(
       }
     }
 
-    // A forced bare pair always wraps as a 2-column carrier; otherwise the
-    // device's own dimensions choose the shape.
-    const shape = forced ? "2col" : carrierShapeFor(dt);
-    const key = `${d.position}|${d.face}|${shape}`;
-    const group = groups.get(key);
-    if (group) group.items.push(d);
-    else groups.set(key, { shape, items: [d] });
+    // A forced bare pair always wraps as a 2-column carrier, sized to the
+    // devices like any other; otherwise the device's dimensions choose.
+    const shape = forced && isSubUHeight(dt) ? 1 : carrierShapeFor(dt);
+    if (shape === undefined) {
+      result.push(d);
+      continue;
+    }
+    if (shape === "2x2") {
+      addToGroup(d, shape);
+      continue;
+    }
+    const faceCandidates = columnCandidates.get(d.face);
+    const candidate = { device: d, uHeight: shape };
+    if (faceCandidates) faceCandidates.push(candidate);
+    else columnCandidates.set(d.face, [candidate]);
+  }
+
+  // Cluster two-column candidates whose rail spans overlap on the same face.
+  // A cluster that one carrier can hold (at most one device per column, span
+  // no taller than MAX_TWO_COLUMN_CARRIER_U) gets a single carrier as tall as
+  // the cluster's span, starting at its lowest U. A shorter device sits at the
+  // bottom of its column. A cluster no carrier can represent falls back to
+  // one height-matched carrier per (position, height), as before.
+  for (const [face, candidates] of columnCandidates) {
+    const sorted = [...candidates].sort(
+      (a, b) => a.device.position - b.device.position,
+    );
+    const clusters: {
+      members: typeof sorted;
+      bottom: number;
+      top: number;
+    }[] = [];
+    for (const candidate of sorted) {
+      const bottom = candidate.device.position;
+      const top = bottom + candidate.uHeight * UNITS_PER_U;
+      const current = clusters[clusters.length - 1];
+      if (current && bottom < current.top) {
+        current.members.push(candidate);
+        current.top = Math.max(current.top, top);
+      } else {
+        clusters.push({ members: [candidate], bottom, top });
+      }
+    }
+    for (const { members, bottom, top } of clusters) {
+      const items = members.map(({ device }) => device);
+      const spanU = (top - bottom) / UNITS_PER_U;
+      const sides = items.map(legacySlot);
+      const fitsOneCarrier =
+        items.length <= COL_SLOTS.length &&
+        sides.filter((side) => side === "left").length <= 1 &&
+        sides.filter((side) => side === "right").length <= 1 &&
+        hasTwoColumnCarrier(spanU);
+      if (!fitsOneCarrier) {
+        for (const { device, uHeight } of members) addToGroup(device, uHeight);
+        continue;
+      }
+      const slug = twoColumnCarrierSlug(spanU);
+      const { carrier, children } = buildCarrier(
+        slug,
+        COL_SLOTS,
+        items,
+        bottom,
+        face,
+      );
+      carrierSlugs.add(slug);
+      result.push(carrier, ...children);
+      changed = true;
+    }
   }
 
   // One carrier per custom-cut device: the cell is that device's width, so
@@ -438,8 +541,8 @@ function adaptRackDevices(
   for (const { shape, items } of groups.values()) {
     const first = items[0];
     if (!first) continue;
-    const slug = SHAPE_SLUG[shape];
-    const slotIds = SHAPE_SLOTS[shape];
+    const slug = shapeSlug(shape);
+    const slotIds = shapeSlots(shape);
     // Chunk across as many carriers as needed so no device is ever dropped: a
     // group larger than one carrier's slot count spills into another carrier
     // rather than being silently truncated.

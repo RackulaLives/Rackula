@@ -333,6 +333,265 @@ describe("adaptLegacyLayout", () => {
     });
   });
 
+  describe("tall half-width wrapping", () => {
+    it("wraps a legacy 4U half-width device into a height-matched carrier", () => {
+      const fourUHalf = createTestDeviceType({
+        slug: "four-u-half",
+        u_height: 4,
+        slot_width: 1,
+      });
+      const layout = createTestLayout({
+        device_types: [fourUHalf],
+        racks: [
+          createTestRack({
+            devices: [
+              createTestDevice({
+                id: "four-u-dev",
+                device_type: "four-u-half",
+                position: 10,
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const adapted = adaptLegacyLayout(layout);
+      const carrier = rackLevel(adapted).find((d) => d.auto_created);
+      expect(carrier?.device_type).toBe("carrier-4u-2col");
+
+      const child = children(adapted).find((d) => d.id === "four-u-dev");
+      expect(child?.container_id).toBe(carrier?.id);
+      expect(
+        adapted.device_types.find((t) => t.slug === "carrier-4u-2col")?.slots
+          ?.length,
+      ).toBeGreaterThan(0);
+    });
+
+    it("does not wrap a half-width device taller than the tallest carrier", () => {
+      // No carrier matches 9U, so the adapter leaves it for a chassis bay
+      // rather than inventing a too-small 1U carrier (#2854).
+      const nineUHalf = createTestDeviceType({
+        slug: "nine-u-half",
+        u_height: 9,
+        slot_width: 1,
+      });
+      const layout = createTestLayout({
+        device_types: [nineUHalf],
+        racks: [
+          createTestRack({
+            devices: [
+              createTestDevice({
+                id: "nine-u-dev",
+                device_type: "nine-u-half",
+                position: 10,
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const adapted = adaptLegacyLayout(layout);
+      expect(rackLevel(adapted).some((d) => d.auto_created)).toBe(false);
+      expect(
+        rackLevel(adapted).find((d) => d.id === "nine-u-dev"),
+      ).toBeDefined();
+    });
+
+    it("hydrates a 4U carrier whose type lost its slot grid", () => {
+      // A decoded share link can carry the carrier slug without its slots.
+      const layout = createTestLayout({
+        device_types: [
+          createTestDeviceType({ slug: "carrier-4u-2col", u_height: 4 }),
+        ],
+        racks: [
+          createTestRack({
+            devices: [
+              createTestDevice({
+                id: "carrier",
+                device_type: "carrier-4u-2col",
+                position: toInternalUnits(5),
+                auto_created: true,
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const adapted = adaptLegacyLayout(layout);
+      const carrierType = adapted.device_types.find(
+        (t) => t.slug === "carrier-4u-2col",
+      );
+      expect(carrierType?.slots?.map((s) => s.height_units)).toEqual([4, 4]);
+    });
+  });
+
+  describe("mixed-height half-width neighbours", () => {
+    const oneUHalf = createTestDeviceType({
+      slug: "one-u-half",
+      u_height: 1,
+      slot_width: 1,
+    });
+    const threeUHalf = createTestDeviceType({
+      slug: "three-u-half",
+      u_height: 3,
+      slot_width: 1,
+    });
+    const fourUHalf = createTestDeviceType({
+      slug: "four-u-half",
+      u_height: 4,
+      slot_width: 1,
+    });
+
+    /** Adapt one rack of legacy devices, with every half-width type known. */
+    function adaptRack(devices: PlacedDevice[]): Layout {
+      return adaptLegacyLayout(
+        createTestLayout({
+          device_types: [oneUHalf, threeUHalf, fourUHalf],
+          racks: [createTestRack({ devices })],
+        }),
+      );
+    }
+
+    /** True when any two rack-level devices on a shared face overlap on the rails. */
+    function hasRailOverlap(layout: Layout): boolean {
+      const heightOf = (d: PlacedDevice): number =>
+        layout.device_types.find((t) => t.slug === d.device_type)?.u_height ??
+        1;
+      const rail = rackLevel(layout);
+      return rail.some((a, i) =>
+        rail.slice(i + 1).some((b) => {
+          const sharesFace =
+            a.face === b.face || a.face === "both" || b.face === "both";
+          const aTop = a.position + heightOf(a) * UNITS_PER_U;
+          const bTop = b.position + heightOf(b) * UNITS_PER_U;
+          return sharesFace && a.position < bTop && b.position < aTop;
+        }),
+      );
+    }
+
+    it("puts a 1U left and a 3U right at the same U into one 3U carrier", () => {
+      const adapted = adaptRack([
+        createTestDevice({
+          id: "left-1u",
+          device_type: "one-u-half",
+          position: 5,
+          slot_position: "left",
+        }),
+        createTestDevice({
+          id: "right-3u",
+          device_type: "three-u-half",
+          position: 5,
+          slot_position: "right",
+        }),
+      ]);
+
+      const carriers = rackLevel(adapted).filter((d) => d.auto_created);
+      expect(carriers.map((c) => c.device_type)).toEqual(["carrier-3u-2col"]);
+      expect(carriers[0]?.position).toBe(toInternalUnits(5));
+      const kids = children(adapted);
+      expect(kids.find((k) => k.id === "left-1u")?.slot_id).toBe("col-1");
+      expect(kids.find((k) => k.id === "right-3u")?.slot_id).toBe("col-2");
+      expect(kids.every((k) => k.container_id === carriers[0]?.id)).toBe(true);
+      expect(hasRailOverlap(adapted)).toBe(false);
+      expect(LayoutSchema.safeParse(adapted).success).toBe(true);
+    });
+
+    it("puts a 4U left at U1 and a 1U right at U3 into one 4U carrier", () => {
+      const adapted = adaptRack([
+        createTestDevice({
+          id: "left-4u",
+          device_type: "four-u-half",
+          position: 1,
+          slot_position: "left",
+        }),
+        createTestDevice({
+          id: "right-1u",
+          device_type: "one-u-half",
+          position: 3,
+          slot_position: "right",
+        }),
+      ]);
+
+      const carriers = rackLevel(adapted).filter((d) => d.auto_created);
+      expect(carriers.map((c) => c.device_type)).toEqual(["carrier-4u-2col"]);
+      expect(carriers[0]?.position).toBe(toInternalUnits(1));
+      const kids = children(adapted);
+      expect(kids.find((k) => k.id === "left-4u")?.slot_id).toBe("col-1");
+      expect(kids.find((k) => k.id === "right-1u")?.slot_id).toBe("col-2");
+      expect(kids.every((k) => k.container_id === carriers[0]?.id)).toBe(true);
+      expect(hasRailOverlap(adapted)).toBe(false);
+      expect(LayoutSchema.safeParse(adapted).success).toBe(true);
+    });
+
+    it("sizes the carrier to the pair's rail span when their bottoms differ", () => {
+      // 3U at U1 (U1-U3) and 3U at U2 (U2-U4) span four units together.
+      const adapted = adaptRack([
+        createTestDevice({
+          id: "left-3u",
+          device_type: "three-u-half",
+          position: 1,
+          slot_position: "left",
+        }),
+        createTestDevice({
+          id: "right-3u",
+          device_type: "three-u-half",
+          position: 2,
+          slot_position: "right",
+        }),
+      ]);
+
+      const carriers = rackLevel(adapted).filter((d) => d.auto_created);
+      expect(carriers.map((c) => c.device_type)).toEqual(["carrier-4u-2col"]);
+      expect(hasRailOverlap(adapted)).toBe(false);
+      expect(LayoutSchema.safeParse(adapted).success).toBe(true);
+    });
+
+    it("wraps a bare co-located 4U pair in a 4U carrier, not a 1U one", () => {
+      const adapted = adaptRack([
+        createTestDevice({ id: "a", device_type: "four-u-half", position: 5 }),
+        createTestDevice({ id: "b", device_type: "four-u-half", position: 5 }),
+      ]);
+
+      const carriers = rackLevel(adapted).filter((d) => d.auto_created);
+      expect(carriers.map((c) => c.device_type)).toEqual(["carrier-4u-2col"]);
+      expect(hasRailOverlap(adapted)).toBe(false);
+    });
+
+    it("keeps a lone right device in the right column", () => {
+      const adapted = adaptRack([
+        createTestDevice({
+          id: "right-only",
+          device_type: "three-u-half",
+          position: 5,
+          slot_position: "right",
+        }),
+      ]);
+
+      expect(
+        children(adapted).find((k) => k.id === "right-only")?.slot_id,
+      ).toBe("col-2");
+    });
+
+    it("is idempotent for a mixed-height pair", () => {
+      const once = adaptRack([
+        createTestDevice({
+          id: "left-4u",
+          device_type: "four-u-half",
+          position: 1,
+          slot_position: "left",
+        }),
+        createTestDevice({
+          id: "right-1u",
+          device_type: "one-u-half",
+          position: 3,
+          slot_position: "right",
+        }),
+      ]);
+      const twice = adaptLegacyLayout(once);
+      expect(twice.racks[0]?.devices).toEqual(once.racks[0]?.devices);
+    });
+  });
+
   describe("sub-U single wrapping", () => {
     it("wraps a half-height device into a carrier-1u-2x2", () => {
       const subU = createTestDeviceType({

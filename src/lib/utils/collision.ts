@@ -18,6 +18,7 @@ import type {
 } from "$lib/types";
 import { UNITS_PER_U, heightToInternalUnits } from "$lib/utils/position";
 import { findDeviceType } from "$lib/utils/device-lookup";
+import { hasTwoColumnCarrier, twoColumnCarrierSlug } from "$lib/data/carriers";
 import { layoutDebug } from "$lib/utils/debug";
 import { effectiveFace } from "./effective-face";
 import {
@@ -477,15 +478,16 @@ export function isWholeURailPosition(positionInternal: number): boolean {
  * size, whatever its height: the carrier takes the whole U that holds the cell,
  * so the rack opening is the only ceiling. Everything else takes a shipped
  * carrier, whose cells are half-width: a sub-U device the 2x2 grid, a whole-U
- * device a height-matched column carrier (1U or 2U).
+ * device a height-matched column carrier (1U up to MAX_TWO_COLUMN_CARRIER_U).
  *
  * Returns null (no rail carrier) when:
  * - the device is full-width (there is no full-width carrier to synthesise);
  * - a measured width is wider than the rack opening;
  * - the device is a chassis child (subdevice_role "child") - it mounts only
  *   inside an existing parent bay, never on the rails;
- * - the whole-U height has no matching carrier defined (e.g. a 3U half-width) -
- *   returning a too-small carrier is exactly the bug this replaced (#2854).
+ * - the whole-U height has no matching carrier defined (taller than
+ *   MAX_TWO_COLUMN_CARRIER_U) - returning a too-small carrier is exactly the bug
+ *   this replaced (#2854).
  *
  * A null result for a device that `requiresCarrier` is true for is the honest
  * "cannot rail-mount, needs an existing bay" signal the placement layers share
@@ -531,9 +533,9 @@ export function synthesizeCarrierForDevice(
 
   // Whole-U half-width gear uses a height-matched column carrier. Heights with
   // no matching carrier return null rather than a too-small carrier.
-  if (deviceType.u_height === 1) return { slug: CARRIER_2COL_SLUG };
-  if (deviceType.u_height === 2) return { slug: CARRIER_2U_2COL_SLUG };
-  return null;
+  return hasTwoColumnCarrier(deviceType.u_height)
+    ? { slug: twoColumnCarrierSlug(deviceType.u_height) }
+    : null;
 }
 
 /**

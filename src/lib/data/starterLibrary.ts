@@ -5,11 +5,16 @@
  * Includes:
  * - Full-width and half-width (slot_width: 1) devices
  * - Shelf containers with slots and mini devices for shelf placement
- * - Carriers (carrier-1u-2col, carrier-1u-2x2, K-79, AV joining tray) that hold
- *   sub-U / half-width gear; the two carrier-* slugs are stable synthesis targets
+ * - Carriers (carrier-Nu-2col for 1U-8U, carrier-1u-2x2, K-79, AV joining tray)
+ *   that hold sub-U / half-width gear; the carrier-* slugs are stable synthesis
+ *   targets
  * All branded devices have been moved to brandPacks/
  */
 
+import {
+  MAX_TWO_COLUMN_CARRIER_U,
+  twoColumnCarrierSlug,
+} from "$lib/data/carriers";
 import type {
   DeviceType,
   DeviceCategory,
@@ -48,6 +53,41 @@ function portInterfaces(
     name: String(i + 1),
     type,
   }));
+}
+
+/**
+ * Two-column carriers from 2U up to MAX_TWO_COLUMN_CARRIER_U. Each column is
+ * half-width and full carrier height, so one half-width device of that height
+ * fits per column.
+ */
+function tallTwoColumnCarriers(): StarterDeviceSpec[] {
+  const carriers: StarterDeviceSpec[] = [];
+  for (let u = 2; u <= MAX_TWO_COLUMN_CARRIER_U; u++) {
+    carriers.push({
+      slug: twoColumnCarrierSlug(u),
+      model: `Carrier (${u}U, 2 Column)`,
+      u_height: u,
+      category: "shelf",
+      subdevice_role: "parent",
+      slots: [
+        {
+          id: "col-1",
+          name: "Column 1",
+          position: { row: 0, col: 0 },
+          width_fraction: 0.5,
+          height_units: u,
+        },
+        {
+          id: "col-2",
+          name: "Column 2",
+          position: { row: 0, col: 1 },
+          width_fraction: 0.5,
+          height_units: u,
+        },
+      ],
+    });
+  }
+  return carriers;
 }
 
 const STARTER_DEVICES: StarterDeviceSpec[] = [
@@ -438,32 +478,10 @@ const STARTER_DEVICES: StarterDeviceSpec[] = [
       },
     ],
   },
-  {
-    // Height-matched carrier for whole-U half-width gear taller than 1U (#2854).
-    // Same two-column shape as carrier-1u-2col but 2U tall, so a generic 2U
-    // half-width device can rail-mount inside it. Stable synthesis target.
-    slug: "carrier-2u-2col",
-    model: "Carrier (2U, 2 Column)",
-    u_height: 2,
-    category: "shelf",
-    subdevice_role: "parent",
-    slots: [
-      {
-        id: "col-1",
-        name: "Column 1",
-        position: { row: 0, col: 0 },
-        width_fraction: 0.5,
-        height_units: 2,
-      },
-      {
-        id: "col-2",
-        name: "Column 2",
-        position: { row: 0, col: 1 },
-        width_fraction: 0.5,
-        height_units: 2,
-      },
-    ],
-  },
+  // Height-matched carriers for whole-U half-width gear taller than 1U
+  // (#2854): carrier-2u-2col .. carrier-8u-2col. Same two-column shape as
+  // carrier-1u-2col, generated so each height is a stable synthesis target.
+  ...tallTwoColumnCarriers(),
   {
     slug: "carrier-1u-2x2",
     model: "Carrier (1U, 2x2)",
