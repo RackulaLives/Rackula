@@ -322,6 +322,36 @@
             "maxLength": 100,
             "type": "string"
           },
+          "patch_bay_normals": {
+            "items": {
+              "additionalProperties": {},
+              "properties": {
+                "bottom": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "mode": {
+                  "enum": [
+                    "full-normal",
+                    "half-normal",
+                    "non-normal"
+                  ],
+                  "type": "string"
+                },
+                "top": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "top",
+                "bottom",
+                "mode"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "power_outlets": {
             "items": {
               "additionalProperties": {},
@@ -662,6 +692,20 @@
               "parent_device": {
                 "type": "string"
               },
+              "patch_bay_normal_overrides": {
+                "additionalProperties": {
+                  "enum": [
+                    "full-normal",
+                    "half-normal",
+                    "non-normal"
+                  ],
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
               "ports": {
                 "default": [],
                 "items": {
@@ -994,6 +1038,20 @@
                 },
                 "parent_device": {
                   "type": "string"
+                },
+                "patch_bay_normal_overrides": {
+                  "additionalProperties": {
+                    "enum": [
+                      "full-normal",
+                      "half-normal",
+                      "non-normal"
+                    ],
+                    "type": "string"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
                 },
                 "ports": {
                   "default": [],

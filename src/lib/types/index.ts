@@ -246,6 +246,27 @@ export type SignalType =
   | "clock-word"
   | "control-midi";
 
+/**
+ * Patch bay normalling mode for a vertical jack pair (spike #1927):
+ * - full-normal: the default path breaks when either jack is patched
+ * - half-normal: patching the top jack taps the signal; patching the bottom breaks it
+ * - non-normal: no default path between the jacks
+ */
+export type PatchBayNormalMode = "full-normal" | "half-normal" | "non-normal";
+
+/**
+ * A normalled jack pair on a patch bay device type (#1945). Normalling is a
+ * port-pair property of the device type, not a Connection (spike #1927).
+ */
+export interface PatchBayNormal {
+  /** InterfaceTemplate.name of the top jack */
+  top: string;
+  /** InterfaceTemplate.name of the bottom jack */
+  bottom: string;
+  /** Normalling mode used when the placed device has no override */
+  mode: PatchBayNormalMode;
+}
+
 // =============================================================================
 // Component Types (NetBox-compatible, schema-only)
 // =============================================================================
@@ -540,6 +561,8 @@ export interface DeviceType {
   device_bays?: DeviceBay[];
   /** Inventory items (internal components) */
   inventory_items?: InventoryItem[];
+  /** Normalled jack pairs, for patch bays */
+  patch_bay_normals?: PatchBayNormal[];
 
   // --- Subdevice Support (schema-only) ---
   /** Role in parent/child relationship */
@@ -609,6 +632,11 @@ export interface PlacedDevice {
   // --- Port Instances ---
   /** Instantiated ports from DeviceType.interfaces with stable UUIDs */
   ports?: PlacedPort[];
+  /**
+   * Normalling mode overrides, keyed by PatchBayNormal.top. An entry for a
+   * pair the device type does not define is ignored.
+   */
+  patch_bay_normal_overrides?: Record<string, PatchBayNormalMode>;
 
   // --- Placement Image Override ---
   /** Custom front image for this specific placement (overrides device type image) */
