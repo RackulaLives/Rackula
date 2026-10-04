@@ -186,4 +186,30 @@ describe("image export: carrier children (#3362)", () => {
       fullHeight!.y + fullHeight!.height,
     );
   });
+
+  it("keeps a very thin measured child a positive box inside its cell", () => {
+    // 0.1 mm is drawn well under 2 px, so a fixed 1 px inset would invert it.
+    const thinType = createTestDeviceType({
+      slug: "thin-child",
+      u_height: 0.5,
+      width_mm: 158,
+      height_mm: 0.1,
+      colour: "#555555",
+      is_full_depth: false,
+    });
+    const rack = carrierRack();
+    rack.devices[1] = { ...rack.devices[1]!, device_type: "thin-child" };
+    const svg = generateExportSVG([rack], [...library, thinType], baseOptions);
+
+    const [thin] = boxesWithFill(svg, thinType.colour!);
+    const [carrier] = boxesWithFill(svg, carrierType.colour!);
+    // The carrier body is inset 1 px; its footprint is its full rack height.
+    const footprint = {
+      ...carrier!,
+      y: carrier!.y - 1,
+      height: carrier!.height + 2,
+    };
+    expect(thin!.height).toBeGreaterThan(0);
+    expect(contains(footprint, thin!)).toBe(true);
+  });
 });

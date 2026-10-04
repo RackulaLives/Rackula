@@ -47,6 +47,7 @@
   import {
     computeDeviceLabelLayout,
     REAR_TAG_INSET,
+    REAR_TAG_BASELINE,
     fitTextToWidth,
     DEVICE_LABEL_MAX_FONT,
     DEVICE_LABEL_MIN_FONT,
@@ -1076,7 +1077,7 @@
       <text
         class="rear-badge"
         x={deviceWidth - REAR_TAG_INSET}
-        y="10"
+        y={REAR_TAG_BASELINE}
         text-anchor="end"
         aria-hidden="true"
       >
@@ -1121,6 +1122,7 @@
         {#if childType && slotGeo}
           {@const childUHeight = drawnUHeight(childType)}
           {@const childHeight = childUHeight * uHeight}
+          {@const childInset = Math.min(1, childHeight / 4)}
           {@const childY = getChildYInSlot(
             slotGeo,
             deviceHeight,
@@ -1180,9 +1182,9 @@
             <rect
               class="child-device-rect"
               x={2}
-              y={1}
+              y={childInset}
               width={childWidth - 4}
-              height={childHeight - 2}
+              height={childHeight - 2 * childInset}
               fill={childColour}
               rx="2"
               ry="2"

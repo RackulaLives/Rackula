@@ -21,6 +21,7 @@
     LENGTH_UNITS,
     drawnUHeight,
     getRackOpeningMm,
+    isNarrowDevice,
     requiresCarrier,
     toMillimetres,
     uHeightForMm,
@@ -134,16 +135,17 @@
         : 1,
   );
   // A device in a carrier is drawn at its measured height, so its image is
-  // framed to that height rather than to the rack units it takes.
+  // framed to that height rather than to the rack units it takes. A narrow
+  // blank is exempt from the carrier rule but still goes in a carrier.
+  const cropWidthFields = $derived({
+    width_mm:
+      widthValue == null ? undefined : toMillimetres(widthValue, widthUnit),
+    slot_width: isHalfWidth ? (1 as const) : undefined,
+  });
   const cropUHeight = $derived(
     heightMm !== undefined &&
-      requiresCarrier({
-        category,
-        u_height: uHeight,
-        width_mm:
-          widthValue == null ? undefined : toMillimetres(widthValue, widthUnit),
-        slot_width: isHalfWidth ? 1 : undefined,
-      })
+      (requiresCarrier({ ...cropWidthFields, category, u_height: uHeight }) ||
+        isNarrowDevice(cropWidthFields))
       ? drawnUHeight({ height_mm: heightMm, u_height: uHeight })
       : uHeight,
   );

@@ -893,6 +893,10 @@ export function generateExportSVG(
         const cell = cells.get(child.slot_id);
         if (!childType || !cell) continue;
         const childUHeight = drawnUHeight(childType);
+        const childHeight = childUHeight * U_HEIGHT;
+        // A thin measured child is drawn under 2 px, so its inset shrinks
+        // with it rather than turning its box inside out.
+        const childInset = Math.min(1, childHeight / 4);
         const childY = getChildYInSlot(
           cell,
           containerHeight,
@@ -904,9 +908,9 @@ export function generateExportSVG(
           child,
           childType,
           RAIL_WIDTH + cell.x + 2,
-          deviceY + childY,
+          deviceY + childY + childInset - 1,
           cell.width - 4,
-          childUHeight * U_HEIGHT - 2,
+          childHeight - 2 * childInset,
         );
       }
     }
