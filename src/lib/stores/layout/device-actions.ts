@@ -39,7 +39,6 @@ import {
   cellForDevice,
   cellsOf,
   isGeneratedCarrier,
-  CUSTOM_CARRIER_SLUG_PATTERN,
 } from "$lib/utils/custom-carrier";
 import { gapsFor, newCellRefusal } from "$lib/utils/slot-layout";
 import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-helpers";
@@ -545,8 +544,8 @@ export function moveDeviceToAdjacentSlot(
  * Half-width gear cannot register to the rails directly. This flow:
  * 1. Devices with no applicable carrier (full-width) fall through to a normal
  *    rail placement.
- * 2. Otherwise it prefers an existing carrier of the right kind at the target U
- *    that has a free cell, and fills that cell.
+ * 2. Otherwise it prefers an existing container at the target U on the target
+ *    face that has a free cell the device fits, and fills that cell.
  * 3. Failing that, it synthesises a carrier (marked auto_created) at the target
  *    U and places the device in its first cell, as a single undo entry.
  *
@@ -586,25 +585,28 @@ export function placeDeviceSmart(
 
   ctx.setActiveRackId(rackId);
 
-  // Prefer an existing carrier of the right kind covering this U with a free
-  // cell: a click anywhere on a tall carrier lands in it, not only on its
-  // bottom U. A generated carrier also qualifies whatever its slug: its slug
-  // encodes the split it holds now, which stopped matching the incoming
-  // device's one-cell slug the moment it grew its second cell.
+  // Prefer an existing container covering this U: a click anywhere on a tall
+  // carrier lands in it, not only on its bottom U. Any container qualifies,
+  // not only the kind this device would get: the preview is valid over any
+  // container with a free cell the device fits, so the click places there.
   const positionInternal = toInternalUnits(positionU);
   const existingCarrier = targetRack.devices.find((d) => {
     if (d.container_id) return false;
+    const type = findDeviceType(d.device_type, layout.device_types);
+    if (!type?.slots?.length) return false;
+    // Like the preview, skip a half-depth container on the other face.
     if (
-      d.device_type !== carrierSlug &&
-      !CUSTOM_CARRIER_SLUG_PATTERN.test(d.device_type)
+      face &&
+      face !== "both" &&
+      type.is_full_depth === false &&
+      d.face !== "both" &&
+      d.face !== face
     ) {
       return false;
     }
-    const height =
-      findDeviceType(d.device_type, layout.device_types)?.u_height ?? 1;
     return (
       positionInternal >= d.position &&
-      positionInternal < d.position + height * UNITS_PER_U
+      positionInternal < d.position + type.u_height * UNITS_PER_U
     );
   });
 
