@@ -460,7 +460,8 @@ function adaptRackDevices(
   // no taller than MAX_TWO_COLUMN_CARRIER_U) gets a single carrier as tall as
   // the cluster's span, starting at its lowest U. A shorter device sits at the
   // bottom of its column. A cluster no carrier can represent falls back to
-  // one height-matched carrier per (position, height), as before.
+  // one height-matched carrier per (position, height) when those carriers
+  // coincide, and stays unwrapped otherwise.
   for (const [face, candidates] of columnCandidates) {
     const sorted = [...candidates].sort(
       (a, b) => a.device.position - b.device.position,
@@ -491,7 +492,17 @@ function adaptRackDevices(
         sides.filter((side) => side === "right").length <= 1 &&
         hasTwoColumnCarrier(spanU);
       if (!fitsOneCarrier) {
-        for (const { device, uHeight } of members) addToGroup(device, uHeight);
+        // Per-(position, height) carriers only coincide when every member
+        // shares both; otherwise they would overlap on the rails, so the
+        // devices stay at rack level and LayoutSchema rejects the layout.
+        const coincide = members.every(
+          ({ device, uHeight }) =>
+            device.position === bottom && uHeight === members[0]!.uHeight,
+        );
+        for (const { device, uHeight } of members) {
+          if (coincide) addToGroup(device, uHeight);
+          else result.push(device);
+        }
         continue;
       }
       const slug = twoColumnCarrierSlug(spanU);

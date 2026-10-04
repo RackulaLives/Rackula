@@ -441,12 +441,17 @@ describe("adaptLegacyLayout", () => {
       u_height: 4,
       slot_width: 1,
     });
+    const eightUHalf = createTestDeviceType({
+      slug: "eight-u-half",
+      u_height: 8,
+      slot_width: 1,
+    });
 
     /** Adapt one rack of legacy devices, with every half-width type known. */
     function adaptRack(devices: PlacedDevice[]): Layout {
       return adaptLegacyLayout(
         createTestLayout({
-          device_types: [oneUHalf, threeUHalf, fourUHalf],
+          device_types: [oneUHalf, threeUHalf, fourUHalf, eightUHalf],
           racks: [createTestRack({ devices })],
         }),
       );
@@ -589,6 +594,49 @@ describe("adaptLegacyLayout", () => {
       ]);
       const twice = adaptLegacyLayout(once);
       expect(twice.racks[0]?.devices).toEqual(once.racks[0]?.devices);
+    });
+
+    it("leaves a pair spanning more than the tallest carrier unwrapped, not overlapping", () => {
+      // 8U at U1 and 8U at U2 span 9U: no single carrier holds them, and two
+      // 8U carriers would overlap on the rails, so the load must fail instead.
+      const adapted = adaptRack([
+        createTestDevice({
+          id: "left-8u",
+          device_type: "eight-u-half",
+          position: 1,
+          slot_position: "left",
+        }),
+        createTestDevice({
+          id: "right-8u",
+          device_type: "eight-u-half",
+          position: 2,
+          slot_position: "right",
+        }),
+      ]);
+
+      expect(rackLevel(adapted).some((d) => d.auto_created)).toBe(false);
+      expect(LayoutSchema.safeParse(adapted).success).toBe(false);
+    });
+
+    it("still shares one carrier between two left devices at the same U", () => {
+      const adapted = adaptRack([
+        createTestDevice({
+          id: "left-a",
+          device_type: "one-u-half",
+          position: 5,
+          slot_position: "left",
+        }),
+        createTestDevice({
+          id: "left-b",
+          device_type: "one-u-half",
+          position: 5,
+          slot_position: "left",
+        }),
+      ]);
+
+      const carriers = rackLevel(adapted).filter((d) => d.auto_created);
+      expect(carriers.map((c) => c.device_type)).toEqual(["carrier-1u-2col"]);
+      expect(hasRailOverlap(adapted)).toBe(false);
     });
   });
 
