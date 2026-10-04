@@ -60,3 +60,7 @@ The **decision stands now.** The retooling lands at a clean release boundary; th
 ## Resolution of #1315
 
 > **Decided** — Rackula app adopts CalVer `YY.M.MICRO`; SemVer is reserved for any future published packages (`@rackula/core`). Implement at the LXC release boundary. Close #1315 referencing this decision record.
+
+## Amendment (2026-10-03)
+
+From October 2026 the MICRO counter starts at 1, not 0: the first release in a month is `YY.M.1` (next release `26.10.1`), and a new month resets MICRO to 1. Existing `.0` tags stay as they are, and a month that already has a `.0` tag continues at `.1`. See [#3499](https://github.com/RackulaLives/Rackula/issues/3499).

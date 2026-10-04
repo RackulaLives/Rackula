@@ -47,7 +47,10 @@ import { findDeviceType as findDeviceTypeInArray } from "$lib/stores/layout-help
 import { findDeviceType } from "$lib/utils/device-lookup";
 import { generateId } from "$lib/utils/device";
 import { toInternalUnits } from "$lib/utils/position";
-import { instantiatePorts } from "$lib/utils/port-utils";
+import {
+  clonePortsWithFreshIds,
+  instantiatePorts,
+} from "$lib/utils/port-utils";
 import {
   createPlaceDeviceCommand,
   createAddDeviceTypeCommand,
@@ -185,8 +188,7 @@ export function duplicateDevice(
     ...snapshotDevice(sourceDevice),
     id: generateId(),
     position: targetPosition,
-    // Regenerate ports with new IDs
-    ports: instantiatePorts(deviceType),
+    ports: clonePortsWithFreshIds(sourceDevice.ports, deviceType),
     // Don't copy container_id - duplicates are independent rack-level devices
     container_id: undefined,
     slot_id: undefined,
@@ -206,7 +208,7 @@ export function duplicateDevice(
     `${deviceName} (Copy)`,
   );
 
-  // A carrier is deep-copied: each child gets a new id and fresh ports and is
+  // A carrier is deep-copied: each child gets a new id and fresh port ids and is
   // linked to the copy, all in the same undo step as the copy itself.
   const children = sourceRack.devices.filter(
     (d) => d.container_id === sourceDevice.id,
@@ -217,7 +219,7 @@ export function duplicateDevice(
       ...snapshotDevice(child),
       id: generateId(),
       container_id: duplicatedDevice.id,
-      ports: childType ? instantiatePorts(childType) : undefined,
+      ports: clonePortsWithFreshIds(child.ports, childType),
     };
     return createPlaceDeviceCommand(childCopy, adapter, childType?.model);
   });
@@ -278,7 +280,7 @@ function duplicateContainerChild(
     id: generateId(),
     slot_id: next.slotId,
     position: 0,
-    ports: instantiatePorts(childType),
+    ports: clonePortsWithFreshIds(child.ports, childType),
   };
 
   ctx.setActiveRackId(rack.id);

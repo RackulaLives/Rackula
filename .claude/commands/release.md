@@ -5,7 +5,7 @@ Create a new release with changelog entry, version bump, and tag push. CHANGELOG
 **Arguments:** `$ARGUMENTS` (optional)
 
 - No argument → auto-compute next CalVer version via `scripts/next-version.sh --dry-run`
-- Explicit version → use the given version string (e.g., `26.7.0`)
+- Explicit version → use the given version string (e.g., `26.10.1`)
 
 ---
 
@@ -236,10 +236,10 @@ fi
 NEW_VERSION="$ARGUMENTS"
 # Validate format: YY.M.MICRO (three numeric segments, unpadded month)
 if ! echo "$NEW_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-  echo "ERROR: Version '$NEW_VERSION' is not valid CalVer format (expected YY.M.MICRO, e.g., 26.6.0)"
+  echo "ERROR: Version '$NEW_VERSION' is not valid CalVer format (expected YY.M.MICRO, e.g., 26.10.1)"
   exit 1
 fi
-# Reject zero-padded month (e.g., 26.06.0 is invalid; 26.6.0 is valid)
+# Reject zero-padded month (e.g., 26.06.1 is invalid; 26.6.1 is valid)
 MONTH_PART=$(echo "$NEW_VERSION" | cut -d. -f2)
 if [ "$MONTH_PART" != "$(echo "$MONTH_PART" | sed 's/^0//')" ]; then
   echo "ERROR: Month component must be unpadded (got $MONTH_PART, expected $(echo "$MONTH_PART" | sed 's/^0//'))"
@@ -358,8 +358,8 @@ gh run watch
 | Not on main branch | "Error: Must be on main branch to release." |
 | Tag already exists | "Error: Tag vX.Y.Z already exists (locally or on origin)." |
 | next-version.sh fails | "Error: Failed to compute next version. Check scripts/next-version.sh output." |
-| Invalid explicit version | "Error: Version 'X' is not valid CalVer format (expected YY.M.MICRO, e.g., 26.6.0)." |
-| Zero-padded month | "Error: Month must be unpadded (e.g., 26.6.0 not 26.06.0)." |
+| Invalid explicit version | "Error: Version 'X' is not valid CalVer format (expected YY.M.MICRO, e.g., 26.10.1)." |
+| Zero-padded month | "Error: Month must be unpadded (e.g., 26.6.1 not 26.06.1)." |
 | Push fails | "Error: Push failed. Check permissions and try again." |
 | contributors.sh fails | Warn and continue. Contributor block is optional and can be added manually later. |
 
@@ -381,11 +381,11 @@ fi
 ### Success
 
 ```
-=== Release v26.6.0 Complete ===
+=== Release v26.10.1 Complete ===
 
 Changelog: Updated with 3 entries
-Version: 0.10.1 → 26.6.0
-Tag: v26.6.0
+Version: 26.9.2 → 26.10.1
+Tag: v26.10.1
 
 GitHub Actions triggered:
 - Release workflow: Creating GitHub release from CHANGELOG.md
@@ -410,5 +410,5 @@ No changes were made.
 /release
 
 # Explicit version (override computed version)
-/release 26.7.0
+/release 26.10.1
 ```
