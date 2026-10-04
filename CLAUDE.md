@@ -10,14 +10,15 @@ We use **Calendar Versioning (CalVer)** with the format `YY.M.MICRO`:
 
 - `YY` = 2-digit year (e.g., `26` for 2026)
 - `M` = unpadded month (1–12, e.g., `6` for June, not `06`)
-- `MICRO` = release counter within the month, starting at 0
+- `MICRO` = release counter within the month, starting at 1
 
-**Examples:** `v26.6.0` (first release in June 2026), `v26.6.1` (second release that month), `v26.7.0` (first release in July 2026, month rollover resets MICRO to 0).
+**Examples:** `v26.10.1` (first release in October 2026), `v26.10.2` (second release that month), `v26.11.1` (first release in November 2026, month rollover resets MICRO to 1).
 
 **MICRO rule:**
 
-- Same month as the latest tag → MICRO increments (`v26.6.0` → `v26.6.1`)
-- Different month → MICRO resets to 0 (`v26.6.2` → `v26.7.0`)
+- Same month as the latest tag → MICRO increments (`v26.10.1` → `v26.10.2`)
+- Different month → MICRO resets to 1 (`v26.10.2` → `v26.11.1`)
+- Releases before October 2026 started at 0 (`v26.9.0`); those tags stay as they are (#3499)
 
 **CalVer and milestones are decoupled:** the version reflects the ship date, not the plan date. Multiple milestones may ship in the same month. See the milestone cadence design: [`docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md`](docs/superpowers/specs/2026-06-01-milestone-cadence-reframe-design.md).
 
