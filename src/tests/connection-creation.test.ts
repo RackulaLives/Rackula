@@ -11,9 +11,11 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import type { InterfaceTemplate } from "$lib/types";
 import {
   handleConnectionPortClick,
   getDirectionMismatchWarning,
+  getSignalMismatchWarning,
   type ConnectionCreationHandlerContext,
 } from "$lib/utils/connection-creation";
 import {
@@ -334,6 +336,52 @@ describe("handleConnectionPortClick", () => {
     });
   });
 
+  describe("warning path: signal mismatch", () => {
+    it("creates the connection and joins a signal warning into the warning toast", () => {
+      const {
+        ports: [portA],
+      } = placeDeviceWithPorts(layoutStore, rackId, "device-a", 5, [
+        { type: "xlr-3", direction: "output" },
+      ]);
+      const {
+        ports: [portB],
+      } = placeDeviceWithPorts(layoutStore, rackId, "device-b", 10, [
+        { type: "xlr-3", direction: "input" },
+      ]);
+      const ctx = buildContext();
+      const ifaceA = createTestInterfaceTemplate({
+        type: "xlr-3",
+        direction: "output",
+        signal_type: "analog-audio-speaker",
+      });
+      const ifaceB = createTestInterfaceTemplate({
+        type: "xlr-3",
+        direction: "input",
+        signal_type: "analog-audio-mic",
+      });
+
+      handleConnectionPortClick(
+        { portId: portA!.id, iface: ifaceA, port: portA },
+        ctx,
+      );
+      handleConnectionPortClick(
+        { portId: portB!.id, iface: ifaceB, port: portB },
+        ctx,
+      );
+
+      expect(getConnectionStore().connections).toContainEqual(
+        expect.objectContaining({
+          a_port_id: portA!.id,
+          b_port_id: portB!.id,
+        }),
+      );
+      expect(showToast).toHaveBeenCalledWith(
+        "Signal types do not match: Speaker level vs Mic level",
+        "warning",
+      );
+    });
+  });
+
   describe("cancellation resets state for the next attempt", () => {
     it("allows starting a fresh connection after a validation error cancelled the mode", () => {
       const {
@@ -437,6 +485,71 @@ describe("getDirectionMismatchWarning", () => {
         getDirectionMismatchWarning(aPort, aIface, bPort, bIface),
       ).toContain("inputs");
     });
+  });
+});
+
+describe("getSignalMismatchWarning", () => {
+  type Case = {
+    name: string;
+    a: Partial<InterfaceTemplate>;
+    b: Partial<InterfaceTemplate>;
+    expected: string | null;
+  };
+
+  const cases: Case[] = [
+    {
+      name: "no warning when one side has no signal",
+      a: { type: "adat-optical" },
+      b: { type: "hdmi" },
+      expected: null,
+    },
+    {
+      name: "no warning for the same signal",
+      a: { type: "hdmi" },
+      b: { type: "hdmi" },
+      expected: null,
+    },
+    {
+      name: "warns across families (analog audio to video)",
+      a: { type: "trs-1-4" },
+      b: { type: "hdmi" },
+      expected: "Signal types do not match: Line level vs HDMI",
+    },
+    {
+      name: "warns within a family when both sides are explicit (mic vs line)",
+      a: { type: "xlr-3", signal_type: "analog-audio-mic" },
+      b: { type: "xlr-3", signal_type: "analog-audio-line" },
+      expected: "Signal types do not match: Mic level vs Line level",
+    },
+    {
+      name: "no warning within a family when one side is inferred (line out to XLR input)",
+      a: { type: "xlr-3", direction: "output" },
+      b: { type: "xlr-3", direction: "input" },
+      expected: null,
+    },
+    {
+      name: "no warning within a family when only one side is explicit",
+      a: { type: "xlr-3", signal_type: "analog-audio-speaker" },
+      b: { type: "trs-1-4" },
+      expected: null,
+    },
+    {
+      name: "no signal warning on top of a category mismatch (network port carrying Dante to HDMI)",
+      a: { type: "1000base-t", signal_type: "digital-audio-dante" },
+      b: { type: "hdmi" },
+      expected: null,
+    },
+  ];
+
+  it.each(cases)("$name", ({ a, b, expected }) => {
+    expect(
+      getSignalMismatchWarning(
+        undefined,
+        createTestInterfaceTemplate(a),
+        undefined,
+        createTestInterfaceTemplate(b),
+      ),
+    ).toBe(expected);
   });
 });
 

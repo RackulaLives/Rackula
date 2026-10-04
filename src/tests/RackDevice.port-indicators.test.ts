@@ -70,7 +70,7 @@ describe("RackDevice port indicators with unknown interface types (#3289)", () =
 });
 
 describe("RackDevice port count chip (#3453)", () => {
-  it("shows the count and keeps each port reachable when a 10-inch rack collapses the strip", () => {
+  it("shows the count on one chip target when a 10-inch rack collapses the strip", () => {
     const device: DeviceType = {
       ...createTestDeviceType({ slug: "mini-switch", u_height: 1 }),
       interfaces: [
@@ -95,12 +95,7 @@ describe("RackDevice port count chip (#3453)", () => {
     });
 
     expect(getByText(String(device.interfaces?.length))).toBeInTheDocument();
-    expect(
-      getByRole("button", { name: "eth0 (1000base-t)" }),
-    ).toBeInTheDocument();
-    expect(
-      getByRole("button", { name: "sfp0 (10gbase-x-sfpp)" }),
-    ).toBeInTheDocument();
+    expect(getByRole("button", { name: /\(3 ports\)/ })).toBeInTheDocument();
   });
 
   it("shows no count when the ports fit as a strip", () => {
