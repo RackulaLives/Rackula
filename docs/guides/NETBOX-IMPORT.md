@@ -294,7 +294,7 @@ The `process-images.ts` script uses `fit: 'inside'` which preserves aspect ratio
 
 ### Slug mismatch
 
-NetBox YAML filenames don't always match the slug inside. Use the `slug` field from the YAML, not the filename.
+NetBox YAML filenames don't always match the `slug` field inside. Pass the file name to `--slug`, as `--list` prints it. The brand pack entry uses the `slug` field from the YAML.
 
 ## License
 
