@@ -609,7 +609,7 @@ async function importDevice(
   console.log(`  Model: ${device.model}`);
   console.log(`  Height: ${device.u_height}U`);
 
-  if (device.u_height === 0) {
+  if (device.u_height === 0 && !options.imagesOnly) {
     const size = options.slug ? await zeroUSize(device, options) : undefined;
     if (!size) {
       console.log(`  ⏭️  0U device skipped, listed at the end`);
@@ -631,7 +631,7 @@ async function importDevice(
     console.log(
       `  Size: ${size.widthMm} x ${size.heightMm} mm, racks: ${device.rack_widths ? '10" and 19"' : '19"'}`,
     );
-  } else if (options.widthMm !== undefined) {
+  } else if (options.widthMm !== undefined && device.u_height > 0) {
     console.log(
       `  ⏭️  --width-mm and --height-mm ignored: NetBox already gives it ${device.u_height}U`,
     );
