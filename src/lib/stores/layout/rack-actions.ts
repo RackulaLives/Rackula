@@ -11,6 +11,7 @@ import { createDefaultRack } from "$lib/utils/serialization";
 import { layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { generateRackId } from "$lib/utils/rack";
+import { clonePortsWithFreshIds } from "$lib/utils/port-utils";
 import { findChildrenTooWideForRack } from "$lib/utils/collision";
 import {
   createAddRackCommand,
@@ -665,7 +666,7 @@ export function duplicateRack(
     const newContainerId = d.container_id
       ? idMap.get(d.container_id)
       : undefined;
-    const ports = d.ports?.map((p) => ({ ...p, id: generateId() }));
+    const ports = clonePortsWithFreshIds(d.ports);
     return { ...d, id: newId, container_id: newContainerId, ports };
   });
   const duplicatedRack = cloned;

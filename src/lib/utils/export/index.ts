@@ -11,5 +11,5 @@ export { exportAsPNG, exportAsJPEG } from "./raster";
 export { inlineImageHrefs } from "./inline-images";
 export { exportAsZip, exportAsMultiPagePDF } from "./multi";
 export type { ExportProgressCallback } from "./multi";
-export { exportToCSV } from "./data";
+export { exportToCSV, exportConnectionsToCSV } from "./data";
 export { downloadBlob, generateExportFilename } from "./utils";

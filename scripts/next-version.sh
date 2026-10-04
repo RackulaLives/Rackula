@@ -4,14 +4,14 @@
 # CalVer format: YY.M.MICRO
 #   YY    = 2-digit year (e.g., 26 for 2026)
 #   M     = unpadded month (1-12)
-#   MICRO = release counter, resets to 0 each month
+#   MICRO = release counter, starts at 1 each month
 #
 # Rules:
 #   - If current YY.M matches latest tag's YY.M → MICRO = tag.MICRO + 1
-#   - If current YY.M differs from latest tag    → MICRO = 0
-#   - If no tag exists                            → MICRO = 0
+#   - If current YY.M differs from latest tag    → MICRO = 1
+#   - If no tag exists                            → MICRO = 1
 #   - SemVer tags (e.g., v0.10.1) won't match a
-#     CalVer YY.M, so MICRO resets to 0 — correct during prep phase.
+#     CalVer YY.M, so MICRO resets to 1 — correct during prep phase.
 #   - Tags with non-N.N.N format (pre-release, etc.) are skipped.
 #
 # Usage:
@@ -38,11 +38,11 @@ Options:
   --help       Show this help message
 
 Output:
-  The computed version string (e.g., 26.6.0) without a 'v' prefix.
+  The computed version string (e.g., 26.6.1) without a 'v' prefix.
 
 Examples:
-  scripts/next-version.sh --dry-run    # 26.6.0
-  scripts/next-version.sh --tag         # 26.6.0 + git tag v26.6.0 + push
+  scripts/next-version.sh --dry-run    # 26.6.1
+  scripts/next-version.sh --tag         # 26.6.1 + git tag v26.6.1 + push
 EOF
 }
 
@@ -95,7 +95,7 @@ M=$(echo "$DATE_OUTPUT" | cut -d' ' -f2 | sed 's/^0//')
 # Determine MICRO from latest tag
 # ---------------------------------------------------------------------------
 
-MICRO=0
+MICRO=1
 
 # Verify we're in a git repository
 git rev-parse --git-dir >/dev/null 2>&1 || die "Not in a git repository"
@@ -131,7 +131,7 @@ if [[ -n "$LATEST_TAG" ]]; then
     # Same year-month — increment MICRO
     MICRO=$((TAG_MICRO + 1))
   fi
-  # else: different year-month — MICRO stays 0 (reset on month boundary)
+  # else: different year-month — MICRO stays 1 (reset on month boundary)
 fi
 
 # ---------------------------------------------------------------------------
@@ -145,7 +145,7 @@ if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
   die "Computed version has invalid format: $VERSION (expected N.N.N)"
 fi
 
-# Reject zero-padded month (e.g., 26.06.0 is invalid; 26.6.0 is valid)
+# Reject zero-padded month (e.g., 26.06.1 is invalid; 26.6.1 is valid)
 VERSION_MONTH="${VERSION#*.}"
 VERSION_MONTH="${VERSION_MONTH%.*}"
 if [[ "$VERSION_MONTH" != "$M" ]]; then

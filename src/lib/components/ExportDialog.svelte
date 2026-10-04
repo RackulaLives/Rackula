@@ -50,6 +50,8 @@
     layoutId?: string;
     displayMode?: DisplayMode;
     layoutName?: string;
+    /** Whether the layout has connections to export as a patch list */
+    hasConnections?: boolean;
     selectedRackId: string | null;
     /** Pre-selected rack IDs for multi-rack export (from context menu) */
     selectedRackIds?: string[];
@@ -71,6 +73,7 @@
     layoutId,
     displayMode = "label",
     layoutName = "layout",
+    hasConnections = false,
     selectedRackId: _selectedRackId,
     selectedRackIds: initialSelectedRackIds,
     isExporting = false,
@@ -88,6 +91,7 @@
   let exportView = $state<ExportView>("both");
   let transparent = $state(false);
   let includeQR = $state(false);
+  let csvContent = $state<"devices" | "patch-list">("devices");
 
   // Rack selection state (stores rack IDs, not item IDs)
   // Using SvelteSet for reactive mutations (.add/.delete/.clear)
@@ -170,6 +174,9 @@
   // Computed: Is CSV format (data export - no image options)
   const isCSV = $derived(format === "csv");
 
+  // Computed: CSV patch list of the layout's connections (#1940)
+  const isPatchList = $derived(isCSV && csvContent === "patch-list");
+
   // Computed: Can select transparent background (PNG and SVG only)
   const canSelectTransparent = $derived(format === "svg" || format === "png");
 
@@ -216,13 +223,15 @@
 
   // Computed: Preview filename
   const previewFilename = $derived(
-    isMultiFileExport && format !== "pdf"
-      ? generateExportFilename(filenameSource, null, "zip")
-      : generateExportFilename(
-          filenameSource,
-          isCSV ? null : exportView,
-          format,
-        ),
+    isPatchList
+      ? generateExportFilename(`${layoutName} patch list`, null, "csv")
+      : isMultiFileExport && format !== "pdf"
+        ? generateExportFilename(filenameSource, null, "zip")
+        : generateExportFilename(
+            filenameSource,
+            isCSV ? null : exportView,
+            format,
+          ),
   );
 
   // Computed: Info message for multi-file export
@@ -233,6 +242,13 @@
         ? `${selectedRacksArray.length} racks selected — will export as multi-page PDF`
         : `${selectedRacksArray.length} racks selected — will export as ZIP with one image per rack`,
   );
+
+  // Fall back to the device CSV when the layout has no connections
+  $effect(() => {
+    if (!hasConnections && csvContent === "patch-list") {
+      csvContent = "devices";
+    }
+  });
 
   // Reset transparent when switching to format that doesn't support it
   $effect(() => {
@@ -328,6 +344,7 @@
 
     const options: ExportOptions = {
       format,
+      csvContent: isCSV ? csvContent : undefined,
       scope: "all",
       includeNames: true,
       includeLegend,
@@ -398,10 +415,32 @@
     </div>
 
     {#if isCSV}
-      <p class="csv-info">
-        Exports rack contents as a spreadsheet with device positions, names,
-        models, and categories.
-      </p>
+      <div class="form-group">
+        <label for="export-csv-content">Contents</label>
+        <select
+          id="export-csv-content"
+          data-testid="select-export-csv-content"
+          bind:value={csvContent}
+        >
+          <option value="devices">Devices (rack contents)</option>
+          <option value="patch-list" disabled={!hasConnections}>
+            {hasConnections
+              ? "Patch list (connections)"
+              : "Patch list (no connections)"}
+          </option>
+        </select>
+      </div>
+      {#if isPatchList}
+        <p class="csv-info">
+          Exports every connection in the layout as a patch list with source,
+          destination, signal, and notes.
+        </p>
+      {:else}
+        <p class="csv-info">
+          Exports rack contents as a spreadsheet with device positions, names,
+          models, and categories.
+        </p>
+      {/if}
     {:else}
       <!-- Rack Selection (for 2+ selectable items) -->
       {#if showRackSelection}
