@@ -907,6 +907,7 @@
   layoutId={layoutStore.layout.metadata?.id}
   displayMode={uiStore.displayMode}
   layoutName={layoutStore.layout.name}
+  hasConnections={(layoutStore.layout.connections?.length ?? 0) > 0}
   selectedRackId={selectionStore.isRackSelected
     ? selectionStore.selectedRackId
     : null}
