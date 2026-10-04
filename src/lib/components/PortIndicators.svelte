@@ -7,13 +7,14 @@
     pluggable types are rounded squares, copper and the rest are circles
   - Strip mode: one marker per port on the shared right-aligned grid
   - Chip mode: a single count chip for more than 24 ports, and for a strip
-    collapsed on a narrow rack
+    collapsed on a narrow rack. The chip opens a port picker (#3462)
   - Management interface indicator (inner white dot)
   - PoE indicator (ring inside the marker) for PSE interfaces
   - SVG-native click targets (Safari compatible, fixes #400)
   - Hover tooltips with port details (#251)
 -->
 <script lang="ts">
+  import { DropdownMenu } from "bits-ui";
   import type { ClassValue } from "svelte/elements";
   import type {
     InterfaceTemplate,
@@ -28,6 +29,8 @@
     hidePortTooltip,
   } from "$lib/stores/portTooltip.svelte";
   import { getConnectionCreationStore } from "$lib/stores/connection-creation.svelte";
+  import { getConnectionStore } from "$lib/stores/connection.svelte";
+  import "$lib/styles/menu.css";
   import {
     getDominantInterfaceType,
     getPortCategory,
@@ -185,6 +188,49 @@
     onPortClick?.({ portId: port?.id, iface, port });
   }
 
+  // The chip's port picker (#3462). Its rows only exist while it is open.
+  let pickerOpen = $state(false);
+  const connectionStore = getConnectionStore();
+  const chipHasSource = $derived(
+    connectionSourcePortId != null &&
+      portPositions.some(({ port }) => port?.id === connectionSourcePortId),
+  );
+
+  // A legacy interface with no PlacedPort cannot be connected (#3089).
+  const chipHasChoosablePort = $derived(
+    portPositions.some(({ port }) => port?.id != null),
+  );
+
+  function portStatus(port: PlacedPort | undefined): string {
+    if (port?.id == null) return "unavailable";
+    if (port.id === connectionSourcePortId) {
+      return "connection source";
+    }
+    if (port && connectionStore.getConnectionsForPort(port.id).length > 0) {
+      return "connected";
+    }
+    return "free";
+  }
+
+  // Keys the chip opens the picker with must not also select the device or
+  // run a global shortcut (arrows move the selected device).
+  function handleChipKeyDown(event: KeyboardEvent) {
+    if (["Enter", " ", "ArrowDown"].includes(event.key)) {
+      event.stopPropagation();
+    }
+  }
+
+  // The picker keeps its keys to itself for the same reason. Escape closes it
+  // here rather than reaching the window, where it would also cancel
+  // connection creation or clear the selection.
+  function handlePickerKeyDown(event: KeyboardEvent) {
+    event.stopPropagation();
+    if (event.key === "Escape") {
+      event.preventDefault();
+      pickerOpen = false;
+    }
+  }
+
   function handlePortMouseEnter(event: MouseEvent, iface: InterfaceTemplate) {
     // Clear any pending timeout
     if (hoverTimeoutId) {
@@ -237,16 +283,73 @@
   <g class="port-indicators">
     {#if chip}
       <!-- Count chip: the dominant type's marker, then the visible port count.
-           No handlers of its own. On a collapsed strip the per-port hit
-           targets below stack on its marker. -->
-      <rect
-        class="port-chip"
-        x={chip.x}
-        y={chip.y}
-        width={chip.width}
-        height={chip.height}
-        rx="2"
-      />
+           The chip box is the one target for all its ports: it opens the
+           port picker, whose rows act like clicking a port marker (#3462). -->
+      <DropdownMenu.Root bind:open={pickerOpen}>
+        <DropdownMenu.Trigger
+          onkeydown={handleChipKeyDown}
+          disabled={!chipHasChoosablePort}
+        >
+          {#snippet child({ props })}
+            <rect
+              {...props}
+              class={[
+                "port-chip",
+                chipHasSource && "port-connection-source",
+                isConnectionCreationMode &&
+                  !chipHasSource &&
+                  "port-connection-target",
+              ]}
+              x={chip.x}
+              y={chip.y}
+              width={chip.width}
+              height={chip.height}
+              rx="2"
+              role="button"
+              tabindex={chipHasChoosablePort ? 0 : -1}
+              aria-disabled={!chipHasChoosablePort}
+              aria-label="{chipHasChoosablePort
+                ? 'Choose a port'
+                : 'No ports to choose'} ({chip.count} ports){chipHasSource
+                ? ', has connection source'
+                : isConnectionCreationMode
+                  ? ', potential connection target'
+                  : ''}"
+            />
+          {/snippet}
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
+            class="menu-content port-picker"
+            aria-label="Ports"
+            side="bottom"
+            align="end"
+            sideOffset={4}
+            preventScroll={false}
+            onkeydown={handlePickerKeyDown}
+          >
+            {#each portPositions as { iface, port }, i (port?.id ?? i)}
+              {@const name = iface.label ?? iface.name}
+              {@const status = portStatus(port)}
+              <DropdownMenu.Item
+                class="menu-item"
+                disabled={port?.id == null}
+                aria-label="{name}, {iface.type}, {status}"
+                onSelect={() => handlePortClick(iface, port)}
+              >
+                <span
+                  class="port-picker-swatch"
+                  style:background-color={getInterfaceColor(iface.type)}
+                  aria-hidden="true"
+                ></span>
+                <span class="menu-label">{name}</span>
+                <span class="port-picker-type">{iface.type}</span>
+                <span class="port-picker-status">{status}</span>
+              </DropdownMenu.Item>
+            {/each}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
       {@render marker(
         chip.shape,
         chip.markerCx,
@@ -305,45 +408,42 @@
           <circle class="port-mgmt-indicator" cx={x} cy={y} r={1} />
         {/if}
       {/each}
+      <!-- Invisible SVG click targets, one per port cell (Safari compatible). -->
+      {#each portPositions as { iface, port, x, y }, i (port?.id ?? i)}
+        <circle
+          class="port-hit-target"
+          class:port-connection-source={port?.id === connectionSourcePortId}
+          class:port-connection-target={isConnectionCreationMode &&
+            port?.id != null &&
+            port.id !== connectionSourcePortId}
+          cx={x}
+          cy={y}
+          r={HIT_TARGET_RADIUS}
+          fill="transparent"
+          role="button"
+          tabindex="0"
+          aria-label="{iface.label ?? iface.name} ({iface.type}){port?.id ===
+          connectionSourcePortId
+            ? ', connection source'
+            : isConnectionCreationMode &&
+                port?.id != null &&
+                port.id !== connectionSourcePortId
+              ? ', potential connection target'
+              : ''}"
+          onclick={() => handlePortClick(iface, port)}
+          onmouseenter={(e) => handlePortMouseEnter(e, iface)}
+          onmouseleave={handlePortMouseLeave}
+          onkeydown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handlePortClick(iface, port);
+            }
+          }}
+        >
+          <title>{iface.label ?? iface.name} ({iface.type})</title>
+        </circle>
+      {/each}
     {/if}
-
-    <!-- Invisible SVG click targets, one per port cell (Safari compatible).
-         Rendered in chip mode too when the strip collapsed: they stack on the
-         chip's marker so each port stays reachable by keyboard. -->
-    {#each portPositions as { iface, port, x, y }, i (port?.id ?? i)}
-      <circle
-        class="port-hit-target"
-        class:port-connection-source={port?.id === connectionSourcePortId}
-        class:port-connection-target={isConnectionCreationMode &&
-          port?.id != null &&
-          port.id !== connectionSourcePortId}
-        cx={x}
-        cy={y}
-        r={HIT_TARGET_RADIUS}
-        fill="transparent"
-        role="button"
-        tabindex="0"
-        aria-label="{iface.label ?? iface.name} ({iface.type}){port?.id ===
-        connectionSourcePortId
-          ? ', connection source'
-          : isConnectionCreationMode &&
-              port?.id != null &&
-              port.id !== connectionSourcePortId
-            ? ', potential connection target'
-            : ''}"
-        onclick={() => handlePortClick(iface, port)}
-        onmouseenter={(e) => handlePortMouseEnter(e, iface)}
-        onmouseleave={handlePortMouseLeave}
-        onkeydown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handlePortClick(iface, port);
-          }
-        }}
-      >
-        <title>{iface.label ?? iface.name} ({iface.type})</title>
-      </circle>
-    {/each}
   </g>
 {/if}
 
@@ -370,6 +470,48 @@
 
   .port-chip {
     fill: var(--colour-port-chip-bg);
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .port-chip:hover:not([aria-disabled="true"]) {
+    fill: var(--colour-port-hover);
+  }
+
+  .port-chip[aria-disabled="true"] {
+    cursor: default;
+  }
+
+  .port-chip:focus-visible {
+    outline: 2px solid var(--colour-selection);
+    outline-offset: 1px;
+  }
+
+  /* Rendered by bits-ui in a portal, so the class is not scoped here. A
+     48-port device scrolls within the picker instead of past the viewport. */
+  :global(.port-picker) {
+    max-height: min(
+      var(--bits-dropdown-menu-content-available-height, 320px),
+      320px
+    );
+    overflow-y: auto;
+  }
+
+  .port-picker-swatch {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+  }
+
+  .port-picker-type,
+  .port-picker-status {
+    font-size: var(--font-size-xs);
+    color: var(--colour-text-muted-inverse);
+  }
+
+  .port-picker-type {
+    font-family: var(--font-mono, monospace);
   }
 
   .port-hit-target {

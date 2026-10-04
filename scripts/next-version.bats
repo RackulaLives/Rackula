@@ -10,6 +10,9 @@ setup() {
   export TEST_REPO="$(mktemp -d)"
   cd "$TEST_REPO"
   git init --initial-branch=main >/dev/null 2>&1
+  # Keep tags lightweight and commits unsigned regardless of global config
+  git config tag.gpgSign false
+  git config commit.gpgSign false
   git commit --allow-empty -m "initial" >/dev/null 2>&1
   # Point to the test script (use the real script path)
   SCRIPT="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)/next-version.sh"
@@ -40,34 +43,34 @@ current_yy_m() {
 # No tags exist — first release
 # ---------------------------------------------------------------------------
 
-@test "no tags: produces YY.M.0" {
+@test "no tags: produces YY.M.1" {
   local result
   result=$(bash "$SCRIPT" --dry-run)
   local yy_m
   yy_m=$(current_yy_m)
-  [ "$result" = "${yy_m}.0" ]
+  [ "$result" = "${yy_m}.1" ]
 }
 
 # ---------------------------------------------------------------------------
 # SemVer tag (prep phase) — current YY.M won't match, MICRO resets
 # ---------------------------------------------------------------------------
 
-@test "semver tag v0.10.1: produces YY.M.0 (no match on YY.M)" {
+@test "semver tag v0.10.1: produces YY.M.1 (no match on YY.M)" {
   commit_tag v0.10.1
   local result
   result=$(bash "$SCRIPT" --dry-run)
   local yy_m
   yy_m=$(current_yy_m)
-  [ "$result" = "${yy_m}.0" ]
+  [ "$result" = "${yy_m}.1" ]
 }
 
-@test "semver tag v0.9.5: produces YY.M.0" {
+@test "semver tag v0.9.5: produces YY.M.1" {
   commit_tag v0.9.5
   local result
   result=$(bash "$SCRIPT" --dry-run)
   local yy_m
   yy_m=$(current_yy_m)
-  [ "$result" = "${yy_m}.0" ]
+  [ "$result" = "${yy_m}.1" ]
 }
 
 # ---------------------------------------------------------------------------
@@ -75,6 +78,15 @@ current_yy_m() {
 # ---------------------------------------------------------------------------
 
 @test "calver tag in same YY.M: increments MICRO" {
+  local yy_m
+  yy_m=$(current_yy_m)
+  commit_tag "v${yy_m}.1"
+  local result
+  result=$(bash "$SCRIPT" --dry-run)
+  [ "$result" = "${yy_m}.2" ]
+}
+
+@test "legacy .0 calver tag in same YY.M: continues at .1" {
   local yy_m
   yy_m=$(current_yy_m)
   commit_tag "v${yy_m}.0"
@@ -93,19 +105,19 @@ current_yy_m() {
 }
 
 # ---------------------------------------------------------------------------
-# CalVer tag from different month — MICRO resets to 0
+# CalVer tag from different month — MICRO resets to 1
 # ---------------------------------------------------------------------------
 
-@test "calver tag from different year: produces YY.M.0" {
+@test "calver tag from different year: produces YY.M.1" {
   commit_tag v25.12.5
   local result
   result=$(bash "$SCRIPT" --dry-run)
   local yy_m
   yy_m=$(current_yy_m)
-  [ "$result" = "${yy_m}.0" ]
+  [ "$result" = "${yy_m}.1" ]
 }
 
-@test "calver tag from different month same year: produces YY.M.0" {
+@test "calver tag from different month same year: produces YY.M.1" {
   local yy mm prev_mm
   yy=$(date +"%y" | sed 's/^0//')
   mm=$(date +"%m" | sed 's/^0//')
@@ -117,7 +129,7 @@ current_yy_m() {
   result=$(bash "$SCRIPT" --dry-run)
   local yy_m
   yy_m=$(current_yy_m)
-  [ "$result" = "${yy_m}.0" ]
+  [ "$result" = "${yy_m}.1" ]
 }
 
 # ---------------------------------------------------------------------------
@@ -130,10 +142,10 @@ current_yy_m() {
   # SemVer tag first (older commit)
   commit_tag v0.10.1
   # CalVer tag second (newer commit) — git describe picks this
-  commit_tag "v${yy_m}.0"
+  commit_tag "v${yy_m}.1"
   local result
   result=$(bash "$SCRIPT" --dry-run)
-  [ "$result" = "${yy_m}.1" ]
+  [ "$result" = "${yy_m}.2" ]
 }
 
 # ---------------------------------------------------------------------------
@@ -145,9 +157,9 @@ current_yy_m() {
   yy_m=$(current_yy_m)
   # Create a CalVer tag, then a SemVer tag on a later commit.
   # git describe returns the SemVer tag (closest to HEAD).
-  # Script computes YY.M.0 (since SemVer YY.M doesn't match),
+  # Script computes YY.M.1 (since SemVer YY.M doesn't match),
   # but the CalVer tag already exists → duplicate error.
-  commit_tag "v${yy_m}.0"
+  commit_tag "v${yy_m}.1"
   commit_tag v0.10.1
   run bash "$SCRIPT" --dry-run
   [ "$status" -ne 0 ]
@@ -158,13 +170,13 @@ current_yy_m() {
 # Pre-release / malformed tag handling
 # ---------------------------------------------------------------------------
 
-@test "pre-release tag v26.6.0-rc.1: skipped, produces YY.M.0" {
+@test "pre-release tag v26.6.0-rc.1: skipped, produces YY.M.1" {
   commit_tag v26.6.0-rc.1
   local result
   result=$(bash "$SCRIPT" --dry-run)
   local yy_m
   yy_m=$(current_yy_m)
-  [ "$result" = "${yy_m}.0" ]
+  [ "$result" = "${yy_m}.1" ]
 }
 
 # ---------------------------------------------------------------------------
@@ -215,23 +227,25 @@ current_yy_m() {
 }
 
 # ---------------------------------------------------------------------------
-# --tag action (local tag creation, no push)
+# --tag action (tag creation, pushed to a local bare remote)
 # ---------------------------------------------------------------------------
 
-@test "--tag creates local git tag" {
-  local yy_m version tag_name
+@test "--tag creates and pushes git tag" {
+  local yy_m version tag_name remote
   yy_m=$(current_yy_m)
-  version="${yy_m}.0"
+  version="${yy_m}.1"
   tag_name="v${version}"
+  # The script rolls back the local tag if the push fails, so give it a
+  # local bare remote to push to.
+  remote="$TEST_REPO/remote.git"
+  git init --bare "$remote" >/dev/null 2>&1
+  git remote add origin "$remote"
   # Create a SemVer tag first so the computed version is predictable
   commit_tag v0.10.1
-  # Use --tag but push will fail (no remote). We only verify local tag creation.
-  # Redirect stderr to suppress the push error and rollback messages.
-  run bash "$SCRIPT" --tag 2>/dev/null
-  # The script outputs the version to stdout even on push failure
-  # (or exits non-zero if push fails and rollback succeeds)
-  # Check that the local tag was created (even if push failed)
-  git tag -l "$tag_name" | grep -q "$tag_name" || git tag -l | grep -q "$version"
+  run bash "$SCRIPT" --tag
+  [ "$status" -eq 0 ]
+  git tag -l "$tag_name" | grep -qx "$tag_name"
+  git --git-dir="$remote" tag -l "$tag_name" | grep -qx "$tag_name"
 }
 
 # ---------------------------------------------------------------------------

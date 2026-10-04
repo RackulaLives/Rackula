@@ -44,6 +44,7 @@ import {
   indexConnectionsByRack,
   resolveArrowDirection,
   resolveConnectionPortDirection,
+  resolveConnectionPortSignal,
   trimCubicBezier,
   type ResolvedPortAnchor,
 } from "$lib/utils/connection-path";
@@ -486,6 +487,55 @@ describe("resolveConnectionPortDirection", () => {
   });
 });
 
+describe("resolveConnectionPortSignal", () => {
+  it("prefers an explicit PlacedPort.signal_type override, marked explicit", () => {
+    const port = createTestPlacedPort({
+      type: "xlr-3",
+      signal_type: "analog-audio-mic",
+    });
+    const iface = createTestInterfaceTemplate({
+      type: "xlr-3",
+      signal_type: "digital-audio-aes3",
+    });
+    expect(resolveConnectionPortSignal(port, iface)).toEqual({
+      signal: "analog-audio-mic",
+      explicit: true,
+    });
+  });
+
+  it("falls back to the InterfaceTemplate signal_type, marked explicit", () => {
+    const port = createTestPlacedPort({ type: "xlr-3" });
+    const iface = createTestInterfaceTemplate({
+      type: "xlr-3",
+      signal_type: "digital-audio-aes3",
+    });
+    expect(resolveConnectionPortSignal(port, iface)).toEqual({
+      signal: "digital-audio-aes3",
+      explicit: true,
+    });
+  });
+
+  it("infers from type and the resolved direction when neither is explicit, marked inferred", () => {
+    // The PlacedPort direction override (input) wins over the template's
+    // output, so XLR infers mic level, not line level.
+    const port = createTestPlacedPort({ type: "xlr-3", direction: "input" });
+    const iface = createTestInterfaceTemplate({
+      type: "xlr-3",
+      direction: "output",
+    });
+    expect(resolveConnectionPortSignal(port, iface)).toEqual({
+      signal: "analog-audio-mic",
+      explicit: false,
+    });
+  });
+
+  it("returns undefined when no signal is set or inferable", () => {
+    const port = createTestPlacedPort({ type: "1000base-t" });
+    const iface = createTestInterfaceTemplate({ type: "1000base-t" });
+    expect(resolveConnectionPortSignal(port, iface)).toBeUndefined();
+  });
+});
+
 describe("computeDeviceOffset", () => {
   it("matches RackDevice.svelte's transform formula for a mid-rack device", () => {
     const offset = computeDeviceOffset({
@@ -549,7 +599,7 @@ describe("buildPortAnchorMap", () => {
     expect(anchors.get("port-eth1")?.direction).toBe("input");
   });
 
-  it("anchors no ports for a device in grouped/high-density mode (#3089 fallback)", () => {
+  it("anchors a high-density device's ports at its chip (#3462)", () => {
     const interfaces = Array.from(
       { length: HIGH_DENSITY_THRESHOLD + 1 },
       (_, i) => createTestInterfaceTemplate({ name: `eth${i}` }),
@@ -566,7 +616,11 @@ describe("buildPortAnchorMap", () => {
 
     const anchors = buildPortAnchorMap([device], bySlug, "front", rackDims);
 
-    expect(anchors.size).toBe(0);
+    expect([...anchors.keys()]).toEqual(ports.map((port) => port.id));
+    const points = [...anchors.values()].map(
+      ({ anchor }) => `${anchor.x},${anchor.y}`,
+    );
+    expect(new Set(points).size).toBe(1);
   });
 
   it("anchors every port at one shared point on a 10-inch rack, where the strip collapses to the chip (#3451)", () => {
