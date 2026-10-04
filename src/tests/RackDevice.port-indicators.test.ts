@@ -4,12 +4,13 @@
  * default content (only NetBox import populated `interfaces`). This asserts a
  * device with an `interfaces` array renders port indicators.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/svelte";
+import userEvent from "@testing-library/user-event";
 import RackDevice from "$lib/components/RackDevice.svelte";
 import type { DeviceType } from "$lib/types";
 import { HIGH_DENSITY_THRESHOLD } from "$lib/utils/port-geometry";
-import { createTestDeviceType } from "./factories";
+import { createTestDeviceType, createTestPlacedPort } from "./factories";
 
 describe("RackDevice port indicators (#3009)", () => {
   it("renders a port indicator for each declared interface", () => {
@@ -35,8 +36,12 @@ describe("RackDevice port indicators (#3009)", () => {
       },
     });
 
-    expect(getByRole("button", { name: "1 (1000base-t)" })).toBeInTheDocument();
-    expect(getByRole("button", { name: "2 (1000base-t)" })).toBeInTheDocument();
+    expect(
+      getByRole("button", { name: "1 (1000base-t), unavailable" }),
+    ).toBeInTheDocument();
+    expect(
+      getByRole("button", { name: "2 (1000base-t), unavailable" }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -123,5 +128,51 @@ describe("RackDevice port count chip (#3453)", () => {
     });
 
     expect(queryByText(String(device.interfaces?.length))).toBeNull();
+  });
+});
+
+describe("RackDevice strip-mode port with no PlacedPort (#3505)", () => {
+  it("offers no enabled control for the interface, while a placed port stays clickable", async () => {
+    const user = userEvent.setup();
+    const onPortClick = vi.fn();
+    const device: DeviceType = {
+      ...createTestDeviceType({ slug: "test-switch", u_height: 1 }),
+      interfaces: [
+        { name: "legacy", type: "1000base-t" },
+        { name: "placed", type: "1000base-t" },
+      ],
+    };
+
+    const { getByRole } = render(RackDevice, {
+      props: {
+        device,
+        ports: [createTestPlacedPort({ id: "port-placed", template_index: 1 })],
+        position: 6,
+        rackHeight: 42,
+        rackId: "rack-1",
+        deviceIndex: 0,
+        selected: false,
+        uHeight: 30,
+        rackWidth: 300,
+        nominalRackWidth: 19,
+        onPortClick,
+      },
+    });
+
+    const legacy = getByRole("button", {
+      name: "legacy (1000base-t), unavailable",
+    });
+    expect(legacy).toHaveAttribute("aria-disabled", "true");
+    expect(legacy).toHaveAttribute("tabindex", "-1");
+    await user.click(legacy);
+    legacy.focus();
+    await user.keyboard("{Enter}");
+    expect(onPortClick).not.toHaveBeenCalled();
+
+    const placed = getByRole("button", { name: "placed (1000base-t)" });
+    await user.click(placed);
+    expect(onPortClick).toHaveBeenCalledWith(
+      expect.objectContaining({ portId: "port-placed" }),
+    );
   });
 });
