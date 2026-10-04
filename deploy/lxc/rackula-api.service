@@ -1,3 +1,9 @@
+# Template, not a standalone unit. The community-scripts installer completes it:
+# it rewrites User and Group to root, and installs Bun at /opt/bun (linked to
+# /usr/local/bin/bun), outside any home directory, so ProtectHome does not block it.
+# See docs/deployment/SELF-HOSTING.md (Proxmox LXC Installer Variables) and
+# docs/deployment/LXC-TESTING.md.
+
 [Unit]
 Description=Rackula Persistence API
 After=network.target
