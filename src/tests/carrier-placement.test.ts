@@ -272,6 +272,46 @@ describe("placeDeviceSmart (store carrier-first flow)", () => {
     expect(store.placeDeviceSmart(rackId, dt.slug, 5)).toBe(false);
   });
 
+  it("fills the container on the clicked face, not a half-depth one behind it", () => {
+    // The preview skips containers on the opposite face, so the click must
+    // too: a rear shelf listed first must not take a front click.
+    const { store, rackId } = setupRack();
+    const dt = addRb5009(store);
+    const shelf = (slug: string) =>
+      createTestContainerType({
+        slug,
+        u_height: 1,
+        is_full_depth: false,
+        slots: [
+          createTestSlot({
+            id: "bottom",
+            position: { row: 0, col: 0 },
+            width_fraction: 1,
+            height_units: 0.5,
+          }),
+          createTestSlot({
+            id: "top",
+            position: { row: 1, col: 0 },
+            width_fraction: 1,
+            height_units: 0.5,
+          }),
+        ],
+      });
+    const rearType = shelf("rear-shelf");
+    const frontType = shelf("front-shelf");
+    store.addDeviceTypeRaw(rearType);
+    store.addDeviceTypeRaw(frontType);
+    expect(store.placeDevice(rackId, rearType.slug, 5, "rear")).toBe(true);
+    expect(store.placeDevice(rackId, frontType.slug, 5, "front")).toBe(true);
+    const shelfId = (slug: string) =>
+      store.rack!.devices.find((d) => d.device_type === slug)!.id;
+
+    expect(store.placeDeviceSmart(rackId, dt.slug, 5, "front")).toBe(true);
+
+    expect(childrenOf(store, shelfId(frontType.slug)).length).toBe(1);
+    expect(childrenOf(store, shelfId(rearType.slug)).length).toBe(0);
+  });
+
   it("fills all four cells of a 2x2 carrier across repeated drops", () => {
     const { store, rackId } = setupRack();
     const dt = addRb5009(store);

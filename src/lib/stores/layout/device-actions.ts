@@ -543,8 +543,8 @@ export function moveDeviceToAdjacentSlot(
  * Half-width gear cannot register to the rails directly. This flow:
  * 1. Devices with no applicable carrier (full-width) fall through to a normal
  *    rail placement.
- * 2. Otherwise it prefers an existing carrier of the right kind at the target U
- *    that has a free cell, and fills that cell.
+ * 2. Otherwise it prefers an existing container at the target U on the target
+ *    face that has a free cell the device fits, and fills that cell.
  * 3. Failing that, it synthesises a carrier (marked auto_created) at the target
  *    U and places the device in its first cell, as a single undo entry.
  *
@@ -593,6 +593,16 @@ export function placeDeviceSmart(
     if (d.container_id) return false;
     const type = findDeviceType(d.device_type, layout.device_types);
     if (!type?.slots?.length) return false;
+    // Like the preview, skip a half-depth container on the other face.
+    if (
+      face &&
+      face !== "both" &&
+      type.is_full_depth === false &&
+      d.face !== "both" &&
+      d.face !== face
+    ) {
+      return false;
+    }
     return (
       positionInternal >= d.position &&
       positionInternal < d.position + type.u_height * UNITS_PER_U
