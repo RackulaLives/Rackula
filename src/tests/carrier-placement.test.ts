@@ -18,7 +18,11 @@ import {
   findNextFreeChildPosition,
   synthesizeCarrierForDevice,
 } from "$lib/utils/collision";
-import { createTestDeviceType } from "./factories";
+import {
+  createTestContainerType,
+  createTestDeviceType,
+  createTestSlot,
+} from "./factories";
 import { CATEGORY_COLOURS } from "$lib/types/constants";
 import type { PlacedDevice } from "$lib/types";
 import { LayoutSchema } from "$lib/schemas";
@@ -227,6 +231,85 @@ describe("placeDeviceSmart (store carrier-first flow)", () => {
     expect(children).toHaveLength(2);
     expect(new Set(children.map((c) => c.slot_id)).size).toBe(2);
     expect(carrier.position).toBe(carrierU);
+  });
+
+  it("fills a free cell of another kind of container at the target U", () => {
+    // The preview is valid over any container with a free cell the device
+    // fits, so a click there places into it rather than refusing.
+    const { store, rackId } = setupRack();
+    const dt = addRb5009(store);
+    const twoRow = createTestContainerType({
+      slug: "two-row-shelf",
+      u_height: 1,
+      slots: [
+        createTestSlot({
+          id: "bottom",
+          position: { row: 0, col: 0 },
+          width_fraction: 1,
+          height_units: 0.5,
+        }),
+        createTestSlot({
+          id: "top",
+          position: { row: 1, col: 0 },
+          width_fraction: 1,
+          height_units: 0.5,
+        }),
+      ],
+    });
+    store.addDeviceTypeRaw(twoRow);
+    expect(store.placeDevice(rackId, twoRow.slug, 5)).toBe(true);
+    const shelf = store.rack!.devices.find(
+      (d) => d.device_type === twoRow.slug,
+    )!;
+
+    expect(store.placeDeviceSmart(rackId, dt.slug, 5)).toBe(true);
+    expect(store.placeDeviceSmart(rackId, dt.slug, 5)).toBe(true);
+
+    const children = childrenOf(store, shelf.id);
+    expect(new Set(children.map((c) => c.slot_id))).toEqual(
+      new Set(["bottom", "top"]),
+    );
+    expect(store.placeDeviceSmart(rackId, dt.slug, 5)).toBe(false);
+  });
+
+  it("fills the container on the clicked face, not a half-depth one behind it", () => {
+    // The preview skips containers on the opposite face, so the click must
+    // too: a rear shelf listed first must not take a front click.
+    const { store, rackId } = setupRack();
+    const dt = addRb5009(store);
+    const shelf = (slug: string) =>
+      createTestContainerType({
+        slug,
+        u_height: 1,
+        is_full_depth: false,
+        slots: [
+          createTestSlot({
+            id: "bottom",
+            position: { row: 0, col: 0 },
+            width_fraction: 1,
+            height_units: 0.5,
+          }),
+          createTestSlot({
+            id: "top",
+            position: { row: 1, col: 0 },
+            width_fraction: 1,
+            height_units: 0.5,
+          }),
+        ],
+      });
+    const rearType = shelf("rear-shelf");
+    const frontType = shelf("front-shelf");
+    store.addDeviceTypeRaw(rearType);
+    store.addDeviceTypeRaw(frontType);
+    expect(store.placeDevice(rackId, rearType.slug, 5, "rear")).toBe(true);
+    expect(store.placeDevice(rackId, frontType.slug, 5, "front")).toBe(true);
+    const shelfId = (slug: string) =>
+      store.rack!.devices.find((d) => d.device_type === slug)!.id;
+
+    expect(store.placeDeviceSmart(rackId, dt.slug, 5, "front")).toBe(true);
+
+    expect(childrenOf(store, shelfId(frontType.slug)).length).toBe(1);
+    expect(childrenOf(store, shelfId(rearType.slug)).length).toBe(0);
   });
 
   it("fills all four cells of a 2x2 carrier across repeated drops", () => {
