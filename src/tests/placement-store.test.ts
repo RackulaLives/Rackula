@@ -8,7 +8,10 @@ import {
   getPlacementStore,
   resetPlacementStore,
 } from "$lib/stores/placement.svelte";
+import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
+import { resetHistoryStore } from "$lib/stores/history.svelte";
 import type { DeviceType } from "$lib/types";
+import { createTestRack } from "./factories";
 
 describe("placement store", () => {
   // Mock device type for testing
@@ -209,19 +212,47 @@ describe("placement store", () => {
 
     it("drops the pointer's verdict when the keyboard moves the cursor", () => {
       const store = getPlacementStore();
+      const rack = createTestRack({ id: "rack-1" });
       store.startPlacement(mockDevice);
-      store.setCursor("rack-1", 5, "blocked");
-      expect(store.cursorFeedback).toBe("blocked");
+      store.setCursor("rack-1", 5, "blocked", rack);
+      expect(store.cursorFeedbackFor(rack)).toBe("blocked");
       store.setCursor("rack-1", 6);
-      expect(store.cursorFeedback).toBeNull();
+      expect(store.cursorFeedbackFor(rack)).toBeNull();
     });
 
     it("drops the pointer's verdict when the device turns, since it was for the old footprint", () => {
       const store = getPlacementStore();
+      const rack = createTestRack({ id: "rack-1" });
       store.startPlacement({ ...mockDevice, width_mm: 179, height_mm: 34.5 });
-      store.setCursor("rack-1", 5, "valid");
+      store.setCursor("rack-1", 5, "valid", rack);
       expect(store.toggleRotation()).toBe(true);
-      expect(store.cursorFeedback).toBeNull();
+      expect(store.cursorFeedbackFor(rack)).toBeNull();
+    });
+
+    it("drops the pointer's verdict once the rack changes under a still pointer", () => {
+      resetLayoutStore();
+      resetHistoryStore();
+      const layoutStore = getLayoutStore();
+      const rackId = layoutStore.addRack("Test Rack", 12)!.id;
+      layoutStore.addDeviceTypeRaw(mockDevice);
+      const store = getPlacementStore();
+      store.startPlacement(mockDevice);
+      store.setCursor(rackId, 5, "valid", layoutStore.getRackById(rackId));
+      expect(store.cursorFeedbackFor(layoutStore.getRackById(rackId)!)).toBe(
+        "valid",
+      );
+
+      // A device lands in the slot the verdict was resolved for.
+      expect(layoutStore.placeDevice(rackId, mockDevice.slug, 5)).toBe(true);
+      expect(
+        store.cursorFeedbackFor(layoutStore.getRackById(rackId)!),
+      ).toBeNull();
+
+      // Undo restores the contents, but the verdict is not resurrected.
+      expect(layoutStore.undo()).toBe(true);
+      expect(
+        store.cursorFeedbackFor(layoutStore.getRackById(rackId)!),
+      ).toBeNull();
     });
 
     it("clears the cursor on startPlacement so a new pick-up starts fresh", () => {

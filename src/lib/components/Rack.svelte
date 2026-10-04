@@ -364,7 +364,7 @@
       // The pointer's verdict when it set the cursor: it knows the carrier
       // under the pointer, which a rail check does not.
       feedback:
-        placementStore.cursorFeedback ??
+        placementStore.cursorFeedbackFor(rack) ??
         getDropFeedback(
           rack,
           deviceLibrary,
