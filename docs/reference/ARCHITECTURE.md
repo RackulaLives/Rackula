@@ -155,7 +155,7 @@ No legacy support or migration code. Features are implemented as if they're the 
 │                                                  │           │
 │                                                  ▼           │
 │                                        ┌─────────────────┐   │
-│                                        │   VPS (Docker)  │   │
+│                                        │ CF Worker + R2  │   │
 │                                        │   d.racku.la    │   │
 │                                        └─────────────────┘   │
 │                                                              │

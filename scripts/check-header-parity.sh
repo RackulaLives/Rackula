@@ -16,12 +16,11 @@
 #      dist/login.html must contain no inline <script> tags (every <script>
 #      must carry a src= attribute). Requires `npm run build` to have run first.
 #
-# DEFERRED to the CF half (#2029 prod _headers, #2134 dev _headers):
-#   - The prod/dev CF _headers script-src diff against the self-host files. Those
-#     CF surfaces do not exist yet, so there is nothing to compare against.
+# Not covered here:
+#   - The prod/dev CF _headers are checked by value against
+#     deploy/security-headers.conf by `node scripts/gen-headers.mjs --check`.
 #   - The wrangler-job VITE_* parity comparison (dev: VITE_ENV=development,
-#     analytics token absent in dev). The wrangler deploy jobs do not exist yet;
-#     add this comparison alongside the CF surfaces in #2029/#2134.
+#     analytics token absent in dev) is still open in #2032.
 #
 # Usage:
 #   scripts/check-header-parity.sh              # static checks (1-3)
