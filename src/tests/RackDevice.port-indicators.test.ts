@@ -181,5 +181,12 @@ describe("RackDevice strip-mode port with no PlacedPort (#3505)", () => {
     expect(onPortClick).toHaveBeenCalledWith(
       expect.objectContaining({ portId: "port-placed" }),
     );
+    expect(onselect).not.toHaveBeenCalled();
+
+    onPortClick.mockClear();
+    placed.focus();
+    await user.keyboard("{Enter}");
+    expect(onPortClick).toHaveBeenCalledTimes(1);
+    expect(onselect).not.toHaveBeenCalled();
   });
 });

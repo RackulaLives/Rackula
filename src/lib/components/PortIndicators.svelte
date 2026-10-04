@@ -439,11 +439,8 @@
           onkeydown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              if (unavailable) {
-                e.stopPropagation();
-                return;
-              }
-              handlePortClick(iface, port);
+              e.stopPropagation();
+              if (!unavailable) handlePortClick(iface, port);
             }
           }}
         >
