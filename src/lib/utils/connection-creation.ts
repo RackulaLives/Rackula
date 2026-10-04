@@ -17,15 +17,27 @@
  *   endpoints' PlacedPort/InterfaceTemplate pairs. Computed here instead,
  *   using the same override-then-template-then-inferred resolution
  *   connection rendering uses (resolveConnectionPortDirection).
+ * - Signal mismatch (e.g. mic level to line level, #1936) is computed here for
+ *   the same reason: InterfaceTemplate.signal_type is not reachable from the
+ *   store's PlacedPort-only validation.
  */
 
-import type { InterfaceTemplate, PlacedPort, PortClickInfo } from "$lib/types";
+import type {
+  InterfaceTemplate,
+  PlacedPort,
+  PortClickInfo,
+  SignalType,
+} from "$lib/types";
 import type {
   ConnectionValidationResult,
   CreateConnectionInput,
 } from "$lib/stores/connection.svelte";
 import type { Connection } from "$lib/types";
-import { resolveConnectionPortDirection } from "$lib/utils/connection-path";
+import {
+  resolveConnectionPortDirection,
+  resolveConnectionPortSignal,
+} from "$lib/utils/connection-path";
+import { getPortCategory, getSignalLabel } from "$lib/utils/port-utils";
 
 /** The subset of the connection-creation store's API the handler needs. */
 export interface ConnectionCreationStoreLike {
@@ -90,6 +102,53 @@ export function getDirectionMismatchWarning(
   return null;
 }
 
+const SIGNAL_FAMILIES: Record<SignalType, string> = {
+  "analog-audio-mic": "analog-audio",
+  "analog-audio-line": "analog-audio",
+  "analog-audio-speaker": "analog-audio",
+  "digital-audio-aes3": "digital-audio",
+  "digital-audio-dante": "digital-audio",
+  "digital-audio-avb": "digital-audio",
+  "digital-video-hdmi": "video",
+  "digital-video-sdi": "video",
+  "clock-word": "clock",
+  "control-midi": "control",
+};
+
+/**
+ * Warn when the two endpoints carry different signals (#1936). Each signal is
+ * resolved by resolveConnectionPortSignal (override, then template, then
+ * inferred from type and direction).
+ *
+ * - Either side has no signal, or both carry the same one: no warning.
+ * - Different families (e.g. analog audio to video): warning.
+ * - Same family, different signal: warning only when both sides are explicit.
+ *   Inference alone would warn on every ordinary patch, since an XLR input
+ *   infers mic level and an XLR output infers line level.
+ * - A port category mismatch is already reported by the store's
+ *   validateConnection, so no signal warning is added on top of it.
+ * @returns A warning message, or null when signals are compatible.
+ */
+export function getSignalMismatchWarning(
+  aPort: PlacedPort | undefined,
+  aIface: InterfaceTemplate,
+  bPort: PlacedPort | undefined,
+  bIface: InterfaceTemplate,
+): string | null {
+  const a = resolveConnectionPortSignal(aPort, aIface);
+  const b = resolveConnectionPortSignal(bPort, bIface);
+  if (!a || !b || a.signal === b.signal) return null;
+  if (
+    getPortCategory(aPort?.type ?? aIface.type) !==
+    getPortCategory(bPort?.type ?? bIface.type)
+  ) {
+    return null;
+  }
+  const sameFamily = SIGNAL_FAMILIES[a.signal] === SIGNAL_FAMILIES[b.signal];
+  if (sameFamily && !(a.explicit && b.explicit)) return null;
+  return `Signal types do not match: ${getSignalLabel(a.signal)} vs ${getSignalLabel(b.signal)}`;
+}
+
 /**
  * Route a port click through connection-creation mode.
  *
@@ -150,15 +209,16 @@ export function handleConnectionPortClick(
     return;
   }
 
-  const directionWarning = getDirectionMismatchWarning(
-    sourcePort ?? undefined,
-    sourceIface,
-    port,
-    iface,
-  );
-  const warnings = directionWarning
-    ? [...validation.warnings, directionWarning]
-    : validation.warnings;
+  const warnings = [
+    ...validation.warnings,
+    getDirectionMismatchWarning(
+      sourcePort ?? undefined,
+      sourceIface,
+      port,
+      iface,
+    ),
+    getSignalMismatchWarning(sourcePort ?? undefined, sourceIface, port, iface),
+  ].filter((warning) => warning !== null);
 
   const result = ctx.addConnection(input);
   if ("errors" in result) {
