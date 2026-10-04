@@ -216,6 +216,14 @@ describe("placement store", () => {
       expect(store.cursorFeedback).toBeNull();
     });
 
+    it("drops the pointer's verdict when the device turns, since it was for the old footprint", () => {
+      const store = getPlacementStore();
+      store.startPlacement({ ...mockDevice, width_mm: 179, height_mm: 34.5 });
+      store.setCursor("rack-1", 5, "valid");
+      expect(store.toggleRotation()).toBe(true);
+      expect(store.cursorFeedback).toBeNull();
+    });
+
     it("clears the cursor on startPlacement so a new pick-up starts fresh", () => {
       const store = getPlacementStore();
       store.startPlacement(mockDevice);

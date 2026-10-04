@@ -123,6 +123,9 @@ function completePlacement(summary?: string): void {
 function toggleRotation(): boolean {
   if (!isPlacing || !pendingDevice || !canRotate(pendingDevice)) return false;
   rotation = rotation === 90 ? 0 : 90;
+  // The pointer's verdict was for the old footprint; the next pointer move
+  // resolves the turned one, and until then the rail check stands in.
+  cursorFeedback = null;
   placementAnnouncement = rotationAnnouncement(rotation);
   return true;
 }
