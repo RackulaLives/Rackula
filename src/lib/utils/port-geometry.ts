@@ -20,7 +20,8 @@
  * Multi-row layout beyond HIGH_DENSITY_THRESHOLD (#356) belongs here: extend
  * the row rule in stripGrid() and the grid math in computeVisiblePortLayout()
  * without changing the public API (lookup by PlacedPort.id, same PortAnchor
- * shape).
+ * shape). Until then a chip's ports all anchor at its marker and are picked
+ * from the chip's port picker (#3462).
  */
 
 import type { InterfaceTemplate, PlacedPort, RackView } from "$lib/types";
@@ -67,9 +68,8 @@ export const DEVICE_ICON_X = 8;
 
 /**
  * Ports stop rendering individually beyond this count; PortIndicators falls
- * back to the count chip. That chip has no per-port anchor: click-to-
- * connect (#1932) cannot target an individual port on a high-density device
- * until multi-row layout (#356) replaces this threshold.
+ * back to the count chip, whose port picker targets an individual port
+ * (#3462) until multi-row layout (#356) replaces this threshold.
  */
 export const HIGH_DENSITY_THRESHOLD = PORT_MAX_COLUMNS * PORT_MAX_ROWS;
 
@@ -135,13 +135,6 @@ export interface PortChipPosition extends ZoneRect {
   markerCy: number;
   /** Visible ports the chip stands for. */
   count: number;
-  /**
-   * True when the chip is a narrow-width collapse of HIGH_DENSITY_THRESHOLD
-   * or fewer ports: every port is anchored at (markerCx, markerCy) and
-   * computeVisiblePortLayout returns one entry per port there. False above
-   * the threshold, where no port has an anchor (#356).
-   */
-  anchored: boolean;
 }
 
 /** A single visible port position, paired with the template it renders from. */
@@ -345,9 +338,8 @@ function chipMarkerCentre(chip: ZoneRect): { x: number; y: number } {
 /**
  * The count chip for a device, or undefined when its ports render as a strip
  * or it has no visible ports. PortIndicators draws the chip and its marker
- * from this and collapsed ports anchor to the marker, so the two cannot
- * drift apart. `anchored` tells a narrow-width collapse (every port anchored
- * at the marker) from a high-density chip (no per-port anchors).
+ * from this and the chip's ports anchor to the marker, so the two cannot
+ * drift apart.
  */
 export function getPortChipPosition(
   options: PortGeometryOptions,
@@ -376,7 +368,6 @@ export function getPortChipPosition(
     markerCx: marker.x,
     markerCy: marker.y,
     count,
-    anchored: count <= HIGH_DENSITY_THRESHOLD,
   };
 }
 
@@ -385,10 +376,9 @@ export function getPortChipPosition(
  * view, in declaration order:
  * - strip: each port at its grid cell centre, row-major (left to right, then
  *   top to bottom), the grid right-aligned and vertically centred.
- * - chip from a narrow-width collapse: one entry per port, all at the chip's
- *   marker, so every port keeps an anchor and its connections keep drawing.
- * - chip above HIGH_DENSITY_THRESHOLD: an empty array. That mode has no
- *   per-port position, by design (see module docs, #1932 and #356).
+ * - chip (a narrow-width collapse, or above HIGH_DENSITY_THRESHOLD): one
+ *   entry per port, all at the chip's marker, so every port keeps an anchor
+ *   and its connections keep drawing (#3462).
  */
 export function computeVisiblePortLayout(
   options: PortGeometryOptions,
@@ -402,9 +392,7 @@ export function computeVisiblePortLayout(
     visiblePortCount: visible.length,
   });
 
-  if (zones.mode === "none" || visible.length > HIGH_DENSITY_THRESHOLD) {
-    return [];
-  }
+  if (zones.mode === "none") return [];
 
   const { portZone, cols } = zones;
   const originX = portZone.x + (offset?.x ?? 0);
@@ -428,9 +416,9 @@ export function computeVisiblePortLayout(
  * Anchor coordinates for every individually-anchored port that has a
  * PlacedPort.id, in Rack SVG space when `offset` is supplied. This is the
  * lookup ConnectionLayer (#1931) uses to locate a Connection's a_port_id /
- * b_port_id endpoints; entries with no matching PlacedPort (legacy layouts,
- * or grouped/high-density devices) are simply absent. Ports collapsed into
- * the chip on a narrow device all share the chip's marker as their anchor.
+ * b_port_id endpoints; entries with no matching PlacedPort (legacy layouts)
+ * are simply absent. Ports on a chip all share the chip's marker as their
+ * anchor.
  */
 export function getPortAnchors(options: PortGeometryOptions): PortAnchor[] {
   const anchors: PortAnchor[] = [];
@@ -443,9 +431,8 @@ export function getPortAnchors(options: PortGeometryOptions): PortAnchor[] {
 }
 
 /**
- * Anchor coordinates for a single PlacedPort, or undefined when it is not
- * individually rendered: it belongs to the other rack face, the device is in
- * grouped/high-density mode, or it has no matching PlacedPort.
+ * Anchor coordinates for a single PlacedPort, or undefined when it belongs to
+ * the other rack face or has no matching PlacedPort.
  */
 export function getPortAnchor(
   portId: string,
