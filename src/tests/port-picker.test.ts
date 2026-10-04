@@ -14,7 +14,7 @@ import {
 } from "$lib/stores/connection-creation.svelte";
 import { getConnectionStore } from "$lib/stores/connection.svelte";
 import { getLayoutStore } from "$lib/stores/layout.svelte";
-import type { InterfaceType, PortClickInfo } from "$lib/types";
+import type { InterfaceType, PlacedPort, PortClickInfo } from "$lib/types";
 import { handleConnectionPortClick } from "$lib/utils/connection-creation";
 import { HIGH_DENSITY_THRESHOLD } from "$lib/utils/port-geometry";
 import { createTestLayoutStore, placeDeviceWithPorts } from "./factories";
@@ -42,6 +42,8 @@ function renderDevice(
   position: number,
   count: number,
   rack: { rackWidth: number; nominalRackWidth: number },
+  /** Drop PlacedPorts to mimic a legacy layout or a template added after placement. */
+  keepPorts: (ports: PlacedPort[]) => PlacedPort[] = (ports) => ports,
 ) {
   const types: InterfaceType[] = Array.from(
     { length: count },
@@ -58,7 +60,7 @@ function renderDevice(
   const { container } = render(RackDevice, {
     props: {
       device,
-      ports,
+      ports: keepPorts(ports),
       placedDeviceId: deviceId,
       position,
       rackHeight: 42,
@@ -163,6 +165,33 @@ describe("port picker on the count chip (#3462)", () => {
     await user.keyboard("{ArrowDown}{Enter}");
 
     expect(getConnectionCreationStore().sourcePortId).toBe(a.ports[1]!.id);
+  });
+
+  it("marks an interface with no PlacedPort as unavailable and does not choose it", async () => {
+    const user = userEvent.setup();
+    const a = renderDevice("switch-a", 10, 3, TEN_INCH, (ports) =>
+      ports.slice(1),
+    );
+
+    await user.click(a.view.getByRole("button", { name: /choose a port/i }));
+    const legacy = await screen.findByRole("menuitem", {
+      name: /^port-0, .*unavailable/,
+    });
+    expect(legacy).toHaveAttribute("aria-disabled", "true");
+    await user.click(legacy);
+
+    expect(getConnectionCreationStore().isCreating).toBe(false);
+  });
+
+  it("does not open a picker when no port on the chip can be chosen", async () => {
+    const user = userEvent.setup();
+    const a = renderDevice("switch-a", 10, 3, TEN_INCH, () => []);
+    const chip = a.view.getByRole("button", { name: /no ports to choose/i });
+
+    expect(chip).toHaveAttribute("aria-disabled", "true");
+    await user.click(chip);
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("closes on Escape and returns focus to the chip", async () => {

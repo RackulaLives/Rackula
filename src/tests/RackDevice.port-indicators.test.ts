@@ -95,9 +95,7 @@ describe("RackDevice port count chip (#3453)", () => {
     });
 
     expect(getByText(String(device.interfaces?.length))).toBeInTheDocument();
-    expect(
-      getByRole("button", { name: /choose a port \(3 ports\)/i }),
-    ).toBeInTheDocument();
+    expect(getByRole("button", { name: /\(3 ports\)/ })).toBeInTheDocument();
   });
 
   it("shows no count when the ports fit as a strip", () => {

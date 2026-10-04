@@ -196,8 +196,14 @@
       portPositions.some(({ port }) => port?.id === connectionSourcePortId),
   );
 
+  // A legacy interface with no PlacedPort cannot be connected (#3089).
+  const chipHasChoosablePort = $derived(
+    portPositions.some(({ port }) => port?.id != null),
+  );
+
   function portStatus(port: PlacedPort | undefined): string {
-    if (port?.id != null && port.id === connectionSourcePortId) {
+    if (port?.id == null) return "unavailable";
+    if (port.id === connectionSourcePortId) {
       return "connection source";
     }
     if (port && connectionStore.getConnectionsForPort(port.id).length > 0) {
@@ -280,7 +286,10 @@
            The chip box is the one target for all its ports: it opens the
            port picker, whose rows act like clicking a port marker (#3462). -->
       <DropdownMenu.Root bind:open={pickerOpen}>
-        <DropdownMenu.Trigger onkeydown={handleChipKeyDown}>
+        <DropdownMenu.Trigger
+          onkeydown={handleChipKeyDown}
+          disabled={!chipHasChoosablePort}
+        >
           {#snippet child({ props })}
             <rect
               {...props}
@@ -297,8 +306,11 @@
               height={chip.height}
               rx="2"
               role="button"
-              tabindex="0"
-              aria-label="Choose a port ({chip.count} ports){chipHasSource
+              tabindex={chipHasChoosablePort ? 0 : -1}
+              aria-disabled={!chipHasChoosablePort}
+              aria-label="{chipHasChoosablePort
+                ? 'Choose a port'
+                : 'No ports to choose'} ({chip.count} ports){chipHasSource
                 ? ', has connection source'
                 : isConnectionCreationMode
                   ? ', potential connection target'
@@ -462,8 +474,12 @@
     cursor: pointer;
   }
 
-  .port-chip:hover {
+  .port-chip:hover:not([aria-disabled="true"]) {
     fill: var(--colour-port-hover);
+  }
+
+  .port-chip[aria-disabled="true"] {
+    cursor: default;
   }
 
   .port-chip:focus-visible {
