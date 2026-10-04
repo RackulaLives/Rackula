@@ -167,7 +167,7 @@ export function getSignalMismatchWarning(
  *   user just clicked was invalid; staying armed on it would repeat the same
  *   error). A non-blocking warning (category/type/direction mismatch) still
  *   creates the connection and surfaces as its own toast.
- * - A port with no id (grouped/high-density device, or a legacy port with no
+ * - A port with no id (a legacy port with no
  *   PlacedPort match, #3089) has no click target to begin with in practice;
  *   this is a defensive no-op, not a UI state.
  */

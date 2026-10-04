@@ -599,7 +599,7 @@ describe("buildPortAnchorMap", () => {
     expect(anchors.get("port-eth1")?.direction).toBe("input");
   });
 
-  it("anchors no ports for a device in grouped/high-density mode (#3089 fallback)", () => {
+  it("anchors a high-density device's ports at its chip (#3462)", () => {
     const interfaces = Array.from(
       { length: HIGH_DENSITY_THRESHOLD + 1 },
       (_, i) => createTestInterfaceTemplate({ name: `eth${i}` }),
@@ -616,7 +616,11 @@ describe("buildPortAnchorMap", () => {
 
     const anchors = buildPortAnchorMap([device], bySlug, "front", rackDims);
 
-    expect(anchors.size).toBe(0);
+    expect([...anchors.keys()]).toEqual(ports.map((port) => port.id));
+    const points = [...anchors.values()].map(
+      ({ anchor }) => `${anchor.x},${anchor.y}`,
+    );
+    expect(new Set(points).size).toBe(1);
   });
 
   it("anchors every port at one shared point on a 10-inch rack, where the strip collapses to the chip (#3451)", () => {

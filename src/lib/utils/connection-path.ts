@@ -551,11 +551,12 @@ export interface ResolvedPortAnchor {
 
 /**
  * Every individually-anchored port across a set of placed devices, keyed by
- * PlacedPort.id, paired with its effective direction. Devices in
- * grouped/high-density mode (see port-geometry.ts's HIGH_DENSITY_THRESHOLD)
- * contribute no entries for their ports - getPortAnchors returns [] for them
- * by design - which is what lets buildRenderedConnections below skip a
- * connection to such a port instead of guessing at a location for it.
+ * PlacedPort.id, paired with its effective direction. Ports shown as a count
+ * chip, whether collapsed on a narrow rack or above port-geometry.ts's
+ * HIGH_DENSITY_THRESHOLD, all anchor at the chip (#3462). A port with no
+ * anchor (wrong face, no PlacedPort) contributes no entry, which is what lets
+ * buildRenderedConnections below skip a connection to it instead of guessing
+ * at a location for it.
  *
  * `devices` is expected to be top-level (non-container-child) placements
  * only, same as what RackDevice actually renders a body for. Container
@@ -565,7 +566,7 @@ export interface ResolvedPortAnchor {
  * ports have no rendered indicator or computed anchor anywhere in the app
  * yet, independent of this module. A connection to a child's port therefore
  * has no anchor to resolve and is skipped by buildRenderedConnections, the
- * same graceful fallback used for grouped/high-density and wrong-face ports.
+ * same graceful fallback used for wrong-face ports.
  * Tracked as follow-up work: #3117.
  */
 export function buildPortAnchorMap(
@@ -696,8 +697,8 @@ export interface RenderedConnection {
  * own stay on lane 0.
  *
  * Grouped-mode fallback decision (#1931 AC, #3089): a port with no anchor -
- * because its device is over the high-density threshold, the port is on the
- * other rack face, or the layout predates PlacedPort identity - is skipped
+ * because the port is on the other rack face, or the layout predates
+ * PlacedPort identity - is skipped
  * entirely rather than approximated (e.g. anchored to the device's edge
  * centre). An edge-centre fallback would draw a specific, plausible-looking
  * line to a location that is not actually where the port is, misleading the

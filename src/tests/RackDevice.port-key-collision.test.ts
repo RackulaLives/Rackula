@@ -9,10 +9,11 @@
  * keyed #each silently drops/reuses DOM nodes for colliding keys.
  */
 import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/svelte";
+import { render, screen } from "@testing-library/svelte";
+import userEvent from "@testing-library/user-event";
 import RackDevice from "$lib/components/RackDevice.svelte";
 import type { DeviceType } from "$lib/types";
-import { createTestDeviceType } from "./factories";
+import { createTestDeviceType, createTestPlacedPort } from "./factories";
 
 describe("PortIndicators keyed #each (duplicate names, no PlacedPort)", () => {
   it("renders one hit target per interface even when names collide and no ports are instantiated", () => {
@@ -53,7 +54,7 @@ describe("PortIndicators keyed #each (duplicate names, no PlacedPort)", () => {
     ).toBe(1);
   });
 
-  it("keeps one hit target per interface when a 10-inch rack collapses the ports onto the chip marker (#3451)", () => {
+  it("keeps one picker row per interface when a 10-inch rack collapses the ports onto the chip (#3451, #3462)", async () => {
     const device: DeviceType = {
       ...createTestDeviceType({ slug: "mini-switch", u_height: 1 }),
       interfaces: [
@@ -64,10 +65,13 @@ describe("PortIndicators keyed #each (duplicate names, no PlacedPort)", () => {
     };
 
     // Collapsed chip mode returns every port at the same point; the keys
-    // (PlacedPort.id, or the loop index here) must still be unique.
-    const { getAllByRole } = render(RackDevice, {
+    // (PlacedPort.id, or the loop index for the two legacy SFP+ interfaces)
+    // must still be unique. eth0 has a PlacedPort so the picker can open.
+    const user = userEvent.setup();
+    const { getByRole } = render(RackDevice, {
       props: {
         device,
+        ports: [createTestPlacedPort({ id: "port-eth0", template_index: 2 })],
         position: 6,
         rackHeight: 42,
         rackId: "rack-1",
@@ -79,8 +83,14 @@ describe("PortIndicators keyed #each (duplicate names, no PlacedPort)", () => {
       },
     });
 
+    await user.click(getByRole("button", { name: /choose a port/i }));
+
     expect(
-      getAllByRole("button", { name: /\((10gbase|25gbase|1000base)/ }).length,
+      (
+        await screen.findAllByRole("menuitem", {
+          name: /(10gbase|25gbase|1000base)/,
+        })
+      ).length,
     ).toBe(device.interfaces?.length);
   });
 });
