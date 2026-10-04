@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
+metadata:
+  id: 7c41e2a9-5b3d-4f86-a1c0-2e9d8b6f4a13
+  name: Patch Bay Normalling
+  schema_version: "1.1"
+version: 26.9.2
+name: Patch Bay Normalling
+racks:
+  - id: rack-patch
+    name: Patch Rack
+    height: 8
+    width: 19
+    depth_mm: 600
+    base_weight: 0
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: dev-patch-bay
+        device_type: trs-patch-bay-1u
+        position: 12
+        face: front
+        ports:
+          - id: port-1-top
+            template_name: 1 Top
+            template_index: 0
+            type: trs-1-4
+          - id: port-1-bottom
+            template_name: 1 Bottom
+            template_index: 1
+            type: trs-1-4
+          - id: port-2-top
+            template_name: 2 Top
+            template_index: 2
+            type: trs-1-4
+          - id: port-2-bottom
+            template_name: 2 Bottom
+            template_index: 3
+            type: trs-1-4
+        patch_bay_normal_overrides:
+          2 Top: non-normal
+device_types:
+  - slug: trs-patch-bay-1u
+    manufacturer: Acme Audio
+    model: TRS Patch Bay 1U
+    u_height: 1
+    colour: "#8BE9FD"
+    category: av-media
+    interfaces:
+      - name: 1 Top
+        type: trs-1-4
+      - name: 1 Bottom
+        type: trs-1-4
+      - name: 2 Top
+        type: trs-1-4
+      - name: 2 Bottom
+        type: trs-1-4
+    patch_bay_normals:
+      - top: 1 Top
+        bottom: 1 Bottom
+        mode: half-normal
+      - top: 2 Top
+        bottom: 2 Bottom
+        mode: full-normal
+settings:
+  display_mode: label
+  show_labels_on_images: false
