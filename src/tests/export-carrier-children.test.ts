@@ -214,6 +214,32 @@ describe("image export: carrier children (#3362)", () => {
     expect(contains(footprint, thin!)).toBe(true);
   });
 
+  it("keeps a very thin measured child's label no taller than its box", () => {
+    const thinType = createTestDeviceType({
+      slug: "thin-child",
+      u_height: 0.5,
+      width_mm: 158,
+      height_mm: 0.1,
+      colour: "#555555",
+      is_full_depth: false,
+    });
+    const rack = carrierRack();
+    rack.devices[1] = {
+      ...rack.devices[1]!,
+      device_type: "thin-child",
+      name: "Thin",
+    };
+    const svg = generateExportSVG([rack], [...library, thinType], baseOptions);
+
+    const [thin] = boxesWithFill(svg, thinType.colour!);
+    const label = Array.from(svg.getElementsByTagName("text")).find(
+      (el) => el.textContent === "Thin",
+    );
+    expect(Number(label!.getAttribute("font-size"))).toBeLessThanOrEqual(
+      thin!.height,
+    );
+  });
+
   it("draws a turned measured child at its turned height", () => {
     // 40 mm wide and 20 mm tall, turned on its side: it stands 40 mm tall.
     const turnedType = createTestDeviceType({

@@ -1098,7 +1098,12 @@ export function generateExportSVG(
       deviceNameEl.setAttribute("x", String(deviceX + deviceWidth / 2));
       deviceNameEl.setAttribute("y", String(deviceY + deviceHeight / 2 + 1));
       deviceNameEl.setAttribute("fill", "#ffffff");
-      deviceNameEl.setAttribute("font-size", String(fittedLabel.fontSize));
+      // A thin measured child can be shorter than the fitted font, so the
+      // label shrinks to its box, as the canvas shrinks a child's label.
+      deviceNameEl.setAttribute(
+        "font-size",
+        String(Math.min(fittedLabel.fontSize, deviceHeight)),
+      );
       deviceNameEl.setAttribute("text-anchor", "middle");
       deviceNameEl.setAttribute("dominant-baseline", "middle");
       deviceNameEl.setAttribute("font-family", "system-ui, sans-serif");
