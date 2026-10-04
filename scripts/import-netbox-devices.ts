@@ -527,7 +527,13 @@ async function zeroUSize(
   options: ImportOptions,
 ): Promise<ZeroUSize | undefined> {
   if (options.widthMm !== undefined && options.heightMm !== undefined) {
-    return { widthMm: options.widthMm, heightMm: options.heightMm };
+    const size = { widthMm: options.widthMm, heightMm: options.heightMm };
+    const error = sizeError(size);
+    if (error) {
+      console.error(`Error: ${error}`);
+      process.exit(1);
+    }
+    return size;
   }
   console.log(
     `  ⚠️  0U in NetBox: it does not mount on the rails, and NetBox records no size for it`,
@@ -728,14 +734,6 @@ async function main(): Promise<void> {
       console.error(
         "Error: give both --width-mm and --height-mm as positive numbers of millimetres",
       );
-      process.exit(1);
-    }
-    const error = sizeError({
-      widthMm: options.widthMm!,
-      heightMm: options.heightMm!,
-    });
-    if (error) {
-      console.error(`Error: ${error}`);
       process.exit(1);
     }
   }
