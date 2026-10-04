@@ -135,6 +135,7 @@ describe("RackDevice strip-mode port with no PlacedPort (#3505)", () => {
   it("offers no enabled control for the interface, while a placed port stays clickable", async () => {
     const user = userEvent.setup();
     const onPortClick = vi.fn();
+    const onselect = vi.fn();
     const device: DeviceType = {
       ...createTestDeviceType({ slug: "test-switch", u_height: 1 }),
       interfaces: [
@@ -156,6 +157,7 @@ describe("RackDevice strip-mode port with no PlacedPort (#3505)", () => {
         rackWidth: 300,
         nominalRackWidth: 19,
         onPortClick,
+        onselect,
       },
     });
 
@@ -165,9 +167,14 @@ describe("RackDevice strip-mode port with no PlacedPort (#3505)", () => {
     expect(legacy).toHaveAttribute("aria-disabled", "true");
     expect(legacy).toHaveAttribute("tabindex", "-1");
     await user.click(legacy);
+    expect(onPortClick).not.toHaveBeenCalled();
+
+    onselect.mockClear();
     legacy.focus();
     await user.keyboard("{Enter}");
+    await user.keyboard(" ");
     expect(onPortClick).not.toHaveBeenCalled();
+    expect(onselect).not.toHaveBeenCalled();
 
     const placed = getByRole("button", { name: "placed (1000base-t)" });
     await user.click(placed);

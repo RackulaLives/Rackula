@@ -437,8 +437,12 @@
           onmouseenter={(e) => handlePortMouseEnter(e, iface)}
           onmouseleave={handlePortMouseLeave}
           onkeydown={(e) => {
-            if (!unavailable && (e.key === "Enter" || e.key === " ")) {
+            if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
+              if (unavailable) {
+                e.stopPropagation();
+                return;
+              }
               handlePortClick(iface, port);
             }
           }}
