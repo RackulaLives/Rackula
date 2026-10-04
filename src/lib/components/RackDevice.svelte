@@ -430,6 +430,7 @@
         visiblePortCount: countVisiblePorts(device.interfaces ?? [], rackView),
       }),
       deviceWidth,
+      deviceHeight,
       isRearTreatment,
       label: showNameLabels ? displayName : "",
     }),

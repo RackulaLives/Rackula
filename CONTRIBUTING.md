@@ -146,6 +146,16 @@ Do NOT use Svelte 4 stores (`writable`, `readable`, `derived` from `svelte/store
    - Create a pull request with a clear description
    - Reference any related issues
 
+## Versioning
+
+Rackula uses calendar versioning, `YY.M.MICRO`:
+
+- `YY` is the two-digit year and `M` is the month without padding (`26.6`, not `26.06`).
+- `MICRO` counts releases within the month, starting at 1. The first release in October 2026 is `v26.10.1`, the next that month is `v26.10.2`, and November starts again at `v26.11.1`.
+- Releases before October 2026 started at 0 (for example `v26.9.0`). Those tags are unchanged.
+
+Maintainers cut releases with the `/release` command, which computes the next version with `scripts/next-version.sh` and writes the `CHANGELOG.md` entry. You do not need to bump the version or edit the changelog in a pull request.
+
 ## Certifying Your Contributions
 
 Rackula uses the [Developer Certificate of Origin](https://developercertificate.org/) (DCO) rather than a Contributor Licence Agreement (CLA). The DCO is a lightweight, one-line certification that you have the right to submit your contribution under the project's MIT licence. There is no paperwork and no copyright assignment: you keep the copyright to your work.

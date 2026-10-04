@@ -474,10 +474,11 @@ describe("Text Sizing Utility", () => {
       visiblePortCount: number,
       isRearTreatment = false,
       label = "Server",
+      deviceHeight = ONE_U,
     ) {
       const zones = computeDeviceZones({
         deviceWidth,
-        deviceHeight: ONE_U,
+        deviceHeight,
         visiblePortCount,
       });
       return {
@@ -485,6 +486,7 @@ describe("Text Sizing Utility", () => {
         layout: computeDeviceLabelLayout({
           zones,
           deviceWidth,
+          deviceHeight,
           isRearTreatment,
           label,
         }),
@@ -675,6 +677,29 @@ describe("Text Sizing Utility", () => {
       expect(layout.availableWidth).toBe(
         layoutFor(WIDE, 0).layout.availableWidth,
       );
+    });
+
+    it("keeps the floating REAR tag on a 2U device where the label sits below it", () => {
+      const twoU = 2 * ONE_U;
+      const longLabel = "Core Distribution Patch Panel Row 12 Cabinet 4 Upper";
+      for (const [deviceWidth, label] of [
+        [NARROW, "Server"],
+        [WIDE, longLabel],
+      ] as const) {
+        // The label reaches the tag horizontally, as on a 1U device...
+        expect(textRight(deviceWidth, label) + REAR_TAG_GAP).toBeGreaterThan(
+          tagLeft(deviceWidth),
+        );
+        expect(layoutFor(deviceWidth, 0, true, label).layout.floatRearTag).toBe(
+          false,
+        );
+        // ...but centred on a 2U device it sits clear below the tag.
+        const { layout } = layoutFor(deviceWidth, 0, true, label, twoU);
+        expect(layout.floatRearTag).toBe(true);
+        expect(layout.availableWidth).toBe(
+          layoutFor(deviceWidth, 0, false, label, twoU).layout.availableWidth,
+        );
+      }
     });
 
     it("floats the REAR tag when name labels are hidden", () => {
