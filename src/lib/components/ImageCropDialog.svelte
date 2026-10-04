@@ -38,6 +38,11 @@
     widthFraction?: number;
     /** How the frame width was decided, for the hint under the title. */
     widthLabel?: string;
+    /**
+     * Whether the device is on its side. Its image is laid out flat and turned
+     * into the box, so the frame is the box turned back.
+     */
+    turned?: boolean;
     onconfirm?: (file: File) => void;
     oncancel?: () => void;
   }
@@ -50,6 +55,7 @@
     guideRackWidths = [],
     widthFraction = 1,
     widthLabel,
+    turned = false,
     onconfirm,
     oncancel,
   }: Props = $props();
@@ -61,9 +67,11 @@
   const KEY_ZOOM_FACTOR = 1.1;
 
   const units = $derived(getCropUnitHeight(uHeight));
-  const aspect = $derived(
-    getDeviceImageAspect(units, rackWidth, widthFraction),
-  );
+  function frameAspect(width: number): number {
+    const boxAspect = getDeviceImageAspect(units, width, widthFraction);
+    return turned ? 1 / boxAspect : boxAspect;
+  }
+  const aspect = $derived(frameAspect(rackWidth));
 
   // What the frame is shaped for, for the hint under the title.
   const frameDescription = $derived(
@@ -75,10 +83,7 @@
     guideRackWidths
       .filter((width) => width !== rackWidth)
       .map((width) => {
-        const visible = getVisibleFraction(
-          aspect,
-          getDeviceImageAspect(units, width, widthFraction),
-        );
+        const visible = getVisibleFraction(aspect, frameAspect(width));
         const left = ((1 - visible.width) / 2) * 100;
         const top = ((1 - visible.height) / 2) * 100;
         return {
@@ -396,7 +401,11 @@
       >
         <!-- Dashed line at each U boundary inside the frame -->
         {#each uLines as u (u)}
-          <span class="crop-u-line" style="top: {(u / units) * 100}%"></span>
+          <span
+            class="crop-u-line"
+            class:crop-u-line-turned={turned}
+            style="{turned ? 'left' : 'top'}: {(u / units) * 100}%"
+          ></span>
         {/each}
         {#each guides as guide (guide.width)}
           <span class="crop-guide" style={guide.style}></span>
@@ -523,6 +532,15 @@
     left: 0;
     right: 0;
     border-top: 1px dashed rgba(255, 255, 255, 0.5);
+  }
+
+  /* On its side the rack units run across the flat image, top to the left. */
+  .crop-u-line-turned {
+    top: 0;
+    bottom: 0;
+    right: auto;
+    border-top: none;
+    border-left: 1px dashed rgba(255, 255, 255, 0.5);
   }
 
   .crop-guide {

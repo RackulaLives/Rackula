@@ -16,8 +16,15 @@ import {
 import {
   MAX_DEVICE_HEIGHT,
   MIN_DEVICE_HEIGHT,
+  MM_PER_U,
   STANDARD_RACK_WIDTH,
 } from "$lib/types/constants";
+import type { DeviceRotation, DeviceType } from "$lib/types";
+import {
+  getRackOpeningMm,
+  getRotation,
+  orientDeviceType,
+} from "$lib/utils/device-width";
 
 /** Largest zoom allowed, as a multiple of the cover scale. */
 export const MAX_CROP_ZOOM = 10;
@@ -48,6 +55,51 @@ export function getCropUnitHeight(uHeight: number): number {
     uHeight <= MAX_DEVICE_HEIGHT
     ? uHeight
     : 1;
+}
+
+/** The box a placed device's image is drawn into, as crop frame inputs. */
+export interface DeviceCropBox {
+  /** Drawn height in rack units. */
+  uHeight: number;
+  /** Drawn share of the rack interior. */
+  widthFraction: number;
+  /**
+   * Whether the device is on its side. Its image is laid out flat and turned
+   * into the box, so the frame is the box turned back.
+   */
+  turned: boolean;
+}
+
+/**
+ * The box a placed device's image is drawn into. A measured device is drawn
+ * in a cell cut to its width, at its measured height, by its sides as it
+ * stands after a turn. Any other device is drawn at its rack units, half the
+ * interior wide when half-width, otherwise across the rails.
+ */
+export function getDeviceCropBox(
+  deviceType: Pick<
+    DeviceType,
+    "slot_width" | "width_mm" | "height_mm" | "u_height"
+  >,
+  rotation: DeviceRotation | undefined,
+  rackWidth: number,
+): DeviceCropBox {
+  const standing = orientDeviceType(deviceType, rotation);
+  if (standing.width_mm === undefined) {
+    return {
+      uHeight: standing.u_height,
+      widthFraction: standing.slot_width === 1 ? 0.5 : 1,
+      turned: false,
+    };
+  }
+  return {
+    uHeight:
+      standing.height_mm === undefined
+        ? standing.u_height
+        : Math.min(standing.height_mm / MM_PER_U, standing.u_height),
+    widthFraction: Math.min(1, standing.width_mm / getRackOpeningMm(rackWidth)),
+    turned: getRotation(deviceType, rotation) === 90,
+  };
 }
 
 /**

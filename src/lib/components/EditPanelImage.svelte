@@ -8,7 +8,7 @@
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getImageStore } from "$lib/stores/images.svelte";
   import { placementKey } from "$lib/utils/placement-key";
-  import { getCropUnitHeight } from "$lib/utils/image-crop";
+  import { getCropUnitHeight, getDeviceCropBox } from "$lib/utils/image-crop";
   import { validateImageFile, fileToImageData } from "$lib/utils/imageUpload";
   import { SUPPORTED_IMAGE_FORMATS } from "$lib/types/constants";
   import type { SelectedDeviceInfo } from "$lib/types";
@@ -64,6 +64,7 @@
     rackWidth: number;
     widthFraction: number;
     widthLabel: string | undefined;
+    turned: boolean;
   } | null>(null);
 
   // Current placement overrides (if any)
@@ -81,16 +82,31 @@
   );
 
   // Device type fallback images, keyed by slug in the image store
-  // The crop frame takes the device's drawn width, so a half-width device is
-  // framed to the carrier cell it sits in rather than to the full rails.
-  const cropWidthFraction = $derived(
-    selectedDeviceInfo.device.slot_width === 1 ? 0.5 : 1,
+  // The crop frame takes the device's drawn box, so a half-width or measured
+  // device is framed to the carrier cell it sits in rather than to the full
+  // rails, and a measured one at its measured height, as it stands.
+  const cropBox = $derived(
+    getDeviceCropBox(
+      selectedDeviceInfo.device,
+      selectedDeviceInfo.placedDevice.rotation,
+      selectedDeviceInfo.rack.width,
+    ),
   );
-  const cropWidthLabel = $derived(
-    selectedDeviceInfo.device.slot_width === 1
-      ? `a half-width ${getCropUnitHeight(selectedDeviceInfo.device.u_height)}U device in a ${selectedDeviceInfo.rack.width} inch rack`
-      : undefined,
-  );
+  const cropWidthFraction = $derived(cropBox.widthFraction);
+  const cropWidthLabel = $derived.by(() => {
+    const { device, rack } = selectedDeviceInfo;
+    if (device.width_mm !== undefined) {
+      const height =
+        device.height_mm === undefined
+          ? `${getCropUnitHeight(device.u_height)}U`
+          : `${device.height_mm} mm`;
+      const side = cropBox.turned ? " on its side" : "";
+      return `a device ${device.width_mm} mm wide and ${height} tall${side} in a ${rack.width} inch rack`;
+    }
+    return device.slot_width === 1
+      ? `a half-width ${getCropUnitHeight(device.u_height)}U device in a ${rack.width} inch rack`
+      : undefined;
+  });
 
   const deviceTypeFrontImage = $derived(
     imageStore.getDeviceImage(selectedDeviceInfo.device.slug, "front"),
@@ -128,10 +144,11 @@
       layoutId,
       rackId: selectedDeviceInfo.rack.id,
       deviceId: selectedDeviceInfo.placedDevice.id,
-      uHeight: selectedDeviceInfo.device.u_height,
+      uHeight: cropBox.uHeight,
       rackWidth: selectedDeviceInfo.rack.width,
       widthFraction: cropWidthFraction,
       widthLabel: cropWidthLabel,
+      turned: cropBox.turned,
     };
     cropFile = file;
 
@@ -268,10 +285,11 @@
 <ImageCropDialog
   file={cropFile}
   face={cropFace}
-  uHeight={cropTarget?.uHeight ?? selectedDeviceInfo.device.u_height}
+  uHeight={cropTarget?.uHeight ?? cropBox.uHeight}
   rackWidth={cropTarget?.rackWidth ?? selectedDeviceInfo.rack.width}
   widthFraction={cropTarget?.widthFraction ?? cropWidthFraction}
   widthLabel={cropTarget ? cropTarget.widthLabel : cropWidthLabel}
+  turned={cropTarget?.turned ?? cropBox.turned}
   onconfirm={handleCropConfirm}
   oncancel={() => (cropFile = null)}
 />

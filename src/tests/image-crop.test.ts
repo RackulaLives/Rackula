@@ -11,6 +11,7 @@ import {
   fitFrame,
   getCropOutputSize,
   getCropOutputType,
+  getDeviceCropBox,
   getDeviceImageAspect,
   getFitScale,
   getVisibleFraction,
@@ -20,6 +21,9 @@ import {
   wheelDeltaPixels,
   zoomView,
 } from "$lib/utils/image-crop";
+import { getRackOpeningMm } from "$lib/utils/device-width";
+import { MM_PER_U } from "$lib/types/constants";
+import { createTestDeviceType } from "./factories";
 
 const image = { width: 2000, height: 1000 };
 const frame = { width: 400, height: 100 };
@@ -233,5 +237,75 @@ describe("getDeviceImageAspect width fraction", () => {
         getDeviceImageAspect(1, 19),
       );
     }
+  });
+});
+
+describe("getDeviceCropBox", () => {
+  it("frames a rail-mounted device at its rack units across the rails", () => {
+    const server = createTestDeviceType({ u_height: 2 });
+
+    expect(getDeviceCropBox(server, undefined, 19)).toEqual({
+      uHeight: 2,
+      widthFraction: 1,
+      turned: false,
+    });
+  });
+
+  it("frames a half-width device to half the interior", () => {
+    const half = createTestDeviceType({ u_height: 1, slot_width: 1 });
+
+    expect(getDeviceCropBox(half, undefined, 19)).toEqual({
+      uHeight: 1,
+      widthFraction: 0.5,
+      turned: false,
+    });
+  });
+
+  it("frames a measured device at its measured width and height", () => {
+    // 158 mm wide and 27 mm tall: it takes 1U but is drawn 27 mm tall.
+    const measured = createTestDeviceType({
+      u_height: 1,
+      width_mm: 158,
+      height_mm: 27,
+    });
+    const box = getDeviceCropBox(measured, 0, 19);
+
+    expect(box.uHeight).toBeCloseTo(27 / MM_PER_U);
+    expect(box.widthFraction).toBeCloseTo(158 / getRackOpeningMm(19));
+    expect(box.turned).toBe(false);
+  });
+
+  it("frames a measured device with no height at its rack units", () => {
+    const measured = createTestDeviceType({ u_height: 1, width_mm: 100 });
+    const box = getDeviceCropBox(measured, 0, 10);
+
+    expect(box.uHeight).toBe(1);
+    expect(box.widthFraction).toBeCloseTo(100 / getRackOpeningMm(10));
+  });
+
+  it("frames a turned measured device by its turned sides", () => {
+    // 40 mm wide and 20 mm tall, on its side: 20 mm wide and 40 mm tall.
+    const measured = createTestDeviceType({
+      u_height: 0.5,
+      width_mm: 40,
+      height_mm: 20,
+    });
+    const box = getDeviceCropBox(measured, 90, 19);
+
+    expect(box.uHeight).toBeCloseTo(40 / MM_PER_U);
+    expect(box.widthFraction).toBeCloseTo(20 / getRackOpeningMm(19));
+    expect(box.turned).toBe(true);
+  });
+
+  it("ignores a turn on a rail-mounted device", () => {
+    const server = createTestDeviceType({ u_height: 1 });
+
+    expect(getDeviceCropBox(server, 90, 19).turned).toBe(false);
+  });
+
+  it("never frames wider than the rack interior", () => {
+    const wide = createTestDeviceType({ u_height: 1, width_mm: 600 });
+
+    expect(getDeviceCropBox(wide, 0, 19).widthFraction).toBe(1);
   });
 });
