@@ -52,6 +52,7 @@
     DEVICE_LABEL_MAX_FONT,
     DEVICE_LABEL_MIN_FONT,
     DEVICE_LABEL_IMAGE_MAX_FONT,
+    truncateWithEllipsis,
   } from "$lib/utils/text-sizing";
   import {
     computeDeviceZones,
@@ -1234,6 +1235,10 @@
             <!-- Child device label. Hidden over an image unless labels on
                  images are on, matching how the parent device behaves. -->
             {#if showNameLabels && (!childImageUrl || showLabelsOnImages)}
+              {@const childLabelFont = Math.min(
+                11,
+                (onSide ? childWidth : childHeight) * 0.6,
+              )}
               <!-- Stood on its side, the label runs up the long side. -->
               <text
                 class="child-device-label"
@@ -1241,18 +1246,17 @@
                 y={childHeight / 2}
                 text-anchor="middle"
                 dominant-baseline="middle"
-                font-size={Math.min(
-                  11,
-                  (onSide ? childWidth : childHeight) * 0.6,
-                )}
+                font-size={childLabelFont}
                 transform={onSide
                   ? `rotate(-90 ${childWidth / 2} ${childHeight / 2})`
                   : undefined}
                 fill="var(--colour-text-on-device)"
               >
-                {childName.length > 12
-                  ? childName.slice(0, 10) + "…"
-                  : childName}
+                {truncateWithEllipsis(
+                  childName,
+                  (onSide ? childHeight : childWidth) - 8,
+                  childLabelFont,
+                )}
               </text>
             {/if}
           </g>
