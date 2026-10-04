@@ -8,6 +8,7 @@ import type {
   DeviceType,
   ExportOptions,
   DeviceCategory,
+  DeviceRotation,
 } from "$lib/types";
 import type { ImageStoreMap } from "$lib/types/images";
 import { placementKey } from "$lib/utils/placement-key";
@@ -27,7 +28,11 @@ import {
   RACK_PADDING_HIDDEN,
 } from "$lib/constants/layout";
 import { toHumanUnits } from "$lib/utils/position";
-import { drawnUHeight } from "$lib/utils/device-width";
+import {
+  drawnUHeight,
+  getRotation,
+  orientDeviceType,
+} from "$lib/utils/device-width";
 import { getChildYInSlot, getSlotRects } from "$lib/utils/slot-geometry";
 
 // Aliases for export context (export uses hidden padding since view labels show rack name)
@@ -887,11 +892,13 @@ export function generateExportSVG(
       );
       for (const child of rack.devices) {
         if (child.container_id !== placedDevice.id || !child.slot_id) continue;
-        const childType = deviceLibrary.find(
+        const libraryType = deviceLibrary.find(
           (d) => d.slug === child.device_type,
         );
         const cell = cells.get(child.slot_id);
-        if (!childType || !cell) continue;
+        if (!libraryType || !cell) continue;
+        // Sized by its turned footprint, as on the canvas.
+        const childType = orientDeviceType(libraryType, child.rotation);
         const childUHeight = drawnUHeight(childType);
         const childHeight = childUHeight * U_HEIGHT;
         // A thin measured child is drawn under 2 px, so its inset shrinks
@@ -911,12 +918,23 @@ export function generateExportSVG(
           deviceY + childY + childInset - 1,
           cell.width - 4,
           childHeight - 2 * childInset,
+          // The image covers the whole cell box, as on the canvas, so it keeps
+          // the aspect its crop frame was shaped to.
+          {
+            x: RAIL_WIDTH + cell.x,
+            y: deviceY + childY,
+            width: cell.width,
+            height: childHeight,
+            rotation: getRotation(childType, child.rotation),
+          },
         );
       }
     }
 
     // Draw one device. The body rect spans (deviceX, deviceY + 1) at
     // deviceWidth x deviceHeight, with its image or icon and label on top.
+    // The image fills imageBox when given, otherwise the body rect; a turned
+    // image is laid out flat, centred, then turned into the box.
     function drawDevice(
       placedDevice: Rack["devices"][number],
       device: DeviceType,
@@ -924,6 +942,19 @@ export function generateExportSVG(
       deviceY: number,
       deviceWidth: number,
       deviceHeight: number,
+      imageBox: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        rotation: DeviceRotation;
+      } = {
+        x: deviceX,
+        y: deviceY + 1,
+        width: deviceWidth,
+        height: deviceHeight,
+        rotation: 0,
+      },
     ): void {
       const deviceDisplayName = device.model ?? device.slug;
 
@@ -968,13 +999,27 @@ export function generateExportSVG(
           "http://www.w3.org/2000/svg",
           "image",
         );
-        imageEl.setAttribute("x", String(deviceX));
-        imageEl.setAttribute("y", String(deviceY + 1));
-        imageEl.setAttribute("width", String(deviceWidth));
-        imageEl.setAttribute("height", String(deviceHeight));
+        const onSide = imageBox.rotation === 90;
+        const imageWidth = onSide ? imageBox.height : imageBox.width;
+        const imageHeight = onSide ? imageBox.width : imageBox.height;
+        const centreX = imageBox.x + imageBox.width / 2;
+        const centreY = imageBox.y + imageBox.height / 2;
+        imageEl.setAttribute("x", String(centreX - imageWidth / 2));
+        imageEl.setAttribute("y", String(centreY - imageHeight / 2));
+        imageEl.setAttribute("width", String(imageWidth));
+        imageEl.setAttribute("height", String(imageHeight));
+        if (onSide) {
+          imageEl.setAttribute("transform", `rotate(90 ${centreX} ${centreY})`);
+        }
         imageEl.setAttribute("href", imageUrl);
         imageEl.setAttribute("preserveAspectRatio", "xMidYMid slice");
-        rackGroup.appendChild(imageEl);
+        // A turned image is clipped through a group, so the clip stays in the
+        // box's own coordinates rather than turning with the image.
+        const clipped = onSide
+          ? document.createElementNS("http://www.w3.org/2000/svg", "g")
+          : imageEl;
+        if (onSide) clipped.appendChild(imageEl);
+        rackGroup.appendChild(clipped);
 
         // Clip the image to rounded corners
         const clipId = `clip-${rack.id}-${placedDevice.id}-${face}`;
@@ -987,15 +1032,15 @@ export function generateExportSVG(
           "http://www.w3.org/2000/svg",
           "rect",
         );
-        clipRect.setAttribute("x", String(deviceX));
-        clipRect.setAttribute("y", String(deviceY + 1));
-        clipRect.setAttribute("width", String(deviceWidth));
-        clipRect.setAttribute("height", String(deviceHeight));
+        clipRect.setAttribute("x", String(imageBox.x));
+        clipRect.setAttribute("y", String(imageBox.y));
+        clipRect.setAttribute("width", String(imageBox.width));
+        clipRect.setAttribute("height", String(imageBox.height));
         clipRect.setAttribute("rx", "2");
         clipRect.setAttribute("ry", "2");
         clipPath.appendChild(clipRect);
         rackGroup.appendChild(clipPath);
-        imageEl.setAttribute("clip-path", `url(#${clipId})`);
+        clipped.setAttribute("clip-path", `url(#${clipId})`);
       } else {
         // Category icon (only for devices tall enough and with a category)
         if (deviceHeight >= 20 && device.category) {
