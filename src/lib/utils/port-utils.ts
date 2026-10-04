@@ -334,3 +334,24 @@ export function resolvePatchBayNormalPortIds(
   if (!top || !bottom) return undefined;
   return { top: top.id, bottom: bottom.id };
 }
+
+/**
+ * Copy a placed device's ports for a duplicate (#3492): each port keeps its
+ * per-port overrides (label, direction, signal_type) under a fresh id, so no
+ * connection can reach the copy. Template ports the source lacks (a template
+ * added after placement) are instantiated, matched by template_index since
+ * interface names may repeat. Returns undefined only when there is neither a
+ * source port list nor a device type to instantiate from.
+ */
+export function clonePortsWithFreshIds(
+  sourcePorts: readonly PlacedPort[] | undefined,
+  deviceType?: DeviceType,
+): PlacedPort[] | undefined {
+  if (!sourcePorts && !deviceType) return undefined;
+  const cloned = (sourcePorts ?? []).map((p) => ({ ...p, id: generateId() }));
+  const present = new Set(cloned.map((p) => p.template_index));
+  const missing = deviceType
+    ? instantiatePorts(deviceType).filter((p) => !present.has(p.template_index))
+    : [];
+  return [...cloned, ...missing];
+}

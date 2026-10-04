@@ -3,6 +3,7 @@ import { getLayoutStore, resetLayoutStore } from "$lib/stores/layout.svelte";
 import { toInternalUnits } from "$lib/utils/position";
 import { LayoutSchema } from "$lib/schemas";
 import { parseLayoutObject } from "$lib/utils/yaml";
+import type { PlacedDevice, PlacedPort } from "$lib/types";
 import {
   setupStoreWithDevice,
   createTestConnection,
@@ -1667,6 +1668,118 @@ describe("Layout Store", () => {
       store.redo();
       expect(store.rack.devices.find((d) => d.id === copy.id)).toBeDefined();
       expect(childrenOf(store, copy.id).length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("duplicateDevice port overrides (#3492)", () => {
+    const withoutId = (ports: PlacedPort[]) =>
+      ports.map(({ id: _id, ...rest }) => rest);
+
+    /** Set label, direction and signal_type on the device's first port. */
+    function overrideFirstPort(device: PlacedDevice) {
+      const port = device.ports![0]!;
+      port.label = "uplink";
+      port.direction = "output";
+      port.signal_type = "digital-audio-dante";
+    }
+
+    function expectOverridesKept(source: PlacedDevice, copy: PlacedDevice) {
+      const sourceIds = new Set(source.ports!.map((p) => p.id));
+      expect(copy.ports!.some((p) => sourceIds.has(p.id))).toBe(false);
+      expect(withoutId(copy.ports!)).toEqual(withoutId(source.ports!));
+    }
+
+    it("keeps per-port overrides with fresh ids and survives undo/redo", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Ported Switch",
+          u_height: 1,
+          interfaces: [
+            createTestInterfaceTemplate({ name: "eth0" }),
+            createTestInterfaceTemplate({ name: "eth1" }),
+          ],
+        }),
+      );
+      store.placeDevice(rack.id, deviceType.slug, 10, "front");
+      const source = store.rack.devices[0]!;
+      overrideFirstPort(source);
+
+      const copyId = store.duplicateDevice(rack.id, 0).device!.id;
+      const copy = store.rack.devices.find((d) => d.id === copyId)!;
+      expectOverridesKept(source, copy);
+      const copyPorts = JSON.parse(JSON.stringify(copy.ports)) as PlacedPort[];
+
+      store.undo();
+      expect(store.rack.devices.some((d) => d.id === copyId)).toBe(false);
+      store.redo();
+      const redone = store.rack.devices.find((d) => d.id === copyId)!;
+      expect(redone.ports).toEqual(copyPorts);
+    });
+
+    it("instantiates template ports the source is missing", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+      const deviceType = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Grown Switch",
+          u_height: 1,
+          interfaces: [
+            createTestInterfaceTemplate({ name: "eth0" }),
+            createTestInterfaceTemplate({ name: "eth0" }),
+          ],
+        }),
+      );
+      store.placeDevice(rack.id, deviceType.slug, 10, "front");
+      const source = store.rack.devices[0]!;
+      overrideFirstPort(source);
+      // The second template was added after this device was placed.
+      source.ports = source.ports!.filter((p) => p.template_index === 0);
+
+      const copy = store.duplicateDevice(rack.id, 0).device!;
+
+      expect(copy.ports!.map((p) => p.template_index)).toEqual([0, 1]);
+      expect(copy.ports![0]!.label).toBe("uplink");
+      expect(copy.ports![1]!.label).toBeUndefined();
+      expect(copy.ports!.some((p) => p.id === source.ports![0]!.id)).toBe(
+        false,
+      );
+    });
+
+    it("keeps overrides on a duplicated carrier child and on a deep-copied carrier's children", () => {
+      const store = getLayoutStore();
+      const rack = store.addRack("Test Rack", 42)!;
+      const dt = store.addDeviceType(
+        createTestDeviceTypeInput({
+          name: "Mini Switch",
+          u_height: 1,
+          category: "network",
+          slot_width: 1,
+          interfaces: [createTestInterfaceTemplate({ name: "eth0" })],
+        }),
+      );
+      store.placeDeviceSmart(rack.id, dt.slug, 5);
+      const carrier = store.rack.devices.find((d) =>
+        d.device_type.startsWith("carrier"),
+      )!;
+      const childIndex = store.rack.devices.findIndex(
+        (d) => d.container_id === carrier.id,
+      );
+      const child = store.rack.devices[childIndex]!;
+      overrideFirstPort(child);
+
+      const cellCopy = store.duplicateDevice(rack.id, childIndex).device!;
+      expectOverridesKept(child, cellCopy);
+
+      const carrierIndex = store.rack.devices.findIndex(
+        (d) => d.id === carrier.id,
+      );
+      const carrierCopy = store.duplicateDevice(rack.id, carrierIndex).device!;
+      const copiedChild = store.rack.devices.find(
+        (d) => d.container_id === carrierCopy.id && d.slot_id === child.slot_id,
+      )!;
+      expectOverridesKept(child, copiedChild);
     });
   });
 

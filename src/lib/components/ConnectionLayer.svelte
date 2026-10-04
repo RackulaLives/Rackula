@@ -11,8 +11,7 @@
 
   Anchors come exclusively from port-geometry.ts's getPortAnchors (#3089),
   by way of connection-path.ts's buildPortAnchorMap - never recomputed here.
-  A connection whose port has no anchor (grouped/high-density device, wrong
-  rack face, cross-rack endpoint, container-child device (#3117), or legacy
+  A connection whose port has no anchor (wrong rack face, cross-rack endpoint, container-child device (#3117), or legacy
   data with no PlacedPort match) is silently skipped rather than
   approximated; see buildRenderedConnections' doc comment for the reasoning.
 -->

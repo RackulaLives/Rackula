@@ -371,7 +371,7 @@ describe("computeVisiblePortLayout", () => {
     expect(layout.every((entry) => entry.port === undefined)).toBe(true);
   });
 
-  it("returns no layout once the visible port count exceeds the high-density threshold", () => {
+  it("stacks every port on the chip's marker above the high-density threshold (#3462)", () => {
     const interfaces = Array.from(
       { length: HIGH_DENSITY_THRESHOLD + 1 },
       (_, i) => createTestInterfaceTemplate({ name: `eth${i}` }),
@@ -379,19 +379,28 @@ describe("computeVisiblePortLayout", () => {
     const ports = interfaces.map((_, i) =>
       createTestPlacedPort({ id: `port-${i}`, template_index: i }),
     );
-
-    const layout = computeVisiblePortLayout({
+    const options = {
       interfaces,
       ports,
-      rackView: "front",
+      rackView: "front" as const,
       deviceWidth: 400,
       deviceHeight: 30,
-    });
+    };
+    const chip = getPortChipPosition(options);
 
-    // Grouped/badge mode has no individual port position: #1932 (click-to-
-    // connect) cannot target a single port on a high-density device until
-    // multi-row layout (#356) replaces this threshold.
-    expect(layout).toEqual([]);
+    const layout = computeVisiblePortLayout(options);
+
+    // Each port keeps an anchor at the chip's marker, so a connection made
+    // through the chip's port picker draws there.
+    expect(layout.map((entry) => entry.port?.id)).toEqual(
+      ports.map((port) => port.id),
+    );
+    for (const entry of layout) {
+      expect({ x: entry.x, y: entry.y }).toEqual({
+        x: chip?.markerCx,
+        y: chip?.markerCy,
+      });
+    }
   });
 });
 
@@ -494,7 +503,6 @@ describe("collapsed chip (narrow device, 24 or fewer ports)", () => {
 
     const anchors = getPortAnchors(options);
 
-    expect(chip?.anchored).toBe(true);
     expect(anchors.map((a) => a.portId)).toEqual(
       options.ports.map((port) => port.id),
     );
@@ -567,15 +575,16 @@ describe("getPortChipPosition", () => {
     expect(getPortChipPosition(optionsWithPorts(0))).toBeUndefined();
   });
 
-  it("reports an unanchored chip above the high-density threshold (#356)", () => {
+  it("anchors every port at the chip's marker above the high-density threshold (#3462)", () => {
     const count = HIGH_DENSITY_THRESHOLD + 1;
     const options = optionsWithPorts(count);
 
     const chip = getPortChipPosition(options);
 
-    expect(chip?.anchored).toBe(false);
     expect(chip?.count).toBe(count);
-    expect(getPortAnchors(options)).toEqual([]);
+    expect(getPortAnchors(options).map((a) => a.portId)).toEqual(
+      options.ports.map((port) => port.id),
+    );
   });
 
   it("counts only the ports on the face in view", () => {
