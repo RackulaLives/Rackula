@@ -455,6 +455,23 @@ function adaptRackDevices(
     else columnCandidates.set(d.face, [candidate]);
   }
 
+  // A sub-U group whose U overlaps a two-column candidate on the same face
+  // would get a 2x2 carrier on the same rails, so it joins the span
+  // clustering as a 1U candidate instead.
+  for (const [key, { shape, items }] of groups) {
+    const first = items[0];
+    if (shape !== "2x2" || !first) continue;
+    const faceCandidates = columnCandidates.get(first.face);
+    const overlapsColumn = faceCandidates?.some(
+      ({ device, uHeight }) =>
+        device.position < first.position + UNITS_PER_U &&
+        first.position < device.position + uHeight * UNITS_PER_U,
+    );
+    if (!faceCandidates || !overlapsColumn) continue;
+    groups.delete(key);
+    for (const device of items) faceCandidates.push({ device, uHeight: 1 });
+  }
+
   // Cluster two-column candidates whose rail spans overlap on the same face.
   // A cluster that one carrier can hold (at most one device per column, span
   // no taller than MAX_TWO_COLUMN_CARRIER_U) gets a single carrier as tall as

@@ -446,12 +446,23 @@ describe("adaptLegacyLayout", () => {
       u_height: 8,
       slot_width: 1,
     });
+    const halfUHalf = createTestDeviceType({
+      slug: "half-u-half",
+      u_height: 0.5,
+      slot_width: 1,
+    });
 
     /** Adapt one rack of legacy devices, with every half-width type known. */
     function adaptRack(devices: PlacedDevice[]): Layout {
       return adaptLegacyLayout(
         createTestLayout({
-          device_types: [oneUHalf, threeUHalf, fourUHalf, eightUHalf],
+          device_types: [
+            oneUHalf,
+            threeUHalf,
+            fourUHalf,
+            eightUHalf,
+            halfUHalf,
+          ],
           racks: [createTestRack({ devices })],
         }),
       );
@@ -617,6 +628,37 @@ describe("adaptLegacyLayout", () => {
       expect(rackLevel(adapted).some((d) => d.auto_created)).toBe(false);
       expect(LayoutSchema.safeParse(adapted).success).toBe(false);
     });
+
+    it.each([
+      ["one-u-half", "carrier-1u-2col"],
+      ["four-u-half", "carrier-4u-2col"],
+    ])(
+      "puts a sub-U left and a %s right at the same U into one %s",
+      (rightType, carrierSlug) => {
+        const adapted = adaptRack([
+          createTestDevice({
+            id: "left-sub-u",
+            device_type: "half-u-half",
+            position: 5,
+            slot_position: "left",
+          }),
+          createTestDevice({
+            id: "right-tall",
+            device_type: rightType,
+            position: 5,
+            slot_position: "right",
+          }),
+        ]);
+
+        const carriers = rackLevel(adapted).filter((d) => d.auto_created);
+        expect(carriers.map((c) => c.device_type)).toEqual([carrierSlug]);
+        const kids = children(adapted);
+        expect(kids.find((k) => k.id === "left-sub-u")?.slot_id).toBe("col-1");
+        expect(kids.find((k) => k.id === "right-tall")?.slot_id).toBe("col-2");
+        expect(hasRailOverlap(adapted)).toBe(false);
+        expect(LayoutSchema.safeParse(adapted).success).toBe(true);
+      },
+    );
 
     it("still shares one carrier between two left devices at the same U", () => {
       const adapted = adaptRack([
