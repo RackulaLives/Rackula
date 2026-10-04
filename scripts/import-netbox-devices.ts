@@ -565,7 +565,7 @@ async function zeroUSize(
 
 /** Quote a command-line argument only when the shell needs it. */
 function shellArg(value: string): string {
-  return /^[\w.+-]+$/.test(value) ? value : `'${value.replace(/'/g, "'\\''")}'`;
+  return /^[\w.+-]+$/.test(value) ? value : `"${value.replace(/"/g, '\\"')}"`;
 }
 
 function printZeroUSummary(
