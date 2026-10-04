@@ -157,6 +157,19 @@ export function uHeightForMm(heightMm: number): number {
 }
 
 /**
+ * Rack units a device is drawn at: its measured height when it has one, so
+ * its image keeps the device's proportions, otherwise its rack units. Never
+ * more than its rack units, which the 0.5 mm rounding allowance can exceed.
+ */
+export function drawnUHeight(
+  deviceType: Pick<DeviceType, "height_mm" | "u_height">,
+): number {
+  return deviceType.height_mm === undefined
+    ? deviceType.u_height
+    : Math.min(deviceType.height_mm / MM_PER_U, deviceType.u_height);
+}
+
+/**
  * Whether a device can be turned. Only a measured device turns: its width is
  * known in millimetres, and its height is height_mm or its rack units in
  * millimetres. It always sits in a carrier.

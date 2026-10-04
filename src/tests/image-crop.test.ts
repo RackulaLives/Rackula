@@ -43,6 +43,13 @@ describe("getDeviceImageAspect", () => {
     expect(getDeviceImageAspect(0, 19)).toBe(oneU);
     expect(getDeviceImageAspect(100, 19)).toBe(oneU);
   });
+
+  it("frames a measured device shorter than half a U at its own height", () => {
+    // A device 13.3 mm tall is drawn at 0.3U, under the 0.5U it takes.
+    expect(getDeviceImageAspect(0.3, 19)).toBeCloseTo(
+      getDeviceImageAspect(1, 19) / 0.3,
+    );
+  });
 });
 
 describe("getVisibleFraction", () => {

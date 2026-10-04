@@ -8,12 +8,14 @@
 import { describe, it, expect } from "vitest";
 import { generateExportSVG } from "$lib/utils/export";
 import type { ExportOptions } from "$lib/types";
+import type { ImageStoreMap } from "$lib/types/images";
 import {
   BASE_RACK_WIDTH,
   RACK_PADDING_HIDDEN,
   RAIL_WIDTH,
   U_HEIGHT_PX,
 } from "$lib/constants/layout";
+import { MM_PER_U } from "$lib/types/constants";
 import {
   createTestRack,
   createTestDeviceType,
@@ -158,5 +160,172 @@ describe("image export: carrier children (#3362)", () => {
     for (const child of rearChildren) {
       expect(contains(rearCarrier!, child)).toBe(true);
     }
+  });
+
+  it("draws a measured child at its measured height, on the cell floor", () => {
+    // A switch 27 mm tall takes 1U, but is drawn 27 mm tall.
+    const switchType = createTestDeviceType({
+      slug: "measured-child",
+      u_height: 1,
+      width_mm: 158,
+      height_mm: 27,
+      colour: "#444444",
+      is_full_depth: false,
+    });
+    const rack = carrierRack();
+    rack.devices[1] = { ...rack.devices[1]!, device_type: "measured-child" };
+    const svg = generateExportSVG(
+      [rack],
+      [...library, switchType],
+      baseOptions,
+    );
+
+    const [measured] = boxesWithFill(svg, switchType.colour!);
+    const [fullHeight] = boxesWithFill(svg, rightType.colour!);
+    expect(measured!.height).toBeCloseTo((27 / MM_PER_U) * U_HEIGHT_PX - 2);
+    expect(measured!.y + measured!.height).toBeCloseTo(
+      fullHeight!.y + fullHeight!.height,
+    );
+  });
+
+  it("keeps a very thin measured child a positive box inside its cell", () => {
+    // 0.1 mm is drawn well under 2 px, so a fixed 1 px inset would invert it.
+    const thinType = createTestDeviceType({
+      slug: "thin-child",
+      u_height: 0.5,
+      width_mm: 158,
+      height_mm: 0.1,
+      colour: "#555555",
+      is_full_depth: false,
+    });
+    const rack = carrierRack();
+    rack.devices[1] = { ...rack.devices[1]!, device_type: "thin-child" };
+    const svg = generateExportSVG([rack], [...library, thinType], baseOptions);
+
+    const [thin] = boxesWithFill(svg, thinType.colour!);
+    const [carrier] = boxesWithFill(svg, carrierType.colour!);
+    // The carrier body is inset 1 px; its footprint is its full rack height.
+    const footprint = {
+      ...carrier!,
+      y: carrier!.y - 1,
+      height: carrier!.height + 2,
+    };
+    expect(thin!.height).toBeGreaterThan(0);
+    expect(contains(footprint, thin!)).toBe(true);
+  });
+
+  it("keeps a very thin measured child's label no taller than its box", () => {
+    const thinType = createTestDeviceType({
+      slug: "thin-child",
+      u_height: 0.5,
+      width_mm: 158,
+      height_mm: 0.1,
+      colour: "#555555",
+      is_full_depth: false,
+    });
+    const rack = carrierRack();
+    rack.devices[1] = {
+      ...rack.devices[1]!,
+      device_type: "thin-child",
+      name: "Thin",
+    };
+    const svg = generateExportSVG([rack], [...library, thinType], baseOptions);
+
+    const [thin] = boxesWithFill(svg, thinType.colour!);
+    const label = Array.from(svg.getElementsByTagName("text")).find(
+      (el) => el.textContent === "Thin",
+    );
+    expect(Number(label!.getAttribute("font-size"))).toBeLessThanOrEqual(
+      thin!.height,
+    );
+  });
+
+  it("draws a turned measured child at its turned height", () => {
+    // 40 mm wide and 20 mm tall, turned on its side: it stands 40 mm tall.
+    const turnedType = createTestDeviceType({
+      slug: "turned-child",
+      u_height: 0.5,
+      width_mm: 40,
+      height_mm: 20,
+      colour: "#666666",
+      is_full_depth: false,
+    });
+    const rack = carrierRack();
+    rack.devices[1] = {
+      ...rack.devices[1]!,
+      device_type: "turned-child",
+      rotation: 90,
+    };
+    const svg = generateExportSVG(
+      [rack],
+      [...library, turnedType],
+      baseOptions,
+    );
+
+    const [turned] = boxesWithFill(svg, turnedType.colour!);
+    expect(turned!.height).toBeCloseTo((40 / MM_PER_U) * U_HEIGHT_PX - 2);
+  });
+
+  describe("child images", () => {
+    const imageOptions: ExportOptions = {
+      ...baseOptions,
+      displayMode: "image",
+    };
+    const measuredType = createTestDeviceType({
+      slug: "imaged-child",
+      u_height: 1,
+      width_mm: 40,
+      height_mm: 27,
+      colour: "#777777",
+      is_full_depth: false,
+    });
+    const images: ImageStoreMap = new Map([
+      [
+        "imaged-child",
+        {
+          front: {
+            dataUrl: "data:image/png;base64,CHILD",
+            filename: "child.png",
+          },
+        },
+      ],
+    ]);
+
+    function childImage(rotation?: 90) {
+      const rack = carrierRack();
+      rack.devices[1] = {
+        ...rack.devices[1]!,
+        device_type: "imaged-child",
+        rotation,
+      };
+      const svg = generateExportSVG(
+        [rack],
+        [...library, measuredType],
+        imageOptions,
+        images,
+      );
+      const image = Array.from(svg.getElementsByTagName("image")).find(
+        (el) => el.getAttribute("href") === "data:image/png;base64,CHILD",
+      );
+      return {
+        width: Number(image!.getAttribute("width")),
+        height: Number(image!.getAttribute("height")),
+        transform: image!.getAttribute("transform"),
+      };
+    }
+
+    it("fills the child's whole drawn box, as the canvas does", () => {
+      const image = childImage();
+      expect(image.height).toBeCloseTo((27 / MM_PER_U) * U_HEIGHT_PX);
+      expect(image.transform).toBeNull();
+    });
+
+    it("lays a turned child's image flat and turns it with the child", () => {
+      // Turned, the child stands 40 mm tall; its image is laid out 40 mm
+      // wide, then turned into the box.
+      const image = childImage(90);
+      expect(image.width).toBeCloseTo((40 / MM_PER_U) * U_HEIGHT_PX);
+      expect(image.transform).toContain("rotate(90");
+    });
   });
 });
