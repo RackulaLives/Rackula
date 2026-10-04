@@ -840,7 +840,7 @@ export function adaptLegacyLayout(layout: Layout): Layout {
   const missingGenerated = generatedCarrierTypes.filter(
     (type) => !hydrated.some((dt) => dt.slug === type.slug),
   );
-  const typesWithGenerated =
+  const deviceTypes =
     missingGenerated.length > 0 ? [...hydrated, ...missingGenerated] : hydrated;
 
   // Child position bound (#3456): runs against the final types, so a carrier
@@ -857,6 +857,14 @@ export function adaptLegacyLayout(layout: Layout): Layout {
     childPositionsChanged = true;
     return { ...rack, devices };
   });
+
+  // Normalled pair salvage (#1945): kept out of carrierMigrationChanged for
+  // the same reason as the connection salvage below.
+  const {
+    deviceTypes: normalSafeTypes,
+    racks: racksWithNormals,
+    changed: normalsChanged,
+  } = salvagePatchBayNormals(deviceTypes, racks);
 
   // Legacy cables -> connections migration (#3091): converts fragile
   // device-id + interface-name Cable references into stable PlacedPort.id
@@ -913,7 +921,8 @@ export function adaptLegacyLayout(layout: Layout): Layout {
     !carrierMigrationChanged &&
     !connectionsFieldChanged &&
     !cablesFieldPresent &&
-    !childPositionsChanged
+    !childPositionsChanged &&
+    !normalsChanged
   ) {
     return layout;
   }
@@ -944,7 +953,7 @@ export function adaptLegacyLayout(layout: Layout): Layout {
   return {
     ...layoutWithoutCables,
     racks: racksWithNormals,
-    device_types: deviceTypes,
+    device_types: normalSafeTypes,
     ...(connectionsFieldChanged ? { connections } : {}),
   };
 }
