@@ -17,7 +17,11 @@ import {
 import type { LayoutStateAccess } from "./types";
 import { getCommandStoreAdapter } from "./command-adapters";
 import { getTargetRack, getRackById } from "./rack-actions";
-import { findConnectionsForDevices } from "./recorded-device-type-actions";
+import {
+  carrierReshapeCommands,
+  findConnectionsForDevices,
+} from "./recorded-device-type-actions";
+import { reshapeCarriersForWidth } from "$lib/utils/collision";
 
 /**
  * Bind a command to a specific rack. The raw mutators behind rack commands
@@ -81,13 +85,31 @@ export function updateRackRecorded(
 
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
+  const layout = ctx.getLayout();
 
   const command = bindCommandToRack(
     ctx,
     rackId,
     createUpdateRackCommand(before, updates, adapter),
   );
-  history.execute(command);
+  // A generated carrier keeps each device at its measured width, so a new
+  // width reshapes those carriers in the same undo step.
+  const reshapes =
+    updates.width !== undefined && updates.width !== targetRack.width
+      ? (reshapeCarriersForWidth(
+          targetRack,
+          layout.device_types,
+          updates.width,
+        ) ?? [])
+      : [];
+  history.execute(
+    reshapes.length > 0
+      ? createBatchCommand(command.description, [
+          command,
+          ...carrierReshapeCommands(layout, reshapes, adapter),
+        ])
+      : command,
+  );
   ctx.markDirty();
 }
 

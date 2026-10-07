@@ -31,6 +31,7 @@ import {
   carrierUHeight,
   cellForDevice,
   cellsOf,
+  isGeneratedCarrier,
 } from "./custom-carrier";
 import { fitsInRow, gapsFor } from "./slot-layout";
 
@@ -586,6 +587,81 @@ export function reshapeCarrier(
     return null;
   }
   return type;
+}
+
+/** A placed generated carrier moving to the type reshaped around its children. */
+export interface CarrierReshape {
+  carrier: PlacedDevice;
+  from: DeviceType;
+  to: DeviceType;
+}
+
+/**
+ * Reshape every generated carrier in a rack for another rack width. Their
+ * cells are shares of the opening, so a wider rack would otherwise widen each
+ * cell, and the device drawn in it, past the device's measured width.
+ *
+ * @param rack - The rack whose width is changing
+ * @param deviceTypes - Layout device types
+ * @param width - The new nominal width in inches
+ * @returns The carriers whose type changes, or null when a carrier's children
+ *   no longer fit the opening side by side
+ */
+export function reshapeCarriersForWidth(
+  rack: Rack,
+  deviceTypes: DeviceType[],
+  width: Rack["width"],
+): CarrierReshape[] | null {
+  const resized = { ...rack, width };
+  const reshapes: CarrierReshape[] = [];
+  for (const carrier of rack.devices) {
+    if (carrier.container_id) continue;
+    const carrierType = findDeviceType(carrier.device_type, deviceTypes);
+    if (!carrierType || !isGeneratedCarrier(carrierType)) continue;
+    const reshaped = reshapeCarrier(
+      resized,
+      carrier,
+      carrierType,
+      deviceTypes,
+      (child) => {
+        const type = findDeviceType(child.device_type, deviceTypes);
+        return type && orientDeviceType(type, child.rotation);
+      },
+    );
+    if (!reshaped) return null;
+    if (reshaped.slug !== carrierType.slug) {
+      reshapes.push({ carrier, from: carrierType, to: reshaped });
+    }
+  }
+  return reshapes;
+}
+
+/**
+ * Whether a rack can take a new width: a measured child of a shipped carrier
+ * must still fit its cell, and the children of a generated carrier must still
+ * fit the opening side by side once the carrier is reshaped for it.
+ *
+ * @param rack - The rack whose width is changing
+ * @param deviceTypes - Layout device types
+ * @param width - The new nominal width in inches
+ */
+export function canChangeRackWidth(
+  rack: Rack,
+  deviceTypes: DeviceType[],
+  width: Rack["width"],
+): boolean {
+  // A generated carrier's cells are recut for the new width, so only shipped
+  // cells are held to their current share of the opening.
+  const inShippedCells = rack.devices.filter((device) => {
+    const container = rack.devices.find((d) => d.id === device.container_id);
+    const containerType =
+      container && findDeviceType(container.device_type, deviceTypes);
+    return !(containerType && isGeneratedCarrier(containerType));
+  });
+  return (
+    findChildrenTooWideForRack(inShippedCells, deviceTypes, width).length ===
+      0 && reshapeCarriersForWidth(rack, deviceTypes, width) !== null
+  );
 }
 
 /**

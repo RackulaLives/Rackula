@@ -299,6 +299,81 @@ describe("rack changes re-check measured children", () => {
     );
     expect(store.getRackById(narrow.id)!.devices).toEqual([]);
   });
+
+  /** A rack of the given width with a measured device in a generated carrier. */
+  function rackWithGeneratedCarrier(width: 10 | 19 | 23, childWidthMm: number) {
+    const rack = store.addRack("Rack A", 42)!;
+    store.updateRack(rack.id, { width });
+    store.addDeviceTypeRaw(measuredDevice(childWidthMm));
+    expect(store.placeDeviceSmart(rack.id, "mini-pc", 5)).toBe(true);
+    return rack;
+  }
+
+  /** The widths of the carrier's cells in millimetres, left to right. */
+  function cellWidthsMm(rackId: string): number[] {
+    const rack = store.getRackById(rackId)!;
+    const carrier = rack.devices.find((d) => !d.container_id)!;
+    const type = store.device_types.find(
+      (t) => t.slug === carrier.device_type,
+    )!;
+    return cellsOf(type).map(
+      (cell) => cell.widthFraction * getRackOpeningMm(rack.width),
+    );
+  }
+
+  it("keeps a generated carrier's cell at its device's width when the rack widens", () => {
+    const rack = rackWithGeneratedCarrier(10, 179);
+
+    store.updateRack(rack.id, { width: 23 });
+
+    expect(store.getRackById(rack.id)!.width).toBe(23);
+    expect(cellWidthsMm(rack.id)[0]).toBeCloseTo(179, 6);
+  });
+
+  it("narrows a rack back to the width its generated carrier was cut for", () => {
+    const rack = rackWithGeneratedCarrier(10, 179);
+
+    store.updateRack(rack.id, { width: 23 });
+    store.updateRack(rack.id, { width: 10 });
+
+    expect(store.getRackById(rack.id)!.width).toBe(10);
+    expect(cellWidthsMm(rack.id)[0]).toBeCloseTo(179, 6);
+  });
+
+  it("undoes a width change and its carrier recut in one step", () => {
+    const rack = rackWithGeneratedCarrier(10, 179);
+    const before = store.getRackById(rack.id)!.devices;
+
+    store.updateRack(rack.id, { width: 23 });
+    store.undo();
+
+    expect(store.getRackById(rack.id)!.width).toBe(10);
+    expect(store.getRackById(rack.id)!.devices).toEqual(before);
+  });
+
+  it("keeps a generated carrier's cell at its device's width when it moves to a wider rack", () => {
+    const rack = rackWithGeneratedCarrier(10, 179);
+    const wide = store.addRack("Rack B", 42)!;
+    store.updateRack(wide.id, { width: 23 });
+    const carrierIndex = store
+      .getRackById(rack.id)!
+      .devices.findIndex((d) => !d.container_id);
+
+    expect(store.moveDeviceToRack(rack.id, carrierIndex, wide.id, 5)).toBe(
+      true,
+    );
+    expect(cellWidthsMm(wide.id)[0]).toBeCloseTo(179, 6);
+  });
+
+  it("refuses a width its generated carrier's devices no longer fit", () => {
+    const rack = rackWithGeneratedCarrier(23, 300);
+    const before = store.getRackById(rack.id)!.devices;
+
+    store.updateRack(rack.id, { width: 10 });
+
+    expect(store.getRackById(rack.id)!.width).toBe(23);
+    expect(store.getRackById(rack.id)!.devices).toEqual(before);
+  });
 });
 
 describe("legacy adapter", () => {
