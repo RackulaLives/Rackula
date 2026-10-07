@@ -15,6 +15,7 @@ import {
   RAIL_WIDTH,
   U_HEIGHT_PX,
 } from "./layout";
+import { getRackOpeningMm } from "$lib/utils/device-width";
 
 const NOMINAL_WIDTHS = [10, 19, 21, 23] as const;
 
@@ -30,12 +31,15 @@ describe("getRackWidth", () => {
     }
   });
 
-  it("scales proportionally to the inch width (10 narrowest, 23 widest)", () => {
-    // The drawn width is proportional to the inch width: each width's drawn px
-    // matches its share of the 19 inch base, within sub-pixel rounding.
+  it("draws every clear opening at the 19 inch scale", () => {
+    // A measured device is drawn as a share of the opening, so the same pixels
+    // per millimetre at every width keep it the same size in every rack.
+    const pxPerMm = getInteriorWidth(getRackWidth(19)) / getRackOpeningMm(19);
     for (const width of NOMINAL_WIDTHS) {
-      const expected = (getRackWidth(19) * width) / 19;
-      expect(Math.abs(getRackWidth(width) - expected)).toBeLessThanOrEqual(1);
+      const expected = getRackOpeningMm(width) * pxPerMm;
+      expect(
+        Math.abs(getInteriorWidth(getRackWidth(width)) - expected),
+      ).toBeLessThanOrEqual(0.5);
     }
   });
 });
