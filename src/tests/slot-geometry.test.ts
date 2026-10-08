@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { getChildYInSlot, getSlotRects } from "$lib/utils/slot-geometry";
 import { getStarterLibrary } from "$lib/data/starterLibrary";
-import { colAtX, rowAtY } from "$lib/utils/dragdrop";
+import { slotAtPoint } from "$lib/utils/dragdrop";
 import type { DeviceType, Slot } from "$lib/types";
 import { createTestDeviceType, createTestSlot } from "./factories";
 
@@ -166,22 +166,18 @@ describe("sparse row ids", () => {
   });
 });
 
-describe("hit-testing matches rendering on regular grids", () => {
+describe("hit-testing matches rendering", () => {
   // Drop targeting (detectContainerDropTarget / detectContainerHover) and the
   // child drag guard (isPointerOverCell in RackDevice) resolve a cell with
-  // colAtX + rowAtY and a lookup by (col, row). Aiming at the centre of each
-  // drawn cell must resolve that same cell. Grids whose rows have different
-  // columns or widths are not covered yet (#3342).
+  // slotAtPoint. Aiming at the centre of each drawn cell must resolve that
+  // same cell. Irregular grids are covered in irregular-container-grid.test.ts.
   function cellAt(slots: Slot[], heightU: number, x: number, y: number) {
     // Container at U1 in a rack exactly its height, so its top edge is y 0.
     const container: DeviceType = {
       ...createTestDeviceType({ u_height: heightU }),
       slots,
     };
-    const col = colAtX(container, x, WIDTH, RACK_19);
-    const row = rowAtY(slots, y, heightU, U, 1, heightU);
-    return slots.find((s) => s.position.col === col && s.position.row === row)
-      ?.id;
+    return slotAtPoint(container, x, y, WIDTH, RACK_19, heightU, U, 1)?.id;
   }
 
   const cases: { name: string; heightU: number; slots: Slot[] }[] = [
@@ -246,9 +242,7 @@ describe("hit-testing matches rendering on regular grids", () => {
   ])(
     "aims at no cell in a $name container when the pointer is not a finite position",
     ({ slots }) => {
-      const row = rowAtY(slots, Number.NaN, 1, U, 1, 1);
-
-      expect(slots.find((s) => s.position.row === row)).toBeUndefined();
+      expect(cellAt(slots, 1, WIDTH / 2, Number.NaN)).toBeUndefined();
     },
   );
 });

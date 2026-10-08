@@ -14,7 +14,7 @@ import {
   fitsInRow,
 } from "$lib/utils/slot-layout";
 import { getRackOpeningMm } from "$lib/utils/device-width";
-import { colAtX } from "$lib/utils/dragdrop";
+import { slotAtPoint } from "$lib/utils/dragdrop";
 import type { DeviceType } from "$lib/types";
 
 const INTERIOR = 186;
@@ -122,8 +122,12 @@ describe("row budget", () => {
   });
 });
 
-describe("colAtX with gaps", () => {
-  it("returns no column for a point inside a gap", () => {
+describe("slotAtPoint with gaps", () => {
+  // A 1U carrier at U1 of a 1U rack, so any y inside it is in its one row.
+  const Y = 10;
+  const U_PX = 20;
+
+  it("returns no cell for a point inside a gap", () => {
     const c = carrier({
       slots: [
         { id: "col-1", position: { row: 0, col: 0 }, width_fraction: 0.25 },
@@ -132,12 +136,32 @@ describe("colAtX with gaps", () => {
       slot_gaps: [20],
     });
     const firstCellWidth = INTERIOR * 0.25;
+    const at = (x: number) =>
+      slotAtPoint(c, x, Y, INTERIOR, RACK_19, 1, U_PX, 1)?.id;
 
-    expect(colAtX(c, firstCellWidth / 2, INTERIOR, RACK_19)).toBe(0);
-    expect(colAtX(c, firstCellWidth + 1, INTERIOR, RACK_19)).toBeNull();
+    expect(at(firstCellWidth / 2)).toBe("col-1");
+    expect(at(firstCellWidth + 1)).toBeUndefined();
   });
 
   it("walks the columns of a gapless carrier edge to edge", () => {
-    expect(colAtX(carrier(), INTERIOR * 0.75, INTERIOR, RACK_19)).toBe(1);
+    expect(
+      slotAtPoint(carrier(), INTERIOR * 0.75, Y, INTERIOR, RACK_19, 1, U_PX, 1)
+        ?.id,
+    ).toBe("col-2");
+  });
+
+  it("puts a gap between the cells nearest each other, whatever the listed order", () => {
+    const c = carrier({
+      slots: [
+        { id: "col-2", position: { row: 0, col: 1 }, width_fraction: 0.25 },
+        { id: "col-1", position: { row: 0, col: 0 }, width_fraction: 0.25 },
+      ],
+      slot_gaps: [20],
+    });
+    const layout = slotLayout(c, INTERIOR, RACK_19);
+
+    expect(layout.slots.map((s) => s.id)).toEqual(["col-1", "col-2"]);
+    expect(layout.slots[0]!.x).toBe(0);
+    expect(layout.gaps[0]!.x).toBe(INTERIOR * 0.25);
   });
 });

@@ -110,3 +110,24 @@ describe("upgrade corpus: depth/base-weight defaults (#2738)", () => {
     expect(rack.base_weight).toBe(0);
   });
 });
+
+// === Duplicate slot ids are renamed on load, not rejected (#3342) ===
+const duplicateSlotIdsYaml = (
+  await import("./fixtures/upgrade-corpus/v26.9.2-duplicate-slot-ids.rackula.yaml?raw")
+).default as string;
+
+describe("upgrade corpus: duplicate slot ids (#3342)", () => {
+  it("renames the later duplicate and keeps the child on the first occurrence", async () => {
+    const layout = await parseLayoutYaml(duplicateSlotIdsYaml);
+    const chassis = layout.device_types.find(
+      (dt) => dt.slug === "dup-bay-chassis",
+    )!;
+    expect(chassis.slots!.map((s) => [s.id, s.name])).toEqual([
+      ["top", "Top Bay"],
+      ["bay", "Lower Left Bay"],
+      ["bay-2", "Lower Right Bay"],
+    ]);
+    const node = layout.racks[0]!.devices.find((d) => d.id === "node-1")!;
+    expect(node.slot_id).toBe("bay");
+  });
+});

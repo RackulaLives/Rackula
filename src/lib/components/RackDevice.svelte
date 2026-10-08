@@ -22,10 +22,9 @@
   import PortIndicators from "./PortIndicators.svelte";
   import ContainerSlots from "./ContainerSlots.svelte";
   import {
-    colAtX,
     createRackDeviceDragData,
-    rowAtY,
     setCurrentDragData,
+    slotAtPoint,
   } from "$lib/utils/dragdrop";
   import {
     showDragTooltip,
@@ -296,9 +295,8 @@
   }
 
   // Whether the pointer is over a given cell of this container on screen.
-  // The cell under the pointer is resolved with the same colAtX / rowAtY and
-  // slot lookup as drop targeting (detectContainerDropTarget), so the two
-  // cannot disagree. Covers the whole cell, not only the child in it, since a
+  // The cell under the pointer is resolved with the same slotAtPoint as drop
+  // targeting (detectContainerDropTarget), so the two cannot disagree. Covers the whole cell, not only the child in it, since a
   // child can be shorter than its cell.
   function isPointerOverCell(
     slotId: string | undefined,
@@ -322,20 +320,16 @@
     const x = ((event.clientX - rect.left) / rect.width) * deviceWidth;
     const y =
       yPosition + ((event.clientY - rect.top) / rect.height) * deviceHeight;
-    const slots = device.slots ?? [];
-    const col = colAtX(device, x, deviceWidth, nominalRackWidth);
-    const row = rowAtY(
-      slots,
+    const aimed = slotAtPoint(
+      device,
+      x,
       y,
+      deviceWidth,
+      nominalRackWidth,
       rackHeight,
       uHeight,
       positionHuman,
-      device.u_height,
     );
-    const aimed =
-      col === null
-        ? undefined
-        : slots.find((s) => s.position.col === col && s.position.row === row);
     return aimed?.id === slotId;
   }
 

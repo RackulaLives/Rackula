@@ -36,6 +36,7 @@ import type {
   Connection,
   PatchBayNormal,
   PlacedPort,
+  Slot,
 } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import { findPatchBayNormalIssues } from "$lib/schemas";
@@ -53,7 +54,11 @@ import { getStorageMode } from "./availability.svelte";
 import { markPreCarrierMigrationPending } from "./pre-carrier-migration-pending";
 import { layoutDebug } from "$lib/utils/debug";
 import { fitsInRow } from "$lib/utils/slot-layout";
-import { clampContainerChildPositions } from "$lib/utils/collision";
+import {
+  canPlaceInSlot,
+  clampContainerChildPositions,
+} from "$lib/utils/collision";
+import { findDeviceType } from "$lib/utils/device-lookup";
 
 /**
  * A placed device as it may appear in raw legacy input. The carrier-first model
@@ -649,6 +654,104 @@ function migrateLegacyCables(cables: unknown, racks: Rack[]): Connection[] {
 }
 
 /**
+ * Give every slot of a container type a unique id (#3342). Duplicate ids are
+ * schema-legal, but every lookup by id (cell geometry, drop targeting, the
+ * one-child-per-cell check) collapses them, so the later cells were
+ * unreachable. The first occurrence keeps its id; each later one becomes
+ * `<id>-<n>`, with n counting up from 2 past any id the type already uses.
+ *
+ * A child that named a duplicated id is moved onto one of its occurrences, in
+ * device order within its rack: the first occurrence no earlier child has
+ * claimed that the child fits (canPlaceInSlot), else the first unclaimed one,
+ * else the first occurrence. Same salvage-not-fail contract as the passes
+ * below, and never a carrier rewrite.
+ */
+function dedupeSlotIds(
+  deviceTypes: DeviceType[],
+  racks: Rack[],
+): { deviceTypes: DeviceType[]; racks: Rack[]; changed: boolean } {
+  // Container slug -> duplicated id -> its occurrences after renaming.
+  const duplicatesBySlug = new Map<string, Map<string, Slot[]>>();
+  const dedupedTypes = deviceTypes.map((dt) => {
+    if (!dt || !Array.isArray(dt.slots)) return dt;
+    const used = new Set(dt.slots.map((slot) => slot?.id));
+    const occurrences = new Map<string, Slot[]>();
+    let renamed = false;
+    const slots = dt.slots.map((slot) => {
+      if (!slot || typeof slot.id !== "string") return slot;
+      const seen = occurrences.get(slot.id);
+      let next = slot;
+      if (seen) {
+        let n = 2;
+        while (used.has(`${slot.id}-${n}`)) n++;
+        next = { ...slot, id: `${slot.id}-${n}` };
+        used.add(next.id);
+        renamed = true;
+        layoutDebug.state(
+          "renamed duplicate slot %s on %s to %s",
+          slot.id,
+          dt.slug,
+          next.id,
+        );
+      }
+      occurrences.set(slot.id, [...(seen ?? []), next]);
+      return next;
+    });
+    if (!renamed) return dt;
+    duplicatesBySlug.set(
+      dt.slug,
+      new Map([...occurrences].filter(([, list]) => list.length > 1)),
+    );
+    return { ...dt, slots };
+  });
+  if (duplicatesBySlug.size === 0) {
+    return { deviceTypes, racks, changed: false };
+  }
+
+  const dedupedRacks = racks.map((rack) => {
+    if (!rack || !Array.isArray(rack.devices)) return rack;
+    const slugById = new Map<string, string>();
+    for (const d of rack.devices) {
+      if (d && typeof d === "object") slugById.set(d.id, d.device_type);
+    }
+    const claimed = new Set<string>();
+    let rackChanged = false;
+    const devices = rack.devices.map((d) => {
+      if (!d || typeof d !== "object" || !d.container_id) return d;
+      const slug = slugById.get(d.container_id);
+      const occurrences =
+        slug && typeof d.slot_id === "string"
+          ? duplicatesBySlug.get(slug)?.get(d.slot_id)
+          : undefined;
+      if (!occurrences) return d;
+      const free = occurrences.filter(
+        (slot) => !claimed.has(`${d.container_id}::${slot.id}`),
+      );
+      const childType = findDeviceType(d.device_type, dedupedTypes);
+      const target =
+        free.find(
+          (slot) =>
+            childType &&
+            canPlaceInSlot(
+              orientDeviceType(childType, d.rotation),
+              slot,
+              rack.width ?? 19,
+            ),
+        ) ??
+        free[0] ??
+        occurrences[0]!;
+      claimed.add(`${d.container_id}::${target.id}`);
+      if (target.id === d.slot_id) return d;
+      rackChanged = true;
+      return { ...d, slot_id: target.id };
+    });
+    return rackChanged ? { ...rack, devices } : rack;
+  });
+
+  return { deviceTypes: dedupedTypes, racks: dedupedRacks, changed: true };
+}
+
+/**
  * Drop normalled pairs that LayoutSchema would reject (#1945): a side that
  * does not resolve to exactly one interface, or a jack already in a kept
  * pair. Then drop placed-device patch_bay_normal_overrides keys that match no
@@ -840,14 +943,22 @@ export function adaptLegacyLayout(layout: Layout): Layout {
   const missingGenerated = generatedCarrierTypes.filter(
     (type) => !hydrated.some((dt) => dt.slug === type.slug),
   );
-  const deviceTypes =
+  const typesWithCarriers =
     missingGenerated.length > 0 ? [...hydrated, ...missingGenerated] : hydrated;
+
+  // Duplicate slot ids (#3342): like the child position bound below, it runs
+  // against the final types and never triggers the pre-carrier-first backup.
+  const {
+    deviceTypes,
+    racks: dedupedRacks,
+    changed: slotIdsChanged,
+  } = dedupeSlotIds(typesWithCarriers, carrierRacks);
 
   // Child position bound (#3456): runs against the final types, so a carrier
   // hydrated or generated above is resolved. Like the connection salvage, it
   // is not a carrier rewrite and never triggers the pre-carrier-first backup.
   let childPositionsChanged = false;
-  const racks = carrierRacks.map((rack) => {
+  const racks = dedupedRacks.map((rack) => {
     if (!rack || !Array.isArray(rack.devices)) return rack;
     const { devices, changed } = clampContainerChildPositions(
       rack.devices,
@@ -922,6 +1033,7 @@ export function adaptLegacyLayout(layout: Layout): Layout {
     !connectionsFieldChanged &&
     !cablesFieldPresent &&
     !childPositionsChanged &&
+    !slotIdsChanged &&
     !normalsChanged
   ) {
     return layout;

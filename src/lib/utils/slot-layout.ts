@@ -14,7 +14,7 @@
 import type { DeviceType } from "$lib/types";
 import { cellForDevice } from "./custom-carrier";
 import { getRackOpeningMm } from "./device-width";
-import { getSlotRects, type SlotRect } from "./slot-geometry";
+import { getSlotRects, slotsInGridOrder, type SlotRect } from "./slot-geometry";
 
 /** A drawn cell: where it sits and how big it is, in pixels. */
 export interface SlotBand extends SlotRect {
@@ -74,7 +74,9 @@ export function gapsFor(containerType: DeviceType): number[] {
  *
  * Rows and columns come from getSlotRects, so a grid carrier keeps the rows
  * the children and the drop targeting already use. Gaps then shift the cells
- * of a single row along, which is the only shape they apply to.
+ * of a single row along, which is the only shape they apply to. Cells are
+ * walked in grid order, so gap n sits between the n-th and (n+1)-th cell from
+ * the left whatever order the slots are listed in.
  *
  * @param containerType - The container DeviceType (with slots[])
  * @param interiorWidth - Drawn width of the container interior, in pixels
@@ -99,7 +101,7 @@ export function slotLayout(
   const gapBands: GapBand[] = [];
   let shift = 0;
 
-  slots.forEach((slot, index) => {
+  slotsInGridOrder(slots).forEach((slot, index) => {
     const rect = rects.get(slot.id);
     if (!rect) return;
 

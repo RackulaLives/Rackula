@@ -33,6 +33,7 @@ import {
   cellsOf,
 } from "./custom-carrier";
 import { fitsInRow, gapsFor } from "./slot-layout";
+import { slotsInGridOrder } from "./slot-geometry";
 
 /**
  * Check if a placed device is a container child.
@@ -618,10 +619,10 @@ export function requiresChassisBay(
 }
 
 /**
- * The first free cell in a container, scanning slots in definition order.
- * Slots are listed bottom-row-first in the starter library, so iterating in
- * order fills the bottom row before the upper row of a 2x2 carrier. Each cell
- * holds at most one child, so a slot with any child is considered occupied.
+ * The first free cell in a container, scanning slots in grid order (bottom
+ * row first, left to right; slotsInGridOrder), so the fill order does not
+ * depend on the order the slots are listed in. Each cell holds at most one
+ * child, so a slot with any child is considered occupied.
  *
  * @param containerType - The container DeviceType (with slots[])
  * @param children - Placed children already in this container
@@ -631,12 +632,11 @@ export function findNextFreeChildPosition(
   containerType: DeviceType,
   children: PlacedDevice[],
 ): { slotId: string; position: number } | null {
-  const slots = containerType.slots ?? [];
   const occupied = new Set(
     children.map((child) => child.slot_id).filter((id): id is string => !!id),
   );
 
-  for (const slot of slots) {
+  for (const slot of slotsInGridOrder(containerType.slots ?? [])) {
     if (!occupied.has(slot.id)) {
       return { slotId: slot.id, position: 0 };
     }
@@ -696,7 +696,8 @@ export function clampContainerChildPositions(
 
 /**
  * The next cell a contained child can move to within its own carrier, scanning
- * forward from the child's current slot and wrapping around. Skips cells the
+ * forward in grid order (slotsInGridOrder) from the child's current slot and
+ * wrapping around. Skips cells the
  * child does not fit (width/height/category) and cells already taken by a
  * sibling. Returns null when no other reachable cell exists, so the caller can
  * hide the control rather than run a no-op.
@@ -719,7 +720,7 @@ export function findNextSlotForChild(
   siblings: PlacedDevice[],
   rackWidth: number,
 ): { slotId: string } | null {
-  const slots = containerType.slots ?? [];
+  const slots = slotsInGridOrder(containerType.slots ?? []);
   const currentIndex = slots.findIndex((s) => s.id === currentSlotId);
   if (currentIndex === -1) return null;
 

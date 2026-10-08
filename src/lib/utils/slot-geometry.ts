@@ -4,7 +4,8 @@
  *
  * RackDevice computes the cells once and uses them for both the rendered
  * children and the ContainerSlots overlay, so drop highlights line up with
- * the children drawn in them.
+ * the children drawn in them. Drop targeting (slotAtPoint in dragdrop.ts)
+ * and fill order (collision.ts) read the same rows and grid order (#3342).
  */
 import type { Slot } from "$lib/types";
 
@@ -16,14 +17,88 @@ export interface SlotRect {
   height: number;
 }
 
+/** A row of cells in SVG pixels, relative to the container's top-left. */
+export interface RowBand {
+  /** The row id the cells share (position.row) */
+  row: number;
+  y: number;
+  height: number;
+}
+
+/**
+ * The container's rows, bottom row first.
+ *
+ * Rows are ranked by row id, lowest id at the bottom, so ids 0 and 2 are the
+ * lower and upper rows. Each row is as tall as its tallest cell's
+ * height_units (1 when unset), and the rows are scaled together to fill the
+ * container: a 3U chassis with a 2U row and a 1U row draws them at 2U and 1U,
+ * and a 1U carrier with two 0.5U rows draws two halves.
+ *
+ * @param slots - The container's slots
+ * @param containerHeight - Container height in pixels
+ */
+export function getRowBands(slots: Slot[], containerHeight: number): RowBand[] {
+  const rowUnits = new Map<number, number>();
+  for (const slot of slots) {
+    const row = slot.position.row;
+    rowUnits.set(row, Math.max(rowUnits.get(row) ?? 0, slot.height_units ?? 1));
+  }
+  const rows = [...rowUnits.keys()].sort((a, b) => a - b);
+  const totalUnits = rows.reduce((sum, row) => sum + rowUnits.get(row)!, 0);
+
+  let bottom = containerHeight;
+  let unitsBelow = 0;
+  return rows.map((row, index) => {
+    unitsBelow += rowUnits.get(row)!;
+    // The top row ends exactly at 0, so rounding leaves no sliver above it.
+    const top =
+      index === rows.length - 1
+        ? 0
+        : containerHeight - (containerHeight * unitsBelow) / totalUnits;
+    const band = { row, y: top, height: bottom - top };
+    bottom = top;
+    return band;
+  });
+}
+
+/**
+ * The row id at a y offset from the container's top edge. A y above or below
+ * the container names the top or bottom row.
+ *
+ * @param slots - The container's slots
+ * @param y - Y offset from the container's top edge, in pixels
+ * @param containerHeight - Container height in pixels
+ * @returns The row id, or undefined for a container without slots
+ */
+export function rowAtOffset(
+  slots: Slot[],
+  y: number,
+  containerHeight: number,
+): number | undefined {
+  const bands = getRowBands(slots, containerHeight);
+  return (bands.find((band) => y >= band.y) ?? bands[bands.length - 1])?.row;
+}
+
+/**
+ * Slots in grid order: bottom row first, left to right within a row. Fill
+ * order follows it, so the cell filled next does not depend on the order the
+ * slots are listed in.
+ *
+ * @param slots - The container's slots
+ */
+export function slotsInGridOrder(slots: Slot[]): Slot[] {
+  return [...slots].sort(
+    (a, b) =>
+      a.position.row - b.position.row || a.position.col - b.position.col,
+  );
+}
+
 /**
  * Compute every slot's rectangle, keyed by slot id.
  *
- * Rows are equal slices ranked by row id, lowest id at the bottom, so ids 0
- * and 2 are the lower and upper halves; rowAtY in dragdrop.ts uses the same
- * ranking. Within a row, x accumulates from the left in position.col order,
- * so array order does not matter. Per-row heights from height_units and
- * irregular column widths across rows are tracked in #3342.
+ * Rows come from getRowBands. Within a row, x accumulates from the left in
+ * position.col order, so array order does not matter. Each row lays out its
+ * own columns, so rows may have different column counts and widths.
  *
  * @param slots - The container's slots
  * @param containerWidth - Container width in pixels
@@ -35,28 +110,17 @@ export function getSlotRects(
   containerHeight: number,
 ): Map<string, SlotRect> {
   const rects = new Map<string, SlotRect>();
-  const rows = [...new Set(slots.map((s) => s.position.row))].sort(
-    (a, b) => a - b,
-  );
-  // Uniform rows on purpose: height_units is only a fit limit, not a row
-  // height, here and in rowAtY. Per-row heights are #3342.
-  const rowHeight = containerHeight / Math.max(rows.length, 1);
+  const ordered = slotsInGridOrder(slots);
 
-  rows.forEach((row, rowIndex) => {
-    const y = containerHeight - (rowIndex + 1) * rowHeight;
-    const rowSlots = slots
-      .filter((s) => s.position.row === row)
-      .sort((a, b) => a.position.col - b.position.col);
-
-    // colAtX walks column widths across all rows; the two agree when every
-    // row has the same columns and widths. Irregular grids are #3342.
+  for (const band of getRowBands(slots, containerHeight)) {
     let x = 0;
-    for (const slot of rowSlots) {
+    for (const slot of ordered) {
+      if (slot.position.row !== band.row) continue;
       const width = containerWidth * (slot.width_fraction ?? 1.0);
-      rects.set(slot.id, { x, y, width, height: rowHeight });
+      rects.set(slot.id, { x, y: band.y, width, height: band.height });
       x += width;
     }
-  });
+  }
 
   return rects;
 }

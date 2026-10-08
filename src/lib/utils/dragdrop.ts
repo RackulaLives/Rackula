@@ -14,6 +14,7 @@ import { RAIL_WIDTH } from "$lib/constants/layout";
 import { toInternalUnits, toHumanUnits } from "./position";
 import { effectiveFace } from "./effective-face";
 import { slotLayout } from "./slot-layout";
+import { rowAtOffset } from "./slot-geometry";
 import { CUSTOM_CARRIER_SLUG_PATTERN } from "./custom-carrier";
 
 /**
@@ -225,82 +226,61 @@ export function hideNativeDragGhost(dataTransfer: DataTransfer): void {
 }
 
 /**
- * Find the column index at a given X position within a container's cells.
+ * The container cell under a pointer, or undefined when the pointer is over no
+ * cell (a gap, the free space at the end of a row, or a non-finite position).
  *
- * The drawn bands are walked, not the bare column widths, so a point landing in
- * a gap or in the free space at the end of the row claims no column. The
- * container is the whole input on purpose: a caller passing a slots array that
- * did not come from this container is how hit testing and drop targeting used to
- * disagree on a gapped carrier.
+ * The row comes from the same row bands the cells are drawn with, so a row
+ * twice as tall as its neighbour takes twice the pointer travel. The column
+ * is then found among that row's own drawn cells, so rows with different
+ * columns or widths each resolve their own cells. A pointer above or below the
+ * container is clamped to its top or bottom row.
  *
  * @param containerType - The container being aimed at
  * @param xOffsetInRack - X position relative to rack interior (0 = left edge)
+ * @param mouseY - Mouse Y relative to rack SVG (0 = top)
  * @param interiorWidth - Width of rack interior in pixels
  * @param rackWidth - Nominal rack width in inches, which sizes the gaps
- * @returns The matched column index, or null if outside the cells
- */
-export function colAtX(
-  containerType: DeviceType,
-  xOffsetInRack: number,
-  interiorWidth: number,
-  rackWidth: number,
-): number | null {
-  const hit = slotLayout(containerType, interiorWidth, rackWidth).slots.find(
-    (band) => xOffsetInRack >= band.x && xOffsetInRack < band.x + band.width,
-  );
-  if (!hit) return null;
-  return (
-    (containerType.slots ?? []).find((s) => s.id === hit.id)?.position.col ??
-    null
-  );
-}
-
-/**
- * Find the row index at a given Y position within a container's U band.
- * Rows are 0-indexed from the bottom of the container. A 2-row carrier splits
- * its single U into a lower half (row 0) and an upper half (row 1).
- * @param slots - Array of slots in the container
- * @param mouseY - Mouse Y relative to rack SVG (0 = top)
  * @param rackHeight - Rack height in U
  * @param uHeight - Height of one U in pixels
  * @param containerBottomU - Container's bottom U position (human U)
- * @param containerHeightU - Container height in U
- * @returns The matched row id (clamped to the grid)
+ * @returns The slot under the pointer, or undefined
  */
-export function rowAtY(
-  slots: Slot[],
+export function slotAtPoint(
+  containerType: DeviceType,
+  xOffsetInRack: number,
   mouseY: number,
+  interiorWidth: number,
+  rackWidth: number,
   rackHeight: number,
   uHeight: number,
   containerBottomU: number,
-  containerHeightU: number,
-): number {
-  // Distinct row ids, bottom first. Rows are equal slices ranked by id, so
-  // ids 0 and 2 are the lower and upper halves (matches getSlotRects).
-  const rows = [...new Set(slots.map((s) => s.position.row))].sort(
-    (a, b) => a - b,
-  );
-  const rowCount = rows.length;
-
-  // SVG y grows downward; U1 is at the bottom. A device whose bottom is at U n
-  // occupies y in [(rackHeight - n) * uHeight, ...). The container's visual top
-  // edge is the top of its highest U (containerBottomU + containerHeightU - 1).
+): Slot | undefined {
+  const slots = containerType.slots ?? [];
+  // SVG y grows downward; U1 is at the bottom. The container's top edge is the
+  // top of its highest U (containerBottomU + u_height - 1).
   const containerTopY =
-    (rackHeight - (containerBottomU + containerHeightU - 1)) * uHeight;
-  const containerPxHeight = containerHeightU * uHeight;
-  // Fraction from the top of the container (0 = top, 1 = bottom).
-  const fromTop = (mouseY - containerTopY) / containerPxHeight;
-  // A non-finite pointer names no row. Returning NaN matches no slot, so
-  // callers fall back instead of aiming at a cell the pointer is not over.
-  // This is checked before the single-row shortcut so an invalid pointer
-  // cannot name that container's only cell either.
-  if (!Number.isFinite(fromTop)) return Number.NaN;
-  if (rowCount <= 1) return rows[0] ?? 0;
+    (rackHeight - (containerBottomU + containerType.u_height - 1)) * uHeight;
+  const containerHeight = containerType.u_height * uHeight;
+  const y = mouseY - containerTopY;
+  if (!Number.isFinite(y) || !Number.isFinite(xOffsetInRack)) return undefined;
 
-  const clamped = Math.max(0, Math.min(fromTop, 0.999));
-  // The bottom slice is the lowest row id; invert the slice index from the top.
-  const rowFromTop = Math.floor(clamped * rowCount);
-  return rows[rowCount - 1 - rowFromTop]!;
+  const row = rowAtOffset(slots, y, containerHeight);
+  const slotById = new Map<string, Slot>();
+  for (const slot of slots) {
+    if (!slotById.has(slot.id)) slotById.set(slot.id, slot);
+  }
+  const hit = slotLayout(
+    containerType,
+    interiorWidth,
+    rackWidth,
+    containerHeight,
+  ).slots.find(
+    (band) =>
+      slotById.get(band.id)?.position.row === row &&
+      xOffsetInRack >= band.x &&
+      xOffsetInRack < band.x + band.width,
+  );
+  return hit ? slotById.get(hit.id) : undefined;
 }
 
 /**
@@ -376,15 +356,15 @@ export function detectContainerDropTarget(
     const containerTopU = containerBottomU + containerType.u_height - 1;
     if (targetU < containerBottomU || targetU > containerTopU) continue;
 
-    const interiorWidth = rackWidth - RAIL_WIDTH * 2;
-    const col = colAtX(containerType, xOffsetInRack, interiorWidth, rack.width);
-    const row = rowAtY(
-      slots,
+    const aimed = slotAtPoint(
+      containerType,
+      xOffsetInRack,
       mouseY,
+      rackWidth - RAIL_WIDTH * 2,
+      rack.width,
       rackHeight,
       uHeight,
       containerBottomU,
-      containerType.u_height,
     );
 
     const children = rack.devices.filter(
@@ -395,10 +375,6 @@ export function detectContainerDropTarget(
     );
 
     // Prefer the cell directly under the cursor when it is free and fits.
-    const aimed =
-      col !== null
-        ? slots.find((s) => s.position.col === col && s.position.row === row)
-        : undefined;
     if (
       aimed &&
       !occupied.has(aimed.id) &&
@@ -524,20 +500,16 @@ export function detectContainerHover(
     if (targetU < containerBottomU || targetU > containerTopU) continue;
 
     // Found a container at this position - resolve the cell under the cursor.
-    const interiorWidth = rackWidth - RAIL_WIDTH * 2;
-    const col = colAtX(deviceType, xOffsetInRack, interiorWidth, rack.width);
-    const row = rowAtY(
-      slots,
+    const slot = slotAtPoint(
+      deviceType,
+      xOffsetInRack,
       mouseY,
+      rackWidth - RAIL_WIDTH * 2,
+      rack.width,
       rackHeight,
       uHeight,
       containerBottomU,
-      deviceType.u_height,
     );
-    const slot =
-      col !== null
-        ? slots.find((s) => s.position.col === col && s.position.row === row)
-        : undefined;
 
     return {
       containerId: placedDevice.id,

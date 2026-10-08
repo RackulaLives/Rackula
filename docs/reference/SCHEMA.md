@@ -193,6 +193,10 @@ In server-side persistence mode, no base64 image data appears in the stored layo
 
 A `Slot` carries an `id`, a `position` of `row` and `col`, and optionally a `name`, a `width_fraction` (its share of the rack's clear opening, up to 1), a `height_units` height in U, and an `accepts` list of device categories.
 
+Cell layout: rows stack by `row` id, lowest id at the bottom. Each row is as tall as its tallest cell's `height_units` (1 when unset), and the rows are scaled together to fill the container, so a 3U chassis with a 2U row and a 1U row draws them at 2U and 1U. Within a row, cells run left to right by `col`, and each row lays out its own columns. Slots may be listed in any order: drawing, drop targeting and fill order all follow `row` and `col`, and a container fills its bottom row left to right before the row above. `slot_gaps` sit between neighbouring cells in that left-to-right order.
+
+Slot ids should be unique within a device type. Duplicates are not rejected, so files written by earlier releases keep loading, but they are renamed on load: the first occurrence keeps its id and each later one becomes `<id>-<n>`, with n counting up from 2 past any id the type already uses. A placed child that named a duplicated id moves onto one of its occurrences, in device order within its rack: the first occurrence no earlier child has claimed that the child fits, else the first unclaimed one, else the first occurrence. Share links go through the same load path.
+
 #### Power Device Properties
 
 | Field | Type | Required | Description |
