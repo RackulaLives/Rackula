@@ -374,6 +374,29 @@ describe("rack changes re-check measured children", () => {
     expect(store.getRackById(rack.id)!.width).toBe(23);
     expect(store.getRackById(rack.id)!.devices).toEqual(before);
   });
+
+  it("reshapes a generated carrier when a bay's width changes with its numbering", () => {
+    // Numbering keys send the update down the bayed batch path.
+    const { group } = store.addBayedRackGroup("Bay", 2, 42, 10)!;
+    const rackId = group.rack_ids[0]!;
+    store.addDeviceTypeRaw(measuredDevice(179));
+    expect(store.placeDeviceSmart(rackId, "mini-pc", 5)).toBe(true);
+
+    store.updateRack(rackId, { width: 23, desc_units: true });
+
+    expect(store.getRackById(rackId)!.width).toBe(23);
+    expect(cellWidthsMm(rackId)[0]).toBeCloseTo(179, 6);
+  });
+
+  it("refuses a recorded width change its generated carrier's devices no longer fit", () => {
+    const rack = rackWithGeneratedCarrier(23, 300);
+    const before = store.getRackById(rack.id)!.devices;
+
+    store.updateRackRecorded(rack.id, { width: 10 });
+
+    expect(store.getRackById(rack.id)!.width).toBe(23);
+    expect(store.getRackById(rack.id)!.devices).toEqual(before);
+  });
 });
 
 describe("legacy adapter", () => {
