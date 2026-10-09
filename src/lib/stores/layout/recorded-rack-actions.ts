@@ -22,6 +22,7 @@ import {
   findConnectionsForDevices,
 } from "./recorded-device-type-actions";
 import {
+  canChangeRackWidth,
   reshapeCarriersForWidth,
   type CarrierReshape,
 } from "$lib/utils/collision";
@@ -112,9 +113,9 @@ export function updateRackRecorded(
 /**
  * The commands that reshape the generated carriers of every rack whose width
  * changes, so each keeps its devices at their measured widths in the same
- * undo step. Null when a carrier's devices no longer fit a new opening side
- * by side, so the change is refused rather than left with cells cut for the
- * old opening.
+ * undo step. Null when a rack cannot take its new width (canChangeRackWidth):
+ * a measured child no longer fits its shipped cell, or a carrier's devices no
+ * longer fit the new opening side by side, so the change is refused.
  *
  * @param ctx - Layout state access
  * @param targets - The racks being updated, with their updates
@@ -129,6 +130,9 @@ function widthReshapeCommands(
   const reshapes: CarrierReshape[] = [];
   for (const { rack, updates } of targets) {
     if (updates.width === undefined || updates.width === rack.width) continue;
+    if (!canChangeRackWidth(rack, layout.device_types, updates.width)) {
+      return null;
+    }
     const planned = reshapeCarriersForWidth(
       rack,
       layout.device_types,

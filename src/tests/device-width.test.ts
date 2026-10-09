@@ -397,6 +397,14 @@ describe("rack changes re-check measured children", () => {
     expect(store.getRackById(rack.id)!.width).toBe(23);
     expect(store.getRackById(rack.id)!.devices).toEqual(before);
   });
+
+  it("refuses a recorded width change that leaves a child too wide for its shelf cell", () => {
+    const { rack } = rackWithShelfChild(140);
+
+    store.updateRackRecorded(rack.id, { width: 10 });
+
+    expect(store.getRackById(rack.id)!.width).toBe(19);
+  });
 });
 
 describe("legacy adapter", () => {
