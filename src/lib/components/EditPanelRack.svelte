@@ -16,7 +16,7 @@
   import { getLayoutStore } from "$lib/stores/layout.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getUIStore } from "$lib/stores/ui.svelte";
-  import { findChildrenTooWideForRack } from "$lib/utils/collision";
+  import { canChangeRackWidth } from "$lib/utils/collision";
   import { getCanvasStore } from "$lib/stores/canvas.svelte";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import {
@@ -53,17 +53,13 @@
   // to-scale 21-inch drawing lands in #2736.
   const widthOptions = [10, 19, 21, 23] as const;
 
-  // A narrower rack can leave measured devices too wide for their shelf cells;
-  // the store refuses that change, so say why.
+  // A narrower rack can leave measured devices too wide for their shelf cells,
+  // or too wide side by side for the opening; the store refuses that change,
+  // so say why.
   function handleWidthClick(width: (typeof widthOptions)[number]) {
-    const tooWide = findChildrenTooWideForRack(
-      selectedRack.devices,
-      layoutStore.device_types,
-      width,
-    );
-    if (tooWide.length > 0) {
+    if (!canChangeRackWidth(selectedRack, layoutStore.device_types, width)) {
       toastStore.showToast(
-        `Can't change to ${width} inch: some devices would be too wide for their shelf cells`,
+        `Can't change to ${width} inch: some devices would no longer fit their shelf or carrier`,
         "warning",
         4000,
       );

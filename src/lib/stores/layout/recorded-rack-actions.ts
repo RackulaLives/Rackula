@@ -17,7 +17,15 @@ import {
 import type { LayoutStateAccess } from "./types";
 import { getCommandStoreAdapter } from "./command-adapters";
 import { getTargetRack, getRackById } from "./rack-actions";
-import { findConnectionsForDevices } from "./recorded-device-type-actions";
+import {
+  carrierReshapeCommands,
+  findConnectionsForDevices,
+} from "./recorded-device-type-actions";
+import {
+  canChangeRackWidth,
+  reshapeCarriersForWidth,
+  type CarrierReshape,
+} from "$lib/utils/collision";
 
 /**
  * Bind a command to a specific rack. The raw mutators behind rack commands
@@ -82,13 +90,58 @@ export function updateRackRecorded(
   const history = ctx.getHistory();
   const adapter = getCommandStoreAdapter(ctx);
 
+  const reshape = widthReshapeCommands(
+    ctx,
+    [{ rack: targetRack, updates }],
+    adapter,
+  );
+  if (!reshape) return;
+
   const command = bindCommandToRack(
     ctx,
     rackId,
     createUpdateRackCommand(before, updates, adapter),
   );
-  history.execute(command);
+  history.execute(
+    reshape.length > 0
+      ? createBatchCommand(command.description, [command, ...reshape])
+      : command,
+  );
   ctx.markDirty();
+}
+
+/**
+ * The commands that reshape the generated carriers of every rack whose width
+ * changes, so each keeps its devices at their measured widths in the same
+ * undo step. Null when a rack cannot take its new width (canChangeRackWidth):
+ * a measured child no longer fits its shipped cell, or a carrier's devices no
+ * longer fit the new opening side by side, so the change is refused.
+ *
+ * @param ctx - Layout state access
+ * @param targets - The racks being updated, with their updates
+ * @param adapter - Command store adapter
+ */
+function widthReshapeCommands(
+  ctx: LayoutStateAccess,
+  targets: { rack: Rack; updates: Partial<Omit<Rack, "devices" | "view">> }[],
+  adapter: ReturnType<typeof getCommandStoreAdapter>,
+): Command[] | null {
+  const layout = ctx.getLayout();
+  const reshapes: CarrierReshape[] = [];
+  for (const { rack, updates } of targets) {
+    if (updates.width === undefined || updates.width === rack.width) continue;
+    if (!canChangeRackWidth(rack, layout.device_types, updates.width)) {
+      return null;
+    }
+    const planned = reshapeCarriersForWidth(
+      rack,
+      layout.device_types,
+      updates.width,
+    );
+    if (!planned) return null;
+    reshapes.push(...planned);
+  }
+  return carrierReshapeCommands(layout, reshapes, adapter);
 }
 
 /**
@@ -110,6 +163,7 @@ export function updateRacksBatchRecorded(
   const adapter = getCommandStoreAdapter(ctx);
   const history = ctx.getHistory();
   const commands = [];
+  const changed: Parameters<typeof widthReshapeCommands>[1] = [];
 
   for (const { rackId, updates } of targets) {
     const targetRack = getRackById(ctx, rackId);
@@ -129,6 +183,7 @@ export function updateRacksBatchRecorded(
       before[key] = current as never;
     }
     if (!differs) continue;
+    changed.push({ rack: targetRack, updates });
 
     // Each sub-command activates its target rack because updateRackRaw
     // targets whichever rack is active, then restores the previous one.
@@ -143,8 +198,10 @@ export function updateRacksBatchRecorded(
   }
 
   if (commands.length === 0) return;
+  const reshape = widthReshapeCommands(ctx, changed, adapter);
+  if (!reshape) return;
 
-  const batch = createBatchCommand(description, commands);
+  const batch = createBatchCommand(description, [...commands, ...reshape]);
   history.execute(batch);
   ctx.markDirty();
 }

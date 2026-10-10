@@ -35,7 +35,11 @@ import {
 } from "$lib/utils/custom-carrier";
 import { fitsInRow, remainingMm } from "$lib/utils/slot-layout";
 import { orientDeviceType } from "$lib/utils/device-width";
-import { canPlaceInSlot, reshapeCarrier } from "$lib/utils/collision";
+import {
+  canPlaceInSlot,
+  reshapeCarrier,
+  type CarrierReshape,
+} from "$lib/utils/collision";
 import { getToastStore } from "$lib/stores/toast.svelte";
 
 /**
@@ -190,11 +194,7 @@ function reshapeCarriersHolding(
 ): { commands: Command[]; blocked: string[]; carrierCount: number } {
   const layout = ctx.getLayout();
   const blocked: string[] = [];
-  const planned: {
-    carrier: PlacedDevice;
-    from: DeviceType;
-    to: DeviceType;
-  }[] = [];
+  const planned: CarrierReshape[] = [];
 
   for (const rack of layout.racks) {
     for (const carrier of rack.devices) {
@@ -257,6 +257,26 @@ function reshapeCarriersHolding(
     }
   }
 
+  return {
+    commands: carrierReshapeCommands(layout, planned, adapter),
+    blocked,
+    carrierCount: planned.length,
+  };
+}
+
+/**
+ * The commands that move placed carriers to their reshaped types: import each
+ * new split once, retype the carriers, and collect the splits left unused.
+ *
+ * @param layout - The layout as it stands before the commands run
+ * @param planned - The carriers to retype
+ * @param adapter - Command store adapter
+ */
+export function carrierReshapeCommands(
+  layout: ReturnType<LayoutStateAccess["getLayout"]>,
+  planned: CarrierReshape[],
+  adapter: ReturnType<typeof getCommandStoreAdapter>,
+): Command[] {
   // Imports and collection read the whole plan rather than the layout as it
   // stands: two rows cut the same way converge on one split, which must be
   // imported once and not twice under the same slug, and the split they both
@@ -298,7 +318,7 @@ function reshapeCarriersHolding(
     }
   }
 
-  return { commands, blocked, carrierCount: planned.length };
+  return commands;
 }
 
 /**

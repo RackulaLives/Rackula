@@ -18,14 +18,15 @@ import type {
 } from "$lib/types";
 import { UNITS_PER_U } from "$lib/types/constants";
 import {
+  canChangeRackWidth,
   canPlaceDevice,
   canPlaceInContainer,
   canPlaceInSlot,
   findAdjacentSlotForChild,
-  findChildrenTooWideForRack,
   findValidDropPositions,
   findNextFreeChildPosition,
   findNextSlotForChild,
+  reshapeCarriersForWidth,
   synthesizeCarrierForDevice,
   type CellDirection,
 } from "$lib/utils/collision";
@@ -72,6 +73,7 @@ import {
   shrinkCommandsForRemovedChild,
 } from "./recorded-device-actions";
 import {
+  carrierReshapeCommands,
   findConnectionsForDevices,
   retypeCarrierCommands,
 } from "./recorded-device-type-actions";
@@ -1210,16 +1212,15 @@ export function moveDeviceToRack(
     (d) => d.container_id === device.id,
   );
 
-  // Cell fit for measured children depends on the rack opening.
-  if (
-    findChildrenTooWideForRack(
-      [device, ...children],
-      layout.device_types,
-      targetRack.width,
-    ).length > 0
-  ) {
+  // Cell fit for measured children depends on the rack opening, and a
+  // generated carrier is reshaped to keep them at their measured widths.
+  const moving = { ...targetRack, devices: [device, ...children] };
+  if (!canChangeRackWidth(moving, layout.device_types, targetRack.width)) {
     return false;
   }
+  const reshapes =
+    reshapeCarriersForWidth(moving, layout.device_types, targetRack.width) ??
+    [];
   const parentSnapshot = snapshotDevice(device);
   const childrenSnapshots = children.map((child) => snapshotDevice(child));
 
@@ -1253,7 +1254,14 @@ export function moveDeviceToRack(
     layout.metadata?.id ?? "",
   );
 
-  history.execute(command);
+  history.execute(
+    reshapes.length > 0
+      ? createBatchCommand(command.description, [
+          command,
+          ...carrierReshapeCommands(layout, reshapes, adapter),
+        ])
+      : command,
+  );
   ctx.markDirty();
   return true;
 }
