@@ -607,8 +607,11 @@ jobs:
       # default alert listing and Security Triage never read. Write the
       # findings to the job summary so a blocked release names the CVE,
       # package, and image without a code-scanning API query (#3285).
+      # Report only: the Scan image exit code is the gate, so a summary error
+      # must not fail a clean scan.
       - name: Summarize findings
         if: always()
+        continue-on-error: true
         run: |
           {
             echo "### Trivy: ${IMAGE_REF}"
@@ -620,7 +623,7 @@ jobs:
               echo "| CVE | Severity | Package | Installed | Fixed |"
               echo "| --- | --- | --- | --- | --- |"
               jq -r '
-                def field($t; $k): [$t | capture($k + ": (?<v>[^\n]+)") | .v] | first // "?";
+                def field($t; $k): [$t | capture($k + ": (?<v>[^\n]+)") | .v] | first // "?" | gsub("\\|"; "\\|");
                 .runs[].results[] | .message.text as $t
                 | "| \(.ruleId) | \(field($t; "Severity")) | \(field($t; "Package")) | \(field($t; "Installed Version")) | \(field($t; "Fixed Version")) |"
               ' trivy-results.sarif
