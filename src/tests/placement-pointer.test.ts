@@ -14,18 +14,21 @@ import {
 } from "$lib/utils/rack-interaction-handlers";
 import { resolveDropTarget } from "$lib/utils/rack-drop-coordinator";
 import { hapticError } from "$lib/utils/haptics";
+import type { Rack } from "$lib/types";
 import {
   getPlacementStore,
   resetPlacementStore,
 } from "$lib/stores/placement.svelte";
 
 /** Build a minimal RackHandlerContext; only the getters used by placement matter. */
+const rack = { id: "rack-1" } as Rack;
+
 function makeCtx(
   showToast: ReturnType<typeof vi.fn> = vi.fn(),
   faceFilter: "front" | "rear" = "front",
 ) {
   return {
-    getRack: () => ({ id: "rack-1" }),
+    getRack: () => rack,
     getDeviceLibrary: () => [],
     getRackDims: () => ({}),
     getFaceFilter: () => faceFilter,
@@ -252,6 +255,23 @@ describe("handlePlacementHover — pointer-tracking placement ghost (#2992)", ()
     });
 
     expect(placementStore.cursorPosition).toBe(3);
+    expect(placementStore.cursorFeedbackFor(rack)).toBe("blocked");
+  });
+
+  it("keeps the resolver's verdict, so a carrier with room previews valid", () => {
+    const placementStore = getPlacementStore();
+    placementStore.startPlacement(device);
+
+    (resolveDropTarget as ReturnType<typeof vi.fn>).mockReturnValue({
+      feedback: "valid",
+      targetU: 6,
+    });
+    handlePlacementHover(makeMouseEvent(50, 300), svg, makeCtx(), device, {
+      setCursor: placementStore.setCursor,
+      setTargetFace: placementStore.setTargetFace,
+    });
+
+    expect(placementStore.cursorFeedbackFor(rack)).toBe("valid");
   });
 
   it("aligns the placement face with the hovered rack copy", () => {

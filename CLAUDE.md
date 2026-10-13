@@ -54,7 +54,7 @@ The `/release` skill will:
 - `M002 -- LXC Release & Stability` (in progress)
 - `M003 -- Data Format & Interop` (next)
 - `M004 -- Type Safety, Decomposition & Stability` (planned)
-- `M018 - cloudflare migration` (migration done: prod and dev on Workers, VPS destroyed; follow-ons remain)
+- `M018 - cloudflare ops follow-ons` (migration done, epic #2382 closed: prod and dev on Workers, VPS destroyed; monitoring, spend caps, parity, previews, analytics, R2 backup remain)
 
 ---
 

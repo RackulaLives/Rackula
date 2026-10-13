@@ -19,7 +19,10 @@
   import { getCropUnitHeight } from "$lib/utils/image-crop";
   import {
     LENGTH_UNITS,
+    drawnUHeight,
     getRackOpeningMm,
+    isNarrowDevice,
+    requiresCarrier,
     toMillimetres,
     uHeightForMm,
     type LengthUnit,
@@ -131,10 +134,27 @@
         ? 0.5
         : 1,
   );
+  // A device in a carrier is drawn at its measured height, so its image is
+  // framed to that height rather than to the rack units it takes. A narrow
+  // blank is exempt from the carrier rule but still goes in a carrier.
+  const cropWidthFields = $derived({
+    width_mm:
+      widthValue == null ? undefined : toMillimetres(widthValue, widthUnit),
+    slot_width: isHalfWidth ? (1 as const) : undefined,
+  });
+  const cropUHeight = $derived(
+    heightMm !== undefined &&
+      (requiresCarrier({ ...cropWidthFields, category, u_height: uHeight }) ||
+        isNarrowDevice(cropWidthFields))
+      ? drawnUHeight({ height_mm: heightMm, u_height: uHeight })
+      : uHeight,
+  );
   const cropWidthLabel = $derived(
-    isHalfWidth && widthValue == null
-      ? `a half-width ${getCropUnitHeight(uHeight)}U device in a ${cropRackWidth} inch rack`
-      : undefined,
+    cropUHeight !== uHeight
+      ? `a device ${heightMm} mm tall in a ${cropRackWidth} inch rack`
+      : isHalfWidth && widthValue == null
+        ? `a half-width ${getCropUnitHeight(uHeight)}U device in a ${cropRackWidth} inch rack`
+        : undefined,
   );
   const cropGuideRackWidths = $derived(optionToRackWidths(rackWidthOption));
   let userChangedColour = $state(false);
@@ -486,7 +506,7 @@
         face="front"
         currentImage={frontImage}
         deviceName={name}
-        {uHeight}
+        uHeight={cropUHeight}
         rackWidth={cropRackWidth}
         guideRackWidths={cropGuideRackWidths}
         widthFraction={cropWidthFraction}
@@ -498,7 +518,7 @@
         face="rear"
         currentImage={rearImage}
         deviceName={name}
-        {uHeight}
+        uHeight={cropUHeight}
         rackWidth={cropRackWidth}
         guideRackWidths={cropGuideRackWidths}
         widthFraction={cropWidthFraction}

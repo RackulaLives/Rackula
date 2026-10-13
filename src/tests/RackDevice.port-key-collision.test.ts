@@ -47,10 +47,12 @@ describe("PortIndicators keyed #each (duplicate names, no PlacedPort)", () => {
     const portTargets = getAllByRole("button", { name: /^SFP\+/ });
     expect(portTargets.length).toBe(device.interfaces?.length);
     expect(
-      getAllByRole("button", { name: "SFP+ (10gbase-x-sfpp)" }).length,
+      getAllByRole("button", { name: "SFP+ (10gbase-x-sfpp), unavailable" })
+        .length,
     ).toBe(1);
     expect(
-      getAllByRole("button", { name: "SFP+ (25gbase-x-sfp28)" }).length,
+      getAllByRole("button", { name: "SFP+ (25gbase-x-sfp28), unavailable" })
+        .length,
     ).toBe(1);
   });
 

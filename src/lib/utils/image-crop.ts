@@ -13,14 +13,10 @@ import {
   getRackWidth,
   U_HEIGHT_PX,
 } from "$lib/constants/layout";
-import {
-  MAX_DEVICE_HEIGHT,
-  MIN_DEVICE_HEIGHT,
-  MM_PER_U,
-  STANDARD_RACK_WIDTH,
-} from "$lib/types/constants";
+import { MAX_DEVICE_HEIGHT, STANDARD_RACK_WIDTH } from "$lib/types/constants";
 import type { DeviceRotation, DeviceType } from "$lib/types";
 import {
+  drawnUHeight,
   getRackOpeningMm,
   getRotation,
   orientDeviceType,
@@ -47,12 +43,11 @@ export interface CropView {
 
 /**
  * Device height the crop frame is shaped for: the given height when it is a
- * valid device height, otherwise 1U.
+ * positive height up to the tallest device, otherwise 1U. A measured device
+ * is drawn at its own height, which can be under the 0.5U it takes.
  */
 export function getCropUnitHeight(uHeight: number): number {
-  return Number.isFinite(uHeight) &&
-    uHeight >= MIN_DEVICE_HEIGHT &&
-    uHeight <= MAX_DEVICE_HEIGHT
+  return Number.isFinite(uHeight) && uHeight > 0 && uHeight <= MAX_DEVICE_HEIGHT
     ? uHeight
     : 1;
 }
@@ -93,10 +88,7 @@ export function getDeviceCropBox(
     };
   }
   return {
-    uHeight:
-      standing.height_mm === undefined
-        ? standing.u_height
-        : Math.min(standing.height_mm / MM_PER_U, standing.u_height),
+    uHeight: drawnUHeight(standing),
     widthFraction: Math.min(1, standing.width_mm / getRackOpeningMm(rackWidth)),
     turned: getRotation(deviceType, rotation) === 90,
   };

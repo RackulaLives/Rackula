@@ -266,7 +266,12 @@ export function handlePlacementHover(
   ctx: RackHandlerContext,
   device: DeviceType,
   placement: {
-    setCursor: (rackId: string, position: number | null) => void;
+    setCursor: (
+      rackId: string,
+      position: number | null,
+      feedback: DropFeedback,
+      rack: Rack,
+    ) => void;
     setTargetFace: (face: "front" | "rear") => void;
   },
 ): void {
@@ -283,7 +288,8 @@ export function handlePlacementHover(
   // dual view), matching the face the click path would place onto.
   const faceFilter = ctx.getFaceFilter();
   placement.setTargetFace(faceFilter === "rear" ? "rear" : "front");
-  placement.setCursor(ctx.getRack().id, result.targetU);
+  const rack = ctx.getRack();
+  placement.setCursor(rack.id, result.targetU, result.feedback, rack);
 }
 
 /**

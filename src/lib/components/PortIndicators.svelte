@@ -410,6 +410,7 @@
       {/each}
       <!-- Invisible SVG click targets, one per port cell (Safari compatible). -->
       {#each portPositions as { iface, port, x, y }, i (port?.id ?? i)}
+        {@const unavailable = port?.id == null}
         <circle
           class="port-hit-target"
           class:port-connection-source={port?.id === connectionSourcePortId}
@@ -421,22 +422,25 @@
           r={HIT_TARGET_RADIUS}
           fill="transparent"
           role="button"
-          tabindex="0"
-          aria-label="{iface.label ?? iface.name} ({iface.type}){port?.id ===
-          connectionSourcePortId
-            ? ', connection source'
-            : isConnectionCreationMode &&
-                port?.id != null &&
-                port.id !== connectionSourcePortId
-              ? ', potential connection target'
-              : ''}"
-          onclick={() => handlePortClick(iface, port)}
+          tabindex={unavailable ? -1 : 0}
+          aria-disabled={unavailable}
+          aria-label="{iface.label ?? iface.name} ({iface.type}){unavailable
+            ? ', unavailable'
+            : port?.id === connectionSourcePortId
+              ? ', connection source'
+              : isConnectionCreationMode
+                ? ', potential connection target'
+                : ''}"
+          onclick={() => {
+            if (!unavailable) handlePortClick(iface, port);
+          }}
           onmouseenter={(e) => handlePortMouseEnter(e, iface)}
           onmouseleave={handlePortMouseLeave}
           onkeydown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              handlePortClick(iface, port);
+              e.stopPropagation();
+              if (!unavailable) handlePortClick(iface, port);
             }
           }}
         >
@@ -519,8 +523,12 @@
     cursor: pointer;
   }
 
-  .port-hit-target:hover {
+  .port-hit-target:hover:not([aria-disabled="true"]) {
     fill: var(--colour-port-hover);
+  }
+
+  .port-hit-target[aria-disabled="true"] {
+    cursor: default;
   }
 
   .port-hit-target:focus {

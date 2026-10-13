@@ -5,9 +5,10 @@
  * keyboard flow) a U-slot cursor within a target rack.
  */
 
-import type { DeviceType, DeviceFace, DeviceRotation } from "$lib/types";
+import type { DeviceType, DeviceFace, DeviceRotation, Rack } from "$lib/types";
 import { canRotate, orientDeviceType } from "$lib/utils/device-width";
 import { rotationAnnouncement } from "$lib/utils/placement-keyboard";
+import type { DropFeedback } from "$lib/utils/dragdrop";
 
 // State
 let isPlacing = $state(false);
@@ -34,6 +35,17 @@ let targetRackId = $state<string | null>(null);
 let cursorPosition = $state<number | null>(null);
 
 /**
+ * The pointer's verdict on the cursor slot, from the resolver the click uses,
+ * so the ghost over a carrier agrees with the placement. Null for a keyboard
+ * cursor, which only stops on rail slots. Kept with the rack it was resolved
+ * against: layout edits replace the rack, so an undo or a new device under a
+ * still pointer retires the verdict.
+ */
+let cursorFeedback = $state.raw<{ feedback: DropFeedback; rack: Rack } | null>(
+  null,
+);
+
+/**
  * Screen-reader announcement for placement state transitions.
  * Set on pick-up, slot change, cancel, and complete so assistive technologies
  * can announce the mode and position. Cleared on the next startPlacement so
@@ -54,6 +66,7 @@ function startPlacement(device: DeviceType, face: DeviceFace = "front"): void {
   rotation = 0;
   targetRackId = null;
   cursorPosition = null;
+  cursorFeedback = null;
 }
 
 /**
@@ -67,6 +80,7 @@ function resetState(): void {
   rotation = 0;
   targetRackId = null;
   cursorPosition = null;
+  cursorFeedback = null;
 }
 
 /**
@@ -113,6 +127,9 @@ function completePlacement(summary?: string): void {
 function toggleRotation(): boolean {
   if (!isPlacing || !pendingDevice || !canRotate(pendingDevice)) return false;
   rotation = rotation === 90 ? 0 : 90;
+  // The pointer's verdict was for the old footprint; the next pointer move
+  // resolves the turned one, and until then the rail check stands in.
+  cursorFeedback = null;
   placementAnnouncement = rotationAnnouncement(rotation);
   return true;
 }
@@ -133,12 +150,20 @@ function setTargetFace(face: DeviceFace): void {
  * preview never shows on a stale rack.
  * @param rackId - Rack the cursor is in
  * @param position - Whole-U slot (1-indexed) within that rack, or null for none
+ * @param feedback - The pointer's verdict on the slot; omitted by the keyboard
+ * @param rack - The rack the verdict was resolved against
  */
-function setCursor(rackId: string, position: number | null): void {
+function setCursor(
+  rackId: string,
+  position: number | null,
+  feedback: DropFeedback | null = null,
+  rack: Rack | null = null,
+): void {
   targetRackId = rackId;
   // Rail positions are whole-U integers (carrier-first model); reject a
   // fractional slot rather than carry it into placement.
   cursorPosition = position == null ? null : Math.round(position);
+  cursorFeedback = feedback && rack ? { feedback, rack } : null;
 }
 
 /**
@@ -185,6 +210,10 @@ export function getPlacementStore() {
     /** Highlighted whole-U slot (1-indexed) of the keyboard cursor, or null. */
     get cursorPosition() {
       return cursorPosition;
+    },
+    /** The pointer's verdict, while `rack` is still the one it was resolved against. */
+    cursorFeedbackFor(rack: Rack): DropFeedback | null {
+      return cursorFeedback?.rack === rack ? cursorFeedback.feedback : null;
     },
     /**
      * Screen-reader announcement text for the most recent placement state

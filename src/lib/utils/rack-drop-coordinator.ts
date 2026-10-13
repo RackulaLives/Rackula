@@ -10,6 +10,7 @@ import {
   getDropFeedback,
   detectContainerDropTarget,
   detectContainerHover,
+  NEW_CELL_SLOT_ID,
   type DragData,
   type DropFeedback,
   type ContainerHoverInfo,
@@ -25,6 +26,7 @@ import { findDeviceType } from "$lib/utils/device-lookup";
 import { getDeviceDisplayName } from "$lib/utils/device";
 import { screenToSVG } from "$lib/utils/coordinates";
 import { pendingCollisionFace } from "$lib/utils/effective-face";
+import { newCellRefusal } from "$lib/utils/slot-layout";
 
 /**
  * The rail height of a synthesised carrier, defaulting to 1U if the slug is
@@ -177,6 +179,26 @@ export function deriveExcludeIndex(
 }
 
 /**
+ * Whether a container target takes the device. A new cell in a generated
+ * carrier is offered without a width check, so the row and the rail height
+ * are checked here the way extendCustomCarrier will check them.
+ */
+function canTakeContainerTarget(
+  rack: Rack,
+  deviceLibrary: DeviceType[],
+  device: DeviceType,
+  target: ContainerDropTarget,
+): boolean {
+  if (target.slotId !== NEW_CELL_SLOT_ID) return true;
+  const carrier = rack.devices.find((d) => d.id === target.containerId);
+  const carrierType =
+    carrier && findDeviceType(carrier.device_type, deviceLibrary);
+  return (
+    !!carrierType && newCellRefusal(carrierType, device, rack.width) === null
+  );
+}
+
+/**
  * Unified drop-target resolution pipeline.
  * Called by handleDragOver, handleDragMove, and handleTouchEnd to calculate
  * preview position and feedback.
@@ -240,7 +262,14 @@ export function resolveDropTarget(
 
   let feedback: DropFeedback;
   if (resolvableContainerTarget) {
-    feedback = "valid";
+    feedback = canTakeContainerTarget(
+      rack,
+      deviceLibrary,
+      device,
+      resolvableContainerTarget,
+    )
+      ? "valid"
+      : "blocked";
   } else if (carrierPlan) {
     // Synthesise a rail carrier at this U: validate its full rail footprint.
     const carrierHeight = getCarrierHeight(carrierPlan, deviceLibrary);
