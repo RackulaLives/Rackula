@@ -21,9 +21,24 @@ import {
   wheelDeltaPixels,
   zoomView,
 } from "$lib/utils/image-crop";
-import { getRackOpeningMm } from "$lib/utils/device-width";
+import {
+  drawnUHeight,
+  getRackOpeningMm,
+  orientDeviceType,
+} from "$lib/utils/device-width";
+import { slotLayout } from "$lib/utils/slot-layout";
+import {
+  getInteriorWidth,
+  getRackWidth,
+  U_HEIGHT_PX,
+} from "$lib/constants/layout";
 import { MM_PER_U } from "$lib/types/constants";
-import { createTestDeviceType } from "./factories";
+import type { DeviceRotation, DeviceType } from "$lib/types";
+import {
+  createTestContainerType,
+  createTestDeviceType,
+  createTestSlot,
+} from "./factories";
 
 const image = { width: 2000, height: 1000 };
 const frame = { width: 400, height: 100 };
@@ -314,5 +329,106 @@ describe("getDeviceCropBox", () => {
     const wide = createTestDeviceType({ u_height: 1, width_mm: 600 });
 
     expect(getDeviceCropBox(wide, 0, 19).widthFraction).toBe(1);
+  });
+});
+
+describe("getDeviceCropBox for a carrier child", () => {
+  // The box RackDevice draws a child into: its cell's width from the shared
+  // slot layout, by its drawn height as it stands. The frame is that box,
+  // turned back when the child is on its side.
+  function drawnChildAspect(
+    child: DeviceType,
+    rotation: DeviceRotation,
+    carrier: DeviceType,
+    slotId: string,
+    rackWidth: number,
+  ): number {
+    const interior = getInteriorWidth(getRackWidth(rackWidth));
+    const cell = slotLayout(carrier, interior, rackWidth).slots.find(
+      (band) => band.id === slotId,
+    );
+    const width = cell!.width;
+    const height =
+      drawnUHeight(orientDeviceType(child, rotation)) * U_HEIGHT_PX;
+    return rotation === 90 ? height / width : width / height;
+  }
+
+  function frameAspect(
+    child: DeviceType,
+    rotation: DeviceRotation,
+    slotWidthFraction: number,
+    rackWidth: number,
+  ): number {
+    const box = getDeviceCropBox(child, rotation, rackWidth, slotWidthFraction);
+    const aspect = getDeviceImageAspect(
+      box.uHeight,
+      rackWidth,
+      box.widthFraction,
+    );
+    return box.turned ? 1 / aspect : aspect;
+  }
+
+  it("frames a turned measured device to the box it is drawn into", () => {
+    // 40 mm wide and 20 mm tall, on its side in a cell cut for it.
+    const child = createTestDeviceType({
+      u_height: 0.5,
+      width_mm: 40,
+      height_mm: 20,
+    });
+    const fraction = 20 / getRackOpeningMm(19);
+    const carrier = createTestContainerType({
+      u_height: 2,
+      slots: [createTestSlot({ id: "cell", width_fraction: fraction })],
+    });
+
+    expect(frameAspect(child, 90, fraction, 19)).toBeCloseTo(
+      drawnChildAspect(child, 90, carrier, "cell", 19),
+    );
+  });
+
+  it("frames a measured device in a wider custom cell to the whole cell", () => {
+    // 100 mm wide in a cell half the opening: drawn across the whole cell.
+    const child = createTestDeviceType({
+      u_height: 1,
+      width_mm: 100,
+      height_mm: 30,
+    });
+    const carrier = createTestContainerType({ u_height: 1 });
+
+    expect(frameAspect(child, 0, 0.5, 19)).toBeCloseTo(
+      drawnChildAspect(child, 0, carrier, "slot-left", 19),
+    );
+  });
+
+  it("frames a turned device in a wider custom cell to the whole cell", () => {
+    const child = createTestDeviceType({
+      u_height: 1,
+      width_mm: 60,
+      height_mm: 40,
+    });
+    const carrier = createTestContainerType({ u_height: 2 });
+
+    expect(frameAspect(child, 90, 0.5, 10)).toBeCloseTo(
+      drawnChildAspect(child, 90, carrier, "slot-right", 10),
+    );
+  });
+
+  it("frames a half-width device in a wider cell to the whole cell", () => {
+    const child = createTestDeviceType({ u_height: 1, slot_width: 1 });
+    const carrier = createTestContainerType({
+      u_height: 1,
+      slots: [
+        createTestSlot({ id: "wide", width_fraction: 0.75 }),
+        createTestSlot({
+          id: "narrow",
+          position: { row: 0, col: 1 },
+          width_fraction: 0.25,
+        }),
+      ],
+    });
+
+    expect(frameAspect(child, 0, 0.75, 19)).toBeCloseTo(
+      drawnChildAspect(child, 0, carrier, "wide", 19),
+    );
   });
 });

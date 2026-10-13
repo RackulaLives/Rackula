@@ -9,6 +9,7 @@
   import { getImageStore } from "$lib/stores/images.svelte";
   import { placementKey } from "$lib/utils/placement-key";
   import { getCropUnitHeight, getDeviceCropBox } from "$lib/utils/image-crop";
+  import { getRackOpeningMm } from "$lib/utils/device-width";
   import { validateImageFile, fileToImageData } from "$lib/utils/imageUpload";
   import { SUPPORTED_IMAGE_FORMATS } from "$lib/types/constants";
   import type { SelectedDeviceInfo } from "$lib/types";
@@ -81,31 +82,56 @@
     ),
   );
 
+  // The width_fraction of the carrier cell a child sits in. RackDevice draws a
+  // child across its whole cell, which can be wider than the device.
+  const slotWidthFraction = $derived.by(() => {
+    const { placedDevice, rack } = selectedDeviceInfo;
+    if (!placedDevice.container_id) return undefined;
+    const container = rack.devices.find(
+      (d) => d.id === placedDevice.container_id,
+    );
+    const containerType =
+      container &&
+      layoutStore.device_types.find((d) => d.slug === container.device_type);
+    const slot = containerType?.slots?.find(
+      (s) => s.id === placedDevice.slot_id,
+    );
+    return slot ? (slot.width_fraction ?? 1) : undefined;
+  });
+
   // Device type fallback images, keyed by slug in the image store
-  // The crop frame takes the device's drawn box, so a half-width or measured
-  // device is framed to the carrier cell it sits in rather than to the full
-  // rails, and a measured one at its measured height, as it stands.
+  // The crop frame takes the device's drawn box, so a carrier child is framed
+  // to the cell it sits in rather than to the full rails, and a measured one
+  // at its measured height, as it stands.
   const cropBox = $derived(
     getDeviceCropBox(
       selectedDeviceInfo.device,
       selectedDeviceInfo.placedDevice.rotation,
       selectedDeviceInfo.rack.width,
+      slotWidthFraction,
     ),
   );
   const cropWidthFraction = $derived(cropBox.widthFraction);
   const cropWidthLabel = $derived.by(() => {
     const { device, rack } = selectedDeviceInfo;
+    const where =
+      slotWidthFraction === undefined
+        ? `a ${rack.width} inch rack`
+        : `a ${Math.round(slotWidthFraction * getRackOpeningMm(rack.width))} mm cell of a ${rack.width} inch rack`;
     if (device.width_mm !== undefined) {
       const height =
         device.height_mm === undefined
           ? `${getCropUnitHeight(device.u_height)}U`
           : `${device.height_mm} mm`;
       const side = cropBox.turned ? " on its side" : "";
-      return `a device ${device.width_mm} mm wide and ${height} tall${side} in a ${rack.width} inch rack`;
+      return `a device ${device.width_mm} mm wide and ${height} tall${side} in ${where}`;
     }
-    return device.slot_width === 1
-      ? `a half-width ${getCropUnitHeight(device.u_height)}U device in a ${rack.width} inch rack`
-      : undefined;
+    if (device.slot_width === 1) {
+      return `a half-width ${getCropUnitHeight(device.u_height)}U device in ${where}`;
+    }
+    return slotWidthFraction === undefined
+      ? undefined
+      : `a ${getCropUnitHeight(device.u_height)}U device in ${where}`;
   });
 
   const deviceTypeFrontImage = $derived(

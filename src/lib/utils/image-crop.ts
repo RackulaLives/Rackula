@@ -66,10 +66,14 @@ export interface DeviceCropBox {
 }
 
 /**
- * The box a placed device's image is drawn into. A measured device is drawn
- * in a cell cut to its width, at its measured height, by its sides as it
- * stands after a turn. Any other device is drawn at its rack units, half the
- * interior wide when half-width, otherwise across the rails.
+ * The box a placed device's image is drawn into, as RackDevice draws it. A
+ * carrier child fills its cell's width, at its drawn height, by its sides as
+ * it stands after a turn. Without a cell, a measured device is framed to its
+ * own width and any other device at its rack units, half the interior wide
+ * when half-width, otherwise across the rails.
+ *
+ * @param slotWidthFraction - The width_fraction of the cell the device sits
+ *   in, when it is a carrier child
  */
 export function getDeviceCropBox(
   deviceType: Pick<
@@ -78,8 +82,16 @@ export function getDeviceCropBox(
   >,
   rotation: DeviceRotation | undefined,
   rackWidth: number,
+  slotWidthFraction?: number,
 ): DeviceCropBox {
   const standing = orientDeviceType(deviceType, rotation);
+  if (slotWidthFraction !== undefined) {
+    return {
+      uHeight: drawnUHeight(standing),
+      widthFraction: slotWidthFraction,
+      turned: getRotation(deviceType, rotation) === 90,
+    };
+  }
   if (standing.width_mm === undefined) {
     return {
       uHeight: standing.u_height,
