@@ -1,0 +1,12 @@
+{
+  "allowList": [
+    {
+      "pathPattern": "\\.slots\\[\\d+\\]\\.id$",
+      "reason": "duplicate slot ids are renamed to unique ids on load (#3342)"
+    },
+    {
+      "pathPattern": "\\.slot_id$",
+      "reason": "a child naming a duplicated slot id is moved onto one of its renamed occurrences (#3342)"
+    }
+  ]
+}

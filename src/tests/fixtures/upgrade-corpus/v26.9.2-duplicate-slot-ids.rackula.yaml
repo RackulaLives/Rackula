@@ -1,0 +1,77 @@
+# yaml-language-server: $schema=https://count.racku.la/schemas/rackula-layout.schema.json
+metadata:
+  id: 7d3e2a41-9c5b-4f60-8e1d-2b4a6c8f0e93
+  name: Duplicate Slot Ids
+  schema_version: "1.1"
+version: 26.9.2
+name: Duplicate Slot Ids
+racks:
+  - id: rack-a
+    name: Rack A
+    height: 12
+    width: 19
+    depth_mm: 1000
+    base_weight: 0
+    desc_units: false
+    show_rear: true
+    form_factor: 4-post-cabinet
+    starting_unit: 1
+    position: 0
+    devices:
+      - id: chassis-1
+        device_type: dup-bay-chassis
+        name: Bay Chassis
+        position: 24
+        face: front
+      - id: node-1
+        device_type: half-node
+        name: Node One
+        position: 0
+        face: front
+        container_id: chassis-1
+        slot_id: bay
+      - id: node-2
+        device_type: half-node
+        name: Node Two
+        position: 0
+        face: front
+        container_id: chassis-1
+        slot_id: top
+device_types:
+  - slug: half-node
+    model: Half Node
+    u_height: 1
+    slot_width: 1
+    colour: "#336699"
+    category: server
+  - slug: dup-bay-chassis
+    model: Bay Chassis
+    u_height: 3
+    colour: "#6272A4"
+    category: shelf
+    subdevice_role: parent
+    slots:
+      - id: top
+        name: Top Bay
+        position:
+          row: 1
+          col: 0
+        width_fraction: 1
+        height_units: 1
+      - id: bay
+        name: Lower Left Bay
+        position:
+          row: 0
+          col: 0
+        width_fraction: 0.5
+        height_units: 2
+      - id: bay
+        name: Lower Right Bay
+        position:
+          row: 0
+          col: 1
+        width_fraction: 0.5
+        height_units: 2
+settings:
+  display_mode: label
+  show_labels_on_images: false
