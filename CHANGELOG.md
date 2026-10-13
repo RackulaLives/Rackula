@@ -4,6 +4,61 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [26.10.1] - 2026-10-12
+
+### I COUNTED IN MILLIMETRES
+
+One U is forty-four and a half millimetres. Forty-four and a half! The half is the hard part. Now your small gear can be measured in millimetres, centimetres or inches, turned on its side, and it stays the size you measured even when the rack gets wider or narrower. I counted every millimetre. Twice. Ah ah ah.
+
+### This release
+
+Devices in carriers can be measured and rotated, devices with ports get a port zone with a count chip, and patch bays learn normalling. Connections export as a CSV patch list and warn when signal types do not match.
+
+### Added
+
+- Measured device width in millimetres, centimetres or inches for container slots (#3310, PR #3313)
+- Measured device height and 90 degree rotation (PR #3429)
+- Patch bay normalling with a per-instance override (#1945, PR #3470)
+- Export connections as a CSV patch list (#1940, PR #3472)
+- A warning when a new connection joins mismatched signal types (#1936, PR #3471)
+- Devices with ports get a port zone: a right-aligned port grid, a zoned label and REAR tag, a port count chip, and port markers shaped by medium with a distinct 1G SFP colour (#3451, #3452, #3453, PR #3455, PR #3460, PR #3461)
+
+### Changed
+
+- 10, 21 and 23 inch racks draw their opening at the 19 inch scale, so a measured device is the same size in every rack (PR #3527)
+- Half-depth blocked slots use a neutral, named hatch (#3454, PR #3457)
+
+### Fixed
+
+- Measured devices keep their measured size when the rack width changes, and a width they would no longer fit is refused (PR #3527)
+- Measured devices are drawn at their measured height (PR #3496)
+- Click-to-place fills any container under the cursor, and the placement ghost over a generated carrier matches where the click lands (PR #3498, PR #3497)
+- Container hit-testing and fill order honour irregular grids (#3342, PR #3512)
+- The edit-panel image crop frames measured devices and carrier children to the box they are drawn in (#3506, PR #3511)
+- 0U NetBox devices import with their width and height (PR #3473)
+- The port picker sits on the count chip, so individual ports stay clickable (#3462, PR #3504)
+- Strip-mode port markers with no placed port are disabled (#3505, PR #3510)
+- Duplicating a device keeps its per-port overrides, and duplicating a rack gives its ports new ids (#3492, #3479, PR #3503, PR #3480)
+- The floating REAR tag stays when a tall device's label sits below it, and is left out when the centred label would run under it (#3495, #3459, PR #3502, PR #3486)
+- Share links keep rack order and say what they leave out (#3378, PR #3485)
+- Label widths are estimated per character class, and container child names fit their width without splitting characters (#3458, #3491, PR #3484, PR #3507)
+- Cables route clear of device labels and chip counts (#3463, PR #3483)
+- Blocked-slot checks skip carrier children (#3426, PR #3481)
+- Container children placed out of bounds are moved back inside on load (#3456, PR #3482)
+- Starter templates embed library devices with their ports (#3464, PR #3465)
+
+### Security
+
+- Self-host images pin libexpat 2.8.5-r0 or later for CVE-2026-93990 (code-scanning #113, PR #3449)
+
+### Technical
+
+- The CalVer MICRO counter starts at 1 each month (#3499, PR #3501)
+- LXC docs mark the shipped nginx and systemd configs as installer templates, and stale M018 references are fixed (#3494, PR #3500, PR #3509)
+- The stacked-rows fit-all end-to-end test no longer depends on where the view starts (#3466, PR #3488, PR #3513)
+- Five new upgrade-corpus fixtures cover this release's layout format changes
+- Dependency updates across svelte, vite, vitest, eslint, typescript-eslint, bits-ui, @lucide/svelte, marked, nanoid, simple-icons, hono, pino, wrangler, @node-rs/argon2, sharp, and GitHub Actions (29 PRs, PR #3447 through PR #3541)
+
 ## [26.9.2] - 2026-09-29
 
 ### I COUNTED TO A HUNDRED RACKS

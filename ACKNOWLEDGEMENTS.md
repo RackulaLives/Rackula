@@ -96,6 +96,11 @@ To add yourself to this list, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Contributors who made merged pull requests in each release. For the full contributors table, see above.
 
+### v26.10.1
+
+- @githappens: feat: export connections as a CSV patch list (#1940) (#3472, #3471, #3470)
+- @p-paul: fix: keep measured devices at their measured size when the rack width changes (#3527, #3513, #3498, #3497, #3496, #3488, #3473, #3429, #3313)
+
 ### v26.9.2
 
 - @p-paul: fix: pin label-sync to the real v2.3.3 commit (#3436, #3435, #3312)
