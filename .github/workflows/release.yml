@@ -450,6 +450,26 @@ jobs:
             --tag "ghcr.io/${REPO_LC}:persist" \
             "ghcr.io/${REPO_LC}@${digest}"
 
+  # Release scans upload on refs/tags/<tag>, so they never close the image
+  # alerts that the weekly scan of the rolling tags raises on main (#3285).
+  # Once the rolling tags point at this release, dispatch the on-demand scan
+  # on main: it rescans :latest, :persist and the API :latest under main's
+  # categories, which fixes any alert this release's images no longer have.
+  # A GITHUB_TOKEN workflow_dispatch does start a new run.
+  rescan-main:
+    name: "Rescan rolling images on main"
+    needs: [validate, promote-docker]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch Trivy scan on main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run trivy.yml --ref main
+
   # PROMOTE: publish the released tag to Cloudflare Workers Static Assets and
   # smoke-test it (#2029). Prod no longer pulls Docker images, but it still needs
   # promote-docker: a release whose images failed to promote must not go live.
@@ -507,6 +527,7 @@ jobs:
         gate-lxc,
         promote-gate,
         promote-docker,
+        rescan-main,
         promote-prod,
         promote-github,
       ]

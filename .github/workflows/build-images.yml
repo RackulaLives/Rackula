@@ -603,6 +603,33 @@ jobs:
           trivyignores: .trivyignore
           version: "v0.70.0"
 
+      # The SARIF goes to a file and its alerts land on the tag ref, which the
+      # default alert listing and Security Triage never read. Write the
+      # findings to the job summary so a blocked release names the CVE,
+      # package, and image without a code-scanning API query (#3285).
+      # Report only: the Scan image exit code is the gate, so a summary error
+      # must not fail a clean scan.
+      - name: Summarize findings
+        if: always()
+        continue-on-error: true
+        run: |
+          {
+            echo "### Trivy: ${IMAGE_REF}"
+            if [ ! -s trivy-results.sarif ]; then
+              echo "No SARIF was produced. See the Scan image step log."
+            elif [ "$(jq '[.runs[].results[]] | length' trivy-results.sarif)" -eq 0 ]; then
+              echo "No fixable HIGH or CRITICAL findings."
+            else
+              echo "| CVE | Severity | Package | Installed | Fixed |"
+              echo "| --- | --- | --- | --- | --- |"
+              jq -r '
+                def field($t; $k): [$t | capture($k + ": (?<v>[^\n]+)") | .v] | first // "?" | gsub("\\|"; "\\|");
+                .runs[].results[] | .message.text as $t
+                | "| \(.ruleId) | \(field($t; "Severity")) | \(field($t; "Package")) | \(field($t; "Installed Version")) | \(field($t; "Fixed Version")) |"
+              ' trivy-results.sarif
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       # Runs even when the scan step above fails the job, so a blocked
       # release still lands its findings in the Security tab for triage.
       - name: Upload scan results
