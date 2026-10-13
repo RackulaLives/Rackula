@@ -12,7 +12,7 @@ import { layoutDebug } from "$lib/utils/debug";
 import { generateId } from "$lib/utils/device";
 import { generateRackId } from "$lib/utils/rack";
 import { clonePortsWithFreshIds } from "$lib/utils/port-utils";
-import { findChildrenTooWideForRack } from "$lib/utils/collision";
+import { canChangeRackWidth } from "$lib/utils/collision";
 import {
   createAddRackCommand,
   createDeleteRackCommand,
@@ -746,11 +746,7 @@ export function updateRack(
   if (updates.width !== undefined) {
     const rack = ctx.getLayout().racks[rackIndex]!;
     if (
-      findChildrenTooWideForRack(
-        rack.devices,
-        ctx.getLayout().device_types,
-        updates.width,
-      ).length > 0
+      !canChangeRackWidth(rack, ctx.getLayout().device_types, updates.width)
     ) {
       layoutDebug.state(
         "updateRack: rejected width change for rack %s, children too wide",

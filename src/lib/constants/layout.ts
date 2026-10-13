@@ -13,6 +13,8 @@
  * remain in export.ts to avoid confusion.
  */
 
+import { getRackOpeningMm } from "$lib/utils/device-width";
+
 // =============================================================================
 // Core Rack Dimensions (universal)
 // =============================================================================
@@ -37,7 +39,7 @@ export const DEVICE_IMAGE_OVERFLOW = 4;
 
 /**
  * Base rack width in pixels for a 19" rack
- * Other widths (10", 23") scale proportionally from this base
+ * Other widths draw their clear opening at this rack's scale (getRackWidth)
  */
 export const BASE_RACK_WIDTH = 220;
 
@@ -157,11 +159,13 @@ export const ANNOTATION_TRUNCATE_LENGTH_COMPACT = 11;
 
 /**
  * Calculate rack width based on nominal width in inches
- * Scales proportionally from 19" base width
+ * The clear opening is drawn at the 19" base scale, so a device measured in
+ * millimetres is the same size in every rack. The rails keep their width.
  * @param nominalWidth - Rack width in inches (10, 19, 21, or 23)
  */
 export function getRackWidth(nominalWidth: number): number {
-  return Math.round((BASE_RACK_WIDTH * nominalWidth) / 19);
+  const pxPerMm = (BASE_RACK_WIDTH - RAIL_WIDTH * 2) / getRackOpeningMm(19);
+  return Math.round(getRackOpeningMm(nominalWidth) * pxPerMm) + RAIL_WIDTH * 2;
 }
 
 /**
