@@ -33,7 +33,8 @@ import {
   getRotation,
   orientDeviceType,
 } from "$lib/utils/device-width";
-import { getChildYInSlot, getSlotRects } from "$lib/utils/slot-geometry";
+import { getChildYInSlot } from "$lib/utils/slot-geometry";
+import { slotLayout } from "$lib/utils/slot-layout";
 
 // Aliases for export context (export uses hidden padding since view labels show rack name)
 const U_HEIGHT = U_HEIGHT_PX;
@@ -885,10 +886,13 @@ export function generateExportSVG(
       // Each child sits in its slot's cell, with the same geometry the canvas
       // uses in RackDevice.svelte.
       const containerHeight = device.u_height * U_HEIGHT;
-      const cells = getSlotRects(
-        device.slots,
-        fullInteriorWidth,
-        containerHeight,
+      const cells = new Map(
+        slotLayout(
+          device,
+          fullInteriorWidth,
+          rack.width,
+          containerHeight,
+        ).slots.map((band) => [band.id, band]),
       );
       for (const child of rack.devices) {
         if (child.container_id !== placedDevice.id || !child.slot_id) continue;
