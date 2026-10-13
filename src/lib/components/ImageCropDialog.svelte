@@ -43,6 +43,8 @@
      * into the box, so the frame is the box turned back.
      */
     turned?: boolean;
+    /** Whether the device is drawn in a carrier cell, with no rail overhang. */
+    inCell?: boolean;
     onconfirm?: (file: File) => void;
     oncancel?: () => void;
   }
@@ -56,6 +58,7 @@
     widthFraction = 1,
     widthLabel,
     turned = false,
+    inCell = false,
     onconfirm,
     oncancel,
   }: Props = $props();
@@ -68,7 +71,7 @@
 
   const units = $derived(getCropUnitHeight(uHeight));
   function frameAspect(width: number): number {
-    const boxAspect = getDeviceImageAspect(units, width, widthFraction);
+    const boxAspect = getDeviceImageAspect(units, width, widthFraction, inCell);
     return turned ? 1 / boxAspect : boxAspect;
   }
   const aspect = $derived(frameAspect(rackWidth));

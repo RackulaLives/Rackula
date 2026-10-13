@@ -63,6 +63,11 @@ export interface DeviceCropBox {
    * into the box, so the frame is the box turned back.
    */
   turned: boolean;
+  /**
+   * Whether the device is drawn in a carrier cell, which has no rail
+   * overhang even when the cell spans the whole interior.
+   */
+  inCell: boolean;
 }
 
 /**
@@ -90,6 +95,7 @@ export function getDeviceCropBox(
       uHeight: drawnUHeight(standing),
       widthFraction: slotWidthFraction,
       turned: getRotation(deviceType, rotation) === 90,
+      inCell: true,
     };
   }
   if (standing.width_mm === undefined) {
@@ -97,31 +103,36 @@ export function getDeviceCropBox(
       uHeight: standing.u_height,
       widthFraction: standing.slot_width === 1 ? 0.5 : 1,
       turned: false,
+      inCell: standing.slot_width === 1,
     };
   }
   return {
     uHeight: drawnUHeight(standing),
     widthFraction: Math.min(1, standing.width_mm / getRackOpeningMm(rackWidth)),
     turned: getRotation(deviceType, rotation) === 90,
+    inCell: true,
   };
 }
 
 /**
  * Width-to-height ratio of the box a device image is drawn into in the rack.
  *
- * A device that spans the rails (fraction 1) is drawn a little wider than the
- * clear interior, because the image overhangs the rails for a mounted look. A
- * narrower device sits in a carrier cell, which is drawn inside the interior
- * with no overhang, so its share of the interior is the whole frame.
+ * A device on the rails (fraction 1, not in a cell) is drawn a little wider
+ * than the clear interior, because the image overhangs the rails for a
+ * mounted look. A device in a carrier cell is drawn inside the interior with
+ * no overhang, so its share of the interior is the whole frame, even when the
+ * cell spans the whole interior.
  *
  * @param uHeight - Device height in rack units
  * @param rackWidth - Nominal rack width in inches (10, 19, 21, or 23)
  * @param widthFraction - The device's share of the rack interior, 0 to 1
+ * @param inCell - Whether the device is drawn in a carrier cell
  */
 export function getDeviceImageAspect(
   uHeight: number,
   rackWidth: number = STANDARD_RACK_WIDTH,
   widthFraction: number = 1,
+  inCell: boolean = false,
 ): number {
   const interior = getInteriorWidth(getRackWidth(rackWidth));
   const fraction =
@@ -129,7 +140,9 @@ export function getDeviceImageAspect(
       ? widthFraction
       : 1;
   const width =
-    fraction < 1 ? interior * fraction : interior + DEVICE_IMAGE_OVERFLOW * 2;
+    fraction < 1 || inCell
+      ? interior * fraction
+      : interior + DEVICE_IMAGE_OVERFLOW * 2;
   return width / (getCropUnitHeight(uHeight) * U_HEIGHT_PX);
 }
 

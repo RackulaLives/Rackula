@@ -270,6 +270,7 @@ describe("getDeviceCropBox", () => {
       uHeight: 2,
       widthFraction: 1,
       turned: false,
+      inCell: false,
     });
   });
 
@@ -280,6 +281,7 @@ describe("getDeviceCropBox", () => {
       uHeight: 1,
       widthFraction: 0.5,
       turned: false,
+      inCell: true,
     });
   });
 
@@ -364,9 +366,22 @@ describe("getDeviceCropBox for a carrier child", () => {
       box.uHeight,
       rackWidth,
       box.widthFraction,
+      box.inCell,
     );
     return box.turned ? 1 / aspect : aspect;
   }
+
+  it("frames a device in a full-width cell to the cell, not the rails", () => {
+    const child = createTestDeviceType({ u_height: 1, width_mm: 300 });
+    const carrier = createTestContainerType({
+      u_height: 1,
+      slots: [createTestSlot({ id: "full", width_fraction: 1 })],
+    });
+
+    expect(frameAspect(child, 0, 1, 19)).toBeCloseTo(
+      drawnChildAspect(child, 0, carrier, "full", 19),
+    );
+  });
 
   it("frames a turned measured device to the box it is drawn into", () => {
     // 40 mm wide and 20 mm tall, on its side in a cell cut for it.

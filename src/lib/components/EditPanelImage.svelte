@@ -66,6 +66,7 @@
     widthFraction: number;
     widthLabel: string | undefined;
     turned: boolean;
+    inCell: boolean;
   } | null>(null);
 
   // Current placement overrides (if any)
@@ -175,6 +176,7 @@
       widthFraction: cropWidthFraction,
       widthLabel: cropWidthLabel,
       turned: cropBox.turned,
+      inCell: cropBox.inCell,
     };
     cropFile = file;
 
@@ -316,6 +318,7 @@
   widthFraction={cropTarget?.widthFraction ?? cropWidthFraction}
   widthLabel={cropTarget ? cropTarget.widthLabel : cropWidthLabel}
   turned={cropTarget?.turned ?? cropBox.turned}
+  inCell={cropTarget?.inCell ?? cropBox.inCell}
   onconfirm={handleCropConfirm}
   oncancel={() => (cropFile = null)}
 />
