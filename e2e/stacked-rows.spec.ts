@@ -52,11 +52,6 @@ test.describe("Stacked group rows", () => {
 
   test("fit-all frames every row, including group chrome", async ({ page }) => {
     const canvas = page.locator(locators.canvas.root);
-    // Focus rather than click: the left panel's edge grip overlays the
-    // canvas's left edge and would take a click there.
-    await canvas.focus();
-    await page.keyboard.press("f");
-
     const viewport = await box(canvas);
     const targets = [
       page.getByRole("listitem", { name: /^Solo One,/ }),
@@ -64,22 +59,39 @@ test.describe("Stacked group rows", () => {
       page.getByRole("group", { name: /bays/ }),
       page.locator(locators.rackView.rowGroup, { hasText: "Aisle Row" }),
     ];
-
-    await expect
-      .poll(async () => {
-        for (const target of targets) {
-          const b = await box(target);
-          if (
-            b.x < viewport.x - 1 ||
-            b.y < viewport.y - 1 ||
-            b.x + b.width > viewport.x + viewport.width + 1 ||
-            b.y + b.height > viewport.y + viewport.height + 1
-          ) {
-            return false;
-          }
+    const allInView = async () => {
+      for (const target of targets) {
+        const b = await box(target);
+        if (
+          b.x < viewport.x - 1 ||
+          b.y < viewport.y - 1 ||
+          b.x + b.width > viewport.x + viewport.width + 1 ||
+          b.y + b.height > viewport.y + viewport.height + 1
+        ) {
+          return false;
         }
-        return true;
-      })
-      .toBe(true);
+      }
+      return true;
+    };
+
+    // The page opens with every rack in view, so pan away first: otherwise
+    // the test passes without fit-all doing anything. The drag starts on
+    // empty canvas right of the racks, since a press on a rack does not pan.
+    const startX = viewport.x + viewport.width - 40;
+    const startY = viewport.y + viewport.height / 2;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX - viewport.width * 0.75, startY, {
+      steps: 10,
+    });
+    await page.mouse.up();
+    await expect.poll(allInView).toBe(false);
+
+    // Focus rather than click: the left panel's edge grip overlays the
+    // canvas's left edge and would take a click there.
+    await canvas.focus();
+    await page.keyboard.press("f");
+
+    await expect.poll(allInView).toBe(true);
   });
 });

@@ -16,12 +16,14 @@ import {
   U_HEIGHT_PX,
 } from "$lib/constants/layout";
 import { MM_PER_U } from "$lib/types/constants";
+import { slotLayout } from "$lib/utils/slot-layout";
 import {
   createTestRack,
   createTestDeviceType,
   createTestDevice,
   createTestContainerType,
   createTestContainerChild,
+  createTestSlot,
 } from "./factories";
 
 const baseOptions: ExportOptions = {
@@ -136,6 +138,40 @@ describe("image export: carrier children (#3362)", () => {
     }
     // Side-by-side cells: the left child sits left of the right child.
     expect(left[0]!.x + left[0]!.width).toBeLessThanOrEqual(right[0]!.x);
+  });
+
+  it("places children in the same gap-aware cells as the canvas (#3543)", () => {
+    const gappedType = createTestContainerType({
+      slug: "test-carrier",
+      u_height: 1,
+      colour: "#111111",
+      is_full_depth: false,
+      slots: [
+        createTestSlot({
+          id: "slot-left",
+          position: { row: 0, col: 0 },
+          width_fraction: 0.4,
+        }),
+        createTestSlot({
+          id: "slot-right",
+          position: { row: 0, col: 1 },
+          width_fraction: 0.4,
+        }),
+      ],
+      slot_gaps: [40],
+    });
+    const rack = carrierRack();
+    const svg = generateExportSVG(
+      [rack],
+      [gappedType, leftType, rightType],
+      baseOptions,
+    );
+
+    const cells = slotLayout(gappedType, rackInterior.width, rack.width).slots;
+    const rightCell = cells.find((cell) => cell.id === "slot-right");
+    const [right] = boxesWithFill(svg, rightType.colour!);
+    // The child body is inset 2 px from its cell, as on the canvas.
+    expect(right!.x).toBeCloseTo(RAIL_WIDTH + rightCell!.x + 2);
   });
 
   it("children follow their carrier's face, not their own", () => {
