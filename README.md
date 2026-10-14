@@ -1,4 +1,6 @@
 <p align="center">
+
+[![Deploy to Railyard](https://app.railyard.run/deploy/badge)](https://app.railyard.run/deploy?repo=https://github.com/RackulaLives/Rackula)
   <a href="https://count.racku.la">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="assets/Rackula-lockup-dark.svg">
