@@ -81,7 +81,7 @@
     ]
   },
   "dependencies": {
-    "@lucide/svelte": "^1.52.0",
+    "@lucide/svelte": "^1.55.0",
     "bits-ui": "^2.19.5",
     "browser-fs-access": "^0.38.0",
     "debug": "^4.4.3",
