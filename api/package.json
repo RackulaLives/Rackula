@@ -34,7 +34,7 @@
     "@types/js-yaml": "^4.0.9",
     "pino-pretty": "^13.2.0",
     "typescript": "^7.0.2",
-    "vitest": "4.1.11",
+    "vitest": "4.1.12",
     "wrangler": "^4.150.0"
   }
 }
