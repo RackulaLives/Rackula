@@ -146,11 +146,11 @@ The string `assets/` appears in three different contexts with three different la
 
 | Context | Path shape | Folder key | Image bytes |
 | --- | --- | --- | --- |
-| Server API on disk | `assets/{deviceId}/{face}.{ext}` | per-placement device UUID | a file per face |
+| Server API on disk | `assets/{deviceId}/{face}.{ext}` or `assets/{device_type-slug}/{face}.{ext}` | per-placement device UUID, or the custom device-type slug | a file per face |
 | Browser ZIP export (`.Rackula.zip`) | `assets/{device_type-slug}/{deviceId}-{face}.{ext}` | device-type slug | a file per face, named with the placement UUID |
 | Browser `.rackula.yaml` | no `assets/` folder | not applicable | embedded as base64 in the YAML |
 
-The server on-disk shape and the browser ZIP shape differ by design: the on-disk folder is keyed by the placement's device UUID, while the ZIP groups images under the device-type slug and carries the placement UUID in the filename. The browser `.rackula.yaml` single-file save embeds images as base64 data URIs and has no `assets/` folder at all; this is unchanged.
+The server on-disk shape and the browser ZIP shape differ by design: the on-disk folder is keyed by the placement's device UUID (or, for an image attached to a custom device type, by the device-type slug), while the ZIP groups images under the device-type slug and carries the placement UUID in the filename. The browser `.rackula.yaml` single-file save embeds images as base64 data URIs and has no `assets/` folder at all; this is unchanged.
 
 ### When `assets/` appears (migrate on next save)
 
@@ -894,7 +894,7 @@ tar xzf rackula-backup.tar.gz -C ./data
     └── production-rack.rackula.yaml
 ```
 
-Each layout lives in its own folder named `{layout-name}-{layout-UUID}`, holding one `*.rackula.yaml` file. Custom device images are stored on disk, not in the YAML. The `assets/` folder appears only when a layout has at least one custom image, and each placed device that has an image gets a folder named after that placement's device UUID, with one file per face: `assets/{deviceId}/{face}.{ext}`. The face is `front` or `rear`; the extension is `png`, `jpg`, or `webp`, derived from the image's sniffed bytes (see [Custom device image storage](#custom-device-image-storage) below).
+Each layout lives in its own folder named `{layout-name}-{layout-UUID}`, holding one `*.rackula.yaml` file. Custom device images are stored on disk, not in the YAML. The `assets/` folder appears only when a layout has at least one custom image, and each placed device that has an image gets a folder named after that placement's device UUID, with one file per face: `assets/{deviceId}/{face}.{ext}`. An image attached to a custom device type gets a folder named after the device-type slug instead: `assets/{device_type-slug}/{face}.{ext}`. The face is `front` or `rear`; the extension is `png`, `jpg`, or `webp`, derived from the image's sniffed bytes (see [Custom device image storage](#custom-device-image-storage) below).
 
 ### Security Hardening
 
