@@ -67,7 +67,9 @@
       class:command-pill--mobile={viewportStore.isMobile}
       class:command-pill--active={paletteOpen}
       type="button"
-      aria-label="Search or run a command"
+      aria-label={viewportStore.isMobile
+        ? "Search or run a command"
+        : `Search ${paletteShortcut}, or run a command`}
       aria-haspopup="dialog"
       aria-expanded={paletteOpen}
       data-testid="btn-command-palette"

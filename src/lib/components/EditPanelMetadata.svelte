@@ -382,18 +382,18 @@
         onkeydown={handleDeviceNameKeydown}
       />
     {:else}
+      {@const shownName =
+        selectedDeviceInfo.placedDevice.name ??
+        selectedDeviceInfo.device.model ??
+        selectedDeviceInfo.device.slug}
       <button
         id="device-display-name"
         type="button"
         class="display-name-display"
         onclick={startEditingDeviceName}
-        aria-label="Edit display name"
+        aria-label="Edit display name: {shownName}"
       >
-        <span class="display-name-text">
-          {selectedDeviceInfo.placedDevice.name ??
-            selectedDeviceInfo.device.model ??
-            selectedDeviceInfo.device.slug}
-        </span>
+        <span class="display-name-text">{shownName}</span>
         <span class="edit-icon-wrapper"><IconEdit /></span>
       </button>
     {/if}
@@ -410,10 +410,10 @@
       class="colour-swatch-btn"
       onclick={() => (showColourPicker = !showColourPicker)}
       aria-expanded={showColourPicker}
-      aria-labelledby="device-colour-label"
+      aria-labelledby="device-colour-label device-colour-value"
     >
       <ColourSwatch colour={resolvedColour} size={ICON_SIZE.sm} />
-      <span class="colour-value">
+      <span class="colour-value" id="device-colour-value">
         {resolvedColour}
         {#if selectedDeviceInfo.placedDevice.colour_override}
           <span class="colour-badge">custom</span>
