@@ -479,7 +479,12 @@
 
   // Aria label for accessibility - includes container hierarchy for child devices
   const ariaLabel = $derived.by(() => {
-    const base = `${displayName}, ${device.u_height}U ${device.category}`;
+    const rearState =
+      isRearTreatment && !showImage && !showImagePlaceholder ? " rear" : "";
+
+    // The rear state follows the name because the REAR badge sits beside it:
+    // WCAG 2.5.3 needs the visible text to read in order within the name.
+    const base = `${displayName}${rearState}, ${device.u_height}U ${device.category}`;
 
     // Convey the device image and the face shown: the SVG <image> has no native
     // accessible name, so the device button announces it instead.
@@ -489,11 +494,8 @@
         ? `, ${currentFace} image loading`
         : "";
 
-    const rearState =
-      isRearTreatment && !showImage && !showImagePlaceholder ? ", rear" : "";
-
     // Rack-level device: standard announcement
-    return `${base} at U${positionHuman}${imageState}${rearState}${selected ? ", selected" : ""}`;
+    return `${base} at U${positionHuman}${imageState}${selected ? ", selected" : ""}`;
   });
 
   // Handle keyboard activation (Enter/Space to select, Tab to enter container)
@@ -1056,7 +1058,10 @@
 
     <!-- Rear affordance: marks this as the back of a full-depth device. With
        ports in view it sits left of the port zone instead of floating over it,
-       or is left out when the label needs the room. -->
+       or is left out when the label needs the room. The space keeps the name and
+       the badge as separate words in the element's text. -->
+    <!-- eslint-disable-next-line svelte/no-useless-mustaches -- Svelte trims a plain space at a block edge -->
+    {" "}
     {#if inFlowRearTag}
       <text
         class="rear-badge"

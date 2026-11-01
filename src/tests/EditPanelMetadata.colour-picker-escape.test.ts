@@ -28,7 +28,7 @@ function renderEditTabWithGlobalKeyboard() {
 }
 
 function getColourToggle() {
-  return screen.getByRole("button", { name: "Colour" });
+  return screen.getByRole("button", { name: /^Colour/ });
 }
 
 describe("EditPanelMetadata colour picker Escape (#3005)", () => {
