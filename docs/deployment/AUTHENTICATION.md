@@ -617,8 +617,7 @@ Rackula includes IP-based rate-limiting on API routes, with separate limits for 
 
 - `/health` and `/api/health`
 - `/version` and `/api/version`
-- `/auth/login`, `/auth/callback`, `/auth/check`, `/auth/logout` and their `/api/` equivalents
-- `/auth/oauth2/callback/oidc` and its `/api/` equivalent
+- `/auth/check` and `/auth/logout`, and their `/api/` equivalents
 
 **Tuning guidance:**
 

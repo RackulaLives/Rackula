@@ -36,6 +36,8 @@ function createTestApp(config: {
   // limiter in the real app, so the global write limiter must not consume them.
   app.post("/auth/login", (c) => c.json({ login: true }));
   app.post("/api/auth/login", (c) => c.json({ login: true }));
+  app.get("/auth/check", (c) => c.json({ check: true }));
+  app.get("/api/auth/check", (c) => c.json({ check: true }));
   app.get("/auth/callback", (c) => c.json({ callback: true }));
   app.get("/api/auth/callback", (c) => c.json({ callback: true }));
   app.get("/auth/oauth2/callback/oidc", (c) => c.json({ callback: true }));
@@ -202,7 +204,7 @@ describe("createRateLimitMiddleware", () => {
     expect(res.status).not.toBe(429);
   });
 
-  it("exempts auth callback/check/logout endpoints from rate limiting", async () => {
+  it("exempts auth check endpoints from rate limiting", async () => {
     const { app, stopCleanup } = createTestApp({
       writeMaxRequests: 1,
       readMaxRequests: 1,
@@ -214,28 +216,37 @@ describe("createRateLimitMiddleware", () => {
       headers: { "x-real-ip": "1.2.3.4" },
     });
 
-    const res = await app.request("/auth/callback", {
-      headers: { "x-real-ip": "1.2.3.4" },
-    });
-    expect(res.status).toBe(200);
-
-    const res2 = await app.request("/api/auth/callback", {
-      headers: { "x-real-ip": "1.2.3.4" },
-    });
-    expect(res2.status).toBe(200);
-
-    // Better Auth's own callback path is exempt on the same grounds (#3140):
-    // throttling it would lock out logins, and the signed state cookie is
-    // validated before any upstream identity-provider request.
-    for (const path of [
-      "/auth/oauth2/callback/oidc",
-      "/api/auth/oauth2/callback/oidc",
-    ]) {
-      const oauthRes = await app.request(path, {
+    for (const path of ["/auth/check", "/api/auth/check"]) {
+      const res = await app.request(path, {
         headers: { "x-real-ip": "1.2.3.4" },
       });
-      expect(oauthRes.status).toBe(200);
+      expect(res.status).toBe(200);
     }
+  });
+
+  // After a failed startup discovery, Better Auth retries discovery ahead of
+  // state validation, so an unauthenticated flood here would reach the IdP.
+  it.each([
+    "/auth/callback",
+    "/api/auth/callback",
+    "/auth/oauth2/callback/oidc",
+    "/api/auth/oauth2/callback/oidc",
+  ])("throttles the OIDC callback path %s", async (path) => {
+    const { app, stopCleanup } = createTestApp({
+      writeMaxRequests: 1,
+      readMaxRequests: 1,
+    });
+    cleanups.push(stopCleanup);
+
+    const first = await app.request(path, {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    expect(first.status).toBe(200);
+
+    const second = await app.request(path, {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    expect(second.status).toBe(429);
   });
 
   it("throttles GET /auth/login (login initiation is no longer exempt)", async () => {

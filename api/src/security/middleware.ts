@@ -35,18 +35,15 @@ export const AUTH_PUBLIC_PATHS: ReadonlySet<string> = _AUTH_PUBLIC_PATHS;
 
 /**
  * Paths exempt from rate limiting. This is {@link AUTH_PUBLIC_PATHS} minus the
- * login-initiation routes: those must stay throttled so an attacker cannot
- * flood OIDC login initiations (state/PKCE generation, Set-Cookie, upstream
- * IdP work). The callback/check/logout routes remain exempt, including the
- * oauth2 callback paths: Better Auth validates the encrypted state cookie
- * before any token exchange, so an unauthenticated flood costs one decryption
- * and generates no IdP traffic. The exception is a failed startup discovery:
- * Better Auth retries it on these requests, one retry at a time, bounded by a
- * 10s timeout.
+ * login-initiation and OIDC callback routes. Login must stay throttled so an
+ * attacker cannot flood OIDC login initiations (state/PKCE generation,
+ * Set-Cookie, upstream IdP work). Callbacks must too: after a failed startup
+ * discovery, Better Auth retries discovery ahead of state validation, so an
+ * unauthenticated flood would reach the IdP.
  */
 const _RATE_LIMIT_EXEMPT_PATHS = new Set(
   [..._AUTH_PUBLIC_PATHS].filter(
-    (path) => path !== "/auth/login" && path !== "/api/auth/login",
+    (path) => !path.endsWith("/auth/login") && !path.includes("/callback"),
   ),
 );
 export const RATE_LIMIT_EXEMPT_PATHS: ReadonlySet<string> =
