@@ -13,7 +13,7 @@ test.describe("Responsive Layout", () => {
       // search pill (which opens the command palette, #2776) on the left and the
       // storage status chip in the right region are the desktop chrome.
       await expect(
-        page.getByRole("button", { name: "Search or run a command" }),
+        page.getByRole("button", { name: /^Search .*or run a command$/ }),
       ).toBeVisible();
       await expect(page.getByTestId("storage-status-chip")).toBeVisible();
     });
