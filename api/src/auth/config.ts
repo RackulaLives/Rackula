@@ -12,10 +12,10 @@ const DEFAULT_BASE_URL = "http://localhost:3000";
  * IdP, and the only OIDC callback Rackula routes and exempts from the auth gate.
  *
  * Without this default, Better Auth falls back to its own convention,
- * {baseURL}/api/auth/oauth2/callback/oidc. That path is served too, as
- * compatibility behaviour for deployments already registered against it, but it
- * is not the default: the docs and every IdP setup guide name /auth/callback.
- * See #3140.
+ * {baseURL}/api/auth/callback/oidc, which the auth gate blocks. The older
+ * /auth/oauth2/callback/oidc paths are served as compatibility behaviour for
+ * deployments already registered against them, but they are not the default:
+ * the docs and every IdP setup guide name /auth/callback. See #3140.
  */
 const DEFAULT_OIDC_CALLBACK_PATH = "/auth/callback";
 /**
@@ -97,7 +97,11 @@ function resolveIdTokenSigningAlgs(value: unknown): string[] {
 }
 
 interface VerifiedOidcUserInfo {
+  [key: string]: unknown;
   id: string;
+  // Better Auth keys the account on `sub` when discovery advertises signing
+  // algorithms, and on `id` when it does not. Both carry the OIDC subject.
+  sub: string;
   name?: string;
   email: string;
   image?: string;
@@ -318,8 +322,11 @@ function mapVerifiedOidcPayload(
       ? pictureClaim.trim()
       : undefined;
 
+  const subject = subjectValue.trim();
+
   return {
-    id: subjectValue.trim(),
+    id: subject,
+    sub: subject,
     name: nameValue,
     email: emailValue.trim().toLowerCase(),
     image: imageValue,

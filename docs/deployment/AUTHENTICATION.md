@@ -66,7 +66,8 @@ When auth is enabled (`oidc` or `local`), the following routes remain publicly a
 | --- | --- |
 | `/auth/login`, `/auth/callback`, `/auth/check`, `/auth/logout` | Browser-facing auth flow |
 | `/api/auth/login`, `/api/auth/callback`, `/api/auth/check`, `/api/auth/logout` | API compatibility auth routes |
-| `/auth/oauth2/callback/oidc`, `/api/auth/oauth2/callback/oidc` | Better Auth's own OIDC callback path, served for deployments whose IdP is registered against it |
+| `/auth/oauth2/callback/oidc`, `/api/auth/oauth2/callback/oidc` | The OIDC callback path Better Auth used before 1.7, served for deployments whose IdP is registered against it |
+| `/auth/error`, `/api/auth/error` | Error page shown after a rejected OIDC login |
 | `/health`, `/api/health` | Container and API health checks |
 
 All other routes require a valid session. Unauthenticated requests are handled differently depending on the route type:
@@ -90,7 +91,7 @@ If you deploy Rackula behind Nginx auth_request, keep this contract consistent:
   - `GET /api/auth/callback`
   - `GET /api/auth/check`
   - `POST /api/auth/logout`
-- Better Auth's own OIDC callback path (served, but not the default; see Required: RACKULA_BASE_URL):
+- The OIDC callback path Better Auth used before 1.7 (served, but not the default; see Required: RACKULA_BASE_URL):
   - `GET /auth/oauth2/callback/oidc`
   - `GET /api/auth/oauth2/callback/oidc`
 - Internal auth probe contract:
@@ -600,7 +601,7 @@ Rackula includes IP-based rate-limiting on API routes, with separate limits for 
 - Each IP address gets a fixed-window counter for read requests (GET, HEAD) and write requests (PUT, DELETE)
 - When a limit is exceeded, the API returns `429 Too Many Requests` with a `Retry-After` header (integer seconds) and JSON body: `{"error": "Too Many Requests", "message": "Rate limit exceeded. Try again later."}`
 - Successful requests include an `X-RateLimit-Remaining` header showing remaining requests in the current window
-- Health, version, and auth endpoints are exempt from rate-limiting
+- Health, version, and the auth check, logout and error endpoints are exempt from rate-limiting
 - CORS preflight (OPTIONS) requests are exempt
 
 **Environment variables:**
@@ -617,8 +618,7 @@ Rackula includes IP-based rate-limiting on API routes, with separate limits for 
 
 - `/health` and `/api/health`
 - `/version` and `/api/version`
-- `/auth/login`, `/auth/callback`, `/auth/check`, `/auth/logout` and their `/api/` equivalents
-- `/auth/oauth2/callback/oidc` and its `/api/` equivalent
+- `/auth/check`, `/auth/logout` and `/auth/error`, and their `/api/` equivalents
 
 **Tuning guidance:**
 
@@ -919,6 +919,24 @@ Events are written to stdout as structured JSON, compatible with log aggregators
 4. Restart the API after changes
 
 On current releases this failure returns a `400` naming `RACKULA_OIDC_REDIRECT_URI` rather than looping, so check the API response body if login fails.
+
+### Login redirects to an error page with `unable_to_get_user_info`
+
+**Symptoms:**
+
+- Authentication at the IdP succeeds, then the browser lands on `/api/auth/error?error=unable_to_get_user_info`
+- No `rackula_auth_session` cookie is set
+
+**Cause:**
+
+The ID token failed verification. Rackula checks its signature, issuer, audience, signing algorithm and nonce. An IdP must return the `nonce` from the authorization request in the ID token, and its discovery document must not advertise only signing algorithms that it does not use.
+
+**Resolution:**
+
+1. Check the API logs for `id_token failed verification` or `OIDC ID token validation failed`
+2. Confirm the IdP returns the `nonce` claim in the ID token
+3. Confirm `id_token_signing_alg_values_supported` in the discovery document lists the algorithm the IdP signs with
+4. Confirm the `aud` claim matches `RACKULA_OIDC_CLIENT_ID`
 
 ### Sessions expire immediately after login
 
