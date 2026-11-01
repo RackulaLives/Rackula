@@ -1060,6 +1060,7 @@
        ports in view it sits left of the port zone instead of floating over it,
        or is left out when the label needs the room. The space keeps the name and
        the badge as separate words in the element's text. -->
+    <!-- eslint-disable-next-line svelte/no-useless-mustaches -- Svelte trims a plain space at a block edge -->
     {" "}
     {#if inFlowRearTag}
       <text
