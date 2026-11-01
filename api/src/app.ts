@@ -474,8 +474,7 @@ export async function createApp(
       Boolean(auth) &&
       securityConfig.authMode === "oidc" &&
       authPlugins.length > 0 &&
-      typeof authApi.signInWithOAuth2 === "function" &&
-      typeof authApi.oAuth2Callback === "function";
+      typeof authApi.signInSocial === "function";
 
     const authUnavailableRouteHandler = (c: Context<AppEnv>) =>
       c.json(
@@ -508,20 +507,22 @@ export async function createApp(
       }
 
       try {
-        const signInWithOAuth2 = authApi.signInWithOAuth2 as (options: {
+        const signInSocial = authApi.signInSocial as (options: {
           headers: Headers;
           body: {
-            providerId: string;
+            provider: string;
             callbackURL: string;
+            disableRedirect: boolean;
           };
           returnHeaders: boolean;
         }) => Promise<{ headers?: Headers; response?: { url?: string } }>;
 
-        const signInResult = await signInWithOAuth2({
+        const signInResult = await signInSocial({
           headers: c.req.raw.headers,
           body: {
-            providerId: OIDC_PROVIDER_ID,
+            provider: OIDC_PROVIDER_ID,
             callbackURL: normalizeNextPath(c.req.query("next")),
+            disableRedirect: true,
           },
           returnHeaders: true,
         });
@@ -556,7 +557,7 @@ export async function createApp(
       }
 
       const callbackUrl = new URL(c.req.url);
-      callbackUrl.pathname = "/api/auth/oauth2/callback/oidc";
+      callbackUrl.pathname = `/api/auth/callback/${OIDC_PROVIDER_ID}`;
       const proxyRequest = new Request(callbackUrl.toString(), {
         method: c.req.raw.method,
         headers: c.req.raw.headers,
@@ -657,16 +658,16 @@ export async function createApp(
 
     app.get("/auth/login", authLoginRouteHandler);
     app.get("/auth/callback", authCallbackRouteHandler);
-    // Better Auth's own callback path, for deployments whose IdP is registered
-    // against it. nginx strips the /api prefix before the request reaches us,
-    // so the bare form is the one that needs an explicit route; the /api form
-    // is already covered by the Better Auth wildcard below. See #3140.
+    // The callback path Better Auth used before 1.7, for deployments whose IdP
+    // is still registered against it. nginx strips the /api prefix before the
+    // request reaches us, so both forms need a route. See #3140.
     app.get("/auth/oauth2/callback/oidc", authCallbackRouteHandler);
     app.get("/auth/check", authCheckRouteHandler);
     app.post("/auth/logout", authLogoutRouteHandler);
 
     app.get("/api/auth/login", authLoginRouteHandler);
     app.get("/api/auth/callback", authCallbackRouteHandler);
+    app.get("/api/auth/oauth2/callback/oidc", authCallbackRouteHandler);
     app.get("/api/auth/check", authCheckRouteHandler);
     app.post("/api/auth/logout", authLogoutRouteHandler);
 

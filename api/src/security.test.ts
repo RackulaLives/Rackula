@@ -531,13 +531,13 @@ describe("authentication gate", () => {
     expect(callback.status).toBe(501);
   });
 
-  // #3140: Better Auth's generic-oauth plugin advertises
-  // {baseURL}/api/auth/oauth2/callback/oidc as its default redirect URI. The
-  // auth gate used to intercept that path and bounce it to the login route,
-  // which re-initiated OIDC and looped until ERR_TOO_MANY_REDIRECTS. 501 here
-  // proves the gate let the request through to the route handler, which then
-  // reports the OIDC provider as unconfigured for this env.
-  it("keeps Better Auth's own OAuth callback path reachable when auth is enabled", async () => {
+  // #3140: Better Auth's generic-oauth plugin advertised
+  // {baseURL}/api/auth/oauth2/callback/oidc as its default redirect URI before
+  // 1.7. The auth gate used to intercept that path and bounce it to the login
+  // route, which re-initiated OIDC and looped until ERR_TOO_MANY_REDIRECTS. 501
+  // here proves the gate let the request through to the route handler, which
+  // then reports the OIDC provider as unconfigured for this env.
+  it("keeps the pre-1.7 Better Auth OAuth callback path reachable when auth is enabled", async () => {
     const app = await createApp(buildAuthEnabledEnv());
 
     for (const path of [
@@ -545,19 +545,9 @@ describe("authentication gate", () => {
       "/api/auth/oauth2/callback/oidc",
     ]) {
       const response = await app.request(path);
-      expect(response.status).not.toBe(302);
-      expect(response.status).not.toBe(401);
+      expect(response.status).toBe(501);
       expect(response.headers.get("location")).toBeNull();
     }
-
-    // The bare path routes to Rackula's callback wrapper, which reports the
-    // provider as unconfigured for this env. The /api form reaches Better Auth
-    // directly and 404s here because no OIDC credentials means no plugin.
-    // Either way the gate did not intercept.
-    expect((await app.request("/auth/oauth2/callback/oidc")).status).toBe(501);
-    expect((await app.request("/api/auth/oauth2/callback/oidc")).status).toBe(
-      404,
-    );
   });
 
   // The unroutable-callback guard must key off the path, not off the presence

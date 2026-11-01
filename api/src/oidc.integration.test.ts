@@ -63,7 +63,11 @@ function mergeCookieHeaders(
     .join("; ");
 }
 
-async function createSignedIdToken(
+// What the mock IdP remembers from the authorization request. A real IdP binds
+// the nonce it received into the ID token it issues at the token endpoint.
+const mockIdpSession: { nonce?: string } = {};
+
+async function createIdTokenSigner(
   overrides: {
     audience?: string | string[];
     issuer?: string;
@@ -83,7 +87,10 @@ async function createSignedIdToken(
      */
     includeJwkAlg?: boolean;
   } = {},
-): Promise<{ token: string; publicJwk: JsonWebKey }> {
+): Promise<{
+  sign: (nonce: string | undefined) => Promise<string>;
+  publicJwk: JsonWebKey;
+}> {
   const algorithm = overrides.algorithm ?? "RS256";
   const { publicKey, privateKey } = await generateKeyPair(algorithm);
   const publicJwk = await exportJWK(publicKey);
@@ -93,25 +100,28 @@ async function createSignedIdToken(
   }
   publicJwk.use = "sig";
 
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  const token = await new SignJWT({
-    email: "admin@example.com",
-    name: "Rackula Admin",
-    email_verified: true,
-  })
-    .setProtectedHeader({
-      alg: algorithm,
-      kid: "rackula-test-kid",
-      typ: "JWT",
+  const sign = (nonce: string | undefined) => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    return new SignJWT({
+      email: "admin@example.com",
+      name: "Rackula Admin",
+      email_verified: true,
+      ...(nonce === undefined ? {} : { nonce }),
     })
-    .setIssuer(overrides.issuer ?? ENTRA_TENANT_ISSUER)
-    .setAudience(overrides.audience ?? "rackula-web")
-    .setSubject("entra-user-123")
-    .setIssuedAt(nowSeconds)
-    .setExpirationTime(nowSeconds + 3600)
-    .sign(privateKey);
+      .setProtectedHeader({
+        alg: algorithm,
+        kid: "rackula-test-kid",
+        typ: "JWT",
+      })
+      .setIssuer(overrides.issuer ?? ENTRA_TENANT_ISSUER)
+      .setAudience(overrides.audience ?? "rackula-web")
+      .setSubject("entra-user-123")
+      .setIssuedAt(nowSeconds)
+      .setExpirationTime(nowSeconds + 3600)
+      .sign(privateKey);
+  };
 
-  return { token, publicJwk };
+  return { sign, publicJwk };
 }
 
 async function installMockOidcFetch(
@@ -128,10 +138,18 @@ async function installMockOidcFetch(
      */
     discoverySigningAlgs?: string[];
     failTokenExchange?: boolean;
+    /**
+     * Overrides the nonce the mock IdP puts in the ID token, to simulate a
+     * replayed or nonce-less token. `null` omits the claim.
+     */
+    idTokenNonce?: string | null;
+    /** While true, the discovery endpoint answers 503. */
+    discoveryState?: { down: boolean };
   } = {},
 ): Promise<{ restore: () => void }> {
   const originalFetch = globalThis.fetch;
-  const signedIdToken = await createSignedIdToken({
+  mockIdpSession.nonce = undefined;
+  const idTokenSigner = await createIdTokenSigner({
     audience: options.idTokenAudience,
     issuer: options.idTokenIssuer,
     algorithm: options.idTokenAlgorithm,
@@ -150,6 +168,10 @@ async function installMockOidcFetch(
           : input.url;
 
     if (url === ENTRA_DISCOVERY_URL) {
+      if (options.discoveryState?.down) {
+        return new Response("unavailable", { status: 503 });
+      }
+
       return new Response(
         JSON.stringify({
           issuer: ENTRA_TENANT_ISSUER,
@@ -176,7 +198,7 @@ async function installMockOidcFetch(
     if (url === ENTRA_JWKS_URL) {
       return new Response(
         JSON.stringify({
-          keys: [signedIdToken.publicJwk],
+          keys: [idTokenSigner.publicJwk],
         }),
         {
           status: 200,
@@ -203,12 +225,17 @@ async function installMockOidcFetch(
         );
       }
 
+      const idTokenNonce =
+        options.idTokenNonce === null
+          ? undefined
+          : (options.idTokenNonce ?? mockIdpSession.nonce);
+
       return new Response(
         JSON.stringify({
           access_token: "entra-access-token",
           token_type: "Bearer",
           expires_in: 3600,
-          id_token: signedIdToken.token,
+          id_token: await idTokenSigner.sign(idTokenNonce),
           scope: "openid profile email",
         }),
         {
@@ -237,22 +264,39 @@ async function installMockOidcFetch(
 }
 
 describe("OIDC integration", () => {
-  async function completeOidcLogin(
+  // Starts a login and plays the IdP's part of the authorization request.
+  async function beginOidcLogin(
     app: Awaited<ReturnType<typeof createApp>>,
-  ): Promise<string> {
+  ): Promise<{
+    authorizationUrl: URL;
+    state: string;
+    loginCookieHeader: string;
+  }> {
     const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
     expect(loginResponse.status).toBe(302);
 
-    const loginUrl = new URL(loginResponse.headers.get("location")!);
-    const state = loginUrl.searchParams.get("state");
+    const authorizationUrl = new URL(loginResponse.headers.get("location")!);
+    const state = authorizationUrl.searchParams.get("state");
     expect(state).not.toBeNull();
+    mockIdpSession.nonce =
+      authorizationUrl.searchParams.get("nonce") ?? undefined;
 
-    const loginCookieHeader = cookieHeaderFromSetCookies(
-      readSetCookies(loginResponse.headers),
-    );
+    return {
+      authorizationUrl,
+      state: state!,
+      loginCookieHeader: cookieHeaderFromSetCookies(
+        readSetCookies(loginResponse.headers),
+      ),
+    };
+  }
+
+  async function completeOidcLogin(
+    app: Awaited<ReturnType<typeof createApp>>,
+  ): Promise<string> {
+    const { state, loginCookieHeader } = await beginOidcLogin(app);
 
     const callbackResponse = await app.request(
-      `/auth/callback?code=entra-code&state=${encodeURIComponent(state!)}`,
+      `/auth/callback?code=entra-code&state=${encodeURIComponent(state)}`,
       {
         headers: {
           Cookie: loginCookieHeader,
@@ -287,22 +331,15 @@ describe("OIDC integration", () => {
   }
 
   // Runs the login -> callback flow and asserts the callback rejected the ID
-  // token: it redirects with user_info_is_missing and sets no session cookie.
+  // token: it redirects with unable_to_get_user_info and sets no session cookie.
   // Shared by the algorithm-pinning regression tests.
   async function expectOidcLoginRejected(
     app: Awaited<ReturnType<typeof createApp>>,
   ): Promise<void> {
-    const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
-    expect(loginResponse.status).toBe(302);
-    const loginUrl = new URL(loginResponse.headers.get("location")!);
-    const state = loginUrl.searchParams.get("state");
-    expect(state).not.toBeNull();
-    const loginCookieHeader = cookieHeaderFromSetCookies(
-      readSetCookies(loginResponse.headers),
-    );
+    const { state, loginCookieHeader } = await beginOidcLogin(app);
 
     const callbackResponse = await app.request(
-      `/auth/callback?code=entra-code&state=${encodeURIComponent(state!)}`,
+      `/auth/callback?code=entra-code&state=${encodeURIComponent(state)}`,
       {
         headers: {
           Cookie: loginCookieHeader,
@@ -312,7 +349,7 @@ describe("OIDC integration", () => {
 
     expect(callbackResponse.status).toBe(302);
     expect(callbackResponse.headers.get("location")).toContain(
-      "user_info_is_missing",
+      "unable_to_get_user_info",
     );
 
     const callbackCookies = readSetCookies(callbackResponse.headers);
@@ -341,6 +378,30 @@ describe("OIDC integration", () => {
     }
   });
 
+  it("recovers login once an IdP that was down at startup comes back", async () => {
+    const discoveryState = { down: true };
+    const mock = await installMockOidcFetch({ discoveryState });
+    try {
+      const app = await createApp(buildOidcEnv());
+
+      const whileDown = await app.request("/auth/login?next=%2Fdashboard");
+      expect(whileDown.status).toBe(502);
+
+      discoveryState.down = false;
+      const authedCookieHeader = await completeOidcLogin(app);
+
+      const checkResponse = await app.request("/auth/check", {
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
+        },
+      });
+      expect(checkResponse.status).toBe(204);
+    } finally {
+      mock.restore();
+    }
+  });
+
   it("rejects callback when token audience does not match client id", async () => {
     const mock = await installMockOidcFetch({
       idTokenAudience: "wrong-client-id",
@@ -348,35 +409,7 @@ describe("OIDC integration", () => {
     try {
       const app = await createApp(buildOidcEnv());
 
-      const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
-      expect(loginResponse.status).toBe(302);
-      const loginUrl = new URL(loginResponse.headers.get("location")!);
-      const state = loginUrl.searchParams.get("state");
-      expect(state).not.toBeNull();
-      const loginCookieHeader = cookieHeaderFromSetCookies(
-        readSetCookies(loginResponse.headers),
-      );
-
-      const callbackResponse = await app.request(
-        `/auth/callback?code=entra-code&state=${encodeURIComponent(state!)}`,
-        {
-          headers: {
-            Cookie: loginCookieHeader,
-          },
-        },
-      );
-
-      expect(callbackResponse.status).toBe(302);
-      expect(callbackResponse.headers.get("location")).toContain(
-        "user_info_is_missing",
-      );
-
-      const callbackCookies = readSetCookies(callbackResponse.headers);
-      expect(
-        callbackCookies.some((cookie) =>
-          cookie.includes("rackula_auth_session="),
-        ),
-      ).toBe(false);
+      await expectOidcLoginRejected(app);
     } finally {
       mock.restore();
     }
@@ -429,15 +462,13 @@ describe("OIDC integration", () => {
     }
   });
 
-  // #2942: a discovery document advertising only unknown / non-JWS algorithm
-  // names must not suppress the RS256 fallback. Only known asymmetric JWS
-  // algorithms are honoured; an unrecognised value is ignored, leaving the
-  // RS256 fallback so a valid RS256 token still verifies and login succeeds.
-  it("falls back to RS256 when discovery advertises only an unknown algorithm", async () => {
+  // #2942: unknown names are ignored as long as discovery also advertises a
+  // usable algorithm, so a valid RS256 token still verifies and login succeeds.
+  it("accepts a token signed with an advertised algorithm listed beside an unknown one", async () => {
     const mock = await installMockOidcFetch({
       idTokenAlgorithm: "RS256",
       idTokenIncludeJwkAlg: false,
-      discoverySigningAlgs: ["FOO256"],
+      discoverySigningAlgs: ["FOO256", "RS256"],
     });
     try {
       const app = await createApp(buildOidcEnv());
@@ -450,6 +481,44 @@ describe("OIDC integration", () => {
         },
       });
       expect(checkResponse.status).toBe(204);
+    } finally {
+      mock.restore();
+    }
+  });
+
+  // Better Auth verifies the token against the advertised list before Rackula's
+  // resolver runs, so a provider advertising nothing usable fails closed.
+  it("rejects login when discovery advertises only an unknown algorithm", async () => {
+    const mock = await installMockOidcFetch({
+      idTokenAlgorithm: "RS256",
+      idTokenIncludeJwkAlg: false,
+      discoverySigningAlgs: ["FOO256"],
+    });
+    try {
+      const app = await createApp(buildOidcEnv());
+      await expectOidcLoginRejected(app);
+    } finally {
+      mock.restore();
+    }
+  });
+
+  it("rejects an ID token carrying a nonce from another login", async () => {
+    const mock = await installMockOidcFetch({
+      idTokenNonce: "nonce-from-another-login",
+    });
+    try {
+      const app = await createApp(buildOidcEnv());
+      await expectOidcLoginRejected(app);
+    } finally {
+      mock.restore();
+    }
+  });
+
+  it("rejects an ID token with no nonce", async () => {
+    const mock = await installMockOidcFetch({ idTokenNonce: null });
+    try {
+      const app = await createApp(buildOidcEnv());
+      await expectOidcLoginRejected(app);
     } finally {
       mock.restore();
     }
@@ -600,9 +669,9 @@ describe("OIDC integration", () => {
       const redirectUri = await readAdvertisedRedirectUri(app);
 
       expect(redirectUri).toBe("https://rack.example.com/auth/callback");
-      // Better Auth's own default is ${baseURL}/api/auth/oauth2/callback/oidc,
-      // a path the auth gate blocks and nginx rewrites out of reach (#3140).
-      expect(redirectUri).not.toContain("/oauth2/callback/");
+      // Better Auth's own default is ${baseURL}/api/auth/callback/oidc, a path
+      // the auth gate blocks (#3140).
+      expect(redirectUri).not.toContain("/callback/");
     } finally {
       mock.restore();
     }
@@ -615,14 +684,8 @@ describe("OIDC integration", () => {
         buildOidcEnv({ RACKULA_OIDC_REDIRECT_URI: undefined }),
       );
 
-      const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
-      expect(loginResponse.status).toBe(302);
-      const authorizationUrl = new URL(loginResponse.headers.get("location")!);
-      const state = authorizationUrl.searchParams.get("state");
-      expect(state).not.toBeNull();
-      const loginCookieHeader = cookieHeaderFromSetCookies(
-        readSetCookies(loginResponse.headers),
-      );
+      const { authorizationUrl, state, loginCookieHeader } =
+        await beginOidcLogin(app);
 
       // Follow the redirect URI Rackula actually handed the IdP, the way a
       // browser would, instead of assuming a callback path. Hardcoding
@@ -631,7 +694,7 @@ describe("OIDC integration", () => {
         authorizationUrl.searchParams.get("redirect_uri")!,
       ).pathname;
       const callbackResponse = await app.request(
-        `${advertisedPath}?code=entra-code&state=${encodeURIComponent(state!)}`,
+        `${advertisedPath}?code=entra-code&state=${encodeURIComponent(state)}`,
         {
           headers: {
             Cookie: loginCookieHeader,
@@ -691,48 +754,43 @@ describe("OIDC integration", () => {
     }
   });
 
-  it("serves Better Auth's own callback path when the IdP is configured to use it", async () => {
-    const mock = await installMockOidcFetch();
-    try {
-      const app = await createApp(
-        buildOidcEnv({
-          RACKULA_OIDC_REDIRECT_URI:
-            "https://rack.example.com/api/auth/oauth2/callback/oidc",
-        }),
-      );
+  // The bare path is what the API sees after nginx strips the /api prefix
+  // (deploy/nginx.conf.template:216).
+  it.each(["/auth/oauth2/callback/oidc", "/api/auth/oauth2/callback/oidc"])(
+    "completes login on the pre-1.7 Better Auth callback path %s",
+    async (callbackPath) => {
+      const mock = await installMockOidcFetch();
+      try {
+        const app = await createApp(
+          buildOidcEnv({
+            RACKULA_OIDC_REDIRECT_URI:
+              "https://rack.example.com/api/auth/oauth2/callback/oidc",
+          }),
+        );
 
-      const loginResponse = await app.request("/auth/login?next=%2Fdashboard");
-      expect(loginResponse.status).toBe(302);
-      const state = new URL(
-        loginResponse.headers.get("location")!,
-      ).searchParams.get("state");
-      expect(state).not.toBeNull();
-      const loginCookieHeader = cookieHeaderFromSetCookies(
-        readSetCookies(loginResponse.headers),
-      );
+        const { state, loginCookieHeader } = await beginOidcLogin(app);
 
-      // The bare path is what the API sees after nginx strips the /api prefix
-      // (deploy/nginx.conf.template:216).
-      const callbackResponse = await app.request(
-        `/auth/oauth2/callback/oidc?code=entra-code&state=${encodeURIComponent(state!)}`,
-        {
-          headers: {
-            Cookie: loginCookieHeader,
+        const callbackResponse = await app.request(
+          `${callbackPath}?code=entra-code&state=${encodeURIComponent(state)}`,
+          {
+            headers: {
+              Cookie: loginCookieHeader,
+            },
           },
-        },
-      );
+        );
 
-      expect(callbackResponse.status).toBe(302);
-      expect(callbackResponse.headers.get("location")).not.toContain(
-        "/auth/login",
-      );
-      expect(
-        readSetCookies(callbackResponse.headers).some((cookie) =>
-          cookie.includes("rackula_auth_session="),
-        ),
-      ).toBe(true);
-    } finally {
-      mock.restore();
-    }
-  });
+        expect(callbackResponse.status).toBe(302);
+        expect(callbackResponse.headers.get("location")).not.toContain(
+          "/auth/login",
+        );
+        expect(
+          readSetCookies(callbackResponse.headers).some((cookie) =>
+            cookie.includes("rackula_auth_session="),
+          ),
+        ).toBe(true);
+      } finally {
+        mock.restore();
+      }
+    },
+  );
 });
