@@ -547,6 +547,17 @@ export async function createApp(
       }
     };
 
+    const forwardToBetterAuth = (c: Context<AppEnv>, pathname: string) => {
+      const url = new URL(c.req.url);
+      url.pathname = pathname;
+      return auth!.handler(
+        new Request(url.toString(), {
+          method: c.req.raw.method,
+          headers: c.req.raw.headers,
+        }),
+      );
+    };
+
     const authCallbackRouteHandler = async (c: Context<AppEnv>) => {
       if (isLocalAuth) {
         return c.json({ error: "Not found" }, 404);
@@ -556,13 +567,21 @@ export async function createApp(
         return authUnavailableRouteHandler(c);
       }
 
-      const callbackUrl = new URL(c.req.url);
-      callbackUrl.pathname = `/api/auth/callback/${OIDC_PROVIDER_ID}`;
-      const proxyRequest = new Request(callbackUrl.toString(), {
-        method: c.req.raw.method,
-        headers: c.req.raw.headers,
-      });
-      return auth!.handler(proxyRequest);
+      return forwardToBetterAuth(c, `/api/auth/callback/${OIDC_PROVIDER_ID}`);
+    };
+
+    // Better Auth sends a rejected login to its error page. nginx strips the
+    // /api prefix before the request reaches us, so both forms need a route.
+    const authErrorRouteHandler = async (c: Context<AppEnv>) => {
+      if (isLocalAuth) {
+        return c.json({ error: "Not found" }, 404);
+      }
+
+      if (!oidcApiAvailable) {
+        return authUnavailableRouteHandler(c);
+      }
+
+      return forwardToBetterAuth(c, "/api/auth/error");
     };
 
     const authCheckRouteHandler = async (c: Context<AppEnv>) => {
@@ -662,12 +681,14 @@ export async function createApp(
     // is still registered against it. nginx strips the /api prefix before the
     // request reaches us, so both forms need a route. See #3140.
     app.get("/auth/oauth2/callback/oidc", authCallbackRouteHandler);
+    app.get("/auth/error", authErrorRouteHandler);
     app.get("/auth/check", authCheckRouteHandler);
     app.post("/auth/logout", authLogoutRouteHandler);
 
     app.get("/api/auth/login", authLoginRouteHandler);
     app.get("/api/auth/callback", authCallbackRouteHandler);
     app.get("/api/auth/oauth2/callback/oidc", authCallbackRouteHandler);
+    app.get("/api/auth/error", authErrorRouteHandler);
     app.get("/api/auth/check", authCheckRouteHandler);
     app.post("/api/auth/logout", authLogoutRouteHandler);
 

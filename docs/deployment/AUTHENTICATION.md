@@ -67,6 +67,7 @@ When auth is enabled (`oidc` or `local`), the following routes remain publicly a
 | `/auth/login`, `/auth/callback`, `/auth/check`, `/auth/logout` | Browser-facing auth flow |
 | `/api/auth/login`, `/api/auth/callback`, `/api/auth/check`, `/api/auth/logout` | API compatibility auth routes |
 | `/auth/oauth2/callback/oidc`, `/api/auth/oauth2/callback/oidc` | The OIDC callback path Better Auth used before 1.7, served for deployments whose IdP is registered against it |
+| `/auth/error`, `/api/auth/error` | Error page shown after a rejected OIDC login |
 | `/health`, `/api/health` | Container and API health checks |
 
 All other routes require a valid session. Unauthenticated requests are handled differently depending on the route type:
@@ -600,7 +601,7 @@ Rackula includes IP-based rate-limiting on API routes, with separate limits for 
 - Each IP address gets a fixed-window counter for read requests (GET, HEAD) and write requests (PUT, DELETE)
 - When a limit is exceeded, the API returns `429 Too Many Requests` with a `Retry-After` header (integer seconds) and JSON body: `{"error": "Too Many Requests", "message": "Rate limit exceeded. Try again later."}`
 - Successful requests include an `X-RateLimit-Remaining` header showing remaining requests in the current window
-- Health, version, and auth endpoints are exempt from rate-limiting
+- Health, version, and the auth check, logout and error endpoints are exempt from rate-limiting
 - CORS preflight (OPTIONS) requests are exempt
 
 **Environment variables:**
@@ -617,7 +618,7 @@ Rackula includes IP-based rate-limiting on API routes, with separate limits for 
 
 - `/health` and `/api/health`
 - `/version` and `/api/version`
-- `/auth/check` and `/auth/logout`, and their `/api/` equivalents
+- `/auth/check`, `/auth/logout` and `/auth/error`, and their `/api/` equivalents
 
 **Tuning guidance:**
 

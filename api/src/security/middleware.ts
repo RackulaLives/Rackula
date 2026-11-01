@@ -29,6 +29,10 @@ const _AUTH_PUBLIC_PATHS = new Set([
   // what creates the session, so requiring one here loops the browser. See #3140.
   "/auth/oauth2/callback/oidc",
   "/api/auth/oauth2/callback/oidc",
+  // Where Better Auth sends a rejected login. Gating it would restart the IdP
+  // flow instead of showing the error.
+  "/auth/error",
+  "/api/auth/error",
 ]);
 /** Immutable set of paths exempt from auth. */
 export const AUTH_PUBLIC_PATHS: ReadonlySet<string> = _AUTH_PUBLIC_PATHS;

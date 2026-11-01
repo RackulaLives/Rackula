@@ -402,6 +402,28 @@ describe("OIDC integration", () => {
     }
   });
 
+  // A rejected login lands here. If the auth gate bounced it to /auth/login, the
+  // IdP would silently re-approve the user and the error would never show. The
+  // bare path is what the API sees after nginx strips the /api prefix.
+  it.each(["/auth/error", "/api/auth/error"])(
+    "shows the rejected-login error page at %s without a session",
+    async (errorPath) => {
+      const mock = await installMockOidcFetch();
+      try {
+        const app = await createApp(buildOidcEnv());
+
+        const response = await app.request(
+          `${errorPath}?error=unable_to_get_user_info`,
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get("location")).toBeNull();
+      } finally {
+        mock.restore();
+      }
+    },
+  );
+
   it("rejects callback when token audience does not match client id", async () => {
     const mock = await installMockOidcFetch({
       idTokenAudience: "wrong-client-id",
