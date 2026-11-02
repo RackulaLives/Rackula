@@ -104,7 +104,7 @@ The first tag containing the capture script is the first one the release hook ca
 
 ### First images
 
-The implementation PR ships the first generated images, the README change and the deletions together, so the comparison has a baseline from the start. Generate them on Linux from a manual workflow run on the implementation branch, so fonts match later runs.
+GitHub can only dispatch a workflow that already exists on `main`, so the first images cannot come from a run on the implementation branch. PR 1 ships the capture, scripts and workflow. A manual run against `main` then opens the first bot PR, which adds `assets/readme/` and proves the bot path. PR 2 switches the README and deletes the old files, so the comparison has a Linux baseline before the README depends on it.
 
 ### Device images
 
@@ -137,7 +137,7 @@ Device images are bundled at build time (`src/lib/data/bundledImages.ts`, `src/l
 - `AUTOFORMAT_PAT` is reused, with Pull requests write added, rather than adding a second token to rotate. The maintainer makes this scope change once; a builder cannot.
 - Capture from the release tag, not `main`.
 - Failure alert through a `CI Alert` issue, not email.
-- First images ship in the implementation PR.
+- First images come from the first bot PR, then a second PR switches the README.
 
 ## Verification
 
