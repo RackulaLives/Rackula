@@ -32,6 +32,7 @@
     getPaletteSearchCommands,
     getPaletteEmptyState,
     noConfidentCommandMatch as computeNoConfidentCommandMatch,
+    scorePaletteQuery,
   } from "$lib/actions/palette-commands";
   import {
     searchPaletteDevices,
@@ -48,7 +49,11 @@
   import { handleHelp } from "$lib/utils/dialog-actions";
   import { getStarterLibrary, getStarterSlugs } from "$lib/data/starterLibrary";
   import { getBrandPacks, getBrandSlugs } from "$lib/data/brandPacks";
-  import type { ActionId, ActionEnabledContext } from "$lib/actions/registry";
+  import {
+    getActionTooltip,
+    type ActionId,
+    type ActionEnabledContext,
+  } from "$lib/actions/registry";
   import type { DeviceType } from "$lib/types";
 
   const viewportStore = getViewportStore();
@@ -368,6 +373,12 @@
     handleHelp();
   }
 
+  // Command.Root claims Enter to run the selected row, which would cancel the
+  // button's own activation when one of these buttons has focus.
+  function keepEnterOnButton(event: KeyboardEvent) {
+    if (event.key === "Enter") event.stopPropagation();
+  }
+
   function run(id: ActionId) {
     // Record the run as a recent BEFORE closing: only commands actually picked
     // from the palette become recents (not keyboard-invoked actions).
@@ -403,6 +414,7 @@
         label="Command palette"
         loop
         shouldFilter={mode !== "devices"}
+        filter={scorePaletteQuery}
         class="command-root"
       >
         <div class="command-input-row">
@@ -449,17 +461,19 @@
           />
           <button
             type="button"
-            class="command-settings"
+            class="command-action"
             onclick={openHelp}
-            aria-label="Help and about"
+            onkeydown={keepEnterOnButton}
+            aria-label={getActionTooltip("show-help")?.label}
             data-testid="command-palette-help"
           >
             <IconQuestionBold size={ICON_SIZE.md} />
           </button>
           <button
             type="button"
-            class="command-settings"
+            class="command-action"
             onclick={openSettings}
+            onkeydown={keepEnterOnButton}
             aria-label="Settings"
             data-testid="command-palette-settings"
           >
@@ -816,7 +830,7 @@
      margin keeps the row height tied to the input, not the larger touch
      target. */
   .command-back,
-  .command-settings {
+  .command-action {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -832,12 +846,12 @@
   }
 
   .command-back:hover,
-  .command-settings:hover {
+  .command-action:hover {
     color: var(--colour-text);
   }
 
   .command-back:focus-visible,
-  .command-settings:focus-visible {
+  .command-action:focus-visible {
     outline: 2px solid var(--colour-focus-ring);
     outline-offset: -2px;
   }

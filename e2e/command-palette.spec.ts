@@ -127,6 +127,17 @@ test.describe("Command palette", () => {
     ).toBeVisible();
   });
 
+  test("Enter on a focused palette button runs that button", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await page.getByTestId("command-palette-help").focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("dialog", { name: "Help and about" }),
+    ).toBeVisible();
+  });
+
   test("the help button on the canvas opens help", async ({ page }) => {
     await page.getByTestId("btn-help").click();
     await expect(

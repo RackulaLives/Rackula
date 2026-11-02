@@ -260,53 +260,18 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [{ key: "?" }, { key: "?", shift: true }],
     helpGroup: "General",
     appMenuGroup: "app",
+    keywords: ["keyboard"],
     aliases: [
       "?",
       "help",
       "about",
+      "shortcut",
       "shortcuts",
-      "keyboard",
+      "keyboard shortcuts",
       "version",
       "support",
       "github",
     ],
-  },
-  {
-    id: "report-bug",
-    label: "Report a bug",
-    scope: "global",
-    bindings: [],
-    appMenuGroup: "app",
-    aliases: ["bug", "issue"],
-  },
-  {
-    id: "open-documentation",
-    label: "Documentation",
-    scope: "global",
-    bindings: [],
-    appMenuGroup: "app",
-    aliases: ["docs", "guide", "manual"],
-  },
-  {
-    id: "share-ideas",
-    label: "Share ideas",
-    scope: "global",
-    bindings: [],
-    appMenuGroup: "app",
-    aliases: ["feedback", "discussions", "ideas"],
-  },
-  {
-    id: "settings",
-    label: "Settings",
-    scope: "global",
-    bindings: [],
-    // Settings is an application-level entry, so it joins Help and about in
-    // the trailing "app" group. #2406 originally made it a standalone trailing
-    // group; the intent reorg (#2596) gives "app" a coherent home for both the
-    // help entries and the settings gear, keeping the gear in the
-    // conventional final slot without a lone single-item group.
-    appMenuGroup: "app",
-    keywords: ["settings", "preferences", "options", "theme"],
   },
   {
     id: "command-palette",
@@ -698,6 +663,46 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     enabledWhen: (ctx) => !ctx.readOnly && ctx.canRedo,
     helpGroup: "File",
     keywords: ["forward", "repeat"],
+  },
+  // Registry order breaks palette score ties, so these stay below the commands
+  // people run often: "share" must rank Share above Share ideas (#3606).
+  {
+    id: "report-bug",
+    label: "Report a bug",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "app",
+    aliases: ["bug", "bugs", "issue", "issues", "report bug"],
+  },
+  {
+    id: "open-documentation",
+    label: "Documentation",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "app",
+    keywords: ["guide", "manual"],
+    aliases: ["docs"],
+  },
+  {
+    id: "share-ideas",
+    label: "Share ideas",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "app",
+    aliases: ["feedback", "discussion", "discussions", "idea", "ideas"],
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    scope: "global",
+    bindings: [],
+    // Settings is an application-level entry, so it joins Help and about in
+    // the trailing "app" group. #2406 originally made it a standalone trailing
+    // group; the intent reorg (#2596) gives "app" a coherent home for both the
+    // help entries and the settings gear, keeping the gear in the
+    // conventional final slot without a lone single-item group.
+    appMenuGroup: "app",
+    keywords: ["settings", "preferences", "options", "theme"],
   },
 ];
 

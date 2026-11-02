@@ -286,7 +286,8 @@
   }
 
   /* A fitted rack's verb bar can sit along the bottom edge, and on a narrow
-     canvas it reaches this corner, so lift the button above its row. */
+     canvas it reaches this corner, so lift the button above its row. The bar
+     follows its target, so panning can still bring it over this button. */
   @container (max-width: 640px) {
     .control-group--help {
       bottom: calc(var(--touch-target-min) * 2 + var(--space-3));

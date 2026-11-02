@@ -17,7 +17,7 @@
   } from "./icons";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { getLayoutStore } from "$lib/stores/layout.svelte";
-  import { getHelpGroups } from "$lib/actions/registry";
+  import { getActionTooltip, getHelpGroups } from "$lib/actions/registry";
   import {
     formatRelativeTime,
     formatFullTimestamp,
@@ -50,9 +50,7 @@
     typeof __BRANCH_NAME__ !== "undefined" ? __BRANCH_NAME__ : "";
   const buildTime = typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : "";
   const isDirty = typeof __GIT_DIRTY__ !== "undefined" ? __GIT_DIRTY__ : false;
-  const commitUrl = commitHash
-    ? `https://github.com/RackulaLives/Rackula/commit/${commitHash}`
-    : "";
+  const commitUrl = commitHash ? `${GITHUB_URL}/commit/${commitHash}` : "";
 
   // Live-updating relative time for build timestamp
   let now = $state(new Date());
@@ -145,9 +143,10 @@
   // Keyboard shortcuts generated from the registry, followed by the
   // mouse-gesture rows the palette has no equivalent for (#3000).
   const shortcutGroups = getHelpGroups();
+  const title = getActionTooltip("show-help")?.label ?? "";
 </script>
 
-<Dialog {open} title="Help and about" size="L" {onclose}>
+<Dialog {open} {title} size="L" {onclose}>
   <div class="about-content">
     <!-- Header: Logo -->
     <header class="about-header">
@@ -174,7 +173,7 @@
         class="quick-link"
       >
         <IconBug />
-        Report Bug
+        Report a bug
       </a>
       <a
         href={DISCUSSIONS_URL}
@@ -183,7 +182,7 @@
         class="quick-link"
       >
         <IconChat />
-        Share Ideas
+        Share ideas
       </a>
       <a
         href={DOCS_URL}
@@ -303,6 +302,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
+    margin-bottom: var(--space-2);
     padding: var(--space-2);
     background: var(--colour-surface);
     border: 1px solid var(--colour-border);
@@ -437,8 +437,7 @@
     display: flex;
     gap: var(--space-3);
     justify-content: center;
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--colour-border);
+    padding-top: var(--space-1);
   }
 
   .quick-link {

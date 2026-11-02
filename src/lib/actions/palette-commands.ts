@@ -278,6 +278,19 @@ export function getPaletteSearchCommands(
 export const CONFIDENT_COMMAND_MATCH = 0.95;
 
 /**
+ * The palette's row scorer. Ignores trailing whitespace, which the input keeps
+ * so multi-word queries can be typed and which mobile keyboards often append,
+ * but which would otherwise score a matching last keyword at zero (#3606).
+ */
+export function scorePaletteQuery(
+  value: string,
+  query: string,
+  keywords?: string[],
+): number {
+  return computeCommandScore(value, query.trim(), keywords);
+}
+
+/**
  * True when no command in `commands` is a *confident* match for `query` -
  * covers both a true zero-match and a query that only coincidentally brushes
  * a command via a loose interior-word or character-jump hit (#2996, a scope
@@ -299,8 +312,7 @@ export function noConfidentCommandMatch(
   return !commands.some(
     (c) =>
       c.aliases.includes(word) ||
-      computeCommandScore(c.label, query, c.keywords) >=
-        CONFIDENT_COMMAND_MATCH,
+      scorePaletteQuery(c.label, query, c.keywords) >= CONFIDENT_COMMAND_MATCH,
   );
 }
 
