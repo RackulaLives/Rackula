@@ -15,7 +15,13 @@ export interface MediaShot {
 }
 
 // bottomU: a drop anchors the device's bottom U. Five devices fill an 8U rack.
-export const RACK_DEVICES = [
+// rearImage: the device is full depth, so its image also shows in the rear view.
+export const RACK_DEVICES: {
+  slug: string;
+  search: string;
+  bottomU: number;
+  rearImage?: boolean;
+}[] = [
   { slug: "ubiquiti-unifi-dream-machine-pro", search: "udm pro", bottomU: 8 },
   {
     slug: "ubiquiti-unifi-switch-48-pro-poe-gen2",
@@ -23,8 +29,18 @@ export const RACK_DEVICES = [
     bottomU: 7,
   },
   { slug: "ubiquiti-unas-pro", search: "unas pro", bottomU: 5 },
-  { slug: "dell-poweredge-r730xd", search: "r730xd", bottomU: 3 },
-  { slug: "apc-smt1500rmi2uc", search: "smt1500rmi2uc", bottomU: 1 },
+  {
+    slug: "dell-poweredge-r730xd",
+    search: "r730xd",
+    bottomU: 3,
+    rearImage: true,
+  },
+  {
+    slug: "apc-smt1500rmi2uc",
+    search: "smt1500rmi2uc",
+    bottomU: 1,
+    rearImage: true,
+  },
 ];
 
 const RACK_HEIGHT = "8";
@@ -182,21 +198,40 @@ async function assertPlaced(page: Page): Promise<void> {
   }
 }
 
-/** Count a device's SVG images that actually decode to real pixels. */
-function imagesLoaded(page: Page, slug: string): Promise<number> {
-  return page.evaluate(async (slug) => {
-    const images = document.querySelectorAll<SVGImageElement>(
-      `[data-device-id="${slug}"] image`,
-    );
-    let loaded = 0;
-    for (const image of images) {
-      const response = await fetch(image.href.baseVal);
-      if (!response.ok) continue;
-      const bitmap = await createImageBitmap(await response.blob());
-      if (bitmap.width > 0) loaded += 1;
+/** True when a device shows an image on this rack face and it all decodes. */
+function imageDecoded(
+  page: Page,
+  face: string,
+  slug: string,
+): Promise<boolean> {
+  return page.evaluate(
+    async ({ face, slug }) => {
+      const images = document.querySelectorAll<SVGImageElement>(
+        `[data-testid="rack-${face}"] [data-device-id="${slug}"] image`,
+      );
+      if (images.length === 0) return false;
+      try {
+        await Promise.all([...images].map((image) => image.decode()));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { face, slug },
+  );
+}
+
+async function assertImages(page: Page): Promise<void> {
+  for (const device of RACK_DEVICES) {
+    const faces = device.rearImage ? ["front", "rear"] : ["front"];
+    for (const face of faces) {
+      await expect
+        .poll(() => imageDecoded(page, face, device.slug), {
+          message: `No ${face} image for ${device.slug}`,
+        })
+        .toBe(true);
     }
-    return loaded;
-  }, slug);
+  }
 }
 
 async function buildRack(page: Page, recorder: FrameRecorder): Promise<void> {
@@ -222,13 +257,7 @@ async function buildRack(page: Page, recorder: FrameRecorder): Promise<void> {
   // dispatchEvent, so a real hover cannot leave a tooltip in the frame.
   await toggle.dispatchEvent("click");
 
-  for (const device of RACK_DEVICES) {
-    await expect
-      .poll(() => imagesLoaded(page, device.slug), {
-        message: `No loaded image for ${device.slug}`,
-      })
-      .toBeGreaterThan(0);
-  }
+  await assertImages(page);
 }
 
 export const MEDIA_SHOTS: MediaShot[] = [

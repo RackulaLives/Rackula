@@ -20,6 +20,9 @@ name: Update README Media
 # a failure email cannot be relied on. A missing PAT is a failure here, not the
 # quiet skip autoformat.yml uses, so that alert still fires. Nothing in the
 # release depends on this workflow.
+#
+# No npm or browser cache: this runs in main's cache scope but can check out any
+# ref, and the deploy workflows restore the same Playwright key.
 on:
   workflow_dispatch:
     inputs:
@@ -76,17 +79,9 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
           node-version: "22"
-          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('package-lock.json') }}
-          restore-keys: playwright-${{ runner.os }}-chromium-
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

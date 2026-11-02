@@ -75,6 +75,30 @@ make_media() {
   [ "$output" = "changed=true" ]
 }
 
+@test "media-changed: an early-frame change alone is unchanged" {
+  # The palette spans the animation, so an early change re-dithers the final
+  # frame even though its source pixels are identical. A real UI screenshot with
+  # motion and then a hold, as in the hero.
+  ui="$SCRIPTS/../e2e/__screenshots__/visual-regression.spec.ts/canvas-populated-dark-linux.png"
+  mkdir "$WORK/frames-old" "$WORK/frames-new" "$WORK/old" "$WORK/new"
+  for frame in 1 2 3 4 5 6 7 8; do
+    box="drawbox=x=$((frame * 60)):y=200:w=160:h=40:color=white:t=fill"
+    ffmpeg -v error -y -i "$ui" -vf "$box" "$WORK/frames-old/f000$frame.png"
+    ffmpeg -v error -y -i "$ui" -vf "$box,eq=brightness=0.02" "$WORK/frames-new/f000$frame.png"
+  done
+  for frame in 09 10 11 12; do
+    cp "$ui" "$WORK/frames-old/f00$frame.png"
+    cp "$ui" "$WORK/frames-new/f00$frame.png"
+  done
+  "$ENCODE" "$WORK/frames-old" "$WORK/old/hero.gif"
+  "$ENCODE" "$WORK/frames-new" "$WORK/new/hero.gif"
+  cp "$ui" "$WORK/old/rack.png"
+  cp "$ui" "$WORK/new/rack.png"
+  run "$CHANGED" "$WORK/old" "$WORK/new"
+  [ "$status" -eq 0 ]
+  [ "$output" = "changed=false" ]
+}
+
 @test "media-changed: missing baseline is changed" {
   make_media "$WORK/new" "testsrc=size=640x400" "smptebars=size=640x400:rate=12:duration=0.5"
   mkdir "$WORK/old"
