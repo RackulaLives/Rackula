@@ -514,12 +514,14 @@ jobs:
 
   # Refresh the README media from the release that just went out. Fire and
   # forget: nothing depends on this job and it is not in notify-failure's needs.
-  # The dispatched workflow raises its own alert if it fails.
+  # The dispatched workflow raises its own alert if it fails. A failed dispatch
+  # must not mark a release that already shipped as failed.
   refresh-readme-media:
     name: "Refresh README media"
     needs: [validate, promote-github]
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    continue-on-error: true
     permissions:
       actions: write
     steps:

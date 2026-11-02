@@ -155,6 +155,7 @@ async function dragIntoRack(
   await search.fill(device.search.slice(0, 3));
   await recorder.snap();
   await search.fill(device.search);
+  await page.waitForTimeout(SEARCH_SETTLE_MS);
 
   const selector = `[data-testid="device-palette-item"][data-device-slug="${device.slug}"]`;
   const row = page.locator(selector);
