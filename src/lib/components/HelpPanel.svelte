@@ -1,6 +1,6 @@
 <!--
-  About Panel Component
-  Shows app information, keyboard shortcuts, and links.
+  Help and about panel
+  Shows support links, build info, and keyboard shortcuts.
   Built on the unified Dialog primitive (#2092).
 -->
 <script lang="ts">
@@ -22,6 +22,12 @@
     formatRelativeTime,
     formatFullTimestamp,
   } from "$lib/utils/buildTime";
+  import {
+    DISCUSSIONS_URL,
+    DOCS_URL,
+    GITHUB_URL,
+    getBugReportUrl,
+  } from "$lib/utils/help-links";
 
   interface Props {
     open: boolean;
@@ -139,23 +145,9 @@
   // Keyboard shortcuts generated from the registry, followed by the
   // mouse-gesture rows the palette has no equivalent for (#3000).
   const shortcutGroups = getHelpGroups();
-
-  const GITHUB_URL = "https://github.com/RackulaLives/Rackula";
-  const DOCS_URL = "https://docs.racku.la";
-
-  // Pre-filled issue URLs
-  const bugReportUrl = $derived.by(() => {
-    const params = new URLSearchParams({
-      template: "bug-report.yml",
-      browser: `Rackula v${VERSION} on ${userAgent}`,
-    });
-    return `${GITHUB_URL}/issues/new?${params.toString()}`;
-  });
-
-  const discussionsUrl = `${GITHUB_URL}/discussions`;
 </script>
 
-<Dialog {open} title="About Rackula" size="L" {onclose}>
+<Dialog {open} title="Help and about" size="L" {onclose}>
   <div class="about-content">
     <!-- Header: Logo -->
     <header class="about-header">
@@ -163,21 +155,6 @@
         <LogoLockup size={48} showcase />
       </div>
     </header>
-
-    <!-- Keyboard shortcuts, then canvas mouse gestures; both generated from getHelpGroups(). -->
-    {#each shortcutGroups as group (group.name)}
-      <section class="shortcut-group">
-        <h4>{group.name}</h4>
-        <div class="shortcuts-list">
-          {#each group.rows as { key, action } (key)}
-            <div class="shortcut-row">
-              <kbd class="key-cell">{key}</kbd>
-              <span class="action">{action}</span>
-            </div>
-          {/each}
-        </div>
-      </section>
-    {/each}
 
     <!-- Quick links -->
     <div class="quick-links">
@@ -191,7 +168,7 @@
         Project
       </a>
       <a
-        href={bugReportUrl}
+        href={getBugReportUrl()}
         target="_blank"
         rel="noopener noreferrer"
         class="quick-link"
@@ -200,7 +177,7 @@
         Report Bug
       </a>
       <a
-        href={discussionsUrl}
+        href={DISCUSSIONS_URL}
         target="_blank"
         rel="noopener noreferrer"
         class="quick-link"
@@ -280,6 +257,21 @@
         {/if}
       </button>
     </section>
+
+    <!-- Keyboard shortcuts, then canvas mouse gestures; both generated from getHelpGroups(). -->
+    {#each shortcutGroups as group (group.name)}
+      <section class="shortcut-group">
+        <h4>{group.name}</h4>
+        <div class="shortcuts-list">
+          {#each group.rows as { key, action } (key)}
+            <div class="shortcut-row">
+              <kbd class="key-cell">{key}</kbd>
+              <span class="action">{action}</span>
+            </div>
+          {/each}
+        </div>
+      </section>
+    {/each}
 
     <p class="made-in">Made in Canada 🇨🇦 with ❤️</p>
   </div>

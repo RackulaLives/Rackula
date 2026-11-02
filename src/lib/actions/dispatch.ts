@@ -57,6 +57,11 @@ import { handleLoad, handleExportAll, shouldSaveToServer } from "$lib/storage";
 import { runImportDevices } from "$lib/actions/import-devices-trigger";
 import { runRestoreFromFile } from "$lib/actions/restore-file-trigger";
 import { openStarterById } from "$lib/stores/starter-templates.svelte";
+import {
+  DISCUSSIONS_URL,
+  DOCS_URL,
+  getBugReportUrl,
+} from "$lib/utils/help-links";
 
 export type ActionDispatch = Record<ActionId, () => void | Promise<void>>;
 
@@ -147,6 +152,10 @@ function cycleActiveRack(direction: -1 | 1): void {
   toastStore.showToast(`Active: ${newRack.name}`, "info");
 }
 
+function openExternal(url: string): void {
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 function handleToggleDisplayMode(): void {
   const uiStore = getUIStore();
   const layoutStore = getLayoutStore();
@@ -163,6 +172,9 @@ export function createActionDispatch(): ActionDispatch {
     // global
     escape: handleEscape,
     "show-help": handleHelp,
+    "report-bug": () => openExternal(getBugReportUrl()),
+    "open-documentation": () => openExternal(DOCS_URL),
+    "share-ideas": () => openExternal(DISCUSSIONS_URL),
     settings: () => dialogStore.open("settings"),
     undo: performUndo,
     redo: performRedo,

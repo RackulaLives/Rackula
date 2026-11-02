@@ -7,6 +7,34 @@ import * as storage from "$lib/storage";
 import { registerImportDevicesTrigger } from "$lib/actions/import-devices-trigger";
 import { registerRestoreFromFileTrigger } from "$lib/actions/restore-file-trigger";
 import * as dialogActions from "$lib/utils/dialog-actions";
+import {
+  DISCUSSIONS_URL,
+  DOCS_URL,
+  getBugReportUrl,
+} from "$lib/utils/help-links";
+import { VERSION } from "$lib/version";
+
+describe("external help commands (#3606)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ["report-bug", getBugReportUrl()],
+    ["open-documentation", DOCS_URL],
+    ["share-ideas", DISCUSSIONS_URL],
+  ] as const)("%s opens its link in a new tab", (id, url) => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    createActionDispatch()[id]();
+    expect(open).toHaveBeenCalledWith(url, "_blank", "noopener,noreferrer");
+  });
+
+  it("pre-fills the bug report with the template and running version", () => {
+    const params = new URL(getBugReportUrl()).searchParams;
+    expect(params.get("template")).toBe("bug-report.yml");
+    expect(params.get("browser")).toContain(`Rackula v${VERSION}`);
+  });
+});
 
 describe("createActionDispatch", () => {
   afterEach(() => {

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { computeCommandScore } from "bits-ui";
 import {
   getPaletteSearchCommands,
   noConfidentCommandMatch,
@@ -65,5 +66,37 @@ describe("noConfidentCommandMatch routing bands (#2996)", () => {
   it("never treats an empty/whitespace query as a no-match (that is browse, not #2996)", () => {
     expect(noConfidentCommandMatch("", commands)).toBe(false);
     expect(noConfidentCommandMatch("   ", commands)).toBe(false);
+  });
+});
+
+// The palette's own ordering for a query: bits-ui ranks rows by this same score.
+function topCommandId(query: string): string | undefined {
+  return [...commands]
+    .map((c) => ({
+      id: c.id,
+      score: computeCommandScore(c.label, query, c.keywords),
+    }))
+    .sort((a, b) => b.score - a.score)[0]?.id;
+}
+
+describe("help searches reach a help command (#3606)", () => {
+  it.each([
+    ["help", "show-help"],
+    ["?", "show-help"],
+    ["version", "show-help"],
+    ["github", "show-help"],
+    ["support", "show-help"],
+    ["docs", "open-documentation"],
+    ["documentation", "open-documentation"],
+    ["bug", "report-bug"],
+    ["feedback", "share-ideas"],
+    ["discussions", "share-ideas"],
+  ])("%s suppresses the device bridge and ranks %s first", (query, id) => {
+    expect(noConfidentCommandMatch(query, commands)).toBe(false);
+    expect(topCommandId(query)).toBe(id);
+  });
+
+  it("only an exact alias counts, so a partial word keeps the device bridge", () => {
+    expect(noConfidentCommandMatch("sup", commands)).toBe(true);
   });
 });

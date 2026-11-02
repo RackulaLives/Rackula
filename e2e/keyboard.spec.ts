@@ -77,10 +77,10 @@ test.describe("Keyboard Shortcuts", () => {
     await page.keyboard.press("Shift+Slash");
 
     // Help dialog should open (HelpPanel uses Dialog component). Its sr-only
-    // Dialog.Title "About Rackula" provides the accessible name, so the
+    // Dialog.Title "Help and about" provides the accessible name, so the
     // role/name locator both finds the dialog and confirms it is the help one.
     await expect(
-      page.getByRole("dialog", { name: "About Rackula" }),
+      page.getByRole("dialog", { name: "Help and about" }),
     ).toBeVisible({ timeout: 2000 });
   });
 

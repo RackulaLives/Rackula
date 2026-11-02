@@ -25,8 +25,10 @@ export interface PaletteCommand {
   label: string;
   /** Platform-formatted primary shortcut, if any (for the row badge). */
   shortcut?: string;
-  /** Registry keywords, fed to Command.Item for fuzzy matching. */
+  /** Registry keywords and aliases, fed to Command.Item for fuzzy matching. */
   keywords: string[];
+  /** Whole words that count as a confident match for this command. */
+  aliases: string[];
 }
 
 export interface PaletteCommandGroup {
@@ -195,11 +197,13 @@ function toPaletteCommand(
   action: ActionDefinition,
   ctx: ActionEnabledContext,
 ): PaletteCommand {
+  const aliases = action.aliases ?? [];
   return {
     id: action.id,
     label: resolveActionLabel(action, ctx),
     shortcut: formatMenuShortcut(action),
-    keywords: action.keywords ?? [],
+    keywords: [...(action.keywords ?? []), ...aliases],
+    aliases,
   };
 }
 
@@ -281,19 +285,22 @@ export const CONFIDENT_COMMAND_MATCH = 0.95;
  * same scorer bits-ui filters by, so it agrees with what bits-ui renders.
  * Gates the device bridge in CommandPalette.svelte (and, via
  * handleInputKeydown, Enter itself) so a device-like query never silently
- * hijacks Enter into an unrelated command nor a greyed row. Empty/whitespace
- * query is never a no-match (that is browse). Pure and unit-testable against
- * the real registry (#2996).
+ * hijacks Enter into an unrelated command nor a greyed row. A query equal to a
+ * registry alias is always confident, since it names the command outright
+ * (#3606). Empty/whitespace query is never a no-match (that is browse). Pure
+ * and unit-testable against the real registry (#2996).
  */
 export function noConfidentCommandMatch(
   query: string,
   commands: PaletteCommand[],
 ): boolean {
-  if (query.trim() === "") return false;
+  const word = query.trim().toLowerCase();
+  if (word === "") return false;
   return !commands.some(
     (c) =>
+      c.aliases.includes(word) ||
       computeCommandScore(c.label, query, c.keywords) >=
-      CONFIDENT_COMMAND_MATCH,
+        CONFIDENT_COMMAND_MATCH,
   );
 }
 

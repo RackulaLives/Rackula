@@ -12,7 +12,13 @@
 -->
 <script lang="ts">
   import { Dialog, Command } from "bits-ui";
-  import { IconSearch, IconPlus, IconChevronLeft, IconGearBold } from "./icons";
+  import {
+    IconSearch,
+    IconPlus,
+    IconChevronLeft,
+    IconGearBold,
+    IconQuestionBold,
+  } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
@@ -39,6 +45,7 @@
     createActionDispatch,
     type ActionDispatch,
   } from "$lib/actions/dispatch";
+  import { handleHelp } from "$lib/utils/dialog-actions";
   import { getStarterLibrary, getStarterSlugs } from "$lib/data/starterLibrary";
   import { getBrandPacks, getBrandSlugs } from "$lib/data/brandPacks";
   import type { ActionId, ActionEnabledContext } from "$lib/actions/registry";
@@ -348,12 +355,17 @@
     resetState();
   }
 
-  // Settings gear in the input row. dialogStore is scalar (one dialog at a
-  // time), so closing the palette first would clobber the settings dialog;
-  // instead open settings directly, which replaces the palette in the store.
+  // Help and settings buttons in the input row. dialogStore is scalar (one
+  // dialog at a time), so closing the palette first would clobber the target
+  // dialog; instead open it directly, which replaces the palette in the store.
   function openSettings() {
     resetState();
     dialogStore.open("settings");
+  }
+
+  function openHelp() {
+    resetState();
+    handleHelp();
   }
 
   function run(id: ActionId) {
@@ -435,6 +447,15 @@
               : "Search or jump to..."}
             data-testid="command-palette-input"
           />
+          <button
+            type="button"
+            class="command-settings"
+            onclick={openHelp}
+            aria-label="Help and about"
+            data-testid="command-palette-help"
+          >
+            <IconQuestionBold size={ICON_SIZE.md} />
+          </button>
           <button
             type="button"
             class="command-settings"
@@ -790,7 +811,7 @@
   }
 
   /* Icon buttons in the input row: the back affordance (device sub-page) and
-     the settings gear (trailing edge). Both get a 48px touch target, a
+     the help and settings buttons (trailing edge). All get a 48px touch target, a
      theme-aware muted colour, and a visible focus ring. The negative vertical
      margin keeps the row height tied to the input, not the larger touch
      target. */
