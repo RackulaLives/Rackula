@@ -512,6 +512,24 @@ jobs:
         run: |
           gh release edit "$TAG" --prerelease=false --latest=true
 
+  # Refresh the README media from the release that just went out. Fire and
+  # forget: nothing depends on this job and it is not in notify-failure's needs.
+  # The dispatched workflow raises its own alert if it fails.
+  refresh-readme-media:
+    name: "Refresh README media"
+    needs: [validate, promote-github]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch media workflow on main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.validate.outputs.tag }}
+        run: gh workflow run update-readme-media.yml --ref main -f tag="$TAG"
+
   # On any failure or cancellation, summarise the failed jobs and open/update a
   # `CI Alert` issue. Read-only except for issues:write.
   notify-failure:
