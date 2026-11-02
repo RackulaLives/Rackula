@@ -3,7 +3,8 @@
   Canvas overlay holding the view and history controls as two visually
   separated groups anchored to opposite left corners: History (undo, redo) at
   the canvas upper-left, and View (zoom out, zoom readout, zoom in, fit,
-  display-mode lens) at the canvas lower-left (#2697).
+  display-mode lens) at the canvas lower-left (#2697). A help button sits alone
+  at the lower-right (#3606).
 
   This surfaces existing handlers; it does not own view or history logic. The
   display-mode lens here is the canonical layout-scoped control; the side panel
@@ -17,6 +18,7 @@
   import { getPlacementStore } from "$lib/stores/placement.svelte";
   import { getToastStore } from "$lib/stores/toast.svelte";
   import { DISPLAY_MODE_LABELS, type DisplayMode } from "$lib/types";
+  import { handleHelp } from "$lib/utils/dialog-actions";
   import Tooltip from "../Tooltip.svelte";
   import {
     IconFitAllBold,
@@ -24,6 +26,7 @@
     IconImageLabel,
     IconMinusBold,
     IconPlusBold,
+    IconQuestionBold,
     IconRedoBold,
     IconTextBold,
     IconUndoBold,
@@ -55,6 +58,7 @@
   const redoShortcut = getActionTooltip("redo")?.shortcut;
   const fitAllShortcut = getActionTooltip("fit-all")?.shortcut;
   const displayModeShortcut = getActionTooltip("toggle-display-mode")?.shortcut;
+  const helpTooltip = getActionTooltip("show-help");
 
   function handleUndo() {
     if (!layoutStore.canUndo) return;
@@ -202,6 +206,27 @@
       {/snippet}
     </Tooltip>
   </div>
+
+  <div class="control-group control-group--help">
+    <Tooltip
+      text={helpTooltip?.label ?? ""}
+      shortcut={helpTooltip?.shortcut}
+      position="top"
+    >
+      {#snippet triggerChild({ props })}
+        <button
+          {...props}
+          class="control-button"
+          type="button"
+          aria-label={helpTooltip?.label}
+          onclick={handleHelp}
+          data-testid="btn-help"
+        >
+          <IconQuestionBold size={ICON_SIZE.md} />
+        </button>
+      {/snippet}
+    </Tooltip>
+  </div>
 </div>
 
 <style>
@@ -213,6 +238,7 @@
     inset: 0;
     z-index: calc(var(--z-toolbar) + 1);
     pointer-events: none;
+    container-type: inline-size;
 
     /* Outer height of the placement banner (PlacementIndicator): its
        min-height (--touch-target-min) plus its vertical padding (--space-2 top
@@ -252,6 +278,20 @@
   .control-group--history {
     top: max(var(--space-3), env(safe-area-inset-top, 0px));
     bottom: auto;
+  }
+
+  .control-group--help {
+    left: auto;
+    right: max(var(--space-3), env(safe-area-inset-right, 0px));
+  }
+
+  /* A fitted rack's verb bar can sit along the bottom edge, and on a narrow
+     canvas it reaches this corner, so lift the button above its row. The bar
+     follows its target, so panning can still bring it over this button. */
+  @container (max-width: 640px) {
+    .control-group--help {
+      bottom: calc(var(--touch-target-min) * 2 + var(--space-3));
+    }
   }
 
   /* While a device is armed, the full-width placement banner occupies the top
