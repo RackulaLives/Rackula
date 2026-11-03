@@ -145,6 +145,8 @@ async function installMockOidcFetch(
     idTokenNonce?: string | null;
     /** While true, the discovery endpoint answers 503. */
     discoveryState?: { down: boolean };
+    /** The issuer the discovery document advertises. */
+    discoveryIssuer?: string;
   } = {},
 ): Promise<{ restore: () => void }> {
   const originalFetch = globalThis.fetch;
@@ -174,7 +176,7 @@ async function installMockOidcFetch(
 
       return new Response(
         JSON.stringify({
-          issuer: ENTRA_TENANT_ISSUER,
+          issuer: options.discoveryIssuer ?? ENTRA_TENANT_ISSUER,
           authorization_endpoint: ENTRA_AUTHORIZATION_URL,
           token_endpoint: ENTRA_TOKEN_URL,
           jwks_uri: ENTRA_JWKS_URL,
@@ -373,6 +375,64 @@ describe("OIDC integration", () => {
         },
       });
       expect(checkResponse.status).toBe(204);
+    } finally {
+      mock.restore();
+    }
+  });
+
+  // #3596: the token must be verified against the issuer exactly as discovery
+  // returns it. Normalising it first broke the trailing-slash and bare-host
+  // shapes, including the Authentik form the deployment docs show.
+  it.each([
+    ["a path with no trailing slash", "https://idp.example.com/realms/rackula"],
+    [
+      "a path with a trailing slash",
+      "https://idp.example.com/application/o/rackula/",
+    ],
+    ["a bare host", "https://idp.example.com"],
+    ["a bare host with a trailing slash", "https://idp.example.com/"],
+  ])("completes login for an issuer with %s", async (_shape, issuer) => {
+    const mock = await installMockOidcFetch({
+      discoveryIssuer: issuer,
+      idTokenIssuer: issuer,
+    });
+    try {
+      const app = await createApp(
+        buildOidcEnv({
+          RACKULA_OIDC_ISSUER: issuer,
+          RACKULA_OIDC_DISCOVERY_URL: ENTRA_DISCOVERY_URL,
+        }),
+      );
+      const authedCookieHeader = await completeOidcLogin(app);
+
+      const checkResponse = await app.request("/auth/check", {
+        headers: {
+          Cookie: authedCookieHeader,
+          Origin: "https://rack.example.com",
+        },
+      });
+      expect(checkResponse.status).toBe(204);
+    } finally {
+      mock.restore();
+    }
+  });
+
+  // OIDC Core 3.1.3.7: the iss claim must exactly match the discovered issuer,
+  // so a token that differs only by a trailing slash is still rejected.
+  it("rejects an ID token whose iss differs from discovery by a trailing slash", async () => {
+    const issuer = "https://idp.example.com/application/o/rackula/";
+    const mock = await installMockOidcFetch({
+      discoveryIssuer: issuer,
+      idTokenIssuer: "https://idp.example.com/application/o/rackula",
+    });
+    try {
+      const app = await createApp(
+        buildOidcEnv({
+          RACKULA_OIDC_ISSUER: issuer,
+          RACKULA_OIDC_DISCOVERY_URL: ENTRA_DISCOVERY_URL,
+        }),
+      );
+      await expectOidcLoginRejected(app);
     } finally {
       mock.restore();
     }
