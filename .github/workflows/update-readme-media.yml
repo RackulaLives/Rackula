@@ -1,0 +1,247 @@
+name: Update README Media
+
+# Regenerates assets/readme/ from a release and opens a PR if the images visibly
+# changed. release.yml dispatches this after a release is promoted, or run it by
+# hand with any tag or ref that contains the capture script.
+#
+# Security model (two jobs, as in autoformat.yml, so the write token never
+# shares a job with app code):
+#   - "capture" runs the app with no write token and no secrets. It emits the
+#     images as an artifact.
+#   - "publish" holds AUTOFORMAT_PAT but runs no repo code and uses no
+#     actions/checkout. It treats the artifact as untrusted and validates it
+#     before committing.
+#
+# The PAT is required because the repo does not let Actions create PRs, and a
+# GITHUB_TOKEN PR would not trigger the required checks. Beyond what
+# autoformat.yml documents, it needs Pull requests: read and write.
+#
+# A failure opens a CI Alert issue. A dispatched run has no person attached, so
+# a failure email cannot be relied on. A missing PAT is a failure here, not the
+# quiet skip autoformat.yml uses, so that alert still fires. Nothing in the
+# release depends on this workflow.
+#
+# No npm or browser cache: this runs in main's cache scope but can check out any
+# ref, and the deploy workflows restore the same Playwright key.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag or ref to capture. Empty means the latest release."
+        required: false
+        type: string
+
+permissions: {}
+
+# A newer run replaces an older one, so two quick releases cannot race on the PR
+# branch. A cancelled run does not alert.
+concurrency:
+  group: update-readme-media
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.compare.outputs.changed }}
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - name: Resolve tag
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          tag="$INPUT_TAG"
+          if [ -z "$tag" ]; then
+            tag=$(gh release view --json tagName --jq .tagName)
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.resolve.outputs.tag }}
+          persist-credentials: false
+
+      - name: Check out the current media
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          path: baseline
+          sparse-checkout: assets/readme
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Capture
+        run: npm run media:capture
+
+      - name: Encode
+        run: |
+          mkdir media-final
+          cp media-out/rack.png media-final/rack.png
+          scripts/encode-hero.sh media-out/frames media-final/hero.gif
+
+      - name: Compare with the current media
+        id: compare
+        run: scripts/media-changed.sh baseline/assets/readme media-final >> "$GITHUB_OUTPUT"
+
+      - name: Upload media
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: readme-media
+          path: media-final/
+          retention-days: 7
+
+  publish:
+    # Privileged: holds AUTOFORMAT_PAT but runs no repo code.
+    needs: capture
+    if: needs.capture.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require AUTOFORMAT_PAT
+        env:
+          PAT: ${{ secrets.AUTOFORMAT_PAT }}
+        run: |
+          if [ -z "$PAT" ]; then
+            echo "::error::AUTOFORMAT_PAT is not set, so the media PR cannot be opened."
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: readme-media
+          path: ${{ runner.temp }}/media
+
+      - name: Validate the artifact
+        env:
+          MEDIA: ${{ runner.temp }}/media
+        run: |
+          set -euo pipefail
+
+          # The artifact came from the job that ran app code, so fail closed.
+          actual=$(find "$MEDIA" -mindepth 1 -printf '%P %y\n' | sort)
+          expected=$'hero.gif f\nrack.png f'
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Unexpected artifact contents: $actual"
+            exit 1
+          fi
+
+          check() {
+            local path="$1" max="$2" mime="$3" bytes
+            bytes=$(wc -c < "$path")
+            if [ "$bytes" -gt "$max" ]; then
+              echo "::error::$path is $bytes bytes, over the $max byte cap."
+              exit 1
+            fi
+            if [ "$(file --brief --mime-type "$path")" != "$mime" ]; then
+              echo "::error::$path is not $mime."
+              exit 1
+            fi
+          }
+          check "$MEDIA/hero.gif" 2000000 image/gif
+          check "$MEDIA/rack.png" 4000000 image/png
+
+      - name: Commit and open the PR
+        env:
+          PAT: ${{ secrets.AUTOFORMAT_PAT }}
+          GH_TOKEN: ${{ secrets.AUTOFORMAT_PAT }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.capture.outputs.tag }}
+          MEDIA: ${{ runner.temp }}/media
+          BRANCH: bot/readme-media
+        run: |
+          set -euo pipefail
+
+          git clone --depth=1 --branch main \
+            "https://x-access-token:${PAT}@github.com/${REPO}.git" work
+          cd work
+
+          git switch -c "$BRANCH"
+          mkdir -p assets/readme
+          cp "$MEDIA/hero.gif" "$MEDIA/rack.png" assets/readme/
+          git add assets/readme
+          if git diff --cached --quiet; then
+            echo "No media changes against main."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -s -m "chore: refresh README media for $TAG"
+          git push --force origin "$BRANCH"
+
+          number=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -z "$number" ]; then
+            gh pr create --repo "$REPO" --base main --head "$BRANCH" \
+              --title "chore: refresh README media for $TAG" \
+              --body "Generated by the Update README Media workflow from \`$TAG\`. Auto-merges when required checks pass."
+          fi
+          gh pr merge --repo "$REPO" "$BRANCH" --auto --squash
+
+  alert:
+    needs: [capture, publish]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Create or update alert issue
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const title = "CI Alert: README media capture failed";
+            const body = [
+              "The README media were not updated. Current images stay in place.",
+              "",
+              `Run: ${runUrl}`,
+            ].join("\n");
+
+            const labels = [
+              { name: "ci-alert", color: "B60205", description: "Automated CI/CD failure alerts" },
+              { name: "automated", color: "1D76DB", description: "Created or updated by GitHub Actions automation" },
+            ];
+            for (const label of labels) {
+              try {
+                await github.rest.issues.createLabel({ owner, repo, ...label });
+              } catch (error) {
+                if (error.status !== 422) throw error;
+              }
+            }
+
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              labels: "ci-alert",
+              per_page: 100,
+            });
+            const existing = openIssues.find((issue) => issue.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body });
+            } else {
+              await github.rest.issues.create({ owner, repo, title, body, labels: labels.map((l) => l.name) });
+            }
