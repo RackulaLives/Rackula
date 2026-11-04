@@ -575,6 +575,12 @@ Update flow for an intentional visual change:
 
 Dynamic regions (the app version string and "last saved" timestamps) are masked so they never trip the diff.
 
+### README Media
+
+`assets/readme/hero.gif` and `assets/readme/rack.png` are generated. Do not edit them by hand. After each release, `release.yml` dispatches the "Update README Media" workflow, which captures both from the released build and opens an auto-merging PR if they visibly changed. A failure opens a `CI Alert` issue and leaves the current images in place.
+
+Capture locally with `npm run media:capture` (output in `media-out/`), then build the GIF with `scripts/encode-hero.sh media-out/frames media-out/hero.gif`. The shot list and rack contents live in `e2e/readme-media/shots.ts`. A new shot also needs the workflow's encode, validation and copy steps updated to publish it. Script tests: `bats scripts/readme-media.bats`.
+
 ### Performance Budget
 
 `scripts/check-bundle-budget.ts` is a guard rail for the UX overhaul (epic #2017, issue #2185): the shell rework adds UI surface (side panel, tab strip, the dialog system, command and app menus), and this gate keeps the initial-load bundle from regressing as those slices land. It is the performance counterpart to the visual-regression and axe-core guard rails.
