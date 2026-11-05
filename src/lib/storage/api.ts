@@ -14,6 +14,7 @@ import {
   deleteAsset,
   listAssets,
   deviceKeyForWire,
+  deviceTypeKeyForWire,
   type AssetFace,
 } from "./assets-api";
 import { isPlacementKey } from "$lib/utils/placement-key";
@@ -471,14 +472,41 @@ function resolveDiskFace(
   return { deviceId, face, blob, contentType };
 }
 
-/** Every `${deviceId}/${face}` the layout's placed devices reference. */
+/**
+ * Every `${deviceId}/${face}` the layout's placed devices reference, plus both
+ * faces of every device type in the layout. A device-type face carries no
+ * reference of its own, and its image can only be removed by deleting the type,
+ * so it stays on disk for as long as the type is in the layout.
+ */
 function referencedDiskFaces(layout: Layout): Set<string> {
   const referenced = new Set<string>();
   for (const device of layout.racks.flatMap((rack) => rack.devices)) {
     if (device.front_image) referenced.add(`${device.id}/front`);
     if (device.rear_image) referenced.add(`${device.id}/rear`);
   }
+  for (const deviceType of layout.device_types) {
+    for (const face of DISK_FACES) referenced.add(`${deviceType.slug}/${face}`);
+  }
   return referenced;
+}
+
+/**
+ * The wire-safe `:deviceId` segment for a user image key, or null when the image
+ * must stay embedded. A placement key resolves to its bare device UUID, and a
+ * malformed one throws (path-traversal guard) and fails the save. A device-type
+ * slug resolves only when the type is in this layout and the slug is wire-safe.
+ */
+function diskDeviceIdFor(
+  key: string,
+  layoutTypeSlugs: Set<string>,
+): string | null {
+  if (isPlacementKey(key)) return deviceKeyForWire(key);
+  if (!layoutTypeSlugs.has(key)) return null;
+  try {
+    return deviceTypeKeyForWire(key);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -574,21 +602,20 @@ export async function saveLayoutToServer(
   const retainedImages: ImageStoreMap = new Map();
 
   if (isServerMode) {
+    const layoutTypeSlugs = new Set(layout.device_types.map((dt) => dt.slug));
     for (const [key, deviceImages] of userImages) {
-      // Only placement-keyed instance images go to disk. Custom device-type
-      // images are keyed by the bare device-type slug (e.g. "server-1u"), which
-      // is not a placement key; routing them through deviceKeyForWire would
-      // throw and abort the save, so they stay embedded in the YAML.
-      if (!isPlacementKey(key)) {
+      // Placement-keyed instance images and custom device-type images (keyed by
+      // the bare device-type slug, e.g. "server-1u") both go to disk. A slug
+      // that is not a type in this layout, or is not wire-safe, stays embedded
+      // in the YAML.
+      const deviceId = diskDeviceIdFor(key, layoutTypeSlugs);
+      if (deviceId === null) {
         retainedImages.set(key, deviceImages);
         continue;
       }
       for (const face of DISK_FACES) {
         const image = deviceImages[face];
         if (!image) continue;
-        // The wire device id is the bare UUID from the placement key; a
-        // malformed key throws here (path-traversal guard) and fails the save.
-        const deviceId = deviceKeyForWire(key);
         const resolved = resolveDiskFace(deviceId, face, image);
         if (resolved) {
           diskFaces.push(resolved);

@@ -5,10 +5,11 @@
  * On a server-mode load, every placed device whose `front_image`/`rear_image`
  * reference is set has its face bytes fetched up front via {@link getAssetBlob}
  * and stored in the returned map as a blob-bearing {@link ImageData}, keyed by
- * `placement-{layoutId}:{deviceId}`. Holding the bytes (not a lazy URL) is what
- * lets render and export reuse the existing blob path: the multi-layout export
- * archive gates entirely on entries carrying a `.blob`, so a load -> export
- * round-trip preserves the image bytes.
+ * `placement-{layoutId}:{deviceId}`. Custom device-type faces on disk are
+ * fetched the same way, keyed by the bare device-type slug. Holding the bytes
+ * (not a lazy URL) is what lets render and export reuse the existing blob path:
+ * the multi-layout export archive gates entirely on entries carrying a `.blob`,
+ * so a load -> export round-trip preserves the image bytes.
  *
  * A face that 404s or otherwise fails to fetch is non-fatal: its placement key
  * is collected into `failedKeys` and the count incremented, and the rest of the
@@ -21,7 +22,13 @@
  */
 import type { Layout } from "$lib/types";
 import type { ImageData, ImageStoreMap } from "$lib/types/images";
-import { getAssetBlob, type AssetFace, deviceKeyForWire } from "./assets-api";
+import {
+  getAssetBlob,
+  listAssets,
+  type AssetFace,
+  deviceKeyForWire,
+  isPlacedDeviceAssetSlug,
+} from "./assets-api";
 import { placementKey } from "$lib/utils/placement-key";
 import { getImageExtension } from "$lib/utils/archive";
 import { persistenceDebug } from "$lib/utils/debug";
@@ -76,6 +83,25 @@ async function imageDataFromBlob(
     dataUrl: await blobToDataUrl(blob),
     filename: `${key}-${face}.${getImageExtension(blob.type)}`,
   };
+}
+
+/**
+ * Fetch one on-disk face into a store entry under `key`. A failed fetch resolves
+ * without an entry (never rejects) so the caller records it as a failure.
+ */
+async function fetchFace(
+  layoutId: string,
+  wireDeviceId: string,
+  key: string,
+  face: AssetFace,
+): Promise<{ key: string; face: AssetFace; entry?: ImageData }> {
+  try {
+    const blob = await getAssetBlob(layoutId, wireDeviceId, face);
+    return { key, face, entry: await imageDataFromBlob(blob, key, face) };
+  } catch (error) {
+    log("eagerFetchServerImages: face %s of %s failed %O", face, key, error);
+    return { key, face };
+  }
 }
 
 /**
@@ -135,27 +161,26 @@ export async function eagerFetchServerImages(
         continue;
       }
 
-      const safeDeviceId = wireDeviceId;
-      tasks.push(
-        (async () => {
-          try {
-            const blob = await getAssetBlob(layoutId, safeDeviceId, face);
-            return {
-              key,
-              face,
-              entry: await imageDataFromBlob(blob, key, face),
-            };
-          } catch (error) {
-            log(
-              "eagerFetchServerImages: face %s of %s failed %O",
-              face,
-              key,
-              error,
-            );
-            return { key, face };
-          }
-        })(),
-      );
+      tasks.push(fetchFace(layoutId, wireDeviceId, key, face));
+    }
+  }
+
+  // Custom device-type faces carry no per-face reference in the layout, so the
+  // on-disk listing says which exist. Only folders named for a device type in
+  // this layout are fetched, keyed by the bare slug as the image store expects.
+  // A failed listing keeps any embedded bytes and counts as one failure.
+  let listingFailed = false;
+  if (layout.device_types.length > 0) {
+    const typeSlugs = new Set(layout.device_types.map((dt) => dt.slug));
+    try {
+      for (const asset of await listAssets(layoutId)) {
+        const slug = asset.deviceSlug;
+        if (isPlacedDeviceAssetSlug(slug) || !typeSlugs.has(slug)) continue;
+        tasks.push(fetchFace(layoutId, slug, slug, asset.face));
+      }
+    } catch (error) {
+      log("eagerFetchServerImages: asset listing failed %O", error);
+      listingFailed = true;
     }
   }
 
@@ -170,5 +195,9 @@ export async function eagerFetchServerImages(
     }
   }
 
-  return { images, failedImagesCount: failedKeys.length, failedKeys };
+  return {
+    images,
+    failedImagesCount: failedKeys.length + (listingFailed ? 1 : 0),
+    failedKeys,
+  };
 }
