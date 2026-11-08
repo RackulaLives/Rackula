@@ -30,7 +30,9 @@ COMMUNITY_SCRIPTS_URL=https://raw.githubusercontent.com/<your-fork>/ProxmoxVE/<b
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/<your-fork>/ProxmoxVE/<branch>/ct/rackula.sh)"
 ```
 
-Fork `community-scripts/ProxmoxVE`, not ProxmoxVED. Rackula was promoted to ProxmoxVE, and ProxmoxVED has since dropped `misc/`, so `ProxmoxVED/<branch>/misc/build.func` and `misc/install.func` 404 and the run fails before it reaches the install script.
+Fork `community-scripts/ProxmoxVE`, not ProxmoxVED. Rackula was promoted to ProxmoxVE. The framework engine (`build.func`, `install.func` and the helpers) lives in `community-scripts/core`, and both script repos dropped `misc/`.
+
+Rackula does not keep a copy of these scripts. Changes to them go upstream as a PR against `community-scripts/ProxmoxVE`. App catalogue metadata is not a file in that repo: it lives in upstream's PocketBase instance and is edited with `/pocketbase rackula ...` bot commands.
 
 This is sufficient for changes to script structure, dependency installs, and nginx/systemd wiring.
 
@@ -65,30 +67,28 @@ ls /tmp/rackula-lxc-test/
 
 ### Smoke test on a Proxmox host
 
-Run `scripts/lxc-smoke-test.sh` on your Proxmox host. It auto-allocates a throwaway CT (hostname `rackula-smoke-*`), runs the real `rackula-install.sh` against the payload, exercises the upgrade path, runs health/frontend/service checks, and tears the CT down (unless `--keep`). It refuses to touch any CT whose hostname lacks the `rackula-smoke-` prefix, so a real container is never at risk.
+Run `scripts/lxc-smoke-test.sh` on your Proxmox host. It auto-allocates a throwaway CT (hostname `rackula-smoke-*`), runs upstream's live `install/rackula-install.sh` against the payload, exercises the upgrade path with upstream's `update_script`, runs health/frontend/service checks, and tears the CT down (unless `--keep`). It refuses to touch any CT whose hostname lacks the `rackula-smoke-` prefix, so a real container is never at risk.
 
-The script runs the canonical install/update scripts, so it needs the repo layout (`deploy/lxc/community-scripts/`), not just `lxc-smoke-test.sh` on its own. Clone the repo on the host, or `rsync` the repo (or at least `scripts/` + `deploy/lxc/community-scripts/`) across:
+The script fetches upstream's scripts and the `community-scripts/core` engine itself, so it is the only file the host needs:
 
 ```bash
-# Option A: clone on the host
-git clone https://github.com/RackulaLives/Rackula && cd Rackula
-
-# Option B: rsync from your workstation (preserves the layout the script expects)
-rsync -a --relative scripts/lxc-smoke-test.sh deploy/lxc/community-scripts root@<pve-host>:rackula/
+scp scripts/lxc-smoke-test.sh root@<pve-host>:/root/
 scp /tmp/rackula-lxc-test/rackula-lxc-*.tar.gz root@<pve-host>:/tmp/
 
-# On the Proxmox host (root), from the repo root:
-./scripts/lxc-smoke-test.sh --tarball /tmp/rackula-lxc-vDEV-*.tar.gz             # deploy + upgrade (default)
-./scripts/lxc-smoke-test.sh --tarball /tmp/rackula-lxc-vDEV-*.tar.gz --mode deploy --keep
+# On the Proxmox host (root):
+./lxc-smoke-test.sh --tarball /tmp/rackula-lxc-vDEV-*.tar.gz             # deploy + upgrade (default)
+./lxc-smoke-test.sh --tarball /tmp/rackula-lxc-vDEV-*.tar.gz --mode deploy --keep
 ```
 
 Flags: `--mode deploy|upgrade|both`, `--baseline release|<tarball>` (upgrade-from payload, default the real latest release), `--storage`/`--bridge`/`--template` (auto-detected), `--keep` (skip teardown). Exit code is non-zero if any check fails.
 
-The upgrade test installs the baseline, seeds a marker in `/opt/rackula/data`, runs the real `update_script`, and verifies the marker survived.
+The upgrade test installs the baseline, seeds a marker in `/opt/rackula/data`, runs upstream's `update_script`, and verifies the marker survived.
 
 ### How the override works
 
-`scripts/lxc-smoke-test.sh` deploys a local tarball by setting `RACKULA_PREBUILD_TARBALL` for the real install and update scripts. Both `install/rackula-install.sh` and the ct `update_script` honor it: when set to an existing tarball they extract that payload instead of calling `fetch_and_deploy_gh_release ... latest`, and `update_script` skips its `check_for_gh_release` version gate so the upgrade body runs. The override is inert when the variable is unset, so a normal release install is unaffected.
+Upstream's scripts run unmodified. The smoke test stages the `community-scripts/core` engine into the CT, points `COMMUNITY_SCRIPTS_CORE_DIR` at it, and appends two definitions to its `lib/tools.func`: `fetch_and_deploy_gh_release` deploys `/root/payload.tar.gz` through upstream's own `_deploy_unpacked_archive`, and `check_for_gh_release` always reports an update. Both apply only while `/root/payload.tar.gz` exists, so a `--baseline release` install runs the real release fetch.
+
+The same test runs as the release gate (`gate-lxc` in `release.yml`) and nightly against `main` (`lxc-nightly.yml`), so a change upstream shows up before release day.
 
 ---
 

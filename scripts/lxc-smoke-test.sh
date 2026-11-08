@@ -2,10 +2,10 @@
 #
 # lxc-smoke-test.sh - dev smoke test for the Rackula Proxmox LXC deploy + upgrade.
 #
-# Builds nothing: it takes a prebuilt dev tarball (a build-lxc-dev.yml artifact,
-# rackula-lxc-*.tar.gz), spins up a throwaway CT, runs the REAL canonical
-# rackula-install.sh / update_script against that payload via the
-# RACKULA_PREBUILD_TARBALL override, and verifies the result.
+# Builds nothing: it takes a prebuilt tarball (rackula-lxc-*.tar.gz), spins up a
+# throwaway CT, runs upstream's live install/rackula-install.sh and ct/rackula.sh
+# update_script from community-scripts/ProxmoxVE against that payload, and verifies
+# the result. Only the release download is swapped for the local tarball.
 #
 # Two drivers:
 #   pct (default) - run ON a Proxmox host as root; uses the pct/pvesh/pveam CLI.
@@ -38,15 +38,21 @@ BRIDGE="vmbr0"
 TEMPLATE=""
 KEEP=0
 SENTINEL_PREFIX="rackula-smoke-"
-# The community-scripts framework engine lives in community-scripts/core. Both
-# ProxmoxVED and ProxmoxVE moved it there and dropped misc/, so the old
-# <repo>/misc/install.func URLs 404. Inside a container, lxc/install.func fetches
-# the rest of the engine from COMMUNITY_SCRIPTS_CORE_URL (same default as here).
+# Rackula's install and update scripts live upstream in community-scripts/ProxmoxVE.
+# The framework engine they run on lives in community-scripts/core. Both are fetched
+# live so the gate tests exactly what users run.
+PROXMOXVE_URL="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
 COMMUNITY_SCRIPTS_CORE_URL="https://raw.githubusercontent.com/community-scripts/core/main"
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CANON="$REPO_ROOT/deploy/lxc/community-scripts"
+# Engine files staged into the CT. Mirrors _CS_CT_ENGINE_FILES in lxc/install.func;
+# a file missing here is fetched from COMMUNITY_SCRIPTS_CORE_URL inside the CT instead.
+ENGINE_FILES=(
+  lxc/install.func
+  core/core.func core/error_handler.func
+  api/exitcodes.func api/errorlog.func
+  lib/tools.func lib/alpine.func lib/db.func lib/forge.func
+  lib/hwaccel.func lib/runtime.func lib/system.func
+)
+CT_ENGINE_DIR=/root/cs-core
 
 CREATED_CTID=""
 CHECK_FAILS=0
@@ -96,11 +102,6 @@ TARBALL="$(cd "$(dirname "$TARBALL")" && pwd)/$(basename "$TARBALL")"
 [[ "$BASELINE" == "release" || -f "$BASELINE" ]] || die "--baseline must be 'release' or an existing tarball"
 
 # --- preflight --------------------------------------------------------------
-# The script runs the canonical install/update scripts, so it needs the full repo layout
-# (deploy/lxc/community-scripts/), not just lxc-smoke-test.sh on its own. Both drivers.
-for f in "$CANON/install/rackula-install.sh" "$CANON/ct/rackula.sh"; do
-  [[ -f "$f" ]] || die "missing $f - run from a Rackula checkout (ship deploy/lxc/community-scripts/ alongside this script)"
-done
 
 if [[ "$DRIVER" == "pct" ]]; then
   [[ "$(id -u)" -eq 0 ]] || die "pct driver must run as root on a Proxmox host"
@@ -395,38 +396,77 @@ cleanup() {
 trap cleanup EXIT
 
 # --- stage + install/update -------------------------------------------------
-# Stage the framework helpers + canonical scripts into the CT once.
-stage_ct() {
-  local id="$1"
-  _assert_sentinel "$id"
+_fetch() {
+  local url="$1" out="$2"
   if [[ $DRY_RUN -eq 1 ]]; then
-    echo "DRY-RUN curl $COMMUNITY_SCRIPTS_CORE_URL/lxc/install.func -> $TMPD/install.func" >&2
-    : >"$TMPD/install.func"
-  else
-    curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors \
-      "$COMMUNITY_SCRIPTS_CORE_URL/lxc/install.func" -o "$TMPD/install.func" ||
-      die "failed to fetch install.func from $COMMUNITY_SCRIPTS_CORE_URL/lxc/install.func"
+    echo "DRY-RUN curl $url -> $out" >&2
+    : >"$out"
+    return 0
+  fi
+  curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors "$url" -o "$out" ||
+    die "failed to fetch $url"
+}
+
+# Appended to lib/tools.func, which lxc/install.func sources during update_os(), so
+# these definitions replace upstream's once the release helpers are loaded. They are
+# active only while /root/payload.tar.gz exists: a release baseline install runs the
+# real fetch. The deploy itself is upstream's own _deploy_unpacked_archive, so the
+# CLEAN_INSTALL and top-level-directory handling match a real release fetch.
+read -r -d '' PAYLOAD_OVERRIDE <<'EOF' || true
+
+# --- Rackula smoke test: deploy the local tarball instead of a release ---
+if [[ -f /root/payload.tar.gz ]]; then
+  fetch_and_deploy_gh_release() {
+    local target="${5:?target directory}" work rc
+    work="$(mktemp -d)"
+    _deploy_unpacked_archive /root/payload.tar.gz "$target" "$work" tar
+    rc=$?
+    rm -rf "$work"
+    return "$rc"
+  }
+  check_for_gh_release() { return 0; }
+fi
+EOF
+
+# Stage the engine and upstream's scripts into the CT once.
+stage_ct() {
+  local id="$1" rel
+  _assert_sentinel "$id"
+  mkdir -p "$TMPD/cs-core"
+  for rel in "${ENGINE_FILES[@]}"; do
+    mkdir -p "$TMPD/cs-core/$(dirname "$rel")"
+    _fetch "$COMMUNITY_SCRIPTS_CORE_URL/$rel" "$TMPD/cs-core/$rel"
+  done
+  printf '%s\n' "$PAYLOAD_OVERRIDE" >>"$TMPD/cs-core/lib/tools.func"
+  tar -czf "$TMPD/cs-core.tar.gz" -C "$TMPD/cs-core" .
+  _fetch "$PROXMOXVE_URL/install/rackula-install.sh" "$TMPD/rackula-install.sh"
+  _fetch "$PROXMOXVE_URL/ct/rackula.sh" "$TMPD/ct-rackula.sh"
+  # Extract just the update_script function body (closing brace is at column 0).
+  sed -n '/^function update_script()/,/^}/p' "$TMPD/ct-rackula.sh" >"$TMPD/update_script.sh"
+  if [[ $DRY_RUN -eq 0 ]]; then
+    grep -q '^function update_script()' "$TMPD/update_script.sh" ||
+      die "update_script not found in upstream ct/rackula.sh"
   fi
   ct_exec "$id" 'apt-get update -qq && apt-get install -y -qq curl ca-certificates tar >/dev/null' ||
     die "failed to install base tools in CT $id"
-  ct_push "$id" "$TMPD/install.func" /root/install.func
-  ct_push "$id" "$CANON/install/rackula-install.sh" /root/rackula-install.sh
-  # Extract just the update_script function body (closing brace is at column 0).
-  sed -n '/^function update_script()/,/^}/p' "$CANON/ct/rackula.sh" >"$TMPD/update_script.sh"
+  ct_push "$id" "$TMPD/cs-core.tar.gz" /root/cs-core.tar.gz
+  ct_exec "$id" "mkdir -p $CT_ENGINE_DIR && tar -xzf /root/cs-core.tar.gz -C $CT_ENGINE_DIR" ||
+    die "failed to unpack the engine in CT $id"
+  ct_push "$id" "$TMPD/rackula-install.sh" /root/rackula-install.sh
   ct_push "$id" "$TMPD/update_script.sh" /root/update_script.sh
 }
 
 # Run the real rackula-install.sh inside the CT. $2 = payload tarball path on host,
 # or empty for a real release fetch (baseline=release).
 run_install() {
-  local id="$1" payload="${2:-}" pre="" body
+  local id="$1" payload="${2:-}" body
   _assert_sentinel "$id"
   if [[ -n "$payload" ]]; then
     ct_push "$id" "$payload" /root/payload.tar.gz
-    pre='export RACKULA_PREBUILD_TARBALL=/root/payload.tar.gz;'
-    info "installing dev payload ($(basename "$payload")) via real rackula-install.sh"
+    info "installing payload ($(basename "$payload")) via upstream rackula-install.sh"
   else
-    info "installing baseline (real latest-release fetch) via rackula-install.sh"
+    ct_exec "$id" 'rm -f /root/payload.tar.gz'
+    info "installing baseline (real latest-release fetch) via upstream rackula-install.sh"
   fi
   # No errexit/nounset: the framework runs install.sh without them and install.sh
   # self-manages via catch_errors. app/APPLICATION are framework vars its motd/cleanup
@@ -447,12 +487,15 @@ run_install() {
   #   PASSWORD=smoke          non-empty, so customize() skips the getty autologin
   #                           override. That block is framework console setup, not
   #                           Rackula behaviour, and is not what this gate tests.
+  #
+  # COMMUNITY_SCRIPTS_CORE_DIR points the engine at the staged copy, which carries
+  # the payload override in lib/tools.func.
   body="
     set -o pipefail
-    export FUNCTIONS_FILE_PATH=\"\$(cat /root/install.func)\"
+    export COMMUNITY_SCRIPTS_CORE_DIR=$CT_ENGINE_DIR
+    export FUNCTIONS_FILE_PATH=\"\$(cat $CT_ENGINE_DIR/lxc/install.func)\"
     export app=rackula APPLICATION=Rackula tz=\"\${tz:-Etc/UTC}\"
     export SSH_ROOT=no PASSWORD=smoke SSH_AUTHORIZED_KEY=
-    ${pre}
     bash /root/rackula-install.sh
   "
   ct_exec "$id" "$body"
@@ -463,24 +506,28 @@ run_update() {
   local id="$1" payload="$2" body
   _assert_sentinel "$id"
   ct_push "$id" "$payload" /root/payload.tar.gz
-  info "upgrading to dev payload ($(basename "$payload")) via real update_script"
+  info "upgrading to payload ($(basename "$payload")) via upstream update_script"
   # shellcheck disable=SC2016  # body runs inside the CT; $vars must not expand on the host
   body='
     # No errexit: the framework runs update_script without it; update_script signals
     # real failure via its own exit 1, and the marker + smoke checks are the verdict.
     set -o pipefail
-    export FUNCTIONS_FILE_PATH="$(cat /root/install.func)"
+    export COMMUNITY_SCRIPTS_CORE_DIR=__ENGINE_DIR__
+    export FUNCTIONS_FILE_PATH="$(cat __ENGINE_DIR__/lxc/install.func)"
     source /dev/stdin <<<"$FUNCTIONS_FILE_PATH"
+    # install.func loads the release and backup helpers in update_os(); load them
+    # directly here, which also applies the payload override.
+    source __ENGINE_DIR__/lib/tools.func
     color 2>/dev/null || true
     # host-only framework guards are no-ops inside the CT
     header_info() { :; }
     check_container_storage() { :; }
     check_container_resources() { :; }
     APP="Rackula"
-    export RACKULA_PREBUILD_TARBALL=/root/payload.tar.gz
     source /root/update_script.sh
     update_script
   '
+  body="${body//__ENGINE_DIR__/$CT_ENGINE_DIR}"
   ct_exec "$id" "$body"
 }
 
@@ -506,10 +553,10 @@ smoke_checks() {
   info "smoke checks on CT $id"
   _check "$id" "API /api/health responds" "curl -sf --max-time 5 http://127.0.0.1/api/health"
   _check "$id" "frontend served" "curl -sf --max-time 5 -o /dev/null http://127.0.0.1/"
-  # Runtime storage mode must reach the client. The release tarball ships a
-  # browser-mode config.js from publicDir; the install and update scripts
-  # rewrite it to server. A regression here silently strands layouts in
-  # browser localStorage while the API idles (#2060).
+  # Runtime storage mode must reach the client. build-lxc.yml writes a server-mode
+  # config.js into the tarball, and upstream's scripts deploy it unchanged. A
+  # regression here silently strands layouts in browser localStorage while the API
+  # idles (#2060).
   # pipefail + no grep -q: the command runs in a remote `bash -c`, so this shell's
   # pipefail does not reach it, and a matching grep would mask a failed curl. Dropping
   # -q is required with pipefail: -q exits on first match, curl then dies on SIGPIPE
@@ -521,20 +568,20 @@ smoke_checks() {
   _check "$id" "rackula-api active" "systemctl is-active --quiet rackula-api"
   _check "$id" "nginx active" "systemctl is-active --quiet nginx"
   _check "$id" "no API crash in journal" \
-    "! journalctl -u rackula-api --no-pager 2>/dev/null | grep -qiE 'panic|segfault|MODULE_NOT_FOUND|cannot find module'"
+    "set -o pipefail; ! journalctl -u rackula-api --no-pager 2>/dev/null | grep -iE 'panic|segfault|MODULE_NOT_FOUND|cannot find module'"
   # Security headers from deploy/lxc/security-headers.conf must reach the client.
   # Header names are case-insensitive (grep -i); --max-time 5 caps the request.
   _check "$id" "Content-Security-Policy header present" \
-    "curl -sfI --max-time 5 http://127.0.0.1/ | grep -qi '^Content-Security-Policy:'"
+    "set -o pipefail; curl -sfI --max-time 5 http://127.0.0.1/ | grep -i '^Content-Security-Policy:'"
   _check "$id" "X-Frame-Options header present" \
-    "curl -sfI --max-time 5 http://127.0.0.1/ | grep -qi '^X-Frame-Options:'"
+    "set -o pipefail; curl -sfI --max-time 5 http://127.0.0.1/ | grep -i '^X-Frame-Options:'"
   # version.json is emitted at build time (vite.config.ts) and served statically.
   # version must be a non-empty string and commit must be non-empty: the LXC build
   # runs `npm run build` inside a full git checkout, so APP_COMMIT/commit is set.
   _check "$id" "version.json reports a non-empty version" \
-    "curl -sf --max-time 5 http://127.0.0.1/version.json | grep -qE '\"version\"[[:space:]]*:[[:space:]]*\"[^\"]+\"'"
+    "set -o pipefail; curl -sf --max-time 5 http://127.0.0.1/version.json | grep -E '\"version\"[[:space:]]*:[[:space:]]*\"[^\"]+\"'"
   _check "$id" "version.json reports a non-empty commit" \
-    "curl -sf --max-time 5 http://127.0.0.1/version.json | grep -qE '\"commit\"[[:space:]]*:[[:space:]]*\"[^\"]+\"'"
+    "set -o pipefail; curl -sf --max-time 5 http://127.0.0.1/version.json | grep -E '\"commit\"[[:space:]]*:[[:space:]]*\"[^\"]+\"'"
 }
 
 # --- run --------------------------------------------------------------------

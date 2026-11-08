@@ -742,15 +742,9 @@ docker compose up -d
 
 ### Proxmox LXC Installer Variables
 
-The Proxmox community-scripts installer generates the API config itself, so a few settings are passed as environment variables when running the installer rather than in a compose file. Export them before the install command.
+The Proxmox community-scripts installer generates the API config itself and takes no Rackula-specific variables. It writes `/opt/rackula/data/.env` with a random `RACKULA_API_WRITE_TOKEN`, `CORS_ORIGIN=http://localhost` and `ALLOW_INSECURE_CORS=false`, and installs the latest Bun to `/opt/bun`.
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `BUN_VERSION` | `1.3.14` | Bun runtime version installed to `/usr/local/bun` |
-| `CORS_SCHEME` | `http` | Scheme for the generated `CORS_ORIGIN` (`http`/`https`) |
-| `ALLOW_INSECURE_CORS` | `false` | Allow wildcard CORS (`true`/`false`) |
-
-Behind an HTTPS reverse proxy, set `CORS_SCHEME=https` so the generated `CORS_ORIGIN` matches the browser origin. To change CORS after install, edit `CORS_ORIGIN` in `/opt/rackula/data/.env` and run `systemctl restart rackula-api`.
+The frontend and API share an origin through nginx, so the default CORS setting works for direct access by IP or hostname. To change it, for example behind an HTTPS reverse proxy on another origin, edit `CORS_ORIGIN` in `/opt/rackula/data/.env` and run `systemctl restart rackula-api`. Updates keep `/opt/rackula/data`, including this file.
 
 ### Build-Time Variables
 
