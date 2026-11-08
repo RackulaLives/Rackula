@@ -38,11 +38,11 @@ BRIDGE="vmbr0"
 TEMPLATE=""
 KEEP=0
 SENTINEL_PREFIX="rackula-smoke-"
-# Rackula was promoted from the ProxmoxVED dev repo to the production ProxmoxVE
-# repo, so the framework helpers come from ProxmoxVE now. ProxmoxVED has since
-# moved its engine out to community-scripts/core and dropped misc/ entirely, so
-# the old URL 404s.
-COMMUNITY_SCRIPTS_URL="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main"
+# The community-scripts framework engine lives in community-scripts/core. Both
+# ProxmoxVED and ProxmoxVE moved it there and dropped misc/, so the old
+# <repo>/misc/install.func URLs 404. Inside a container, lxc/install.func fetches
+# the rest of the engine from COMMUNITY_SCRIPTS_CORE_URL (same default as here).
+COMMUNITY_SCRIPTS_CORE_URL="https://raw.githubusercontent.com/community-scripts/core/main"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -400,12 +400,12 @@ stage_ct() {
   local id="$1"
   _assert_sentinel "$id"
   if [[ $DRY_RUN -eq 1 ]]; then
-    echo "DRY-RUN curl $COMMUNITY_SCRIPTS_URL/misc/install.func -> $TMPD/install.func" >&2
+    echo "DRY-RUN curl $COMMUNITY_SCRIPTS_CORE_URL/lxc/install.func -> $TMPD/install.func" >&2
     : >"$TMPD/install.func"
   else
     curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors \
-      "$COMMUNITY_SCRIPTS_URL/misc/install.func" -o "$TMPD/install.func" ||
-      die "failed to fetch install.func from $COMMUNITY_SCRIPTS_URL/misc/install.func"
+      "$COMMUNITY_SCRIPTS_CORE_URL/lxc/install.func" -o "$TMPD/install.func" ||
+      die "failed to fetch install.func from $COMMUNITY_SCRIPTS_CORE_URL/lxc/install.func"
   fi
   ct_exec "$id" 'apt-get update -qq && apt-get install -y -qq curl ca-certificates tar >/dev/null' ||
     die "failed to install base tools in CT $id"
