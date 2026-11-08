@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [26.11.1] - 2026-11-08
+
+### THE LABELS WERE ALWAYS WHITE
+
+The labels were white. There was a black outline painted right on top of them, so they looked black. Black is just white with a coat on. We took the coat off.
+
+### This release
+
+OIDC login moves to better-auth 1.7 and now accepts Authentik and other issuers with a trailing slash. Labels over device images export white, large plain .yaml saves reopen, and Help and about is one tap away again.
+
+### Added
+
+- Help and about is reachable from a ? button beside the palette gear and in the canvas corner. Searching help, docs, bug, feedback or version runs the matching command, and new palette commands open bug reports, documentation and ideas (#3606, PR #3607)
+
+### Changed
+
+- OIDC login runs on better-auth 1.7.15. The callback path is now /api/auth/callback/oidc, and both earlier callback paths keep working. A provider that only advertises unusable signing algorithms now fails closed, and a rejected login reports unable_to_get_user_info (#3229, PR #3597)
+
+### Fixed
+
+- OIDC ID tokens are checked against the issuer as discovered, so Authentik and bare-host issuers can sign in (#3596, PR #3610)
+- Device labels over device images stay white in PDF, PNG and SVG exports (#3542, PR #3629)
+- Plain .yaml files load up to 50MB, so layouts with embedded images reopen. A save over that size is refused and points to the .zip save (#3553, PR #3630)
+- Accessible names include the visible text on rear device buttons, the command pill, and the display name and colour buttons (PR #3598)
+
+### Security
+
+- better-auth 1.7.15 clears GHSA-965c-763c-88jm, GHSA-r4xp-prcw-77qf and GHSA-44jh-23m7-hpcf. Rackula did not use the affected features (PR #3597)
+- Self-host images pin libexpat 2.10.0 for CVE-2026-117610 and CVE-2026-118370 (code-scanning #128, #129, PR #3614)
+- minimatch is overridden to a patched release for GHSA-g3hv-75wg-m249 (PR #3600)
+
+### Technical
+
+- README media is captured automatically after each release, and the README uses the generated hero and rack images (PR #3609, PR #3619, PR #3620)
+- After a release, CI closes main image scan alerts and summarises release scan findings (#3285, PR #3545)
+- Dependency updates across wrangler, vitest, eslint, zod, jose, hono, happy-dom, undici, dompurify, bits-ui, @lucide/svelte, marked, svg2pdf.js and GitHub Actions (48 PRs, PR #3546 through PR #3628)
+
 ## [26.10.1] - 2026-10-12
 
 ### I COUNTED IN MILLIMETRES
