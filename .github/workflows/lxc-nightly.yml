@@ -31,6 +31,8 @@ jobs:
   smoke:
     name: LXC smoke test
     needs: build
+    # This job loads the runner's Proxmox credentials, so only main's script runs here.
+    if: github.ref == 'refs/heads/main'
     runs-on: [self-hosted, lxc-gate]
     timeout-minutes: 30
     steps:
