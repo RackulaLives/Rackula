@@ -86,7 +86,7 @@ The upgrade test installs the baseline, seeds a marker in `/opt/rackula/data`, r
 
 ### How the override works
 
-Upstream's scripts run unmodified. The smoke test stages the `community-scripts/core` engine into the CT, points `COMMUNITY_SCRIPTS_CORE_DIR` at it, and appends two definitions to its `lib/tools.func`: `fetch_and_deploy_gh_release` deploys `/root/payload.tar.gz` through upstream's own `_deploy_unpacked_archive`, and `check_for_gh_release` always reports an update. Both apply only while `/root/payload.tar.gz` exists, so a `--baseline release` install runs the real release fetch.
+Upstream's scripts run unmodified. The smoke test stages three `community-scripts/core` engine files into the CT, points `COMMUNITY_SCRIPTS_CORE_DIR` at them (the engine fetches any other file as usual), and appends two definitions to `lib/forge.func`: `fetch_and_deploy_gh_release` deploys `/root/payload.tar.gz` through upstream's own `_deploy_unpacked_archive`, and `check_for_gh_release` always reports an update. Both apply only while `/root/payload.tar.gz` exists, so a `--baseline release` install runs the real release fetch.
 
 The same test runs as the release gate (`gate-lxc` in `release.yml`) and nightly against `main` (`lxc-nightly.yml`), so a change upstream shows up before release day.
 
