@@ -273,15 +273,16 @@ async function fetchOidcDiscoveryDocument(
     throw new Error("OIDC discovery response missing jwks_uri.");
   }
 
-  const issuer = normalizeIssuerUrl(issuerValue);
-  if (!issuerMatchesExpected(expectedIssuer, issuer)) {
+  if (!issuerMatchesExpected(expectedIssuer, normalizeIssuerUrl(issuerValue))) {
     throw new Error(
       "OIDC discovery issuer does not match RACKULA_OIDC_ISSUER.",
     );
   }
 
   return {
-    issuer,
+    // Unnormalised on purpose: the ID token's iss must match the discovered
+    // issuer exactly (OIDC Core 3.1.3.7), trailing slash included. See #3596.
+    issuer: issuerValue,
     jwksUri: parseAbsoluteUrl(
       jwksUriValue,
       "OIDC discovery jwks_uri",

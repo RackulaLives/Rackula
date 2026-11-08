@@ -324,6 +324,7 @@
   {tabindex}
   draggable={isCompatible}
   data-testid="device-palette-item"
+  data-device-slug={device.slug}
   title={!isCompatible ? (incompatibilityReason ?? undefined) : undefined}
   onclick={handleClick}
   onkeydown={handleKeyDown}

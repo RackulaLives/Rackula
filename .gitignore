@@ -60,6 +60,7 @@ yarn-error.log*
 coverage/
 playwright-report/
 test-results/
+media-out/
 reports/
 
 # Visual regression baselines are committed for Linux (the CI runner) only.
