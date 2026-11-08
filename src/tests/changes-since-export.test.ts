@@ -15,7 +15,7 @@ import {
   loadWorkspaceIndex,
 } from "$lib/storage/browser-workspace";
 import { getToastStore, resetToastStore } from "$lib/stores/toast.svelte";
-import { downloadYamlFile } from "$lib/utils/archive";
+import { downloadYamlFile, LayoutTooLargeError } from "$lib/utils/archive";
 
 vi.mock("$lib/utils/archive", async (importOriginal) => {
   const actual = await importOriginal<typeof import("$lib/utils/archive")>();
@@ -118,6 +118,20 @@ describe("changesSinceExport", () => {
     expect(toast?.type).toBe("error");
     expect(toast?.message).not.toMatch(/showSaveFilePicker/);
     expect(toast?.message).toBe("Failed to save layout. Please try again.");
+  });
+
+  it("points to the ZIP save when the .yaml would be too large to reopen (#3553)", async () => {
+    mockedDownload.mockRejectedValue(new LayoutTooLargeError(60 * 1024 * 1024));
+    const store = getLayoutStore();
+    store.markDirty();
+
+    const saved = await handleSaveAsArchive();
+
+    expect(saved).toBe(false);
+    expect(store.isDirty).toBe(true);
+    const toast = getToastStore().toasts.at(-1);
+    expect(toast?.type).toBe("error");
+    expect(toast?.message).toMatch(/\.zip/);
   });
 
   it("exposes backup state through the storage chip data source", () => {

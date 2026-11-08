@@ -66,6 +66,9 @@ export type ActionId =
   | "cycle-rack-next"
   | "escape"
   | "show-help"
+  | "report-bug"
+  | "open-documentation"
+  | "share-ideas"
   | "settings"
   | "command-palette";
 
@@ -145,6 +148,13 @@ export interface ActionDefinition {
   storageMode?: StorageMode;
   /** Fuzzy-search synonyms for the future command palette (#2020). */
   keywords?: string[];
+  /**
+   * Whole words that name this command as firmly as its label does. Typed in
+   * full, an alias counts as a confident palette match, so it runs the command
+   * rather than offering to add a device with that name (#3606). Only for words
+   * that are not plausible device searches.
+   */
+  aliases?: string[];
 }
 
 /** Snapshot consumed by enabledWhen predicates. */
@@ -242,7 +252,7 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
   },
   {
     id: "show-help",
-    label: "About and shortcuts",
+    label: "Help and about",
     scope: "global",
     // Producing "?" requires Shift on most layouts, so the real keydown event
     // carries shiftKey=true. Bind both states so the shortcut fires whether or
@@ -250,20 +260,18 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     bindings: [{ key: "?" }, { key: "?", shift: true }],
     helpGroup: "General",
     appMenuGroup: "app",
-    keywords: ["shortcuts", "about", "keyboard", "version"],
-  },
-  {
-    id: "settings",
-    label: "Settings",
-    scope: "global",
-    bindings: [],
-    // Settings is an application-level entry, so it joins About and shortcuts in
-    // the trailing "app" group. #2406 originally made it a standalone trailing
-    // group; the intent reorg (#2596) gives "app" a coherent home for both the
-    // about/shortcuts entry and the settings gear, keeping the gear in the
-    // conventional final slot without a lone single-item group.
-    appMenuGroup: "app",
-    keywords: ["settings", "preferences", "options", "theme"],
+    keywords: ["keyboard"],
+    aliases: [
+      "?",
+      "help",
+      "about",
+      "shortcut",
+      "shortcuts",
+      "keyboard shortcuts",
+      "version",
+      "support",
+      "github",
+    ],
   },
   {
     id: "command-palette",
@@ -623,10 +631,10 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
   },
 
   // --- App --------------------------------------------------------------------
-  // show-help ("About and shortcuts") is defined in the General group above with
+  // show-help ("Help and about") is defined in the General group above with
   // appMenuGroup: "app"; the palette projection folds it into the trailing App
-  // group alongside Settings. Its dialog (HelpPanel) is the About panel and
-  // includes the shortcut list, so one entry covers both about and shortcuts.
+  // group alongside Settings. Its dialog (HelpPanel) includes the shortcut list,
+  // so one entry covers help, about, and shortcuts.
   {
     id: "undo",
     label: "Undo",
@@ -655,6 +663,46 @@ export const ACTION_REGISTRY: ActionDefinition[] = [
     enabledWhen: (ctx) => !ctx.readOnly && ctx.canRedo,
     helpGroup: "File",
     keywords: ["forward", "repeat"],
+  },
+  // Registry order breaks palette score ties, so these stay below the commands
+  // people run often: "share" must rank Share above Share ideas (#3606).
+  {
+    id: "report-bug",
+    label: "Report a bug",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "app",
+    aliases: ["bug", "bugs", "issue", "issues", "report bug"],
+  },
+  {
+    id: "open-documentation",
+    label: "Documentation",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "app",
+    keywords: ["guide", "manual"],
+    aliases: ["docs"],
+  },
+  {
+    id: "share-ideas",
+    label: "Share ideas",
+    scope: "global",
+    bindings: [],
+    appMenuGroup: "app",
+    aliases: ["feedback", "discussion", "discussions", "idea", "ideas"],
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    scope: "global",
+    bindings: [],
+    // Settings is an application-level entry, so it joins Help and about in
+    // the trailing "app" group. #2406 originally made it a standalone trailing
+    // group; the intent reorg (#2596) gives "app" a coherent home for both the
+    // help entries and the settings gear, keeping the gear in the
+    // conventional final slot without a lone single-item group.
+    appMenuGroup: "app",
+    keywords: ["settings", "preferences", "options", "theme"],
   },
 ];
 

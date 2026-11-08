@@ -174,9 +174,9 @@ export function createRateLimitMiddleware(
         return;
       }
 
-      // Exempt public paths (health, version, auth callback/check/logout).
-      // GET login-initiation paths are intentionally excluded so they stay
-      // throttled by the global read limiter. Local-auth POST login is exempt
+      // Exempt public paths (health, version, auth check/logout). GET
+      // login-initiation and OIDC callback paths are intentionally excluded so
+      // they stay throttled by the global read limiter. Local-auth POST login is exempt
       // here so it stays on its own dedicated login (brute-force) limiter
       // rather than being consumed by the global write limiter.
       const isLocalLoginPost =

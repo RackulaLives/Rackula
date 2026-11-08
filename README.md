@@ -22,11 +22,11 @@
 </p>
 
 <p align="center">
-  <img src="assets/Rackula-hero-drac.gif" alt="Rackula demo" width="500">
+  <img src="assets/readme/hero.gif" alt="Dragging a router, switch, NAS, server and UPS into a rack, then switching to real device images" width="800">
 </p>
 
 <p align="center">
-  <img src="assets/screenshot-dracs-rack.png" alt="Rackula showing a rack with server and network devices" width="500">
+  <img src="assets/readme/rack.png" alt="Rackula showing a rack of real network, storage, server and power devices, front and rear" width="800">
 </p>
 
 ---

@@ -21,38 +21,41 @@ const _AUTH_PUBLIC_PATHS = new Set([
   "/api/auth/callback",
   "/api/auth/check",
   "/api/auth/logout",
-  // Better Auth's generic-oauth plugin routes its callback at
-  // {basePath}/oauth2/callback/{providerId}, and advertises that URI to the IdP
-  // whenever RACKULA_OIDC_REDIRECT_URI points at it. The bare form is what the
-  // API sees after nginx strips the /api prefix
+  // Better Auth's generic-oauth plugin routed its callback at
+  // {basePath}/oauth2/callback/{providerId} before 1.7, and deployments may
+  // still register that URI through RACKULA_OIDC_REDIRECT_URI. The bare form is
+  // what the API sees after nginx strips the /api prefix
   // (deploy/nginx.conf.template). Both must bypass the gate: the callback is
   // what creates the session, so requiring one here loops the browser. See #3140.
   "/auth/oauth2/callback/oidc",
   "/api/auth/oauth2/callback/oidc",
+  // Where Better Auth sends a rejected login. Gating it would restart the IdP
+  // flow instead of showing the error.
+  "/auth/error",
+  "/api/auth/error",
 ]);
 /** Immutable set of paths exempt from auth. */
 export const AUTH_PUBLIC_PATHS: ReadonlySet<string> = _AUTH_PUBLIC_PATHS;
 
 /**
  * Paths exempt from rate limiting. This is {@link AUTH_PUBLIC_PATHS} minus the
- * login-initiation routes: those must stay throttled so an attacker cannot
- * flood OIDC login initiations (state/PKCE generation, Set-Cookie, upstream
- * IdP work). The callback/check/logout routes remain exempt, including the
- * oauth2 callback paths: Better Auth validates the signed state cookie before
- * any upstream discovery fetch, so an unauthenticated flood costs one signature
- * verification and generates no IdP traffic.
+ * login-initiation and OIDC callback routes. Login must stay throttled so an
+ * attacker cannot flood OIDC login initiations (state/PKCE generation,
+ * Set-Cookie, upstream IdP work). Callbacks must too: after a failed startup
+ * discovery, Better Auth retries discovery ahead of state validation, so an
+ * unauthenticated flood would reach the IdP.
  */
 const _RATE_LIMIT_EXEMPT_PATHS = new Set(
   [..._AUTH_PUBLIC_PATHS].filter(
-    (path) => path !== "/auth/login" && path !== "/api/auth/login",
+    (path) => !path.endsWith("/auth/login") && !path.includes("/callback"),
   ),
 );
 export const RATE_LIMIT_EXEMPT_PATHS: ReadonlySet<string> =
   _RATE_LIMIT_EXEMPT_PATHS;
 const API_ROUTE_PREFIXES = ["/api", "/layouts", "/assets"];
 /**
- * Better Auth's generic-oauth callback shape, with and without the /api prefix
- * that nginx strips. Used to turn a misrouted OAuth callback into a legible
+ * Better Auth's pre-1.7 generic-oauth callback shape, with and without the /api
+ * prefix that nginx strips. Used to turn a misrouted OAuth callback into a legible
  * error instead of a redirect loop. See #3140.
  */
 const OAUTH_CALLBACK_PATH_PATTERN = /^\/(?:api\/)?auth\/oauth2\/callback\//;

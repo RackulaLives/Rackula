@@ -124,3 +124,44 @@ describe("export placement images (#1902)", () => {
     expect(hrefs).not.toContain("data:image/png;base64,PLACEMENTFRONT");
   });
 });
+
+describe("device label over an export image (#3542)", () => {
+  it("draws the label fill above its outline, so the outline cannot cover it", () => {
+    const deviceType = createTestDeviceType({
+      slug: "dark-device",
+      u_height: 2,
+      is_full_depth: true,
+    });
+    const placed = createTestDevice({
+      id: "dev-1",
+      device_type: "dark-device",
+      position: 10,
+      face: "both",
+      name: "Dark Server",
+    });
+    const rack = createTestRack({ devices: [placed] });
+    const images: ImageStoreMap = new Map();
+    images.set("dark-device", {
+      front: {
+        dataUrl: "data:image/png;base64,DARKFRONT",
+        filename: "dark-front.png",
+      },
+    });
+
+    const svg = generateExportSVG(
+      [rack],
+      [deviceType],
+      { ...baseOptions, exportView: "front" },
+      images,
+    );
+
+    const labels = Array.from(svg.getElementsByTagName("text")).filter(
+      (el) => el.textContent === "Dark Server",
+    );
+    const topLabel = labels.at(-1);
+    expect(topLabel?.getAttribute("stroke")).toBeNull();
+    expect(labels.slice(0, -1).some((el) => el.hasAttribute("stroke"))).toBe(
+      true,
+    );
+  });
+});

@@ -58,7 +58,7 @@ describe("Edit panel confirmation model (#3005)", () => {
     renderEditTab();
 
     const editButton = screen.getByRole("button", {
-      name: "Edit display name",
+      name: /^Edit display name/,
     });
     await fireEvent.click(editButton);
     const input = screen.getByLabelText("Name");
@@ -71,7 +71,7 @@ describe("Edit panel confirmation model (#3005)", () => {
 
     // Real edit: change the value and blur.
     await fireEvent.click(
-      screen.getByRole("button", { name: "Edit display name" }),
+      screen.getByRole("button", { name: /^Edit display name/ }),
     );
     await fireEvent.input(screen.getByLabelText("Name"), {
       target: { value: "Renamed Device" },
@@ -87,7 +87,7 @@ describe("Edit panel confirmation model (#3005)", () => {
     setupSelectedDevice();
     renderEditTab();
 
-    await fireEvent.click(screen.getByRole("button", { name: "Colour" }));
+    await fireEvent.click(screen.getByRole("button", { name: /^Colour/ }));
     const swatchButtons = screen.getAllByRole("button", {
       name: /^Select .* colour$/,
     });
@@ -141,7 +141,7 @@ describe("Edit panel confirmation model (#3005)", () => {
     renderEditTab();
 
     await fireEvent.click(
-      screen.getByRole("button", { name: "Edit display name" }),
+      screen.getByRole("button", { name: /^Edit display name/ }),
     );
     await fireEvent.input(screen.getByLabelText("Name"), {
       target: { value: "Renamed A" },

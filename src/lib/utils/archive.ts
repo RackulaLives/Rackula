@@ -37,7 +37,7 @@ import {
   deviceIdFromPlacementKey,
   layoutIdFromPlacementKey,
 } from "./placement-key";
-import { getJSZip } from "./archive-extract";
+import { getJSZip, MAX_PLAIN_YAML_BYTES } from "./archive-extract";
 
 // The ZIP reader moved to ./archive-extract; re-export its entry points so
 // consumers importing from "$lib/utils/archive" are unchanged. getJSZip is also
@@ -264,12 +264,29 @@ export function generateExportAllFilename(now: Date = new Date()): string {
 }
 
 /**
+ * Thrown when a plain .yaml save would exceed what plain .yaml load accepts,
+ * so the save is refused instead of writing a file that cannot be reopened.
+ */
+export class LayoutTooLargeError extends Error {
+  readonly bytes: number;
+
+  constructor(bytes: number) {
+    super(
+      `Layout is too large to save as .yaml (${Math.round(bytes / 1024 / 1024)}MB, max ${Math.round(MAX_PLAIN_YAML_BYTES / 1024 / 1024)}MB). Embedded device images make up most of it.`,
+    );
+    this.name = "LayoutTooLargeError";
+    this.bytes = bytes;
+  }
+}
+
+/**
  * Save a layout as a standalone YAML file, embedding user-uploaded device
  * images as base64 data URLs (#617) so the plain-YAML save no longer drops them.
  *
  * Returns the filename used and the count of images that exceeded the save
  * warning threshold (~100KB), so the caller can surface a single non-blocking
- * "consider optimising" toast.
+ * "consider optimising" toast. Throws LayoutTooLargeError, before any file is
+ * written, when the result would be too large to load again (#3553).
  */
 export async function downloadYamlFile(
   layout: Layout,
@@ -281,6 +298,9 @@ export async function downloadYamlFile(
     : { serialized: undefined, oversized: 0 };
   const yamlContent = await serializeLayoutToYaml(layout, serialized);
   const blob = new Blob([yamlContent], { type: "text/yaml" });
+  if (blob.size > MAX_PLAIN_YAML_BYTES) {
+    throw new LayoutTooLargeError(blob.size);
+  }
   const filename = buildYamlFilename(layout.name);
   await fileSave(blob, {
     fileName: filename,

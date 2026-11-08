@@ -228,7 +228,7 @@ jobs:
         run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Log in to Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -415,7 +415,7 @@ jobs:
       packages: write
     steps:
       - name: Log in to Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -511,6 +511,35 @@ jobs:
           TAG: ${{ needs.validate.outputs.tag }}
         run: |
           gh release edit "$TAG" --prerelease=false --latest=true
+
+  # Refresh the README media from the release that just went out. Fire and
+  # forget: nothing depends on this job and it is not in notify-failure's needs.
+  # The dispatched workflow raises its own alert if it fails. A failed dispatch
+  # has no child run to do that, so it alerts here, and it must not mark a
+  # release that already shipped as failed.
+  refresh-readme-media:
+    name: "Refresh README media"
+    needs: [validate, promote-github]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      actions: write
+      issues: write
+    steps:
+      - name: Dispatch media workflow on main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if ! gh workflow run update-readme-media.yml --ref main -f tag="$TAG"; then
+            gh issue create \
+              --title "CI Alert: README media dispatch failed for $TAG" \
+              --body "The README media were not refreshed. Run: $RUN_URL" \
+              --label ci-alert --label automated
+          fi
 
   # On any failure or cancellation, summarise the failed jobs and open/update a
   # `CI Alert` issue. Read-only except for issues:write.

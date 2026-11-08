@@ -23,6 +23,7 @@ import { getToastStore } from "$lib/stores/toast.svelte";
 import { dialogStore } from "$lib/stores/dialogs.svelte";
 import {
   downloadYamlFile,
+  LayoutTooLargeError,
   createMultiLayoutArchive,
   generateExportAllFilename,
   type LayoutArchiveEntry,
@@ -505,6 +506,14 @@ export async function handleSaveAsArchive(): Promise<boolean> {
       return false;
     }
     persistenceDebug.api("Failed to save layout: %O", error);
+    if (error instanceof LayoutTooLargeError) {
+      toastStore.showToast(
+        `${error.message} Use smaller images, or use Save all layouts (.zip), which stores images as files.`,
+        "error",
+        10000,
+      );
+      return false;
+    }
     toastStore.showToast("Failed to save layout. Please try again.", "error");
     return false;
   }

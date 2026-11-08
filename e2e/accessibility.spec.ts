@@ -71,7 +71,7 @@ test.describe("Accessibility", () => {
       const palettePill = page.getByTestId("btn-command-palette");
       await expect(palettePill).toHaveAttribute(
         "aria-label",
-        "Search or run a command",
+        /^Search .*or run a command$/,
       );
       await palettePill.focus();
       await expect(palettePill).toBeFocused();

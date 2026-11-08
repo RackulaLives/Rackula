@@ -418,7 +418,7 @@ npx browserstack-node-sdk playwright test
 
 Locate elements by what the user perceives (role, label, text), not by how they are styled. CSS class selectors are brittle: a styling rename silently breaks the test. Prefer, in this order:
 
-1. `getByRole()` with an accessible name, e.g. `page.getByRole("dialog", { name: "About Rackula" })`. This doubles as an accessibility check.
+1. `getByRole()` with an accessible name, e.g. `page.getByRole("dialog", { name: "Help and about" })`. This doubles as an accessibility check.
 2. `getByLabel()` / `getByText()` for form fields and visible copy.
 3. `getByTestId()` (`data-testid`) for structural anchors that have no natural role or label, e.g. the rack canvas or a toast container.
 
@@ -574,6 +574,12 @@ Update flow for an intentional visual change:
 4. Download `visual-baselines`, replace `e2e/__screenshots__` in your branch with its contents, then commit and push. Committing yourself (rather than a bot push) keeps the workflow read-only and retriggers the `visual` check.
 
 Dynamic regions (the app version string and "last saved" timestamps) are masked so they never trip the diff.
+
+### README Media
+
+`assets/readme/hero.gif` and `assets/readme/rack.png` are generated. Do not edit them by hand. After each release, `release.yml` dispatches the "Update README Media" workflow, which captures both from the released build and opens an auto-merging PR if they visibly changed. A failure opens a `CI Alert` issue and leaves the current images in place.
+
+Capture locally with `npm run media:capture` (output in `media-out/`), then build the GIF with `scripts/encode-hero.sh media-out/frames media-out/hero.gif`. The shot list and rack contents live in `e2e/readme-media/shots.ts`. A new shot also needs the workflow's encode, validation and copy steps updated to publish it. Script tests: `bats scripts/readme-media.bats`.
 
 ### Performance Budget
 
