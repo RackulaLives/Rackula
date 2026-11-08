@@ -1111,13 +1111,20 @@ export function generateExportSVG(
       deviceNameEl.setAttribute("text-anchor", "middle");
       deviceNameEl.setAttribute("dominant-baseline", "middle");
       deviceNameEl.setAttribute("font-family", "system-ui, sans-serif");
-      if (showImage) {
-        // Thin stroke outline for text visibility over images
-        deviceNameEl.setAttribute("stroke", "rgba(0,0,0,0.7)");
-        deviceNameEl.setAttribute("stroke-width", "1.5");
-        deviceNameEl.setAttribute("stroke-linejoin", "round");
-      }
       deviceNameEl.textContent = fittedLabel.text;
+      if (showImage) {
+        // Dark outline behind the label for visibility over images. It is a
+        // separate copy drawn first, because a stroke on the label itself
+        // paints over the thin white fill, and svg2pdf ignores paint-order
+        // (#3542).
+        const outlineEl = deviceNameEl.cloneNode(true) as SVGTextElement;
+        outlineEl.setAttribute("fill", "none");
+        outlineEl.setAttribute("stroke", "rgba(0,0,0,0.7)");
+        outlineEl.setAttribute("stroke-width", "2.5");
+        outlineEl.setAttribute("stroke-linejoin", "round");
+        outlineEl.setAttribute("aria-hidden", "true");
+        rackGroup.appendChild(outlineEl);
+      }
       rackGroup.appendChild(deviceNameEl);
     }
 
