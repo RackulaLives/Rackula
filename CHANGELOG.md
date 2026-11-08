@@ -39,6 +39,7 @@ OIDC login moves to better-auth 1.7 and now accepts Authentik and other issuers 
 
 - README media is captured automatically after each release, and the README uses the generated hero and rack images (PR #3609, PR #3619, PR #3620)
 - After a release, CI closes main image scan alerts and summarises release scan findings (#3285, PR #3545)
+- The LXC smoke gate fetches install.func from community-scripts/core, which replaced the ProxmoxVE misc/ engine files (PR #3634)
 - Dependency updates across wrangler, vitest, eslint, zod, jose, hono, happy-dom, undici, dompurify, bits-ui, @lucide/svelte, marked, svg2pdf.js and GitHub Actions (48 PRs, PR #3546 through PR #3628)
 
 ## [26.10.1] - 2026-10-12
