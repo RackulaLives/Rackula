@@ -146,11 +146,18 @@ const LIMITS = {
   MAX_TOTAL_UNCOMPRESSED_BYTES: 250 * 1024 * 1024,
   /** Max files in archive: 500 */
   MAX_ENTRY_COUNT: 500,
-  /** Max YAML file size: 5MB */
+  /** Max YAML file size inside a ZIP, where images are separate files: 5MB */
   MAX_YAML_BYTES: 5 * 1024 * 1024,
   /** Max compression ratio: 100:1 */
   MAX_COMPRESSION_RATIO: 100,
 };
+
+/**
+ * Max plain .yaml file size: 50MB, the same as a ZIP. Plain YAML embeds images
+ * as base64, so it needs the archive budget, not the YAML-in-ZIP one. Save
+ * refuses to write a file over this cap so save never outgrows load (#3553).
+ */
+export const MAX_PLAIN_YAML_BYTES = LIMITS.MAX_ZIP_SIZE_BYTES;
 
 /**
  * Check if a file path is an image file
@@ -263,13 +270,13 @@ export async function extractFolderArchive(
   const isZip = header[0] === 0x50 && header[1] === 0x4b;
 
   if (!isZip) {
-    // Whole-file cap before parse. Local YAML load allows up to 5MB
-    // (MAX_YAML_BYTES) while the server PUT caps a layout at 1MB, so
+    // Whole-file cap before parse. Local YAML load allows up to
+    // MAX_PLAIN_YAML_BYTES while the server PUT caps a layout at 1MB, so
     // image-heavy YAML that loads locally fails server save loudly. That
     // mismatch is intentional until storage quotas exist (#617).
-    if (blob.size > LIMITS.MAX_YAML_BYTES) {
+    if (blob.size > MAX_PLAIN_YAML_BYTES) {
       throw new Error(
-        `Layout file too large (${Math.round(blob.size / 1024 / 1024)}MB). Max size is ${Math.round(LIMITS.MAX_YAML_BYTES / 1024 / 1024)}MB.`,
+        `Layout file too large (${Math.round(blob.size / 1024 / 1024)}MB). Max size is ${Math.round(MAX_PLAIN_YAML_BYTES / 1024 / 1024)}MB.`,
       );
     }
     const yamlText = await blob.text();
