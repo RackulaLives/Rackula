@@ -418,7 +418,7 @@ npx browserstack-node-sdk playwright test
 
 Locate elements by what the user perceives (role, label, text), not by how they are styled. CSS class selectors are brittle: a styling rename silently breaks the test. Prefer, in this order:
 
-1. `getByRole()` with an accessible name, e.g. `page.getByRole("dialog", { name: "About Rackula" })`. This doubles as an accessibility check.
+1. `getByRole()` with an accessible name, e.g. `page.getByRole("dialog", { name: "Help and about" })`. This doubles as an accessibility check.
 2. `getByLabel()` / `getByText()` for form fields and visible copy.
 3. `getByTestId()` (`data-testid`) for structural anchors that have no natural role or label, e.g. the rack canvas or a toast container.
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getPaletteSearchCommands,
   noConfidentCommandMatch,
+  scorePaletteQuery,
   CONFIDENT_COMMAND_MATCH,
 } from "$lib/actions/palette-commands";
 import type { ActionEnabledContext } from "$lib/actions/registry";
@@ -65,5 +66,62 @@ describe("noConfidentCommandMatch routing bands (#2996)", () => {
   it("never treats an empty/whitespace query as a no-match (that is browse, not #2996)", () => {
     expect(noConfidentCommandMatch("", commands)).toBe(false);
     expect(noConfidentCommandMatch("   ", commands)).toBe(false);
+  });
+});
+
+// The palette's own ordering for a query: bits-ui ranks rows by this same score.
+function topCommandId(query: string, rows = commands): string | undefined {
+  return rows
+    .map((c) => ({
+      id: c.id,
+      score: scorePaletteQuery(c.label, query, c.keywords),
+    }))
+    .sort((a, b) => b.score - a.score)[0]?.id;
+}
+
+describe("help searches reach a help command (#3606)", () => {
+  it.each([
+    ["help", "show-help"],
+    ["?", "show-help"],
+    ["version", "show-help"],
+    ["github", "show-help"],
+    ["support", "show-help"],
+    ["docs", "open-documentation"],
+    ["documentation", "open-documentation"],
+    ["bug", "report-bug"],
+    ["feedback", "share-ideas"],
+    ["discussions", "share-ideas"],
+    ["report bug", "report-bug"],
+    ["keyboard shortcuts", "show-help"],
+    ["help ", "show-help"],
+    ["github ", "show-help"],
+    ["issue ", "report-bug"],
+  ])("%s suppresses the device bridge and ranks %s first", (query, id) => {
+    expect(noConfidentCommandMatch(query, commands)).toBe(false);
+    expect(topCommandId(query)).toBe(id);
+  });
+
+  it("only an exact alias counts, so a partial word keeps the device bridge", () => {
+    expect(noConfidentCommandMatch("sup", commands)).toBe(true);
+  });
+
+  it.each(["keyboard", "guide", "manual"])(
+    "%s stays a device search",
+    (query) => {
+      expect(noConfidentCommandMatch(query, commands)).toBe(true);
+    },
+  );
+
+  it.each([
+    ["share", "share"],
+    ["sh", "share"],
+    ["d", "duplicate-selection"],
+  ])("%s still prefers the existing command %s on a tie", (query, id) => {
+    const selected = getPaletteSearchCommands({
+      ...ctx,
+      hasSelection: true,
+      isDeviceSelected: true,
+    });
+    expect(topCommandId(query, selected)).toBe(id);
   });
 });

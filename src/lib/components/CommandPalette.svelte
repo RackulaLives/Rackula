@@ -12,7 +12,13 @@
 -->
 <script lang="ts">
   import { Dialog, Command } from "bits-ui";
-  import { IconSearch, IconPlus, IconChevronLeft, IconGearBold } from "./icons";
+  import {
+    IconSearch,
+    IconPlus,
+    IconChevronLeft,
+    IconGearBold,
+    IconQuestionBold,
+  } from "./icons";
   import { ICON_SIZE } from "$lib/constants/sizing";
   import { dialogStore } from "$lib/stores/dialogs.svelte";
   import { getViewportStore } from "$lib/utils/viewport.svelte";
@@ -26,6 +32,7 @@
     getPaletteSearchCommands,
     getPaletteEmptyState,
     noConfidentCommandMatch as computeNoConfidentCommandMatch,
+    scorePaletteQuery,
   } from "$lib/actions/palette-commands";
   import {
     searchPaletteDevices,
@@ -39,9 +46,14 @@
     createActionDispatch,
     type ActionDispatch,
   } from "$lib/actions/dispatch";
+  import { handleHelp } from "$lib/utils/dialog-actions";
   import { getStarterLibrary, getStarterSlugs } from "$lib/data/starterLibrary";
   import { getBrandPacks, getBrandSlugs } from "$lib/data/brandPacks";
-  import type { ActionId, ActionEnabledContext } from "$lib/actions/registry";
+  import {
+    getActionTooltip,
+    type ActionId,
+    type ActionEnabledContext,
+  } from "$lib/actions/registry";
   import type { DeviceType } from "$lib/types";
 
   const viewportStore = getViewportStore();
@@ -348,12 +360,23 @@
     resetState();
   }
 
-  // Settings gear in the input row. dialogStore is scalar (one dialog at a
-  // time), so closing the palette first would clobber the settings dialog;
-  // instead open settings directly, which replaces the palette in the store.
+  // Help and settings buttons in the input row. dialogStore is scalar (one
+  // dialog at a time), so closing the palette first would clobber the target
+  // dialog; instead open it directly, which replaces the palette in the store.
   function openSettings() {
     resetState();
     dialogStore.open("settings");
+  }
+
+  function openHelp() {
+    resetState();
+    handleHelp();
+  }
+
+  // Command.Root claims Enter to run the selected row, which would cancel the
+  // button's own activation when one of these buttons has focus.
+  function keepEnterOnButton(event: KeyboardEvent) {
+    if (event.key === "Enter") event.stopPropagation();
   }
 
   function run(id: ActionId) {
@@ -391,6 +414,7 @@
         label="Command palette"
         loop
         shouldFilter={mode !== "devices"}
+        filter={scorePaletteQuery}
         class="command-root"
       >
         <div class="command-input-row">
@@ -437,8 +461,19 @@
           />
           <button
             type="button"
-            class="command-settings"
+            class="command-action"
+            onclick={openHelp}
+            onkeydown={keepEnterOnButton}
+            aria-label={getActionTooltip("show-help")?.label}
+            data-testid="command-palette-help"
+          >
+            <IconQuestionBold size={ICON_SIZE.md} />
+          </button>
+          <button
+            type="button"
+            class="command-action"
             onclick={openSettings}
+            onkeydown={keepEnterOnButton}
             aria-label="Settings"
             data-testid="command-palette-settings"
           >
@@ -790,12 +825,12 @@
   }
 
   /* Icon buttons in the input row: the back affordance (device sub-page) and
-     the settings gear (trailing edge). Both get a 48px touch target, a
+     the help and settings buttons (trailing edge). All get a 48px touch target, a
      theme-aware muted colour, and a visible focus ring. The negative vertical
      margin keeps the row height tied to the input, not the larger touch
      target. */
   .command-back,
-  .command-settings {
+  .command-action {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -811,12 +846,12 @@
   }
 
   .command-back:hover,
-  .command-settings:hover {
+  .command-action:hover {
     color: var(--colour-text);
   }
 
   .command-back:focus-visible,
-  .command-settings:focus-visible {
+  .command-action:focus-visible {
     outline: 2px solid var(--colour-focus-ring);
     outline-offset: -2px;
   }

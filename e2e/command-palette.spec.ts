@@ -98,7 +98,50 @@ test.describe("Command palette", () => {
       page.getByRole("dialog", { name: "Command palette" }),
     ).not.toBeVisible();
     await expect(
-      page.getByRole("dialog", { name: "About Rackula" }),
+      page.getByRole("dialog", { name: "Help and about" }),
+    ).toBeVisible();
+  });
+
+  test("typing help and pressing Enter opens help, not the device bridge", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await page.getByTestId("command-palette-input").fill("help");
+    await expect(
+      page.getByTestId("command-palette-create-device"),
+    ).not.toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("dialog", { name: "Help and about" }),
+    ).toBeVisible();
+  });
+
+  test("the help button in the palette opens help", async ({ page }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await page.getByTestId("command-palette-help").click();
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "Help and about" }),
+    ).toBeVisible();
+  });
+
+  test("Enter on a focused palette button runs that button", async ({
+    page,
+  }) => {
+    await page.keyboard.press(`${PLATFORM_MODIFIER}+k`);
+    await page.getByTestId("command-palette-help").focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("dialog", { name: "Help and about" }),
+    ).toBeVisible();
+  });
+
+  test("the help button on the canvas opens help", async ({ page }) => {
+    await page.getByTestId("btn-help").click();
+    await expect(
+      page.getByRole("dialog", { name: "Help and about" }),
     ).toBeVisible();
   });
 
@@ -131,10 +174,10 @@ test.describe("Command palette", () => {
     // Open the help dialog first using the ? shortcut.
     // Shift+Slash dispatches keydown key="?" shiftKey=true, matching a real keyboard.
     await page.keyboard.press("Shift+Slash");
-    // HelpPanel passes title="About Rackula" to Dialog; Dialog.Title makes that
+    // HelpPanel passes title="Help and about" to Dialog; Dialog.Title makes that
     // the accessible name (confirmed in HelpPanel.svelte and keyboard.spec.ts).
     await expect(
-      page.getByRole("dialog", { name: "About Rackula" }),
+      page.getByRole("dialog", { name: "Help and about" }),
     ).toBeVisible({ timeout: 2000 });
 
     // Open the command palette. dialogStore is a scalar: opening "commandPalette"
@@ -144,7 +187,7 @@ test.describe("Command palette", () => {
       page.getByRole("dialog", { name: "Command palette" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("dialog", { name: "About Rackula" }),
+      page.getByRole("dialog", { name: "Help and about" }),
     ).not.toBeVisible();
   });
 
