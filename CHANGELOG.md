@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Calendar Versioning](https://calver.org/).
 
-## [26.11.1] - 2026-11-08
+## [26.11.2] - 2026-11-08
 
 ### THE LABELS WERE ALWAYS WHITE
 
@@ -39,6 +39,7 @@ OIDC login moves to better-auth 1.7 and now accepts Authentik and other issuers 
 
 - README media is captured automatically after each release, and the README uses the generated hero and rack images (PR #3609, PR #3619, PR #3620)
 - After a release, CI closes main image scan alerts and summarises release scan findings (#3285, PR #3545)
+- The LXC smoke gate fetches install.func from community-scripts/core, which replaced the ProxmoxVE misc/ engine files. v26.11.1 was tagged but not released because the gate hit the old 404 (PR #3634)
 - Dependency updates across wrangler, vitest, eslint, zod, jose, hono, happy-dom, undici, dompurify, bits-ui, @lucide/svelte, marked, svg2pdf.js and GitHub Actions (48 PRs, PR #3546 through PR #3628)
 
 ## [26.10.1] - 2026-10-12
