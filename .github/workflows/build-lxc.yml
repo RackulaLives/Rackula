@@ -120,6 +120,11 @@ jobs:
           # Frontend build output
           cp -r dist/* "${TARBALL_DIR}/frontend/"
 
+          # The LXC always runs the API beside the frontend, so ship server storage
+          # mode. dist/config.js is the browser-mode default from static/, and the
+          # upstream install and update scripts deploy this file unchanged (#2060).
+          printf 'window.__RACKULA_CONFIG__ = { storage: "server" };\n' >"${TARBALL_DIR}/frontend/config.js"
+
           # API source + production deps (Bun runs TS natively)
           cp -r api/src "${TARBALL_DIR}/api/src"
           cp -r api/node_modules "${TARBALL_DIR}/api/node_modules"

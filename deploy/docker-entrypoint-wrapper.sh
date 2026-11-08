@@ -81,8 +81,8 @@ export RACKULA_IPV6_LISTEN
 # Written to tmpfs (not the read-only html root) and served via an exact
 # nginx location alias, which overrides the browser-mode default the build
 # ships in the html root.
-# CROSS-REF: keep in sync with static/config.js and the LXC writers in
-# deploy/lxc/community-scripts/{install/rackula-install.sh,ct/rackula.sh}.
+# CROSS-REF: keep in sync with static/config.js and the LXC writer in
+# .github/workflows/build-lxc.yml.
 raw_storage_mode="${RACKULA_STORAGE_MODE:-browser}"
 storage_mode="$(printf '%s' "$raw_storage_mode" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
 
