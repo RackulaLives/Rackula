@@ -7,7 +7,7 @@
       "dependencies": {
         "@node-rs/argon2": "^2.2.2",
         "better-auth": "~1.7.18",
-        "hono": "^4.13.16",
+        "hono": "^4.13.17",
         "jose": "^6.2.15",
         "js-yaml": "^4.3.2",
         "pino": "^10.4.0",
@@ -385,7 +385,7 @@
 
     "help-me": ["help-me@5.0.0", "", {}, "sha512-7xgomUX6ADmcYzFik0HzAxh/73YlKR9bmFzf51CZwR+b6YtzU2m0u49hQCqV6SvlqIqsaxovfwdvbnsw3b/zpg=="],
 
-    "hono": ["hono@4.13.16", "", {}, "sha512-AOLOEhvrV+iH92xXCnFr/5+3KjPKcI3xP63XJtX5spAnkznPdHijlIsUTpi7/9EhWqrTCekw5c5zh1K+YsVw7A=="],
+    "hono": ["hono@4.13.17", "", {}, "sha512-vZIcbkvjOR5hHRWERbGkr8fGfF0GGM1ooYkuH448iO3b2AdVEr3AXZSw4Z3Kn+1L5z0CVoVeyV29VGYmFh05kQ=="],
 
     "jose": ["jose@6.2.15", "", {}, "sha512-qdF6ewcZARtef63fJ9AKKZPgxw+t7USH6HLXYcD4CrdmSvDp79rpJSPFEKc90QBeGS63u1KQtN2MZQHC0yDIzA=="],
 
