@@ -82,8 +82,8 @@
     ]
   },
   "dependencies": {
-    "@lucide/svelte": "^1.67.0",
-    "bits-ui": "^2.20.4",
+    "@lucide/svelte": "^1.70.0",
+    "bits-ui": "^2.20.6",
     "browser-fs-access": "^0.38.0",
     "debug": "^4.4.3",
     "dompurify": "^3.4.17",
@@ -97,7 +97,7 @@
     "pako": "^3.0.3",
     "panzoom": "^9.4.4",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.36.0",
+    "simple-icons": "^16.37.0",
     "svg2pdf.js": "^2.9.0",
     "zod": "^4.6.7"
   },
