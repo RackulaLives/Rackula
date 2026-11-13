@@ -33,7 +33,7 @@ Cutting a release (use the `/release` skill, which computes the CalVer version, 
 
 ## Consumer fetch path
 
-LXC installs fetch the tarball from the release asset, not from a build artifact. Both `deploy/lxc/community-scripts/install/rackula-install.sh` and the `ct/rackula.sh` update flow call `fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"`, which resolves the matching asset on the latest (promoted) GitHub release. Because each release publishes `rackula-lxc-<tag>.tar.gz.sha256` alongside the tarball, the fetch helper can verify the download against the published checksum before deploying.
+LXC installs fetch the tarball from the release asset, not from a build artifact. Both upstream's `install/rackula-install.sh` and the `ct/rackula.sh` update flow (in `community-scripts/ProxmoxVE`) call `fetch_and_deploy_gh_release "rackula" "RackulaLives/Rackula" "prebuild" "latest" "/opt/rackula" "rackula-lxc-*.tar.gz"`, which resolves the matching asset on the latest (promoted) GitHub release. Because each release publishes `rackula-lxc-<tag>.tar.gz.sha256` alongside the tarball, the fetch helper can verify the download against the published checksum before deploying.
 
 ## The prerelease window
 
