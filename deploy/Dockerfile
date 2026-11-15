@@ -30,7 +30,7 @@ RUN npm run build
 FROM nginxinc/nginx-unprivileged:alpine
 # Patch system packages to resolve known CVEs (e.g. libpng, libxml2 CVE-2026-6732,
 # libssl3/libcrypto3 CVE-2026-45447, libexpat CVE-2026-45186 + CVE-2026-93990 + CVE-2026-117610
-# + CVE-2026-118370, c-ares CVE-2026-33630).
+# + CVE-2026-118370, libxslt CVE-2026-125350 + CVE-2026-87636 + CVE-2026-9947, c-ares CVE-2026-33630).
 # APK_CACHEBUST is fed a per-build value (release version / date) so this layer's
 # buildcache is invalidated each build and apk upgrade re-fetches current Alpine
 # secfixes instead of reusing a stale cached layer. Packages are pinned explicitly so
@@ -40,7 +40,7 @@ ARG APK_CACHEBUST=0
 USER root
 RUN echo "apk-cachebust=${APK_CACHEBUST}" && \
     apk upgrade --no-cache && \
-    apk add --no-cache --upgrade "libssl3>=3.5.7-r0" "libcrypto3>=3.5.7-r0" "libexpat>=2.10.0-r0" "c-ares>=1.34.8-r0"
+    apk add --no-cache --upgrade "libssl3>=3.5.7-r0" "libcrypto3>=3.5.7-r0" "libexpat>=2.10.0-r0" "libxslt>=1.1.43-r4" "c-ares>=1.34.8-r0"
 USER nginx
 
 # OCI labels
