@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   assetUrl,
   deviceKeyForWire,
+  deviceTypeKeyForWire,
   putAsset,
   getAssetBlob,
   deleteAsset,
@@ -112,6 +113,30 @@ describe("server DeviceSlugSchema agreement", () => {
     const key = placementKey(LAYOUT_ID, crypto.randomUUID());
     const wire = deviceKeyForWire(key);
     expect(SERVER_DEVICE_SLUG.test(wire)).toBe(true);
+  });
+
+  it("the wire key produced from a device-type slug passes the server validator", () => {
+    const wire = deviceTypeKeyForWire("cyberpower-cp1500pfcrm2u");
+    expect(SERVER_DEVICE_SLUG.test(wire)).toBe(true);
+  });
+});
+
+describe("deviceTypeKeyForWire", () => {
+  it("returns a custom device-type slug unchanged", () => {
+    expect(deviceTypeKeyForWire("server-1u")).toBe("server-1u");
+  });
+
+  it.each(["../etc", "a/b", "a\\b", "Server-1U", "a:b", "", "-lead"])(
+    "rejects %j, which the server slug validator would refuse",
+    (slug) => {
+      expect(() => deviceTypeKeyForWire(slug)).toThrow(PersistenceError);
+    },
+  );
+
+  it("rejects a UUID-shaped slug, which would collide with a placed device's folder", () => {
+    expect(() => deviceTypeKeyForWire(crypto.randomUUID())).toThrow(
+      PersistenceError,
+    );
   });
 });
 
@@ -330,6 +355,48 @@ describe("asset transport wrappers", () => {
     );
     expect(assets).toContainEqual(
       expect.objectContaining({ deviceSlug: DEVICE_ID, face: "rear" }),
+    );
+  });
+
+  it("listAssets accepts a device-type slug folder alongside placed-device UUIDs", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            assets: [
+              { deviceSlug: DEVICE_ID, face: "front", ext: "png", size: 12 },
+              { deviceSlug: "server-1u", face: "rear", ext: "png", size: 34 },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    const assets = await listAssets(LAYOUT_ID);
+    expect(assets).toContainEqual(
+      expect.objectContaining({ deviceSlug: "server-1u", face: "rear" }),
+    );
+  });
+
+  it("listAssets rejects a listing entry carrying path characters", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            assets: [
+              { deviceSlug: "../x", face: "front", ext: "png", size: 12 },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    await expect(listAssets(LAYOUT_ID)).rejects.toBeInstanceOf(
+      PersistenceError,
     );
   });
 

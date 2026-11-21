@@ -176,19 +176,23 @@ export async function loadWorkingCopyServerImages(
         .flatMap((rack) => rack.devices)
         .map((device) => [placementKey(layoutId, device.id), device]),
     );
+    // A custom device-type face (keyed by slug) applies while its type is still
+    // in the layout; it has no per-face reference to check.
+    const currentTypeSlugs = new Set(current.device_types.map((dt) => dt.slug));
     const imageStore = getImageStore();
     for (const [key, deviceImages] of images) {
       const device = currentDevices.get(key);
+      const isCurrentType = currentTypeSlugs.has(key);
       if (
         deviceImages.front &&
-        device?.front_image &&
+        (device?.front_image || isCurrentType) &&
         !imageStore.hasImage(key, "front")
       ) {
         imageStore.setDeviceImage(key, "front", deviceImages.front);
       }
       if (
         deviceImages.rear &&
-        device?.rear_image &&
+        (device?.rear_image || isCurrentType) &&
         !imageStore.hasImage(key, "rear")
       ) {
         imageStore.setDeviceImage(key, "rear", deviceImages.rear);

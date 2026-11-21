@@ -7,6 +7,7 @@ import {
 } from "$lib/storage/pre-carrier-migration-pending";
 import {
   createTestDevice,
+  createTestDeviceType,
   createTestLayout,
   createTestRack,
 } from "./factories";
@@ -511,38 +512,40 @@ describe("saveLayoutToServer asset reconcile (server mode)", () => {
     expect(yamlBodyOf(calls)).not.toContain("data:image/png;base64");
   });
 
-  it("keeps a slug-keyed device-type image embedded and never aborts the save", async () => {
+  it("writes a custom device-type image to disk under its slug and drops the embed", async () => {
     // Custom device-type images are keyed by the bare device-type slug (e.g.
-    // "server-1u"), not a placement key. They must not be routed to the asset
-    // API (deviceKeyForWire would throw on a non-placement key and abort the
-    // whole save); they stay embedded in the YAML.
+    // "server-1u"). They are the images a user attaches when creating a custom
+    // device, so they must reach disk too or the YAML outgrows the 1MB cap.
     const { fetchMock, calls } = makeRoutedFetch();
     vi.stubGlobal("fetch", fetchMock);
 
     await saveLayoutToServer(
-      createTestLayout({ metadata: { id: SERVER_UUID } }),
+      createTestLayout({
+        metadata: { id: SERVER_UUID },
+        device_types: [createTestDeviceType("server-1u")],
+      }),
       imageMap([["server-1u", userFace()]]),
       null,
     );
 
-    // No asset PUT for a slug-keyed image.
     const assetPut = calls.find(
-      (c) => c.method === "PUT" && c.url.includes(`/assets/${SERVER_UUID}/`),
+      (c) =>
+        c.method === "PUT" &&
+        c.url.endsWith(`/assets/${SERVER_UUID}/server-1u/front`),
     );
-    expect(assetPut).toBeUndefined();
-    // The slug-keyed image stays embedded in the YAML.
-    expect(yamlBodyOf(calls)).toContain("data:image/png;base64");
+    expect(assetPut).toBeDefined();
+    expect(yamlBodyOf(calls)).not.toContain("data:image/png;base64");
   });
 
-  it("routes a placement-keyed image to disk while keeping a slug-keyed image embedded", async () => {
+  it("routes placement-keyed and device-type images to disk in one save", async () => {
     const { fetchMock, calls } = makeRoutedFetch();
     vi.stubGlobal("fetch", fetchMock);
 
-    // Distinct payloads (PNG for the placement, JPEG for the slug) so the body
-    // assertions can prove WHICH image's bytes survive: the placement PNG must
-    // be dropped (on disk), the slug JPEG must remain embedded.
     await saveLayoutToServer(
-      createTestLayout({ metadata: { id: SERVER_UUID } }),
+      createTestLayout({
+        metadata: { id: SERVER_UUID },
+        device_types: [createTestDeviceType("server-1u")],
+      }),
       imageMap([
         [PLACEMENT_KEY, userFace()],
         ["server-1u", jpegFace()],
@@ -550,16 +553,97 @@ describe("saveLayoutToServer asset reconcile (server mode)", () => {
       null,
     );
 
-    // Placement PNG goes to disk.
-    const assetPut = calls.find(
-      (c) =>
-        c.method === "PUT" &&
-        c.url.endsWith(`/assets/${SERVER_UUID}/${DEVICE_ID}/front`),
+    const putUrls = calls
+      .filter((c) => c.method === "PUT" && c.url.includes("/assets/"))
+      .map((c) => c.url);
+    expect(putUrls).toContainEqual(
+      expect.stringMatching(`/assets/${SERVER_UUID}/${DEVICE_ID}/front$`),
     );
-    expect(assetPut).toBeDefined();
-    // The slug JPEG stays embedded; the placement PNG's base64 is gone.
+    expect(putUrls).toContainEqual(
+      expect.stringMatching(`/assets/${SERVER_UUID}/server-1u/front$`),
+    );
     const body = yamlBodyOf(calls);
-    expect(body).toContain(JPEG_DATA_URL);
     expect(body).not.toContain(PNG_DATA_URL);
+    expect(body).not.toContain(JPEG_DATA_URL);
+  });
+
+  it.each([
+    ["is not a device type in this layout", "server-1u", []],
+    [
+      "is UUID-shaped, so it would collide with a placed device's folder",
+      DEVICE_ID,
+      [DEVICE_ID],
+    ],
+  ])(
+    "keeps a slug-keyed image embedded and never aborts the save when the slug %s",
+    async (_why, slug, typeSlugs) => {
+      const { fetchMock, calls } = makeRoutedFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      await saveLayoutToServer(
+        createTestLayout({
+          metadata: { id: SERVER_UUID },
+          device_types: typeSlugs.map((s) => createTestDeviceType(s)),
+        }),
+        imageMap([[slug, userFace()]]),
+        null,
+      );
+
+      const assetPut = calls.find(
+        (c) => c.method === "PUT" && c.url.includes(`/assets/${SERVER_UUID}/`),
+      );
+      expect(assetPut).toBeUndefined();
+      expect(yamlBodyOf(calls)).toContain("data:image/png;base64");
+    },
+  );
+
+  // #3404 for device types: an on-disk device-type face whose type is still in
+  // the layout but whose image is not in memory (its eager fetch failed) is not
+  // an orphan. Deleting it would destroy the only copy.
+  it("keeps an on-disk device-type face whose type is still in the layout but not loaded", async () => {
+    const { fetchMock, calls } = makeRoutedFetch({
+      listing: [
+        { deviceSlug: "server-1u", face: "front", ext: "png", size: 16 },
+      ],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveLayoutToServer(
+      createTestLayout({
+        metadata: { id: SERVER_UUID },
+        device_types: [createTestDeviceType("server-1u")],
+      }),
+      imageMap([]),
+      null,
+    );
+
+    const assetWrites = calls.filter(
+      (c) =>
+        (c.method === "DELETE" || c.method === "PUT") &&
+        c.url.includes(`/assets/${SERVER_UUID}/`),
+    );
+    expect(assetWrites).toEqual([]);
+  });
+
+  it("deletes an on-disk device-type face once its type has left the layout", async () => {
+    const { fetchMock, calls } = makeRoutedFetch({
+      listing: [
+        { deviceSlug: "server-1u", face: "front", ext: "png", size: 16 },
+      ],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveLayoutToServer(
+      createTestLayout({ metadata: { id: SERVER_UUID } }),
+      imageMap([]),
+      null,
+    );
+
+    const deleted = calls
+      .filter((c) => c.method === "DELETE")
+      .map((c) => c.url);
+    expect(deleted).toEqual([
+      expect.stringMatching(`/assets/${SERVER_UUID}/server-1u/front$`),
+    ]);
   });
 });

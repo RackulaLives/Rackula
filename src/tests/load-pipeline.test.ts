@@ -293,6 +293,25 @@ describe("load-pipeline", () => {
       );
     });
 
+    it("puts fetched custom device-type faces into the image store", async () => {
+      const front = { dataUrl: "data:image/png;base64,AA==", filename: "f" };
+      vi.mocked(eagerFetchServerImages).mockResolvedValue({
+        images: new Map([["test-device", { front }]]),
+        failedImagesCount: 0,
+        failedKeys: [],
+      });
+      const layout = layoutWithImage();
+      layoutStore.loadLayout(layout);
+
+      await loadWorkingCopyServerImages(layout);
+
+      expect(mockImageStore.setDeviceImage).toHaveBeenCalledWith(
+        "test-device",
+        "front",
+        front,
+      );
+    });
+
     it("names the device and face when a face fails to fetch", async () => {
       vi.mocked(eagerFetchServerImages).mockResolvedValue({
         images: new Map(),

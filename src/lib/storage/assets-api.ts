@@ -5,14 +5,13 @@
  *   PUT/GET/DELETE /assets/:layoutId/:deviceId/:face
  *   GET            /assets/:layoutId            (listing, for the save reconcile)
  *
- * The `:deviceId` path segment is ALWAYS the placed-device instance UUID (the
- * `deviceId` portion of a placement key), never the device-type slug and never
- * the full colon-namespaced placement key. `deviceKeyForWire` enforces this:
- * it extracts the device id and asserts it is a bare lowercase UUID with no
- * colon and no path characters, so a malformed key can never widen the
- * server's path-traversal surface. The server `DeviceSlugSchema`
- * (`api/src/storage/assets.ts`) is the backstop; a bare lowercase UUID passes
- * it unchanged.
+ * The `:deviceId` path segment is either the placed-device instance UUID (the
+ * `deviceId` portion of a placement key) or, for a custom device-type image, the
+ * device-type slug; never the full colon-namespaced placement key.
+ * `deviceKeyForWire` and `deviceTypeKeyForWire` enforce this: each asserts the
+ * segment has no colon and no path characters, so a malformed key can never
+ * widen the server's path-traversal surface. The server `DeviceSlugSchema`
+ * (`api/src/storage/assets.ts`) is the backstop; both shapes pass it unchanged.
  *
  * Server-mode only. No save/load wiring lives here; the Save (#2530) and Load
  * (#2531) layers build on these helpers.
@@ -73,13 +72,52 @@ export function deviceKeyForWire(placementKey: string): string {
 }
 
 /**
+ * The server `DeviceSlugSchema` pattern (`api/src/storage/asset-validation.ts`):
+ * lowercase alphanumerics with inner hyphens/underscores, so it forbids colons,
+ * dots, slashes, and backslashes by construction.
+ */
+const SERVER_DEVICE_SLUG = /^[a-z0-9][a-z0-9_-]*[a-z0-9]$|^[a-z0-9]$/;
+const SERVER_DEVICE_SLUG_MAX = 200;
+
+/** True when the server would accept `segment` as an asset folder name. */
+function isServerDeviceSlug(segment: string): boolean {
+  return (
+    segment.length <= SERVER_DEVICE_SLUG_MAX && SERVER_DEVICE_SLUG.test(segment)
+  );
+}
+
+/** True for an asset folder that holds a placed device's faces. */
+export function isPlacedDeviceAssetSlug(deviceSlug: string): boolean {
+  return BARE_UUID.test(deviceSlug);
+}
+
+/**
+ * Resolve the wire-safe `:deviceId` path segment for a custom device-type image,
+ * which the image store keys by the bare device-type slug.
+ *
+ * Device-type faces share the layout's assets folder with placed-device faces,
+ * so the slug must pass the server slug validator and must not be UUID-shaped:
+ * a UUID-shaped slug would be indistinguishable from a placed device's folder.
+ * Throws a {@link PersistenceError} otherwise; callers keep such an image
+ * embedded rather than failing the save.
+ */
+export function deviceTypeKeyForWire(slug: string): string {
+  if (!isServerDeviceSlug(slug) || isPlacedDeviceAssetSlug(slug)) {
+    throw new PersistenceError(
+      `Unsafe asset device-type key: "${slug}" is not a wire-safe slug`,
+    );
+  }
+  return slug;
+}
+
+/**
  * Listing entry from `GET /assets/:layoutId` (route added in the Save issue).
- * `deviceSlug` is constrained to the same bare lowercase UUID as the wire path
- * segment, so malformed server data (a colon, a path char, an unexpected
- * device-type slug) is rejected before it reaches the save reconcile.
+ * `deviceSlug` is a placed-device UUID or a custom device-type slug, constrained
+ * to the server slug pattern, so malformed server data (a colon, a path char) is
+ * rejected before it reaches the save reconcile.
  */
 const AssetListItemSchema = z.object({
-  deviceSlug: z.string().regex(BARE_UUID),
+  deviceSlug: z.string().refine(isServerDeviceSlug),
   face: z.enum(["front", "rear"]),
   ext: z.string().min(1),
   size: z.number().int().nonnegative(),
@@ -90,8 +128,8 @@ const AssetListResponseSchema = z.object({
 });
 
 /**
- * One on-disk asset face for a placed device, as returned by `listAssets`.
- * `deviceSlug` is the placed-device instance UUID; `face` is the physical face;
+ * One on-disk asset face, as returned by `listAssets`. `deviceSlug` is the
+ * placed-device instance UUID or a custom device-type slug; `face` is the physical face;
  * `ext` is the stored file extension; `size` is the byte length on disk. The
  * save reconcile set-diffs these against the layout's current custom faces.
  */
