@@ -1,0 +1,57 @@
+name: LXC Nightly Smoke
+
+# Builds the LXC tarball from main and runs scripts/lxc-smoke-test.sh against it with
+# upstream's live install and update scripts (community-scripts/ProxmoxVE) and engine
+# (community-scripts/core). The release gate runs the same test, but only on release day;
+# this catches an upstream change, or a main change that breaks the LXC, first.
+#
+# Deploy mode only, like the release gate. Upgrade mode installs the latest published
+# release first, so switch to --mode both once a release with the server-mode config.js
+# in its tarball has shipped (#2060).
+on:
+  schedule:
+    # Daily at 10:23 UTC, outside the other scheduled jobs.
+    - cron: "23 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lxc-nightly
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build LXC tarball (main)
+    uses: ./.github/workflows/build-lxc-dev.yml
+    with:
+      version: nightly-${{ github.run_id }}
+
+  smoke:
+    name: LXC smoke test
+    needs: build
+    # This job loads the runner's Proxmox credentials, so only main's script runs here.
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, lxc-gate]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/lxc-smoke-test.sh
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: lxc-tarball-nightly-${{ github.run_id }}
+
+      - name: Verify checksum
+        run: sha256sum -c rackula-lxc-nightly-*.tar.gz.sha256
+
+      - name: LXC smoke test
+        run: |
+          # Load the scoped Proxmox token + CT settings from the runner-local env.
+          set -a; . /opt/github-runner/proxmox-smoke.env; set +a
+          bash scripts/lxc-smoke-test.sh --driver api --tarball rackula-lxc-nightly-*.tar.gz --mode deploy
