@@ -47,6 +47,7 @@ import { intelDevices } from "./intel";
 import { beelinkDevices } from "./beelink";
 import { raspberryPiDevices } from "./raspberry-pi";
 import { zimaDevices } from "./zima";
+import { ibmDevices } from "./ibm";
 
 /**
  * Brand section data structure
@@ -141,6 +142,7 @@ const BRAND_PACK_REGISTRY: ReadonlyArray<
   },
   { id: "hpe", title: "HPE", devices: hpeDevices, icon: "hp" },
   { id: "lenovo", title: "Lenovo", devices: lenovoDevices, icon: "lenovo" },
+  { id: "ibm", title: "IBM", devices: ibmDevices, icon: "ibm" },
   { id: "apple", title: "Apple", devices: appleDevices, icon: "apple" },
   // AV/Media
   {

@@ -33,6 +33,7 @@
     fsPath,
     beelinkPath,
     zimaPath,
+    ibmPath,
   } from "./customBrandIcons";
 
   interface Props {
@@ -72,6 +73,7 @@
     fs: { path: fsPath, hex: "E31837" },
     beelink: { path: beelinkPath, hex: "FFFFFF" },
     zima: { path: zimaPath, hex: "FFFFFF" },
+    ibm: { path: ibmPath, hex: "FFFFFF" },
   };
 
   const icon = $derived(slug ? iconMap[slug] : undefined);
