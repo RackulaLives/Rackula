@@ -33,3 +33,7 @@ export const beelinkPath =
 
 // Zima - simplified "Z" monogram for brand section icon
 export const zimaPath = "M5 3 H19 V7 L11 17 H19 V21 H5 V17 L13 7 H5 Z";
+
+// IBM - plain block-letter "IBM" monogram (not the striped 8-bar trademark logo)
+export const ibmPath =
+  "M1.5 7h3v10h-3z M7 7h2.5v10H7z M7 7h6v2H7z M7 11h6v2H7z M7 15h6v2H7z M12 8h2v3.5h-2z M12 12.5h2v3.5h-2z M16 7h2.5v10H16z M20.5 7H23v10h-2.5z M18 7L19.5 12L21 7L21 10.5L19.5 15L18 10.5Z";
