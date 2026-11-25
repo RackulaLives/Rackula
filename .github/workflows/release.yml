@@ -314,11 +314,10 @@ jobs:
         with:
           ref: ${{ needs.validate.outputs.tag }}
           persist-credentials: false
-          # The script runs the canonical install/update scripts, so the checkout must
-          # include deploy/lxc/community-scripts/ alongside the script itself.
+          # The script fetches upstream's install and update scripts itself, so it
+          # is the only file the gate needs from the checkout.
           sparse-checkout: |
             scripts/lxc-smoke-test.sh
-            deploy/lxc/community-scripts
           sparse-checkout-cone-mode: false
 
       - name: Download staged tarball and verify checksum
